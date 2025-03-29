@@ -14,8 +14,8 @@ source_group(TREE "${PROJECT_SOURCE_DIR}/include" PREFIX "Header Files" FILES ${
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Source Files" FILES ${APRIL_SOURCES})
 
 # Create the static/shared library
-add_library(APRIL STATIC ${APRIL_SOURCES} ${APRIL_HEADERS})
+add_library(April STATIC ${APRIL_SOURCES} ${APRIL_HEADERS})
 
-target_include_directories(APRIL PUBLIC
+target_include_directories(April PUBLIC
     ${PROJECT_SOURCE_DIR}/include
 )

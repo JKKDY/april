@@ -43,3 +43,7 @@
 
 # Doxy Documentation
 /*doxys_documentation*/
+
+
+# user specifics
+CMakeSettings.json

@@ -8,6 +8,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(unordered_dense)
 
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG v1.15.2
+)
+FetchContent_MakeAvailable(unordered_dense spdlog)
+
 # GLOB_RECURSE sources from src/
 file(GLOB_RECURSE APRIL_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -32,4 +39,9 @@ target_include_directories(April PUBLIC
 )
 
 # Link unordered_dense (included via FetchContent)
-target_link_libraries(April PUBLIC unordered_dense::unordered_dense)
+target_link_libraries(
+    April 
+  PUBLIC 
+    unordered_dense::unordered_dense
+    spdlog::spdlog
+)

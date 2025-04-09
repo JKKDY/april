@@ -34,6 +34,7 @@
 # IDE Stuff
 .idea/
 .vscode/
+.vs/
 
 # Build folders.
 # This rule ignores any folder in the project root that contains "build"

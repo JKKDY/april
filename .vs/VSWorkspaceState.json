@@ -1,14 +1,5 @@
 {
   "DevContainersInfoBarHidden": true,
-  "ExpandedNodes": [
-    "",
-    "\\build\\CMakeFiles",
-    "\\build\\CMakeFiles\\4.0.0-rc2",
-    "\\build\\CMakeFiles\\4.0.0-rc2\\CompilerIdC",
-    "\\src"
-  ],
-  "SelectedNode": "\\src\\april.cpp",
-  "PreviewInSolutionExplorer": false,
   "ActiveTargetSystem": "Local Machine",
   "OutputFoldersPerTargetSystem": {
     "Local Machine": [
@@ -41,5 +32,19 @@
       "out\\build\\WSL-GCC-Release",
       "out\\install\\WSL-GCC-Release"
     ]
-  }
+  },
+  "ExpandedNodes": [
+    "",
+    "\\include",
+    "\\include\\april",
+    "\\include\\april\\containers",
+    "\\include\\april\\controllers",
+    "\\include\\april\\Core",
+    "\\include\\april\\io",
+    "\\src",
+    "\\src\\effects",
+    "\\src\\env"
+  ],
+  "SelectedNode": "\\include\\april\\env\\interaction.h",
+  "PreviewInSolutionExplorer": false
 }

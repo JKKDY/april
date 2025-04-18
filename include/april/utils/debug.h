@@ -1,25 +1,27 @@
 #pragma once
 
-#ifdef DEBUG
+#ifndef NDEBUG
 
-#define ASSERT(Expr, Msg) md_Assert_(#Expr, (Expr), __FILE__, __LINE__, (Msg))
 #include <iostream>
 #include <stdexcept>
 
+#define AP_ASSERT(Expr, Msg) april::utils::debug::assert(#Expr, (Expr), __FILE__, __LINE__, (Msg))
 
-static void md_Assert_(const char* expr_str, const bool expr, const char* file, const int line, const char* msg)
-{
-    if (!expr) {
-        std::cerr << "Assert failed:\t" << msg << "\n"
-                << "Expected:\t" << expr_str << "\n"
-                << "Source:\t\t" << file << ", line " << line << "\n";
-        throw std::runtime_error(nullptr);
-    }
-}
+namespace april::utils::debug {
+
+        [[noreturn]] inline void assert(const char* expr_str, bool expr, const char* file, int line, const char* msg) {
+            if (!expr) {
+                std::cerr << "Assert failed:\t" << msg << "\n"
+                    << "Expected:\t" << expr_str << "\n"
+                    << "Source:\t\t" << file << ", line " << line << "\n";
+                throw std::runtime_error(msg);
+            }
+        }
+
+} // namespace april::utils::debug
 
 #else
 
-#define ASSERT(Expr, Msg)
-#define W_ASSERT(Expr, Msg)
+#define AP_ASSERT(Expr, Msg)
 
 #endif

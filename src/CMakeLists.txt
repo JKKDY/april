@@ -1,5 +1,7 @@
 include(FetchContent)
 
+set(CMAKE_CXX_STANDARD 23)
+
 # Download and add unordered_dense (Martin Ankerl's flat hash map)
 FetchContent_Declare(
     unordered_dense 

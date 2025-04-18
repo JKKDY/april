@@ -1,5 +1,9 @@
 #pragma once
 #include <functional>
+#include <variant>
+
+
+#include <ankerl/unordered_dense.h>
 
 #include "april/env/particle.h"
 #include "common.h"
@@ -7,127 +11,111 @@
 
 namespace april::env {
 
-    using ForceType = std::variant<LennardJones, InverseSquare, Harmonic>;
+    // Base functor for force calculations
+    struct Force {
+        virtual ~Force() = default;
 
-    struct ForceBase {
-        double cutoff = 0;
+        // Main functor interface: computes force between p1 and p2
+        virtual vec3 operator()(const Particle& p1, const Particle& p2, const vec3& r) const = 0;
+
+        double cutoff_radius = -1;  // Negative value means no cutoff
     };
 
-    /**
-     * @brief Represents the Lennard-Jones force between two particles.
-     */
-    struct LennardJones : ForceBase {
-        /**
-         * @brief Default constructor.
-         */
-        LennardJones() = default;
-
-        /**
-         * @brief Constructs a Lennard-Jones object with parameters.
-         * @param epsilon The lennard-jones epsilon.
-         * @param sigma The lennard-jones sigma.
-         * @param cutoff The cutoff-radius.
-         */
-        LennardJones(const double epsilon, const double sigma, const double cutoff)
-            : ForceBase(sigma <= 0 ? cutoff = 3 * sigma), epsilon(epsilon), sigma(sigma) {
-        }
-
-        double epsilon;
-        double sigma;
+    struct NoForce : Force {
+        virtual vec3 operator()(const Particle&, const Particle&, const vec3&) const override {
+            return vec3{0.0, 0.0, 0.0};
+        };
     };
 
-    /**
-     * @brief Represents an inverse-square force between two particles.
-     */
-    struct InverseSquare : ForceBase {
-        /**
-         * @brief Default constructor.
-         */
-        InverseSquare() = default;
-
-        /**
-         * @brief Constructs an inverse-square force object with parameters.
-         * @param pre_factor The pre-factor of inverse square force.
-         * @param cutoff The cutoff-radius.
-         */
-        InverseSquare(const double pre_factor=1, const double cutoff)
-            : ForceBase(cutoff), pre_factor(pre_factor) {
+    // Lennard-Jones potential (12-6)
+    struct LennardJones : Force {
+        LennardJones(double epsilon, double sigma, double cutoff = -1) 
+            : epsilon(epsilon), sigma(sigma) {
+            cutoff_radius = (cutoff < 0) ? 3.0 * sigma : cutoff;
         }
 
-        double pre_factor;
+        vec3 operator()(const Particle& p1, const Particle& p2, const vec3& r) const override {
+            const double r2 = r.norm_squared();
+            if (cutoff_radius > 0 && r2 > cutoff_radius * cutoff_radius) {
+                return vec3{0.0, 0.0, 0.0};
+            }
+
+            const double inv_r2 = 1.0 / r2;
+            const double sigma_r2 = sigma * sigma * inv_r2;
+            const double sigma_r6 = sigma_r2 * sigma_r2 * sigma_r2;
+            const double sigma_r12 = sigma_r6 * sigma_r6;
+            const double magnitude = 24.0 * epsilon * inv_r2 * (2.0 * sigma_r12 - sigma_r6);
+
+            return magnitude * r;  // Force vector
+        }
+
+        double epsilon;  // Depth of the potential well
+        double sigma;    // Distance at which potential is zero
     };
 
-
-    struct Harmonic : ForceBase {
-        Harmonic() = default;
-
-        /**
-        * @brief Harmonic force for membrane.
-        */
-        Harmonic(const double k, const double r0, const double cutoff)
-            : ForceBase(cutoff), k(k), r0(r0) {
+    // Inverse-square law (e.g., gravity, Coulomb)
+    struct InverseSquare : Force {
+        InverseSquare(double pre_factor = 1.0, double cutoff = -1) 
+            : pre_factor(pre_factor) {
+            cutoff_radius = cutoff;
         }
 
-        double k;
-        double r0;
+        vec3 operator()(const Particle& p1, const Particle& p2, const vec3& r) const override {
+            const double distance = r.norm();
+            if (cutoff_radius > 0 && distance > cutoff_radius) {
+                return vec3{0.0, 0.0, 0.0};
+            }
+
+            const double magnitude = pre_factor * p1.mass * p2.mass / (distance * distance * distance);
+            return -magnitude * r;  // Attractive force
+        }
+
+        double pre_factor;  // G or k constant
+    };
+
+    // Harmonic spring force (Hooke's law)
+    struct Harmonic : Force {
+        Harmonic(double k, double r0) : k(k), r0(r0) {}
+
+        vec3 operator()(const Particle& p1, const Particle& p2, const vec3& r) const override {
+            const double distance = r.norm();
+            const double magnitude = k * (distance - r0) / distance;
+            return -magnitude * r;  // Restoring force
+        }
+
+        double k;   // Spring constant
+        double r0;  // Equilibrium distance
+    };
+
+    template <typename T> concept IsForce = std::is_base_of_v<Force, T>;
+
+    struct Interaction {
+        bool pair_contains_types;
+        std::pair<int, int> id_or_type_pair;
+        std::unique_ptr<Force> f;
     };
 
     namespace impl {
 
-        class Force {
-        public:
-            using ForceFunc = std::function<vec3(const vec3&, const Particle&, const Particle&)>;
-
-            Force();
-
-            explicit Force(ForceFunc force_func, double cutoff = NO_FORCE_CUTOFF);
-            vec3 operator()(const vec3& diff, const Particle& p1, const Particle& p2) const;
-
-            double cutoff() const;
-
-        private:
-            double cutoff_radius;   ///< The cutoff radius for the calculations.
-            ForceFunc force_func{}; ///< The force function used for the calculations.
-        };
-
 
         class InteractionManager {
-            using ParticleType = unsigned int;
-            using ParticleID = unsigned int;
-            using ParticleTypePair = std::pair<ParticleType, ParticleType>;
-            using ParticleIDPair = std::pair<ParticleID, ParticleID>;
-            using GlobalForces = ankerl::unordered_dense::map<ParticleTypePair, Force, ForceKeyHash>;
-            using LocalizedForces = ankerl::unordered_dense::map<ParticleIDPair, Force, ForceKeyHash>;
-
-
-            struct ForceKeyHash {
-                template <typename T1, typename T2>
-                std::size_t operator()(const std::pair<T1, T2>& key) const {
-                    return std::hash<T1>()(key.first) ^ (std::hash<T2>()(key.second) << 1);
-                }
-            };
+            
+            using ForcePtr = std::unique_ptr<Force>;
+			using Forces = std::vector<std::unique_ptr<Force>>;
 
         public:
-            InteractionManager();
+			InteractionManager();
+            void build(const std::vector<Interaction> & interactions);
 
-            void init();
-
-            void add_force(const ForceType& force, int particle_type);
-            void add_force(const ForceType& force, const ParticleIDPair& particle_ids);
-
-            vec3 evaluate(const vec3& diff, const Particle& p1, const Particle& p2) const;
-
-            double cutoff() const;
-
+			vec3 evaluate(const Particle& p1, const Particle& p2, const vec3& distance) const;
+            
         private:
+			std::unique_ptr<Force> mix_forces(ForcePtr force1, ForcePtr force2);
 
-            static Force mix_forces(const ForceType& force1, const ForceType& force2);
-
-            ankerl::unordered_dense::map<ParticleTypePair, Force, ForceKeyHash> global_forces; ///< forces between particle types.
-            ankerl::unordered_dense::map<ParticleIDPair, Force, ForceKeyHash> localized_forces; ///< forces between specific particles.
-
-            double cutoff_radius; ///< The cutoff radius.
+            std::vector<ForcePtr> inter_type_forces;   ///< Forces between different particle types (e.g. type A ? type B)
+            std::vector<ForcePtr> intra_particle_forces; ///< Forces between specific particle instances (by ID)
         };
+
 	} // namespace impl
 
 } // namespace april::env

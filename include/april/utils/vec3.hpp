@@ -9,6 +9,7 @@ namespace april::utils {
         double x, y, z;
 
         Vec3() : x(0.0), y(0.0), z(0.0) {}
+        Vec3(double v): x(v), y(v), z(v) {}
         Vec3(double x, double y, double z) : x(x), y(y), z(z) {}
 
         // Addition operator: returns a new vector that is the sum of this and another vector
@@ -47,6 +48,19 @@ namespace april::utils {
             return *this;
         }
 
+        // pointwise multiplication multiplication
+        Vec3& mul(const Vec3 & other) {
+            x *= other.x;
+            y *= other.y;
+            z *= other.z;
+            return *this;
+        }
+
+        // scalar product
+        double operator*=(const Vec3 & other) {
+            return x * other.x + y * other.y + z * other.z;
+        }
+
         // Compound assignment for scalar multiplication
         Vec3& operator*=(double scalar) {
             x *= scalar;
@@ -58,7 +72,7 @@ namespace april::utils {
         // Access component by index
         // index: 0 for x, 1 for y, 2 for z.
         double operator[](int index) const {
-            ASSERT(index >= 0 && index < 3, "Index out of bounds");
+            AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
             switch (index) {
             case 0: return x;
             case 1: return y;
@@ -67,7 +81,7 @@ namespace april::utils {
         }
 
         double & operator[](int index) {
-            ASSERT(index >= 0 && index < 3, "Index out of bounds");
+            AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
             switch (index) {
             case 0: return x;
             case 1: return y;

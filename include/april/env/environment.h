@@ -4,7 +4,6 @@
 #include <functional>
 #include <unordered_set>
 #include <unordered_map>
-#include <ankerl/unordered_dense.h>
 
 #include "april/env/particle.h"
 #include "april/env/interaction.h"
@@ -12,7 +11,9 @@
 
 
 namespace april::env {
-    class impl::ParticleIterator;
+    namespace impl {
+        class ParticleIterator;
+    }
 
     enum class Dimension {
         TWO = 2,
@@ -53,9 +54,9 @@ namespace april::env {
         std::vector<ParticleID> add_particle_cuboid(const ParticleCuboid& cuboid);
         std::vector<ParticleID> add_particle_sphere(const ParticleSphere& sphere);
 
-        template<IsForce F> void add_force(const F & force, int type);
+        template<IsForce F> void add_force(const F & force, ParticleType type);
         template<IsForce F> void add_force(const F & force, ParticleTypePair types);
-        template<IsForce F> void add_force(const F & force, ParticleIDPair ids);
+        template<IsForce F> void add_interaction(const F & force, ParticleIDPair ids);
 
         void build();
   
@@ -69,7 +70,7 @@ namespace april::env {
         std::vector<Particle> particle_infos;
 
         std::vector<impl::Particle> particle_storage;
-        std::vector<Interaction> interactions;
+        std::vector<impl::InteractionInfo> interactions;
         impl::InteractionManager interaction_manager;
 
         bool is_built;
@@ -82,18 +83,18 @@ namespace april::env {
 
     template<IsForce F> void Environment::add_force(const F & force, ParticleType type) {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
-        interactions.emplace_back(true, std::pair{type, type}, std::move(ptr))
+        interactions.emplace_back(true, std::pair{ type, type }, std::move(ptr));
     }
     template<IsForce F> void Environment::add_force(const F & force, ParticleTypePair types) {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
-        interactions.emplace_back(true, types, std::move(ptr))
+        interactions.emplace_back(true, types, std::move(ptr));
     }
-    template<IsForce F> void Environment::add_force(const F & force, ParticleIDPair ids) {
+    template<IsForce F> void Environment::add_interaction(const F & force, ParticleIDPair ids) {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
-        interactions.emplace_back(false, ids, std::move(ptr))
+        interactions.emplace_back(false, ids, std::move(ptr));
     }
 
-    
+
     namespace impl {
 
         class ParticleIterator {
@@ -135,7 +136,7 @@ namespace april::env {
             };
         public:
             ParticleIterator(std::vector<impl::Particle> & particles, ParticleState state) : 
-                particle_storage(particles) {}
+                particle_storage(particles), state(state) {}
 
             Iterator begin() {return Iterator(particle_storage, state, 0);}
             Iterator end() {return Iterator(particle_storage, state, particle_storage.size());}

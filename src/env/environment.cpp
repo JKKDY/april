@@ -4,7 +4,7 @@
 #include <ranges>
 
 namespace april::env {
-    Environment::Environment() {
+    Environment::Environment(): is_built(false) {
 
     }
 
@@ -29,14 +29,19 @@ namespace april::env {
         uint32_t particle_count = cuboid.particle_count[0] * cuboid.particle_count[1] * cuboid.particle_count[2];
         double width = cuboid.distance;
 
-        std::vector<ParticleID> ids (particle_count);
+        std::vector<ParticleID> ids;
+        ids.reserve(particle_count);
 
-        auto it = std::max_element(particle_infos.begin(), particle_infos.end(), [](const Particle & p) {return p.id;});
+        auto it = std::ranges::max_element(
+            particle_infos,
+            {},                 // default `<` comparator
+            &Particle::id       // project each Particle to its `id`
+        );
         int id = it == particle_infos.end() ? 0 : it->id+1;
 
         particle_infos.reserve(particle_infos.size() + particle_count);
         
-        for (unsigned int x = 0; x < cuboid.particle_count[0]; ++x) {
+       for (unsigned int x = 0; x < cuboid.particle_count[0]; ++x) {
             for (unsigned int y = 0; y < cuboid.particle_count[1]; ++y) {
                 for (unsigned int z = 0; z < cuboid.particle_count[2]; ++z) {
 
@@ -56,6 +61,8 @@ namespace april::env {
                 }
             }
         }
+
+        return ids;
     }
 
 
@@ -66,7 +73,11 @@ namespace april::env {
         std::vector<ParticleID> ids;
 
         // get the the maximum current id
-        auto it = std::max_element(particle_infos.begin(), particle_infos.end(), [](const Particle & p) {return p.id;});
+        auto it = std::ranges::max_element(
+            particle_infos,
+            {},                 // default `<` comparator
+            &Particle::id       // project each Particle to its `id`
+        );
         int id = it == particle_infos.end() ? 0 : it->id+1; 
 
         for (int x = -sphere.radius.x; x < sphere.radius.x; ++x) {
@@ -94,6 +105,8 @@ namespace april::env {
                 }
             }
         }
+
+        return ids;
     }
 
 
@@ -101,12 +114,12 @@ namespace april::env {
         // check if interaction arguments are valid
         for (auto & interaction : interactions) {
             if (interaction.pair_contains_types) {
-                auto [type1, type2] = interaction.id_or_type_pair;
+                auto [type1, type2] = interaction.key_pair;
                 if (not usr_particle_types.contains(type1) or not usr_particle_types.contains(type2)) {
                     throw std::invalid_argument("Specified interacting particle types do not exist");
                 }
             } else {
-                auto [id1, id2] = interaction.id_or_type_pair;
+                auto [id1, id2] = interaction.key_pair;
                 if (id1 == PARTICLE_ID_UNDEFINED or id2 == PARTICLE_ID_UNDEFINED) {
                     throw std::invalid_argument("cannot have interaction between particles with undefined ids");
                 }
@@ -145,29 +158,52 @@ namespace april::env {
         id_vector.reserve(usr_particle_ids.size());
         id_vector.insert(id_vector.end(), usr_particle_ids.begin(), usr_particle_ids.end());
 
+        // collect all ids involved in an id-to-id interaction 
+        std::unordered_set<ParticleID> interacting_ids;
+        for (auto & x : interactions) {
+            if (!x.pair_contains_types) {
+                interacting_ids.insert(x.key_pair.first);
+                interacting_ids.insert(x.key_pair.second);
+            }
+        }
+        
+        //swap ids, such that all locally interacting particles have the lowest ids
+        // for (size_t front = 0, back = id_vector.size()-1; front < back; back--) {
+        //     if (interacting_ids.contains(id_vector[back])) {
+        //         // find lowest non interacting id
+        //         while (interacting_ids.contains(id_vector[front]) && front < back ) {
+        //             front++;
+        //         }
+        //         if (front >= back) break;
+
+        //        std::swap(id_vector[front], id_vector[back]);
+        //        front++; 
+        //     } 
+        // }
+
+        std::partition(id_vector.begin(), id_vector.end(), 
+            [&](ParticleID id) { return interacting_ids.contains(id); }
+        );
+        
+        // create id_ map
         for (size_t  i = 0; i < id_vector.size(); i++) {
             usr_ids_to_impl_ids[id_vector[i]] = i;
         }
-
+        
+    
         // apply mapping to interactions
         for (auto & interaction : interactions) {
             if (interaction.pair_contains_types) {
-                auto [type1, type2] = interaction.id_or_type_pair;
+                auto [type1, type2] = interaction.key_pair;
                 ParticleType impl_type1 = usr_types_to_impl_types[type1];
                 ParticleType impl_type2 = usr_types_to_impl_types[type2];
-                interaction.id_or_type_pair = {impl_type1, impl_type2}; 
+                interaction.key_pair = {impl_type1, impl_type2}; 
             } else {
-                auto [id1, id2] = interaction.id_or_type_pair;
+                auto [id1, id2] = interaction.key_pair;
                 ParticleType impl_id1 = usr_ids_to_impl_ids[id1];
                 ParticleType impl_id2 = usr_ids_to_impl_ids[id2];
-                interaction.id_or_type_pair = {impl_id1, impl_id2}; 
+                interaction.key_pair = {impl_id1, impl_id2}; 
             }
-        }
-
-        // apply mapping to particles
-        for (auto & p : particle_infos) {
-            p.id = usr_ids_to_impl_ids[p.id];
-            p.type = usr_types_to_impl_types[p.type];
         }
     }
 
@@ -177,7 +213,9 @@ namespace april::env {
 
         size_t idx = 0;
         for (const auto & p : particle_infos) {
-            particle_storage.emplace_back(idx, p.id, p.position, p.velocity, p.mass, p.type, p.state);
+            particle_storage.emplace_back(
+                idx++, usr_ids_to_impl_ids[p.id], p.position, p.velocity, p.mass,usr_types_to_impl_types[p.type], p.state
+            );
         }
     }
 
@@ -189,14 +227,14 @@ namespace april::env {
         map_ids_and_types_to_internal();
         build_particles();
         
-        interaction_manager.build(interactions);
+        interaction_manager.build(interactions, usr_types_to_impl_types, usr_ids_to_impl_ids);
 
         is_built = true;
     }
 
 
-    // impl::ParticleIterator Environment::particles(ParticleState state) {
-    //     return impl::ParticleIterator(particle_storage, state);
-    // }
+     impl::ParticleIterator Environment::particles(ParticleState state) {
+         return impl::ParticleIterator(particle_storage, state);
+     }
 }
 

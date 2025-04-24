@@ -3,19 +3,19 @@ include(FetchContent)
 set(CMAKE_CXX_STANDARD 23)
 
 # Download and add unordered_dense (Martin Ankerl's flat hash map)
-FetchContent_Declare(
-    unordered_dense 
-    GIT_REPOSITORY https://github.com/martinus/unordered_dense.git
-    GIT_TAG v4.5.0
-)
-FetchContent_MakeAvailable(unordered_dense)
+# FetchContent_Declare(
+#     unordered_dense 
+#     GIT_REPOSITORY https://github.com/martinus/unordered_dense.git
+#     GIT_TAG v4.5.0
+# )
+# FetchContent_MakeAvailable(unordered_dense)
 
-FetchContent_Declare(
-    spdlog
-    GIT_REPOSITORY https://github.com/gabime/spdlog.git
-    GIT_TAG v1.15.2
-)
-FetchContent_MakeAvailable(unordered_dense spdlog)
+# FetchContent_Declare(
+#     spdlog
+#     GIT_REPOSITORY https://github.com/gabime/spdlog.git
+#     GIT_TAG v1.15.2
+# )
+# FetchContent_MakeAvailable(unordered_dense spdlog)
 
 # GLOB_RECURSE sources from src/
 file(GLOB_RECURSE APRIL_SOURCES CONFIGURE_DEPENDS
@@ -43,7 +43,6 @@ target_include_directories(April PUBLIC
 # Link unordered_dense (included via FetchContent)
 target_link_libraries(
     April 
-  PUBLIC 
-    unordered_dense::unordered_dense
-    spdlog::spdlog
+    #unordered_dense::unordered_dense
+    #spdlog::spdlog
 )

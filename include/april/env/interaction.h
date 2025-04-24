@@ -1,11 +1,11 @@
 #pragma once
+#include <concepts>
 #include <functional>
 #include <variant>
 
 
-#include <ankerl/unordered_dense.h>
-
 #include "april/env/particle.h"
+#include "april/utils/map.hpp"
 #include "common.h"
 
 
@@ -16,13 +16,13 @@ namespace april::env {
         virtual ~Force() = default;
 
         // Main functor interface: computes force between p1 and p2
-        virtual vec3 operator()(const Particle& p1, const Particle& p2, const vec3& r) const = 0;
+        virtual vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const = 0;
 
         double cutoff_radius = -1;  // Negative value means no cutoff
     };
 
     struct NoForce : Force {
-        virtual vec3 operator()(const Particle&, const Particle&, const vec3&) const override {
+        virtual vec3 operator()(const impl::Particle&, const impl::Particle&, const vec3&) const override {
             return vec3{0.0, 0.0, 0.0};
         };
     };
@@ -34,7 +34,7 @@ namespace april::env {
             cutoff_radius = (cutoff < 0) ? 3.0 * sigma : cutoff;
         }
 
-        vec3 operator()(const Particle& p1, const Particle& p2, const vec3& r) const override {
+        vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const override {
             const double r2 = r.norm_squared();
             if (cutoff_radius > 0 && r2 > cutoff_radius * cutoff_radius) {
                 return vec3{0.0, 0.0, 0.0};
@@ -60,7 +60,7 @@ namespace april::env {
             cutoff_radius = cutoff;
         }
 
-        vec3 operator()(const Particle& p1, const Particle& p2, const vec3& r) const override {
+        vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const override {
             const double distance = r.norm();
             if (cutoff_radius > 0 && distance > cutoff_radius) {
                 return vec3{0.0, 0.0, 0.0};
@@ -77,7 +77,7 @@ namespace april::env {
     struct Harmonic : Force {
         Harmonic(double k, double r0) : k(k), r0(r0) {}
 
-        vec3 operator()(const Particle& p1, const Particle& p2, const vec3& r) const override {
+        vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const override {
             const double distance = r.norm();
             const double magnitude = k * (distance - r0) / distance;
             return -magnitude * r;  // Restoring force
@@ -89,31 +89,47 @@ namespace april::env {
 
     template <typename T> concept IsForce = std::is_base_of_v<Force, T>;
 
-    struct Interaction {
-        bool pair_contains_types;
-        std::pair<int, int> id_or_type_pair;
-        std::unique_ptr<Force> f;
-    };
 
     namespace impl {
+        using ForcePtr = std::unique_ptr<Force>;
+
+
+        template <typename T> concept ForceMap = requires(
+            T t, size_t i, size_t j
+        ) {
+            {t.get(i,j) } -> std::same_as<Force*>;
+            {t.key_size() } -> std::same_as<size_t>;
+        };
+
+
+        struct InteractionInfo {
+            bool pair_contains_types;
+            std::pair<int, int> key_pair;
+            ForcePtr force;
+        };
 
 
         class InteractionManager {
-            
-            using ForcePtr = std::unique_ptr<Force>;
-			using Forces = std::vector<std::unique_ptr<Force>>;
+            using TypeForceMap = utils::impl::DensePairMap<Force, ParticleType>;
+            using IdForceMap = utils::impl::DensePairMap<Force, ParticleID>;
+
+            static_assert(ForceMap<TypeForceMap>, "TypeForceMap must implement ForceMap interface");
+            static_assert(ForceMap<IdForceMap>, "IdForceMap must implement ForceMap interface");
 
         public:
-			InteractionManager();
-            void build(const std::vector<Interaction> & interactions);
+			InteractionManager() = default;
+            void build(std::vector<InteractionInfo> & interactions, 
+                const std::unordered_map<env::ParticleType, impl::ParticleType> & usr_types_to_impl_types,
+                const std::unordered_map<env::ParticleID, impl::ParticleID> & usr_ids_to_impl_ids
+            );
 
 			vec3 evaluate(const Particle& p1, const Particle& p2, const vec3& distance) const;
             
         private:
-			std::unique_ptr<Force> mix_forces(ForcePtr force1, ForcePtr force2);
+            ForcePtr mix_forces(ForcePtr force1, ForcePtr force2);
 
-            std::vector<ForcePtr> inter_type_forces;   ///< Forces between different particle types (e.g. type A ? type B)
-            std::vector<ForcePtr> intra_particle_forces; ///< Forces between specific particle instances (by ID)
+            TypeForceMap inter_type_forces;   // Forces between different particle types (e.g. type A ? type B)
+            IdForceMap intra_particle_forces; // Forces between specific particle instances (by ID)
         };
 
 	} // namespace impl

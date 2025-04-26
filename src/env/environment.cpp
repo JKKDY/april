@@ -12,9 +12,12 @@ namespace april::env {
         if (particle.id != PARTICLE_ID_UNDEFINED && usr_particle_ids.contains(particle.id)) {
             throw std::invalid_argument("specified id is no unique");
         }
+
+        particle_infos.push_back(particle);   
+
+        // collect id and type information
         if (particle.id != PARTICLE_ID_UNDEFINED) usr_particle_ids.insert(particle.id);
         usr_particle_types.insert(particle.type);
-        particle_infos.push_back(particle);   
     }
 
 
@@ -73,6 +76,7 @@ namespace april::env {
         std::vector<ParticleID> ids;
 
         // get the the maximum current id
+        // TODO use projector of projector implciity relies on  PARTICLE_ID_UNDEFINED = min<ParticleID>. Make it explicity e.g. via lambda
         auto it = std::ranges::max_element(
             particle_infos,
             {},                 // default `<` comparator
@@ -110,9 +114,27 @@ namespace april::env {
     }
 
 
-    void Environment::validate_parameters() {
-        // check if interaction arguments are valid
+    void Environment::validate_inputs() {
+        //check for duplicates: first sort, then check adjacent pairs
+        std::sort(interactions.begin(), interactions.end(), [](const auto& a, const auto& b) {
+            if (a.key_pair != b.key_pair)
+                return a.key_pair < b.key_pair;
+            return a.pair_contains_types < b.pair_contains_types;
+        });
+
+        for (size_t i = 1; i < interactions.size(); ++i) {
+            if (interactions[i].key_pair == interactions[i-1].key_pair &&
+                interactions[i].pair_contains_types == interactions[i-1].pair_contains_types) {
+                    throw std::invalid_argument("Found duplicate forces");
+            }
+        }
+
+        // check if interaction arguments (ids/types) are valid
         for (auto & interaction : interactions) {
+            // make sure interaction pair arguments are in canonical order
+            auto [a,b] = interaction.key_pair;
+            if (a > b)
+
             if (interaction.pair_contains_types) {
                 auto [type1, type2] = interaction.key_pair;
                 if (not usr_particle_types.contains(type1) or not usr_particle_types.contains(type2)) {
@@ -121,10 +143,13 @@ namespace april::env {
             } else {
                 auto [id1, id2] = interaction.key_pair;
                 if (id1 == PARTICLE_ID_UNDEFINED or id2 == PARTICLE_ID_UNDEFINED) {
-                    throw std::invalid_argument("cannot have interaction between particles with undefined ids");
+                    throw std::invalid_argument("Cannot have interaction between particles with undefined ids");
                 }
                 if (not usr_particle_ids.contains(id1) or not usr_particle_ids.contains(id2)) {
                     throw std::invalid_argument("Specified interacting particle IDs do not exist");
+                }
+                if (id1 == id2) {
+                    throw std::invalid_argument("Cannot have interaction of a particle with itself");
                 }
             }
         }
@@ -144,7 +169,7 @@ namespace april::env {
             p.id = id;
         }
         
-        // map user specified types to implementation types
+        // generate mapping for user types to implementation types
         std::vector<ParticleType> type_vector;
         type_vector.reserve(usr_particle_types.size());
         type_vector.insert(type_vector.end(), usr_particle_types.begin(), usr_particle_types.end());
@@ -153,7 +178,7 @@ namespace april::env {
             usr_types_to_impl_types[type_vector[i]] = i;
         }
 
-        // map user specified ids to implementation ids
+        // generate mapping for user ids to implementation ids
         std::vector<ParticleType> id_vector;
         id_vector.reserve(usr_particle_ids.size());
         id_vector.insert(id_vector.end(), usr_particle_ids.begin(), usr_particle_ids.end());
@@ -181,30 +206,31 @@ namespace april::env {
         //     } 
         // }
 
+        //swap ids, such that all locally interacting particles have the lowest ids
         std::partition(id_vector.begin(), id_vector.end(), 
             [&](ParticleID id) { return interacting_ids.contains(id); }
         );
         
-        // create id_ map
+        // create id map
         for (size_t  i = 0; i < id_vector.size(); i++) {
             usr_ids_to_impl_ids[id_vector[i]] = i;
         }
         
     
         // apply mapping to interactions
-        for (auto & interaction : interactions) {
-            if (interaction.pair_contains_types) {
-                auto [type1, type2] = interaction.key_pair;
-                ParticleType impl_type1 = usr_types_to_impl_types[type1];
-                ParticleType impl_type2 = usr_types_to_impl_types[type2];
-                interaction.key_pair = {impl_type1, impl_type2}; 
-            } else {
-                auto [id1, id2] = interaction.key_pair;
-                ParticleType impl_id1 = usr_ids_to_impl_ids[id1];
-                ParticleType impl_id2 = usr_ids_to_impl_ids[id2];
-                interaction.key_pair = {impl_id1, impl_id2}; 
-            }
-        }
+        // for (auto & interaction : interactions) {
+        //     if (interaction.pair_contains_types) {
+        //         auto [type1, type2] = interaction.key_pair;
+        //         ParticleType impl_type1 = usr_types_to_impl_types[type1];
+        //         ParticleType impl_type2 = usr_types_to_impl_types[type2];
+        //         interaction.key_pair = {impl_type1, impl_type2}; 
+        //     } else {
+        //         auto [id1, id2] = interaction.key_pair;
+        //         ParticleType impl_id1 = usr_ids_to_impl_ids[id1];
+        //         ParticleType impl_id2 = usr_ids_to_impl_ids[id2];
+        //         interaction.key_pair = {impl_id1, impl_id2}; 
+        //     }
+        // }
     }
 
 
@@ -219,22 +245,34 @@ namespace april::env {
         }
     }
 
-
-    void Environment::build() {
+    void Environment::build()
+    {
         if (is_built) return;
 
-        validate_parameters();
+        validate_inputs();
         map_ids_and_types_to_internal();
         build_particles();
-        
+
         interaction_manager.build(interactions, usr_types_to_impl_types, usr_ids_to_impl_ids);
+        
+        // free up memory
+        interactions.clear();
+        particle_infos.clear();
+        usr_particle_ids.clear();
+        usr_particle_types.clear();
+        usr_types_to_impl_types.clear();
+        usr_particle_ids.clear();
+        usr_ids_to_impl_ids.clear();
 
         is_built = true;
     }
 
-
-     impl::ParticleIterator Environment::particles(ParticleState state) {
+    impl::ParticleIterator Environment::particles(ParticleState state) {
          return impl::ParticleIterator(particle_storage, state);
-     }
-}
+    }
+
+    const std::vector<impl::Particle> &Environment::export_particles() {
+        return particle_storage;
+    }
+} // namespace april::env
 

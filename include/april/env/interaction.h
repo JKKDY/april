@@ -2,6 +2,7 @@
 #include <concepts>
 #include <functional>
 #include <variant>
+#include <math.h>
 
 
 #include "april/env/particle.h"
@@ -18,14 +19,23 @@ namespace april::env {
         // Main functor interface: computes force between p1 and p2
         virtual vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const = 0;
 
+        // Mixes this force with another force; returns a new heap-allocated Force
+        virtual std::unique_ptr<Force> mix(const Force* other) const = 0;
+
         double cutoff_radius = -1;  // Negative value means no cutoff
     };
+
 
     struct NoForce : Force {
         virtual vec3 operator()(const impl::Particle&, const impl::Particle&, const vec3&) const override {
             return vec3{0.0, 0.0, 0.0};
         };
+
+        std::unique_ptr<Force> mix(const Force* other) const override {
+           return std::make_unique<NoForce>();
+        }
     };
+
 
     // Lennard-Jones potential (12-6)
     struct LennardJones : Force {
@@ -36,9 +46,8 @@ namespace april::env {
 
         vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const override {
             const double r2 = r.norm_squared();
-            if (cutoff_radius > 0 && r2 > cutoff_radius * cutoff_radius) {
+            if (cutoff_radius > 0 && r2 > cutoff_radius * cutoff_radius)
                 return vec3{0.0, 0.0, 0.0};
-            }
 
             const double inv_r2 = 1.0 / r2;
             const double sigma_r2 = sigma * sigma * inv_r2;
@@ -49,9 +58,22 @@ namespace april::env {
             return magnitude * r;  // Force vector
         }
 
+        std::unique_ptr<Force> mix(const Force* other) const override {
+            const auto* o = dynamic_cast<const LennardJones*>(other);
+            if (!o)
+                throw std::invalid_argument("Cannot mix LennardJones with non-LennardJones force");
+    
+            // Lorentz-Berthelot mixing 
+            double mixed_epsilon = std::sqrt(this->epsilon * o->epsilon);
+            double mixed_sigma = 0.5* (this->sigma + o->sigma);
+            double cutoff = std::sqrt(this->cutoff_radius * o->cutoff_radius);
+            return std::make_unique<LennardJones>(mixed_epsilon, mixed_sigma, cutoff);
+        }
+
         double epsilon;  // Depth of the potential well
         double sigma;    // Distance at which potential is zero
     };
+
 
     // Inverse-square law (e.g., gravity, Coulomb)
     struct InverseSquare : Force {
@@ -62,16 +84,26 @@ namespace april::env {
 
         vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const override {
             const double distance = r.norm();
-            if (cutoff_radius > 0 && distance > cutoff_radius) {
+            if (cutoff_radius > 0 && distance > cutoff_radius)
                 return vec3{0.0, 0.0, 0.0};
-            }
 
             const double magnitude = pre_factor * p1.mass * p2.mass / (distance * distance * distance);
-            return -magnitude * r;  // Attractive force
+            return -magnitude * r;  
+        }
+
+        std::unique_ptr<Force> mix(const Force* other) const override {
+            const auto* o = dynamic_cast<const InverseSquare*>(other);
+            if (!o)
+                throw std::invalid_argument("Cannot mix InverseSquare with non-InverseSquare force");
+            
+            double k = 0.5 * (pre_factor + o->pre_factor); 
+            double cutoff = 0.5 * (cutoff_radius + o->cutoff_radius);
+            return std::make_unique<InverseSquare>(k, cutoff);
         }
 
         double pre_factor;  // G or k constant
     };
+
 
     // Harmonic spring force (Hooke's law)
     struct Harmonic : Force {
@@ -80,12 +112,17 @@ namespace april::env {
         vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const override {
             const double distance = r.norm();
             const double magnitude = k * (distance - r0) / distance;
-            return -magnitude * r;  // Restoring force
+            return -magnitude * r;  
+        }
+
+        std::unique_ptr<Force> mix(const Force* other) const override {
+            return std::make_unique<NoForce>();
         }
 
         double k;   // Spring constant
         double r0;  // Equilibrium distance
     };
+
 
     template <typename T> concept IsForce = std::is_base_of_v<Force, T>;
 
@@ -103,6 +140,14 @@ namespace april::env {
 
 
         struct InteractionInfo {
+            InteractionInfo(bool pair_contains_types, std::pair<int, int> key_pair, ForcePtr force): 
+                pair_contains_types(pair_contains_types), force(std::move(force)) {
+                if (key_pair.first < key_pair.second) {
+                    this->key_pair = {key_pair.first, key_pair.second};
+                } else {
+                    this->key_pair = {key_pair.second, key_pair.first};
+                }
+            }
             bool pair_contains_types;
             std::pair<int, int> key_pair;
             ForcePtr force;
@@ -126,8 +171,6 @@ namespace april::env {
 			vec3 evaluate(const Particle& p1, const Particle& p2, const vec3& distance) const;
             
         private:
-            ForcePtr mix_forces(ForcePtr force1, ForcePtr force2);
-
             TypeForceMap inter_type_forces;   // Forces between different particle types (e.g. type A ? type B)
             IdForceMap intra_particle_forces; // Forces between specific particle instances (by ID)
         };

@@ -2,61 +2,105 @@
 #include "april/utils/debug.h"
 
 #include <algorithm>
+#include <unordered_set>
+#include <memory>
+#include <utility>
+
 
 namespace april::env::impl
 {
 	
-	void InteractionManager::build(std::vector<InteractionInfo> & interactions, 
+	void InteractionManager::build(std::vector<InteractionInfo> & interaction_infos, 
 		const std::unordered_map<env::ParticleType, impl::ParticleType> & usr_types_to_impl_types,
 		const std::unordered_map<env::ParticleID, impl::ParticleID> & usr_ids_to_impl_ids
 	) {		
 		// partition interactions into type and id based interactions
-		auto it = std::partition(interactions.begin(), interactions.end(),
+		auto it = std::partition(interaction_infos.begin(), interaction_infos.end(),
                          [](const InteractionInfo& info) {
                              return info.pair_contains_types;
-                         }
-					);
+                         });
 		
-		std::vector<InteractionInfo> type_interaction{
-			std::make_move_iterator(interactions.begin()),
+		std::vector<InteractionInfo> type_interaction_infos {
+			std::make_move_iterator(interaction_infos.begin()),
 			std::make_move_iterator(it)
 		};
 
-		std::vector<InteractionInfo> id_interaction{
+		std::vector<InteractionInfo> id_interaction_infos {
 			std::make_move_iterator(it),
-			std::make_move_iterator(interactions.end())
+			std::make_move_iterator(interaction_infos.end())
 		};
 
-		// apply usr_types_to_impl_types mapping and 
-		std::vector<std::pair<ParticleType, ParticleType>> type_keys;
-		type_keys.reserve(type_interaction.size());
-		std::vector<ForcePtr> type_forces;
-		type_forces.reserve(type_interaction.size());
+		// apply types mapping 
+		std::vector<std::pair<ParticleType, ParticleType>> type_interaction_keys;
+		std::vector<ForcePtr> type_interaction_forces;
+		
+		type_interaction_keys.reserve(type_interaction_infos.size());
+		type_interaction_forces.reserve(type_interaction_infos.size());
 
-		for (auto & x : type_interaction) {
+		std::unordered_set<ParticleType> particle_types; // needed for mixing forces
+		for (auto & x : type_interaction_infos) {
 			ParticleType a = usr_types_to_impl_types.at(x.key_pair.first);
 			ParticleType b = usr_types_to_impl_types.at(x.key_pair.second);
-			type_keys.emplace_back(a,b);
-			type_forces.push_back(std::move(x.force));
+			
+			type_interaction_keys.emplace_back(a,b);
+			type_interaction_forces.push_back(std::move(x.force));
+			
+			particle_types.insert(a);
+			particle_types.insert(b);
 		}
 
-		// apply usr_ids_to_impl_ids mapping
-		std::vector<std::pair<ParticleID, ParticleID>> id_keys;
-		id_keys.reserve(id_interaction.size());
-		std::vector<ForcePtr> id_forces;
-		id_forces.reserve(id_interaction.size());
+		// mix type forces
+		size_t n_types = particle_types.size();
+		size_t map_size = 0.5 * (n_types*n_types+n_types); // small gauss sum formula for size of triangle matrix
+		std::vector<std::pair<ParticleType, ParticleType>> type_keys_map (map_size); 
+		std::vector<ForcePtr> type_forces_map;
+		type_forces_map.resize(map_size);
 
-		for (auto & x : id_interaction) {
+		auto index = [=](size_t a, size_t b) {
+			return (n_types * a) - (a*(a+1))/2 + (b - a);
+		};
+
+		for (size_t i = 0; i < type_interaction_keys.size(); i++) {
+			auto [a,b] = type_interaction_keys[i];  //  a <= b implicitly enforced
+			size_t idx = index(a,b); // indexing an upper right triangle
+			type_keys_map[idx] = type_interaction_keys[i];
+			type_forces_map[idx] = std::move(type_interaction_forces[i]);
+		} 
+		// ? what if there are particles with types not in any interaction? currently evaulate on force manager will crash
+		for (size_t a = 0; a < n_types; a++) {
+			for (size_t b = a; b < n_types; b++) {
+				size_t idx =  index(a,b);
+				if (type_forces_map[idx] == nullptr) {
+					Force * f1 = type_forces_map[index(a,a)].get();
+					Force * f2 = type_forces_map[index(b,b)].get();
+
+					std::unique_ptr<Force> mixed = f1->mix(f2);
+					type_forces_map[index(a,b)] = std::move(mixed);
+				}
+			}
+		}
+
+		// apply id mapping
+		std::vector<std::pair<ParticleID, ParticleID>> id_interaction_keys;
+		std::vector<ForcePtr> id_interaction_forces;
+		
+		id_interaction_keys.reserve(id_interaction_infos.size());
+		id_interaction_forces.reserve(id_interaction_infos.size());
+
+		for (auto & x : id_interaction_infos) {
 			ParticleID a = usr_ids_to_impl_ids.at(x.key_pair.first);
 			ParticleID b = usr_ids_to_impl_ids.at(x.key_pair.second);
-			id_keys.emplace_back(a,b);
-			id_forces.push_back(std::move(x.force));
+			
+			id_interaction_keys.emplace_back(a,b);
+			id_interaction_forces.push_back(std::move(x.force));
 		}
+		
 
 		// build force maps
-		inter_type_forces.build(type_keys, std::move(type_forces));
-		intra_particle_forces.build(id_keys, std::move(id_forces));
+		inter_type_forces.build(type_interaction_keys, std::move(type_interaction_forces));
+		intra_particle_forces.build(id_interaction_keys, std::move(id_interaction_forces));
 	}
+
 
 	vec3 InteractionManager::evaluate(const Particle& p1, const Particle& p2, const vec3& distance) const {
 		Force* force_fn = inter_type_forces.get(p1.type, p2.type);
@@ -70,12 +114,5 @@ namespace april::env::impl
 		}
 
 		return force;
-	}
-	
-
-
-	ForcePtr InteractionManager::mix_forces(ForcePtr force1, ForcePtr force2)
-	{
-		return std::unique_ptr<Force>();
 	}
 } 

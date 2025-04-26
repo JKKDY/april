@@ -96,5 +96,9 @@ namespace april::utils {
 		double norm() const {
 			return sqrt(norm_squared());
 		}
+
+        bool operator==(const Vec3 & other) const {
+            return x == other.x && y == other.y && z == other.z;
+        }
     };
 } // namespace april::utils

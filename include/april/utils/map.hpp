@@ -6,22 +6,52 @@
 #include <stdexcept>
 #include <concepts>
 #include <unordered_map>
+#include <unordered_set>
 
-#include "debug.h"
+//#include "debug.h"
 
 namespace april::utils::impl {
+    template<std::unsigned_integral KeyT> bool keys_are_unique(const std::vector<std::pair<KeyT, KeyT>>& keys) {
+        struct SymmetricHash {
+            size_t operator()(const std::pair<KeyT, KeyT>& p) const noexcept {
+                auto [a, b] = p;
+                if (a > b) std::swap(a, b);
+                return size_t(a) * 31 + size_t(b);
+            }
+        };
 
-    template<typename T, std::integral KeyT = size_t> class UnorderedMap {
+        struct SymmetricEqual {
+            bool operator()(const std::pair<KeyT, KeyT>& a, const std::pair<KeyT, KeyT>& b) const noexcept {
+                return (a.first == b.first && a.second == b.second) || (a.first == b.second && a.second == b.first);
+            }
+        };
+
+        std::unordered_set<std::pair<KeyT, KeyT>, SymmetricHash, SymmetricEqual> seen;
+        seen.reserve(keys.size());
+
+        for (const auto& p : keys)
+            if (!seen.insert(p).second)
+                return false;
+        return true;
+    }
+
+
+    template<typename T, std::unsigned_integral KeyT = size_t> class UnorderedMap {
         using Ptr = std::unique_ptr<T>;
     public:
 
         void build(const std::vector<std::pair<KeyT, KeyT>> & keys, std::vector<Ptr>&& values) {
-            size_t N = values.size();
-            if (keys.size() != N)
+            if (keys.size() != values.size())
                 throw std::invalid_argument("keys/values size mismatch");
+
+            if (!keys_are_unique(keys))
+                throw std::invalid_argument("keys are not unique; duplicate key pairs found");
+
                 
-            for (size_t i = 0; i < N; i++) {
-                map[keys[i]] = values[i];
+            for (size_t i = 0; i < values.size(); i++) {
+                auto [a,b] = keys[i];
+                map[{a,b}] = values[i];
+                map[{b,a}] = values[i];
             }
         }
 
@@ -39,20 +69,26 @@ namespace april::utils::impl {
 
 
     
-    template<typename T, std::integral KeyT = size_t> class DensePairMap {
+    template<typename T, std::unsigned_integral KeyT = size_t> class DensePairMap {
         using Ptr = std::unique_ptr<T>;
     public:
     
         void build(const std::vector<std::pair<KeyT, KeyT>> & keys, std::vector<Ptr>&& values) {
-            N = values.size();
-            if (keys.size() != N)
+            if (keys.size() != values.size())
                 throw std::invalid_argument("keys/values size mismatch");
+            
+            if (!keys_are_unique(keys))
+                throw std::invalid_argument("keys are not unique; duplicate key pairs found");
 
             // move in ownership
             storage = std::move(values);
+            
+            // allocate map
+            N = 2*values.size(); // ???
             map.assign(N * N, nullptr);
 
-            for (size_t i = 0; i < N; ++i) {
+            // fill map with forces
+            for (size_t i = 0; i < values.size(); ++i) {
                 auto [a, b] = keys[i];
 
                 if (static_cast<size_t>(a) >= N || static_cast<size_t>(b) >= N)

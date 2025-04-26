@@ -15,6 +15,8 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(test_april
     test_april.cpp
+    environment_test.cpp
+    map_test.cpp
 )
 
 target_link_libraries(test_april PRIVATE

@@ -55,17 +55,22 @@ namespace april::env {
         std::vector<ParticleID> add_particle_sphere(const ParticleSphere& sphere);
 
         template<IsForce F> void add_force(const F & force, ParticleType type);
-        template<IsForce F> void add_force(const F & force, ParticleTypePair types);
-        template<IsForce F> void add_interaction(const F & force, ParticleIDPair ids);
+        template<IsForce F> void add_force(const F & force, ParticleType t1, ParticleType t2);
+        template<IsForce F> void add_interaction(const F & force, ParticleID id1, ParticleID id2);
 
         void build();
   
         impl::ParticleIterator particles(ParticleState state = ParticleState::ALL);
 
+        const std::vector<impl::Particle> & export_particles();
+
     private:
-        void validate_parameters();
+        void validate_inputs();
         void map_ids_and_types_to_internal();
         void build_particles();
+
+        void add_interaction(const impl::InteractionInfo & interaction);
+
 
         std::vector<Particle> particle_infos;
 
@@ -85,13 +90,13 @@ namespace april::env {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
         interactions.emplace_back(true, std::pair{ type, type }, std::move(ptr));
     }
-    template<IsForce F> void Environment::add_force(const F & force, ParticleTypePair types) {
+    template<IsForce F> void Environment::add_force(const F & force, ParticleType t1, ParticleType t2) {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
-        interactions.emplace_back(true, types, std::move(ptr));
+        interactions.emplace_back(true, ParticleTypePair{t1, t2}, std::move(ptr));
     }
-    template<IsForce F> void Environment::add_interaction(const F & force, ParticleIDPair ids) {
+    template<IsForce F> void Environment::add_interaction(const F & force, ParticleID id1, ParticleID id2) {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
-        interactions.emplace_back(false, ids, std::move(ptr));
+        interactions.emplace_back(false, ParticleIDPair{id1, id2}, std::move(ptr));
     }
 
 

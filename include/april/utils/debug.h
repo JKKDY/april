@@ -5,9 +5,11 @@
 #include <iostream>
 #include <stdexcept>
 
-#define AP_ASSERT(Expr, Msg) april::utils::debug::assert(#Expr, (Expr), __FILE__, __LINE__, (Msg))
+#define AP_ASSERT(Expr, Msg)
 
-namespace april::utils::debug {
+//#define AP_ASSERT(Expr, Msg) april::utils::debug::assert(#Expr, (Expr), __FILE__, __LINE__, (Msg))
+
+/*namespace april::utils::debug {
 
         [[noreturn]] inline void assert(const char* expr_str, bool expr, const char* file, int line, const char* msg) {
             if (!expr) {
@@ -18,7 +20,7 @@ namespace april::utils::debug {
             }
         }
 
-} // namespace april::utils::debug
+}*/ // namespace april::utils::debug
 
 #else
 

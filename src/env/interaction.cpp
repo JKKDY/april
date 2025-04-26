@@ -75,7 +75,8 @@ namespace april::env::impl
 					Force * f2 = type_forces_map[index(b,b)].get();
 
 					std::unique_ptr<Force> mixed = f1->mix(f2);
-					type_forces_map[index(a,b)] = std::move(mixed);
+					type_forces_map[index(a,b)] = f1->mix(f2);
+					type_keys_map[index(a,b)] = {a,b};
 				}
 			}
 		}
@@ -95,19 +96,18 @@ namespace april::env::impl
 			id_interaction_forces.push_back(std::move(x.force));
 		}
 		
-
 		// build force maps
-		inter_type_forces.build(type_interaction_keys, std::move(type_interaction_forces));
+		inter_type_forces.build(type_keys_map, std::move(type_forces_map));
 		intra_particle_forces.build(id_interaction_keys, std::move(id_interaction_forces));
 	}
 
 
 	vec3 InteractionManager::evaluate(const Particle& p1, const Particle& p2, const vec3& distance) const {
-		Force* force_fn = inter_type_forces.get(p1.type, p2.type);
-		vec3 force = (*force_fn)(p1, p2, distance);
+		Force * force_fn = inter_type_forces.get(p1.type, p2.type);
+		vec3 force = (*force_fn)(p1, p2, distance); // we always expect a valid function pointer
 
 		if (p1.id < intra_particle_forces.key_size() && p2.id < intra_particle_forces.key_size()) {
-			Force* id_force_fn = inter_type_forces.get(p1.type, p2.type);
+			Force * id_force_fn = inter_type_forces.get(p1.type, p2.type);
 			if (id_force_fn) {
 				force += (*id_force_fn)(p1, p2, distance);
 			}

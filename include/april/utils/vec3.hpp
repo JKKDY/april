@@ -13,27 +13,27 @@ namespace april::utils {
         Vec3(double x, double y, double z) : x(x), y(y), z(z) {}
 
         // Addition operator: returns a new vector that is the sum of this and another vector
-        Vec3 operator+(const Vec3& other) const {
+        Vec3 operator+(const Vec3& other) const noexcept {
             return Vec3(x + other.x, y + other.y, z + other.z);
         }
 
         // Subtraction operator: returns a new vector that is the difference of this and another vector
-        Vec3 operator-(const Vec3& other) const {
+        Vec3 operator-(const Vec3& other) const noexcept {
             return Vec3(x - other.x, y - other.y, z - other.z);
         }
 
         // Scalar multiplication operator: returns a new vector scaled by a constant
-        inline Vec3 operator*(double scalar) const {
+        inline Vec3 operator*(double scalar) const noexcept {
             return Vec3(x * scalar, y * scalar, z * scalar);
         }
 
         // Friend function for scalar multiplication with the scalar on the left
-        friend inline Vec3 operator*(double scalar, const Vec3& vec) {
+        friend inline Vec3 operator*(double scalar, const Vec3& vec) noexcept {
             return vec * scalar;
         }
 
         // Compound assignment for addition
-        Vec3& operator+=(const Vec3& other) {
+        Vec3& operator+=(const Vec3& other) noexcept {
             x += other.x;
             y += other.y;
             z += other.z;
@@ -41,7 +41,7 @@ namespace april::utils {
         }
 
         // Compound assignment for subtraction
-        Vec3& operator-=(const Vec3& other) {
+        Vec3& operator-=(const Vec3& other) noexcept {
             x -= other.x;
             y -= other.y;
             z -= other.z;
@@ -49,7 +49,7 @@ namespace april::utils {
         }
 
         // pointwise multiplication multiplication
-        Vec3& mul(const Vec3 & other) {
+        Vec3& mul(const Vec3 & other) noexcept {
             x *= other.x;
             y *= other.y;
             z *= other.z;
@@ -57,7 +57,7 @@ namespace april::utils {
         }
 
         // scalar product
-        double operator*=(const Vec3 & other) {
+        double operator*=(const Vec3 & other) noexcept {
             return x * other.x + y * other.y + z * other.z;
         }
 
@@ -71,33 +71,34 @@ namespace april::utils {
 
         // Access component by index
         // index: 0 for x, 1 for y, 2 for z.
-        double operator[](int index) const {
+        double operator[](int index) const noexcept{
             AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
             switch (index) {
-            case 0: return x;
-            case 1: return y;
-            case 2: return z;
+                case 0: return x;
+                case 1: return y;
+                case 2: return z;
+            }
+			return 0; // This line should never be reached due to the assertion above.
+        }
+
+        double & operator[](int index) noexcept {
+            AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
+            switch (index) {
+                case 0: return x;
+                case 1: return y;
+                case 2: return z;
             }
         }
 
-        double & operator[](int index) {
-            AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
-            switch (index) {
-            case 0: return x;
-            case 1: return y;
-            case 2: return z;
-            }
-        }
-
-		double norm_squared() const {
+		double norm_squared() const noexcept {
 			return x * x + y * y + z * z;
 		}
 
-		double norm() const {
+		double norm() const noexcept {
 			return sqrt(norm_squared());
 		}
 
-        bool operator==(const Vec3 & other) const {
+        bool operator==(const Vec3 & other) const noexcept {
             return x == other.x && y == other.y && z == other.z;
         }
     };

@@ -191,20 +191,6 @@ namespace april::env {
                 interacting_ids.insert(x.key_pair.second);
             }
         }
-        
-        //swap ids, such that all locally interacting particles have the lowest ids
-        // for (size_t front = 0, back = id_vector.size()-1; front < back; back--) {
-        //     if (interacting_ids.contains(id_vector[back])) {
-        //         // find lowest non interacting id
-        //         while (interacting_ids.contains(id_vector[front]) && front < back ) {
-        //             front++;
-        //         }
-        //         if (front >= back) break;
-
-        //        std::swap(id_vector[front], id_vector[back]);
-        //        front++; 
-        //     } 
-        // }
 
         //swap ids, such that all locally interacting particles have the lowest ids
         std::partition(id_vector.begin(), id_vector.end(), 
@@ -215,22 +201,6 @@ namespace april::env {
         for (size_t  i = 0; i < id_vector.size(); i++) {
             usr_ids_to_impl_ids[id_vector[i]] = i;
         }
-        
-    
-        // apply mapping to interactions
-        // for (auto & interaction : interactions) {
-        //     if (interaction.pair_contains_types) {
-        //         auto [type1, type2] = interaction.key_pair;
-        //         ParticleType impl_type1 = usr_types_to_impl_types[type1];
-        //         ParticleType impl_type2 = usr_types_to_impl_types[type2];
-        //         interaction.key_pair = {impl_type1, impl_type2}; 
-        //     } else {
-        //         auto [id1, id2] = interaction.key_pair;
-        //         ParticleType impl_id1 = usr_ids_to_impl_ids[id1];
-        //         ParticleType impl_id2 = usr_ids_to_impl_ids[id2];
-        //         interaction.key_pair = {impl_id1, impl_id2}; 
-        //     }
-        // }
     }
 
 

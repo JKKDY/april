@@ -8,25 +8,36 @@
 #include <unordered_map>
 #include <unordered_set>
 
-//#include "debug.h"
+#include "debug.h"
 
 namespace april::utils::impl {
+
+    static inline uint64_t splitmix64(uint64_t x) noexcept {
+        x += 0x9e3779b97f4a7c15ULL;
+        x  = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        x  = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+        x ^= (x >> 31);
+        return x;
+    }
+
+    template<typename KeyT> struct SymmetricHash {
+        size_t operator()(const std::pair<KeyT, KeyT>& p) const noexcept {
+            auto [a, b] = p;
+            if (a > b) std::swap(a, b);
+            uint64_t packed = (uint64_t(a) << 32) | uint64_t(b);
+            return splitmix64(packed);
+        }
+    };
+
+    template<typename KeyT> struct SymmetricEqual {
+        bool operator()(const std::pair<KeyT, KeyT>& a, const std::pair<KeyT, KeyT>& b) const noexcept {
+            return (a.first == b.first && a.second == b.second) || (a.first == b.second && a.second == b.first);
+        }
+    };
+
+
     template<std::unsigned_integral KeyT> bool keys_are_unique(const std::vector<std::pair<KeyT, KeyT>>& keys) {
-        struct SymmetricHash {
-            size_t operator()(const std::pair<KeyT, KeyT>& p) const noexcept {
-                auto [a, b] = p;
-                if (a > b) std::swap(a, b);
-                return size_t(a) * 31 + size_t(b);
-            }
-        };
-
-        struct SymmetricEqual {
-            bool operator()(const std::pair<KeyT, KeyT>& a, const std::pair<KeyT, KeyT>& b) const noexcept {
-                return (a.first == b.first && a.second == b.second) || (a.first == b.second && a.second == b.first);
-            }
-        };
-
-        std::unordered_set<std::pair<KeyT, KeyT>, SymmetricHash, SymmetricEqual> seen;
+        std::unordered_set<std::pair<KeyT, KeyT>, SymmetricHash<KeyT>, SymmetricEqual<KeyT>> seen;
         seen.reserve(keys.size());
 
         for (const auto& p : keys)
@@ -48,23 +59,26 @@ namespace april::utils::impl {
                 throw std::invalid_argument("keys are not unique; duplicate key pairs found");
 
                 
-            for (size_t i = 0; i < values.size(); i++) {
+            for (size_t i = 0; i < keys.size(); i++) {
                 auto [a,b] = keys[i];
-                map[{a,b}] = values[i];
-                map[{b,a}] = values[i];
+                map[{a,b}] = std::move(values[i]);
             }
         }
 
         T* get(KeyT a, KeyT b) const noexcept {
-            const auto it = map.find({a,b});
-            return it != map.end()? *it : nullptr;
-        }
+            auto it = map.find({a, b});
+            if (it != map.end()) {
+                return it->second.get(); // return T* from the unique_ptr
+            } else {
+                return nullptr;
+            }
+        }        
 
         bool empty() const noexcept {
             return map.empty();
         }
     private:
-        std::unordered_map<std::pair<KeyT, KeyT>, std::unique_ptr<T>> map;
+        std::unordered_map<std::pair<KeyT, KeyT>, std::unique_ptr<T>, SymmetricHash<KeyT>, SymmetricEqual<KeyT>> map;
     };
 
 
@@ -84,11 +98,14 @@ namespace april::utils::impl {
             storage = std::move(values);
             
             // allocate map
-            N = 2*values.size(); // ???
+            for (const auto& [a, b] : keys) {
+                if (a + 1 > N) N = a + 1;
+                if (b + 1 > N) N = b + 1;
+            }
             map.assign(N * N, nullptr);
 
             // fill map with forces
-            for (size_t i = 0; i < values.size(); ++i) {
+            for (size_t i = 0; i < keys.size(); ++i) {
                 auto [a, b] = keys[i];
 
                 if (static_cast<size_t>(a) >= N || static_cast<size_t>(b) >= N)

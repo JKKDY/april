@@ -1,10 +1,10 @@
-
+#pragma once
 #include <cstdint>
 #include <vector>
-#include <utility> 
-#include <limits>
+#include <utility>
 #include <stdexcept>
 #include <concepts>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -12,7 +12,7 @@
 
 namespace april::utils::impl {
 
-    static inline uint64_t splitmix64(uint64_t x) noexcept {
+    static uint64_t splitmix64(uint64_t x) noexcept {
         x += 0x9e3779b97f4a7c15ULL;
         x  = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
         x  = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
@@ -24,7 +24,7 @@ namespace april::utils::impl {
         size_t operator()(const std::pair<KeyT, KeyT>& p) const noexcept {
             auto [a, b] = p;
             if (a > b) std::swap(a, b);
-            uint64_t packed = (uint64_t(a) << 32) | uint64_t(b);
+            const uint64_t packed = (static_cast<uint64_t>(a) << 32) | static_cast<uint64_t>(b);
             return splitmix64(packed);
         }
     };
@@ -118,8 +118,8 @@ namespace april::utils::impl {
         }
     
         T* get(KeyT a, KeyT b) const noexcept {
-            size_t ai = static_cast<size_t>(a);
-            size_t bi = static_cast<size_t>(b);
+            const size_t ai = static_cast<size_t>(a);
+            const size_t bi = static_cast<size_t>(b);
             AP_ASSERT(ai < N && bi < N, "key out of range");
             return map[ai*N + bi];
         }

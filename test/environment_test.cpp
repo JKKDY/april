@@ -24,13 +24,13 @@ TEST(EnvTest, one_particle_test) {
         .mass = 10,
         .state = ParticleState::ALIVE,
     });
-
+    e.add_force(LennardJones(3,5), 0);
     e.build();
 
     auto & particles = e.export_particles();
     EXPECT_EQ(particles.size(), 1);
 
-    impl::Particle p = particles[0];
+    const impl::Particle & p = particles[0];
     EXPECT_TRUE(p.type == 0);
     EXPECT_TRUE(p.id == 0);
     EXPECT_TRUE(p.mass == 10);
@@ -40,7 +40,7 @@ TEST(EnvTest, one_particle_test) {
 }
 
 
-TEST(EnvTest, two_particle_test) {
+TEST(EnvTest, type_force_missing) {
     Environment e;
 
     e.add_particle(Particle{
@@ -61,19 +61,9 @@ TEST(EnvTest, two_particle_test) {
         .state = ParticleState::ALIVE,
     });
 
-    e.build();
+    e.add_interaction(InverseSquare(), -1, 0);
 
-    auto & particles = e.export_particles();
-    EXPECT_EQ(particles.size(), 2);
-
-    impl::Particle p1 = particles[0].id == 0? particles[0] : particles[1];
-    impl::Particle p2 = particles[0].id == 0? particles[1] : particles[0];
-
-
-    EXPECT_TRUE(p1.type == 0);
-    EXPECT_TRUE(p1.id == 0);
-    EXPECT_TRUE(p2.type == 0);
-    EXPECT_TRUE(p2.id == 1);
+    EXPECT_THROW(e.build(), std::invalid_argument);
 }
 
 
@@ -100,15 +90,15 @@ TEST(EnvTest, two_particle_force_test) {
     });
 
     e.add_interaction(InverseSquare(), -1, 0);
+    e.add_force(InverseSquare(), 0);
 
     e.build();
 
     auto & particles = e.export_particles();
     EXPECT_EQ(particles.size(), 2);
 
-    impl::Particle p1 = particles[0].id == 0? particles[0] : particles[1];
-    impl::Particle p2 = particles[0].id == 0? particles[1] : particles[0];
-
+    const impl::Particle & p1 = particles[0].id == 0? particles[0] : particles[1];
+    const impl::Particle & p2 = particles[0].id == 0? particles[1] : particles[0];
 
     EXPECT_TRUE(p1.type == 0);
     EXPECT_TRUE(p1.id == 0);

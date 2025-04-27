@@ -108,7 +108,7 @@ namespace april::env {
 
             class Iterator {
             public:
-                Iterator(std::vector<impl::Particle> & particles, ParticleState state, size_t idx) : 
+                Iterator(std::vector<impl::Particle> & particles, const ParticleState state, const size_t idx) :
                     particle_storage(particles), state(state), idx(idx) {}
 
                 reference operator*() const {
@@ -124,8 +124,8 @@ namespace april::env {
                         return ++*this;
                 }
 
-                Iterator operator++(int) { 
-                    auto tmp = *this; 
+                Iterator operator++(int) {
+                    const auto tmp = *this;
                     ++*this; 
                     return tmp; 
                 }
@@ -140,11 +140,11 @@ namespace april::env {
                 size_t idx;
             };
         public:
-            ParticleIterator(std::vector<impl::Particle> & particles, ParticleState state) : 
+            ParticleIterator(std::vector<impl::Particle> & particles, const ParticleState state) :
                 particle_storage(particles), state(state) {}
 
-            Iterator begin() {return Iterator(particle_storage, state, 0);}
-            Iterator end() {return Iterator(particle_storage, state, particle_storage.size());}
+            Iterator begin() const {return Iterator(particle_storage, state, 0);}
+            Iterator end() const {return Iterator(particle_storage, state, particle_storage.size());}
 
         private:
             std::vector<impl::Particle> & particle_storage;

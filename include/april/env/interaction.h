@@ -17,7 +17,7 @@ namespace april::env {
         virtual ~Force() = default;
 
         // Main functor interface: computes force between p1 and p2
-        virtual vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const = 0;
+        virtual vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const noexcept = 0;
 
         // Mixes this force with another force; returns a new heap-allocated Force
         virtual std::unique_ptr<Force> mix(const Force* other) const = 0;
@@ -26,8 +26,8 @@ namespace april::env {
     };
 
 
-    struct NoForce : Force {
-        virtual vec3 operator()(const impl::Particle&, const impl::Particle&, const vec3&) const override {
+    struct NoForce final : Force {
+        vec3 operator()(const impl::Particle&, const impl::Particle&, const vec3&) const noexcept override {
             return vec3{0.0, 0.0, 0.0};
         };
 
@@ -38,13 +38,13 @@ namespace april::env {
 
 
     // Lennard-Jones potential (12-6)
-    struct LennardJones : Force {
-        LennardJones(double epsilon, double sigma, double cutoff = -1) 
+    struct LennardJones final : Force {
+        LennardJones(const double epsilon, const double sigma, const double cutoff = -1)
             : epsilon(epsilon), sigma(sigma) {
             cutoff_radius = (cutoff < 0) ? 3.0 * sigma : cutoff;
         }
 
-        vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const override {
+        vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const noexcept override {
             const double r2 = r.norm_squared();
             if (cutoff_radius > 0 && r2 > cutoff_radius * cutoff_radius)
                 return vec3{0.0, 0.0, 0.0};
@@ -76,13 +76,13 @@ namespace april::env {
 
 
     // Inverse-square law (e.g., gravity, Coulomb)
-    struct InverseSquare : Force {
-        InverseSquare(double pre_factor = 1.0, double cutoff = -1) 
+    struct InverseSquare final : Force {
+        explicit InverseSquare(const double pre_factor = 1.0, const double cutoff = -1)
             : pre_factor(pre_factor) {
             cutoff_radius = cutoff;
         }
 
-        vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const override {
+        vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const noexcept override {
             const double distance = r.norm();
             if (cutoff_radius > 0 && distance > cutoff_radius)
                 return vec3{0.0, 0.0, 0.0};
@@ -106,10 +106,10 @@ namespace april::env {
 
 
     // Harmonic spring force (Hooke's law)
-    struct Harmonic : Force {
-        Harmonic(double k, double r0) : k(k), r0(r0) {}
+    struct Harmonic final : Force {
+        Harmonic(const double k, const double r0) : k(k), r0(r0) {}
 
-        vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const override {
+        vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const noexcept override {
             const double distance = r.norm();
             const double magnitude = k * (distance - r0) / distance;
             return -magnitude * r;  
@@ -140,7 +140,7 @@ namespace april::env {
 
 
         struct InteractionInfo {
-            InteractionInfo(bool pair_contains_types, std::pair<int, int> key_pair, ForcePtr force): 
+            InteractionInfo(const bool pair_contains_types, std::pair<int, int> key_pair, ForcePtr force):
                 pair_contains_types(pair_contains_types), force(std::move(force)) {
                 if (key_pair.first < key_pair.second) {
                     this->key_pair = {key_pair.first, key_pair.second};
@@ -163,7 +163,7 @@ namespace april::env {
 
         public:
 			InteractionManager() = default;
-            void build(std::vector<InteractionInfo> & interactions, 
+            void build(std::vector<InteractionInfo> & interaction_infos,
                 const std::unordered_map<env::ParticleType, impl::ParticleType> & usr_types_to_impl_types,
                 const std::unordered_map<env::ParticleID, impl::ParticleID> & usr_ids_to_impl_ids
             );

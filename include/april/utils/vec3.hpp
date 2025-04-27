@@ -9,8 +9,8 @@ namespace april::utils {
         double x, y, z;
 
         Vec3() : x(0.0), y(0.0), z(0.0) {}
-        Vec3(double v): x(v), y(v), z(v) {}
-        Vec3(double x, double y, double z) : x(x), y(y), z(z) {}
+        explicit Vec3(const double v): x(v), y(v), z(v) {}
+        Vec3(const double x, const double y, const double z) : x(x), y(y), z(z) {}
 
         // Addition operator: returns a new vector that is the sum of this and another vector
         Vec3 operator+(const Vec3& other) const noexcept {
@@ -23,12 +23,12 @@ namespace april::utils {
         }
 
         // Scalar multiplication operator: returns a new vector scaled by a constant
-        inline Vec3 operator*(double scalar) const noexcept {
+        Vec3 operator*(const double scalar) const noexcept {
             return Vec3(x * scalar, y * scalar, z * scalar);
         }
 
         // Friend function for scalar multiplication with the scalar on the left
-        friend inline Vec3 operator*(double scalar, const Vec3& vec) noexcept {
+        friend Vec3 operator*(const double scalar, const Vec3& vec) noexcept {
             return vec * scalar;
         }
 
@@ -48,7 +48,7 @@ namespace april::utils {
             return *this;
         }
 
-        // pointwise multiplication multiplication
+        // point wise multiplication multiplication
         Vec3& mul(const Vec3 & other) noexcept {
             x *= other.x;
             y *= other.y;
@@ -57,12 +57,12 @@ namespace april::utils {
         }
 
         // scalar product
-        double operator*=(const Vec3 & other) noexcept {
+        double operator*=(const Vec3 & other) const noexcept {
             return x * other.x + y * other.y + z * other.z;
         }
 
         // Compound assignment for scalar multiplication
-        Vec3& operator*=(double scalar) {
+        Vec3& operator*=(const double scalar) {
             x *= scalar;
             y *= scalar;
             z *= scalar;
@@ -71,23 +71,26 @@ namespace april::utils {
 
         // Access component by index
         // index: 0 for x, 1 for y, 2 for z.
-        double operator[](int index) const noexcept{
+        double operator[](const int index) const noexcept{
             AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
             switch (index) {
                 case 0: return x;
                 case 1: return y;
                 case 2: return z;
+            default: ;
             }
 			return 0; // This line should never be reached due to the assertion above.
         }
 
-        double & operator[](int index) noexcept {
+        double & operator[](const int index) noexcept {
             AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
             switch (index) {
                 case 0: return x;
                 case 1: return y;
                 case 2: return z;
+            default: ;
             }
+            return x; // This line should never be reached due to the assertion above.
         }
 
 		double norm_squared() const noexcept {

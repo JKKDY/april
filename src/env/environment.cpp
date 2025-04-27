@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <ranges>
+#include <unordered_set>
 
 namespace april::env {
     Environment::Environment(): is_built(false) {
@@ -29,13 +30,13 @@ namespace april::env {
 
 
     std::vector<ParticleID> Environment::add_particle_cuboid(const ParticleCuboid& cuboid) {
-        uint32_t particle_count = cuboid.particle_count[0] * cuboid.particle_count[1] * cuboid.particle_count[2];
-        double width = cuboid.distance;
+        const uint32_t particle_count = cuboid.particle_count[0] * cuboid.particle_count[1] * cuboid.particle_count[2];
+        const double width = cuboid.distance;
 
         std::vector<ParticleID> ids;
         ids.reserve(particle_count);
 
-        auto it = std::ranges::max_element(
+        const auto it = std::ranges::max_element(
             particle_infos,
             {},                 // default `<` comparator
             &Particle::id       // project each Particle to its `id`
@@ -70,14 +71,13 @@ namespace april::env {
 
 
     std::vector<ParticleID> Environment::add_particle_sphere(const ParticleSphere& sphere) {
-        double width = sphere.distance;
+        const double width = sphere.distance;
         const vec3 & r = sphere.radius; 
 
         std::vector<ParticleID> ids;
 
-        // get the the maximum current id
-        // TODO use projector of projector implciity relies on  PARTICLE_ID_UNDEFINED = min<ParticleID>. Make it explicity e.g. via lambda
-        auto it = std::ranges::max_element(
+        // get the maximum current id
+        const auto it = std::ranges::max_element(
             particle_infos,
             {},                 // default `<` comparator
             &Particle::id       // project each Particle to its `id`
@@ -116,7 +116,7 @@ namespace april::env {
 
     void Environment::validate_inputs() {
         //check for duplicates: first sort, then check adjacent pairs
-        std::sort(interactions.begin(), interactions.end(), [](const auto& a, const auto& b) {
+        std::ranges::sort(interactions, [](const auto& a, const auto& b) {
             if (a.key_pair != b.key_pair)
                 return a.key_pair < b.key_pair;
             return a.pair_contains_types < b.pair_contains_types;
@@ -129,27 +129,66 @@ namespace april::env {
             }
         }
 
+        // check that each particle type has an interaction
+        std::unordered_set<ParticleType> types_without_interaction;
+        types_without_interaction.insert(usr_particle_types.begin(), usr_particle_types.end());
+
+        for (const auto & x : interactions) {
+            auto [a,b] = x.key_pair;
+            if (x.pair_contains_types and a == b and types_without_interaction.contains(a)) {
+                types_without_interaction.erase(a);
+            }
+        }
+
+        if (not types_without_interaction.empty()) {
+            std::string msg = "Cannot have particle types without interaction. Types without interaction:";
+            for (const auto type : types_without_interaction)
+                msg += " " + std::to_string(type);
+            throw std::invalid_argument(msg);
+        }
+
+
         // check if interaction arguments (ids/types) are valid
         for (auto & interaction : interactions) {
             // make sure interaction pair arguments are in canonical order
-            auto [a,b] = interaction.key_pair;
-            if (a > b)
+            if (auto [a,b] = interaction.key_pair; a > b)
+                throw std::invalid_argument(
+                    "Keys not in canonical order. Pair: (" +
+                    std::to_string(a) + ", " + std::to_string(b) + ")"
+                );
 
             if (interaction.pair_contains_types) {
                 auto [type1, type2] = interaction.key_pair;
-                if (not usr_particle_types.contains(type1) or not usr_particle_types.contains(type2)) {
-                    throw std::invalid_argument("Specified interacting particle types do not exist");
+                if (!usr_particle_types.contains(type1) || !usr_particle_types.contains(type2)) {
+                    throw std::invalid_argument(
+                        "Specified interacting particle types do not exist: (" +
+                        std::to_string(type1) + ", " + std::to_string(type2) + ")"
+                    );
+                }
+                if (!usr_particle_types.contains(type1) || !usr_particle_types.contains(type2)) {
+                    throw std::invalid_argument(
+                        "Specified interacting particle IDs do not exist: (" +
+                        std::to_string(type1) + ", " + std::to_string(type2) + ")"
+                    );
                 }
             } else {
                 auto [id1, id2] = interaction.key_pair;
-                if (id1 == PARTICLE_ID_UNDEFINED or id2 == PARTICLE_ID_UNDEFINED) {
-                    throw std::invalid_argument("Cannot have interaction between particles with undefined ids");
+                if (id1 == PARTICLE_ID_UNDEFINED || id2 == PARTICLE_ID_UNDEFINED) {
+                    throw std::invalid_argument(
+                        "Cannot have interaction between particles with undefined IDs: (" +
+                        std::to_string(id1) + ", " + std::to_string(id2) + ")"
+                    );
                 }
-                if (not usr_particle_ids.contains(id1) or not usr_particle_ids.contains(id2)) {
-                    throw std::invalid_argument("Specified interacting particle IDs do not exist");
+                if (!usr_particle_ids.contains(id1) || !usr_particle_ids.contains(id2)) {
+                    throw std::invalid_argument(
+                        "Specified interacting particle IDs do not exist: (" +
+                        std::to_string(id1) + ", " + std::to_string(id2) + ")"
+                    );
                 }
                 if (id1 == id2) {
-                    throw std::invalid_argument("Cannot have interaction of a particle with itself");
+                    throw std::invalid_argument(
+                        "Cannot have self-interaction of particle ID: " + std::to_string(id1)
+                    );
                 }
             }
         }
@@ -158,7 +197,7 @@ namespace april::env {
 
     void Environment::map_ids_and_types_to_internal() {
     
-        // give partciles with undefined id a valid id 
+        // give particles with undefined id a valid id
         impl::ParticleID id = 0;
         for (auto & p: particle_infos) {
             if (p.id != PARTICLE_ID_UNDEFINED) continue;
@@ -193,8 +232,8 @@ namespace april::env {
         }
 
         //swap ids, such that all locally interacting particles have the lowest ids
-        std::partition(id_vector.begin(), id_vector.end(), 
-            [&](ParticleID id) { return interacting_ids.contains(id); }
+        std::ranges::partition(id_vector,
+                [&](const ParticleID id_) { return interacting_ids.contains(id_); }
         );
         
         // create id map
@@ -237,7 +276,7 @@ namespace april::env {
         is_built = true;
     }
 
-    impl::ParticleIterator Environment::particles(ParticleState state) {
+    impl::ParticleIterator Environment::particles(const ParticleState state) {
          return impl::ParticleIterator(particle_storage, state);
     }
 

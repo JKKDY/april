@@ -9,32 +9,48 @@
 namespace april::env {
 	class ParticleGrid;
 
-	enum class ParticleState {
-		ALIVE = 0x1,
-		DEAD = 0x2,
-		PASSIVE = 0x4, ///< will not exert forces on other particles
-		STATIONARY = 0x8,
-		ALL = 0xF
+	enum class ParticleState : uint8_t {
+		ALIVE      = 0b00000001,
+		DEAD       = 0b00000010,
+		PASSIVE    = 0b00000100,
+		STATIONARY = 0b00001000,
+		ALL        = 0b11111111
 	};
 
-	// // Overload bitwise OR (`|`)
-	// inline unsigned int operator|(ParticleState a, ParticleState b) {
-	// 	return static_cast<unsigned int>(a) | static_cast<unsigned int>(b);
-	// }
+	// Bitwise OR
+	inline ParticleState operator|(ParticleState a, ParticleState b) {
+		return static_cast<ParticleState>(
+			static_cast<unsigned int>(a) | static_cast<unsigned int>(b)
+		);
+	}
 
-	// // Overload bitwise AND (`&`)
-	// inline ParticleState operator&(ParticleState a, ParticleState b) {
-	// 	return static_cast<ParticleState>(
-	// 		static_cast<unsigned int>(a) & static_cast<unsigned int>(b)
-	// 	);
-	// }
+	// Bitwise AND
+	inline ParticleState operator&(ParticleState a, ParticleState b) {
+		return static_cast<ParticleState>(
+			static_cast<unsigned int>(a) & static_cast<unsigned int>(b)
+		);
+	}
 
-	// // Overload bitwise NOT (`~`)
-	// inline ParticleState operator~(ParticleState a) {
-	// 	return static_cast<ParticleState>(
-	// 		~static_cast<unsigned int>(a)
-	// 	);
-	// }
+	// Bitwise NOT
+	inline ParticleState operator~(ParticleState a) {
+		return static_cast<ParticleState>(
+			~static_cast<unsigned int>(a)
+		);
+	}
+
+	// OR-assignment
+	inline ParticleState& operator|=(ParticleState& a, ParticleState b) {
+		a = a | b;
+		return a;
+	}
+
+	// AND-assignment
+	inline ParticleState& operator&=(ParticleState& a, ParticleState b) {
+		a = a & b;
+		return a;
+	}
+
+
 
 	using ParticleType = int;
 	using ParticleID = int;

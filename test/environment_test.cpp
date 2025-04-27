@@ -105,3 +105,70 @@ TEST(EnvTest, two_particle_force_test) {
     EXPECT_TRUE(p2.type == 0);
     EXPECT_TRUE(p2.id == 1);
 }
+
+
+TEST(EnvTest, particle_iterator_test) {
+    Environment e;
+
+    e.add_particle(Particle{
+        .id = 0,
+        .type = 0,
+        .position = {1,2,3},
+        .velocity = {0,1,2},
+        .mass = 1,
+        .state = ParticleState::DEAD,
+    });
+
+    e.add_particle(Particle{
+        .id = 1,
+        .type = 0,
+        .position = {3,4,5},
+        .velocity = {1,2,3},
+        .mass = 10,
+        .state = ParticleState::ALIVE,
+    });
+
+    e.add_particle(Particle{
+        .id = 2,
+        .type = 0,
+        .position = {1,2,3},
+        .velocity = {0,1,2},
+        .mass = 1,
+        .state = ParticleState::DEAD,
+    });
+
+    e.add_force(NoForce(), 0);
+
+    e.build();
+
+    int i = 0;
+    for (const auto & p : e.particles()) {
+        EXPECT_TRUE(p.type == 0);
+        i++;
+    }
+    EXPECT_EQ(i, 3);
+
+    i = 0;
+    for (const auto & p : e.particles(ParticleState::DEAD)) {
+        EXPECT_TRUE(p.mass == 1);
+        EXPECT_TRUE(p.state == ParticleState::DEAD);
+        i++;
+    }
+    EXPECT_EQ(i, 2);
+
+    i = 0;
+    for (const auto & p : e.particles(ParticleState::ALIVE)) {
+        EXPECT_TRUE(p.mass == 10);
+        EXPECT_TRUE(p.state == ParticleState::ALIVE);
+        i++;
+    }
+    EXPECT_EQ(i, 1);
+
+
+    i = 0;
+    for (const auto & p : e.particles()) {
+        EXPECT_TRUE(p.type == 0);
+        i++;
+    }
+    EXPECT_EQ(i, 3);
+};

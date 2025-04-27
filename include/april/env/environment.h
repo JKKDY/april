@@ -108,8 +108,14 @@ namespace april::env {
 
             class Iterator {
             public:
-                Iterator(std::vector<impl::Particle> & particles, const ParticleState state, const size_t idx) :
-                    particle_storage(particles), state(state), idx(idx) {}
+                Iterator(std::vector<impl::Particle> & particles, const ParticleState state, const size_t index) :
+                    particle_storage(particles), state(state), idx(index) {
+
+                    while (idx < particle_storage.size() && not
+                        (static_cast<unsigned int>(particle_storage[idx].state) & static_cast<unsigned int>(state))) {
+                        idx++;
+                    }
+                }
 
                 reference operator*() const {
                     return particle_storage[idx];
@@ -117,8 +123,8 @@ namespace april::env {
 
                 Iterator& operator++() {  
                     if (++idx == particle_storage.size()) return *this;
-                    Particle & p = particle_storage[idx];
-                    if (static_cast<unsigned int>(p.state) & static_cast<unsigned int>(state)) 
+                    const Particle & p = particle_storage[idx];
+                    if (static_cast<bool>(p.state & state))
                         return *this;
                     else 
                         return ++*this;

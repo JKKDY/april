@@ -7,7 +7,6 @@
 
 #include "april/env/particle.h"
 #include "april/env/interaction.h"
-#include "april/utils/vec3.hpp"
 
 
 namespace april::env {
@@ -54,11 +53,16 @@ namespace april::env {
         std::vector<ParticleID> add_particle_cuboid(const ParticleCuboid& cuboid);
         std::vector<ParticleID> add_particle_sphere(const ParticleSphere& sphere);
 
-        template<IsForce F> void add_force(const F & force, ParticleType type);
-        template<IsForce F> void add_force(const F & force, ParticleType t1, ParticleType t2);
-        template<IsForce F> void add_interaction(const F & force, ParticleID id1, ParticleID id2);
+        template<IsForce F> void add_type_force(const F & force, ParticleType type);
+        template<IsForce F> void add_type_interaction(const F & force, ParticleType t1, ParticleType t2);
+        template<IsForce F> void add_id_interaction(const F & force, ParticleID id1, ParticleID id2);
+
+        void set_extent(const vec3 & size);
+        void set_origin(const vec3 & origin);
 
         void build();
+
+        void update_forces();
   
         impl::ParticleIterator particles(ParticleState state = ParticleState::ALL);
 
@@ -69,16 +73,17 @@ namespace april::env {
         void map_ids_and_types_to_internal();
         void build_particles();
 
-        void add_interaction(const impl::InteractionInfo & interaction);
-
-
         std::vector<Particle> particle_infos;
+
+        bool is_built;
+
+        vec3 extent;
+        vec3 origin;
 
         std::vector<impl::Particle> particle_storage;
         std::vector<impl::InteractionInfo> interactions;
         impl::InteractionManager interaction_manager;
 
-        bool is_built;
         std::unordered_set<ParticleType> usr_particle_types;
         std::unordered_map<ParticleType, impl::ParticleType> usr_types_to_impl_types;
         std::unordered_set<ParticleID> usr_particle_ids; 
@@ -86,15 +91,15 @@ namespace april::env {
     };
 
 
-    template<IsForce F> void Environment::add_force(const F & force, ParticleType type) {
+    template<IsForce F> void Environment::add_type_force(const F & force, ParticleType type) {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
         interactions.emplace_back(true, std::pair{ type, type }, std::move(ptr));
     }
-    template<IsForce F> void Environment::add_force(const F & force, ParticleType t1, ParticleType t2) {
+    template<IsForce F> void Environment::add_type_interaction(const F & force, ParticleType t1, ParticleType t2) {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
         interactions.emplace_back(true, ParticleTypePair{t1, t2}, std::move(ptr));
     }
-    template<IsForce F> void Environment::add_interaction(const F & force, ParticleID id1, ParticleID id2) {
+    template<IsForce F> void Environment::add_id_interaction(const F & force, ParticleID id1, ParticleID id2) {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
         interactions.emplace_back(false, ParticleIDPair{id1, id2}, std::move(ptr));
     }
@@ -127,7 +132,7 @@ namespace april::env {
                     if (static_cast<bool>(p.state & state))
                         return *this;
                     else 
-                        return ++*this;
+                        return ++*this; //TODO use loop instead of recursion
                 }
 
                 Iterator operator++(int) {
@@ -149,8 +154,8 @@ namespace april::env {
             ParticleIterator(std::vector<impl::Particle> & particles, const ParticleState state) :
                 particle_storage(particles), state(state) {}
 
-            Iterator begin() const {return Iterator(particle_storage, state, 0);}
-            Iterator end() const {return Iterator(particle_storage, state, particle_storage.size());}
+            [[nodiscard]] auto begin() const {return Iterator(particle_storage, state, 0);}
+            [[nodiscard]] auto end() const {return Iterator(particle_storage, state, particle_storage.size());}
 
         private:
             std::vector<impl::Particle> & particle_storage;

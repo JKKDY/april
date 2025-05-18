@@ -2,16 +2,15 @@
 #include <concepts>
 #include <functional>
 #include <variant>
-#include <math.h>
+#include <cmath>
 
 
 #include "april/env/particle.h"
 #include "april/utils/map.hpp"
-#include "common.h"
+#include "april/common.h"
 
 
 namespace april::env {
-
     // Base functor for force calculations
     struct Force {
         virtual ~Force() = default;
@@ -32,7 +31,7 @@ namespace april::env {
         };
 
         std::unique_ptr<Force> mix(const Force* other) const override {
-           return std::make_unique<NoForce>();
+            return std::make_unique<NoForce>();
         }
     };
 
@@ -125,59 +124,64 @@ namespace april::env {
 
 
     template <typename T> concept IsForce = std::is_base_of_v<Force, T>;
-
-
-    namespace impl {
-        using ForcePtr = std::unique_ptr<Force>;
-
-
-        template <typename T> concept ForceMap = requires(
-            T t, size_t i, size_t j
-        ) {
-            {t.get(i,j) } -> std::same_as<Force*>;
-            {t.key_size() } -> std::same_as<size_t>;
-        };
-
-
-        struct InteractionInfo {
-            InteractionInfo(const bool pair_contains_types, std::pair<int, int> key_pair, ForcePtr force):
-                pair_contains_types(pair_contains_types), force(std::move(force)) {
-                if (key_pair.first < key_pair.second) {
-                    this->key_pair = {key_pair.first, key_pair.second};
-                } else {
-                    this->key_pair = {key_pair.second, key_pair.first};
-                }
-            }
-            bool pair_contains_types;
-            std::pair<int, int> key_pair;
-            ForcePtr force;
-        };
-
-
-        class InteractionManager {
-            using TypeForceMap = utils::impl::DensePairMap<Force, ParticleType>;
-            using IdForceMap = utils::impl::DensePairMap<Force, ParticleID>;
-
-            static_assert(ForceMap<TypeForceMap>, "TypeForceMap must implement ForceMap interface");
-            static_assert(ForceMap<IdForceMap>, "IdForceMap must implement ForceMap interface");
-
-        public:
-			InteractionManager() = default;
-            void build(std::vector<InteractionInfo> & interaction_infos,
-                const std::unordered_map<env::ParticleType, impl::ParticleType> & usr_types_to_impl_types,
-                const std::unordered_map<env::ParticleID, impl::ParticleID> & usr_ids_to_impl_ids
-            );
-
-			vec3 evaluate(const Particle& p1, const Particle& p2, const vec3& distance) const;
-            
-        private:
-            TypeForceMap inter_type_forces;   // Forces between different particle types (e.g. type A ? type B)
-            IdForceMap intra_particle_forces; // Forces between specific particle instances (by ID)
-        };
-
-	} // namespace impl
-
 } // namespace april::env
+
+
+
+namespace april::env::impl {
+    using ForcePtr = std::unique_ptr<Force>;
+
+
+    template <typename T> concept ForceMap = requires(
+        T t, size_t i, size_t j
+    ) {
+        {t.get(i,j) } -> std::same_as<Force*>;
+        {t.key_size() } -> std::same_as<size_t>;
+    };
+
+
+    struct InteractionInfo {
+        InteractionInfo(const bool pair_contains_types, std::pair<int, int> key_pair, ForcePtr force):
+            pair_contains_types(pair_contains_types), force(std::move(force)) {
+            if (key_pair.first < key_pair.second) {
+                this->key_pair = {key_pair.first, key_pair.second};
+            } else {
+                this->key_pair = {key_pair.second, key_pair.first};
+            }
+        }
+        bool pair_contains_types;
+        std::pair<int, int> key_pair;
+        ForcePtr force;
+    };
+
+
+    class InteractionManager {
+        using TypeForceMap = utils::impl::DensePairMap<Force, ParticleType>;
+        using IdForceMap = utils::impl::DensePairMap<Force, ParticleID>;
+
+        static_assert(ForceMap<TypeForceMap>, "TypeForceMap must implement ForceMap interface");
+        static_assert(ForceMap<IdForceMap>, "IdForceMap must implement ForceMap interface");
+
+    public:
+		InteractionManager() = default;
+        void build(std::vector<InteractionInfo> & interaction_infos,
+            const std::unordered_map<env::ParticleType, impl::ParticleType> & usr_types_to_impl_types,
+            const std::unordered_map<env::ParticleID, impl::ParticleID> & usr_ids_to_impl_ids
+        );
+
+        [[nodiscard]] vec3 evaluate(const Particle& p1, const Particle& p2) const;
+		[[nodiscard]] vec3 evaluate(const Particle& p1, const Particle& p2, const vec3& distance) const;
+
+        [[nodiscard]] double get_max_cutoff() const;
+
+    private:
+        TypeForceMap inter_type_forces;   // Forces between different particle types (e.g. type A <-> type B)
+        IdForceMap intra_particle_forces; // Forces between specific particle instances (by ID)
+
+        double max_cutoff;
+    };
+
+} // namespace april::env::impl
 
 
 

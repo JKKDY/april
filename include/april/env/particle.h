@@ -3,8 +3,9 @@
 #include <limits>
 #include <string>
 #include <type_traits>
+#include <cstdint>
 
-#include "Common.h"
+#include "april/common.h"
 
 namespace april::env {
 	class ParticleGrid;

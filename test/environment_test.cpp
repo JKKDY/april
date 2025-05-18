@@ -24,7 +24,7 @@ TEST(EnvTest, one_particle_test) {
         .mass = 10,
         .state = ParticleState::ALIVE,
     });
-    e.add_force(LennardJones(3,5), 0);
+    e.add_type_force(LennardJones(3,5), 0);
     e.build();
 
     auto & particles = e.export_particles();
@@ -61,7 +61,7 @@ TEST(EnvTest, type_force_missing) {
         .state = ParticleState::ALIVE,
     });
 
-    e.add_interaction(InverseSquare(), -1, 0);
+    e.add_id_interaction(InverseSquare(), -1, 0);
 
     EXPECT_THROW(e.build(), std::invalid_argument);
 }
@@ -89,8 +89,8 @@ TEST(EnvTest, two_particle_force_test) {
         .state = ParticleState::ALIVE,
     });
 
-    e.add_interaction(InverseSquare(), -1, 0);
-    e.add_force(InverseSquare(), 0);
+    e.add_id_interaction(InverseSquare(), -1, 0);
+    e.add_type_force(InverseSquare(), 0);
 
     e.build();
 
@@ -137,7 +137,7 @@ TEST(EnvTest, particle_iterator_test) {
         .state = ParticleState::DEAD,
     });
 
-    e.add_force(NoForce(), 0);
+    e.add_type_force(NoForce(), 0);
 
     e.build();
 

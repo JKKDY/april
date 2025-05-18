@@ -84,9 +84,9 @@ namespace april::env {
         );
         int id = it == particle_infos.end() ? 0 : it->id+1; 
 
-        for (int x = -sphere.radius.x; x < sphere.radius.x; ++x) {
-            for (int y = -sphere.radius.y; y < sphere.radius.y; ++y) {
-                for (int z = -sphere.radius.z; z < sphere.radius.z; ++z) {
+        for (int x = -static_cast<int>(sphere.radius.x/width); x < sphere.radius.x; ++x) {
+            for (int y = -static_cast<int>(sphere.radius.y/width); y < sphere.radius.y; ++y) {
+                for (int z = -static_cast<int>(sphere.radius.z/width); z < sphere.radius.z; ++z) {
 
                     vec3 pos = {x * width, y * width, z * width};
                     vec3 pos_sq = pos.mul(pos_sq);
@@ -198,7 +198,7 @@ namespace april::env {
     void Environment::map_ids_and_types_to_internal() {
     
         // give particles with undefined id a valid id
-        impl::ParticleID id = 0;
+        ParticleID id = 0;
         for (auto & p: particle_infos) {
             if (p.id != PARTICLE_ID_UNDEFINED) continue;
 
@@ -231,7 +231,7 @@ namespace april::env {
             }
         }
 
-        //swap ids, such that all locally interacting particles have the lowest ids
+        //swap ids, such that all ID-interacting particles have the lowest ids
         std::ranges::partition(id_vector,
                 [&](const ParticleID id_) { return interacting_ids.contains(id_); }
         );
@@ -254,6 +254,14 @@ namespace april::env {
         }
     }
 
+    void Environment::set_extent(const vec3& size) {
+        this->extent = size;
+    }
+
+    void Environment::set_origin(const vec3& origin) {
+        this->origin = origin;
+    }
+
     void Environment::build()
     {
         if (is_built) return;
@@ -269,15 +277,18 @@ namespace april::env {
         particle_infos.clear();
         usr_particle_ids.clear();
         usr_particle_types.clear();
-        usr_types_to_impl_types.clear();
-        usr_particle_ids.clear();
         usr_ids_to_impl_ids.clear();
+        usr_types_to_impl_types.clear();
 
         is_built = true;
     }
 
+    void Environment::update_forces() {
+
+    }
+
     impl::ParticleIterator Environment::particles(const ParticleState state) {
-         return impl::ParticleIterator(particle_storage, state);
+         return {particle_storage, state};
     }
 
     const std::vector<impl::Particle> &Environment::export_particles() {

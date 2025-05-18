@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "debug.h"
+#include "april/utils/debug.h"
 
 namespace april::utils::impl {
 
@@ -74,7 +74,7 @@ namespace april::utils::impl {
             }
         }        
 
-        bool empty() const noexcept {
+        [[nodiscard]] bool empty() const noexcept {
             return map.empty();
         }
     private:
@@ -86,7 +86,6 @@ namespace april::utils::impl {
     template<typename T, std::unsigned_integral KeyT = size_t> class DensePairMap {
         using Ptr = std::unique_ptr<T>;
     public:
-    
         void build(const std::vector<std::pair<KeyT, KeyT>> & keys, std::vector<Ptr>&& values) {
             if (keys.size() != values.size())
                 throw std::invalid_argument("keys/values size mismatch");
@@ -118,16 +117,16 @@ namespace april::utils::impl {
         }
     
         T* get(KeyT a, KeyT b) const noexcept {
-            const size_t ai = static_cast<size_t>(a);
-            const size_t bi = static_cast<size_t>(b);
+            const auto ai = static_cast<size_t>(a);
+            const auto bi = static_cast<size_t>(b);
             AP_ASSERT(ai < N && bi < N, "key out of range");
             return map[ai*N + bi];
         }
 
-        size_t key_size() const noexcept {
+        [[nodiscard]] size_t key_size() const noexcept {
             return N;
         }
-    
+
     private:
         size_t N = 0;               // # of unique keys
         std::vector<T*> map;        // size N*N, raw lookup table

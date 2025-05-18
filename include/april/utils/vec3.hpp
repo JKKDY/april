@@ -1,5 +1,5 @@
 #pragma once
-#include <math.h>
+#include <cmath>
 
 #include "Debug.h"
 
@@ -14,17 +14,17 @@ namespace april::utils {
 
         // Addition operator: returns a new vector that is the sum of this and another vector
         Vec3 operator+(const Vec3& other) const noexcept {
-            return Vec3(x + other.x, y + other.y, z + other.z);
+            return {x + other.x, y + other.y, z + other.z};
         }
 
         // Subtraction operator: returns a new vector that is the difference of this and another vector
         Vec3 operator-(const Vec3& other) const noexcept {
-            return Vec3(x - other.x, y - other.y, z - other.z);
+            return {x - other.x, y - other.y, z - other.z};
         }
 
         // Scalar multiplication operator: returns a new vector scaled by a constant
         Vec3 operator*(const double scalar) const noexcept {
-            return Vec3(x * scalar, y * scalar, z * scalar);
+            return {x * scalar, y * scalar, z * scalar};
         }
 
         // Friend function for scalar multiplication with the scalar on the left
@@ -48,7 +48,7 @@ namespace april::utils {
             return *this;
         }
 
-        // point wise multiplication multiplication
+        // point-wise multiplication
         Vec3& mul(const Vec3 & other) noexcept {
             x *= other.x;
             y *= other.y;
@@ -69,8 +69,7 @@ namespace april::utils {
             return *this;
         }
 
-        // Access component by index
-        // index: 0 for x, 1 for y, 2 for z.
+        // Access component by index: 0 for x, 1 for y, 2 for z.
         double operator[](const int index) const noexcept{
             AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
             switch (index) {
@@ -93,11 +92,11 @@ namespace april::utils {
             return x; // This line should never be reached due to the assertion above.
         }
 
-		double norm_squared() const noexcept {
+		[[nodiscard]] double norm_squared() const noexcept {
 			return x * x + y * y + z * z;
 		}
 
-		double norm() const noexcept {
+		[[nodiscard]] double norm() const noexcept {
 			return sqrt(norm_squared());
 		}
 

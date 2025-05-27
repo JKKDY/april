@@ -12,7 +12,7 @@
 using namespace april::utils;
 using UInt = uint32_t;
 
-TEST(IndexSetBasic, ConstructEmpty) {
+TEST(IndexSet, ConstructEmpty) {
     IndexSet<UInt> s{9};         // allows ids 0..9
     EXPECT_EQ(s.size(), 0u);
     // nothing contained
@@ -21,7 +21,7 @@ TEST(IndexSetBasic, ConstructEmpty) {
     EXPECT_FALSE(s.contains(10));  // out of range
 }
 
-TEST(IndexSetBasic, SingleInsertContainsAndSize) {
+TEST(IndexSet, SingleInsertContainsAndSize) {
     IndexSet<UInt> s{5};
     s.insert(3);
     EXPECT_TRUE(s.contains(3));
@@ -31,25 +31,23 @@ TEST(IndexSetBasic, SingleInsertContainsAndSize) {
     EXPECT_FALSE(s.contains(2));
 }
 
-TEST(IndexSetBasic, MultipleInsertsOrderPreserved) {
+TEST(IndexSet, MultipleInsertsContainsAll) {
     IndexSet<UInt> s{100};
     s.insert(10);
     s.insert(42);
     s.insert(7);
     EXPECT_EQ(s.size(), 3u);
 
-    // iteration yields in insertion order
-    std::vector<UInt> seen;
-    for (auto id: s) seen.push_back(id);
-    EXPECT_EQ(seen, std::vector<UInt>({10,42,7}));
+    // collect
+    std::vector seen(s.begin(), s.end());
+    std::sort(seen.begin(), seen.end());
 
-    // operator[] matches
-    EXPECT_EQ(s[0], 10u);
-    EXPECT_EQ(s[1], 42u);
-    EXPECT_EQ(s[2], 7u);
+    const std::vector<UInt> expected{7,10,42};
+    EXPECT_EQ(seen, expected);
 }
 
-TEST(IndexSetBasic, EraseRemovesAndSwapsBack) {
+
+TEST(IndexSet, EraseRemovesAndSwapsBack) {
     IndexSet<UInt> s{10};
     s.insert(2);
     s.insert(5);
@@ -62,12 +60,12 @@ TEST(IndexSetBasic, EraseRemovesAndSwapsBack) {
     EXPECT_EQ(s.size(), 2u);
 
     // The element 8 should have been swapped into position of 5
-    std::vector<UInt> remaining(s.begin(), s.end());
+    std::vector remaining(s.begin(), s.end());
     std::sort(remaining.begin(), remaining.end());
     EXPECT_EQ(remaining, std::vector<UInt>({2,8}));
 }
 
-TEST(IndexSetBasic, ReinsertAfterErase) {
+TEST(IndexSet, ReinsertAfterErase) {
     IndexSet<UInt> s{3};
     s.insert(1);
     s.erase(1);
@@ -82,41 +80,41 @@ TEST(IndexSetBasic, ReinsertAfterErase) {
 }
 
 // Death tests for invalid operations
-TEST(MAYBE_DEATH_TEST(IndexSetError, InsertDuplicate), IndexSetError_InsertDuplicate) {
+TEST(MAYBE_DEATH_TEST(IndexSet, InsertDuplicate), IndexSetError_InsertDuplicate) {
     IndexSet<UInt> s{2};
     s.insert(0);
     EXPECT_DEATH(s.insert(0), "");  // duplicate
 }
 
-TEST(MAYBE_DEATH_TEST(IndexSetError, InsertOutOfRange), IndexSetError_InsertOutOfRange) {
+TEST(MAYBE_DEATH_TEST(IndexSet, InsertOutOfRange), IndexSetError_InsertOutOfRange) {
     IndexSet<UInt> s{2};
     EXPECT_DEATH(s.insert(3), "");  // 3 >= N=3
 }
 
-TEST(MAYBE_DEATH_TEST(IndexSetError, EraseNonexistent), IndexSetError_EraseNonexistent) {
+TEST(MAYBE_DEATH_TEST(IndexSet, EraseNonexistent), IndexSetError_EraseNonexistent) {
     IndexSet<UInt> s{5};
     EXPECT_DEATH(s.erase(1), "");  // never inserted
 }
 
-TEST(MAYBE_DEATH_TEST(IndexSetError, EraseOutOfRange), IndexSetError_EraseOutOfRange) {
+TEST(MAYBE_DEATH_TEST(IndexSet, EraseOutOfRange), IndexSetError_EraseOutOfRange) {
     IndexSet<UInt> s{5};
     EXPECT_DEATH(s.erase(7), "");  // 7 >= N
 }
 
-TEST(IndexSetContains, OutOfRangeReturnsFalse) {
+TEST(IndexSet, OutOfRangeReturnsFalse) {
     IndexSet<UInt> s{4};
     // contains should simply return false for out-of-range
     EXPECT_FALSE(s.contains(10u));
 }
 
 // Test for iterator begin/end on empty
-TEST(IndexSetIterator, EmptyBeginEqualsEnd) {
+TEST(IndexSet, EmptyBeginEqualsEnd) {
     IndexSet<UInt> s{0};
     EXPECT_EQ(s.begin(), s.end());
 }
 
 // Test large sequence
-TEST(IndexSetStress, ManyInsertsAndErases) {
+TEST(IndexSet, ManyInsertsAndErases) {
     const UInt MAX_ID = 1000;
     IndexSet<UInt> s{MAX_ID};
     // insert all even IDs

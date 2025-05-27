@@ -7,18 +7,12 @@
 
 #include "april/env/particle.h"
 #include "april/env/interaction.h"
-
+#include "april/containers/container.h"
 
 namespace april::env {
     namespace impl {
         class ParticleIterator;
     }
-
-    enum class Dimension {
-        TWO = 2,
-        THREE = 3,
-        INFER = -1
-    };
 
     struct ParticleCuboid {
         vec3 origin;
@@ -59,13 +53,13 @@ namespace april::env {
 
         void set_extent(const vec3 & size);
         void set_origin(const vec3 & origin);
+        void set_container(std::unique_ptr<core::Container> container_ptr);
 
         void build();
 
-        void update_forces();
-  
-        impl::ParticleIterator particles(ParticleState state = ParticleState::ALL);
+        void update_forces() const;
 
+        impl::ParticleIterator particles(ParticleState state = ParticleState::ALL);
         const std::vector<impl::Particle> & export_particles();
 
     private:
@@ -79,11 +73,12 @@ namespace april::env {
 
         vec3 extent;
         vec3 origin;
+        std::unique_ptr<core::Container> container;
 
         std::vector<impl::Particle> particle_storage;
-        std::vector<impl::InteractionInfo> interactions;
         impl::InteractionManager interaction_manager;
 
+        std::vector<impl::InteractionInfo> interactions;
         std::unordered_set<ParticleType> usr_particle_types;
         std::unordered_map<ParticleType, impl::ParticleType> usr_types_to_impl_types;
         std::unordered_set<ParticleID> usr_particle_ids; 

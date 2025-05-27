@@ -37,7 +37,7 @@ namespace april::core {
 			static_assert(IsParticleSet<ParticleSet>, "ParticleSet must implement IsParticleSet interface");
 
 			ParticleSet particles;
-			uint3 idx {};
+			uint3 idx;
 			unsigned int id;
 		};
 
@@ -47,7 +47,7 @@ namespace april::core {
 		};
 
 	public:
-		using Container::Container;
+		LinkedCells();
 
 		void build() override;
 		void calculate_forces() override;

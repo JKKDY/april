@@ -4,8 +4,10 @@
 #include <ranges>
 #include <unordered_set>
 
+#include "april/containers/direct_sum.h"
+
 namespace april::env {
-    Environment::Environment(): is_built(false) {
+    Environment::Environment(): is_built(false), container(std::make_unique<core::DirectSum>()), interaction_manager() {
 
     }
 
@@ -38,7 +40,7 @@ namespace april::env {
 
         const auto it = std::ranges::max_element(
             particle_infos,
-            {},                 // default `<` comparator
+            {},               // default `<` comparator
             &Particle::id       // project each Particle to its `id`
         );
         int id = it == particle_infos.end() ? 0 : it->id+1;
@@ -262,6 +264,10 @@ namespace april::env {
         this->origin = origin;
     }
 
+    void Environment::set_container(std::unique_ptr<core::Container> container_ptr) {
+        container = std::move(container_ptr);
+    }
+
     void Environment::build()
     {
         if (is_built) return;
@@ -271,7 +277,9 @@ namespace april::env {
         build_particles();
 
         interaction_manager.build(interactions, usr_types_to_impl_types, usr_ids_to_impl_ids);
-        
+        container->init(&interaction_manager, &particle_storage, extent, origin);
+        container->build();
+
         // free up memory
         interactions.clear();
         particle_infos.clear();
@@ -283,8 +291,8 @@ namespace april::env {
         is_built = true;
     }
 
-    void Environment::update_forces() {
-
+    void Environment::update_forces() const {
+        container->calculate_forces();
     }
 
     impl::ParticleIterator Environment::particles(const ParticleState state) {

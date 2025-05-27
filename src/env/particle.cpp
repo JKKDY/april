@@ -2,22 +2,14 @@
 #include <sstream>
 
 namespace april::env::impl {
-	Particle::Particle(size_t idx, unsigned int id, const vec3& position, const vec3& velocity, double mass, unsigned int type, State state, const vec3& force, const vec3& old_force, const vec3& old_position) :
-		id(id), position(position), velocity(velocity), mass(mass), type(type), state(state), force(force), old_force(old_force), old_position(old_position), index(idx) {
-	}
+	Particle::Particle(const size_t index, const unsigned int id, const vec3& position, const vec3& velocity,
+	                   const double mass, const unsigned int type, const State state, const vec3& force,
+	                   const vec3& old_force, const vec3& old_position) :
+		position(position), old_position(old_position), velocity(velocity), force(force), old_force(old_force),
+		state(state), mass(mass), type(type), id(id), index(index) {}
 
-	void Particle::update_position(const vec3& dx) {
-		old_position = position;
-		position += dx;
-	}
-
-	void Particle::reset_force() {
-		old_force = force;
-		force = vec3(0, 0, 0);
-	}
-
-	bool Particle::operator==(const Particle& other) const { 
-		return index == other.index; 
+	bool Particle::operator==(const Particle& other) const {
+		return index == other.index;
 	}
 
 	std::string Particle::to_string() const {
@@ -31,5 +23,3 @@ namespace april::env::impl {
 		return oss.str();
 	}
 }
-
-

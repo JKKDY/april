@@ -6,6 +6,8 @@
 #include "april/env/particle.h"
 
 namespace april::core {
+	LinkedCells::LinkedCells(): outside_cell(Cell::ParticleSet(0), {}, 0){}
+
 	void LinkedCells::build() {
 		build_cells();
 		build_cell_pairs();
@@ -55,12 +57,12 @@ namespace april::core {
 			}
 		}
 
-		for (unsigned int z = 0; z < cell_count[2]; z++) {
-			for (unsigned int y = 0; y < cell_count[1]; y++) {
-				for (unsigned int x = 0; x < cell_count[0]; x++) {
-					uint3 idx1 = {x,y,z};
+		for (const auto d : displacements) {
+			for (unsigned int z = 0; z < cell_count[2]; z++) {
+				for (unsigned int y = 0; y < cell_count[1]; y++) {
+					for (unsigned int x = 0; x < cell_count[0]; x++) {
+						uint3 idx1 = {x,y,z};
 
-					for (const auto d : displacements) {
 						uint3 idx2 = {idx1[0] + d[0], idx1[1] + d[1], idx1[2] + d[2]};
 
 						if (idx1 >= idx2 || // ensure only unique pairs are added

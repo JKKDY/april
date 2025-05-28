@@ -87,7 +87,7 @@ namespace april::env {
                 return vec3{0.0, 0.0, 0.0};
 
             const double magnitude = pre_factor * p1.mass * p2.mass / (distance * distance * distance);
-            return -magnitude * r;  
+            return magnitude * r;
         }
 
         std::unique_ptr<Force> mix(const Force* other) const override {

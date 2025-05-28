@@ -116,7 +116,7 @@ namespace april::env::impl
 	}
 
 	vec3 InteractionManager::evaluate(const Particle& p1, const Particle& p2) const {
-		return evaluate(p1, p2, p2.position - p2.position);
+		return evaluate(p1, p2, p2.position - p1.position); // dist vector points from p1 to p2
 	}
 
 

@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 #include <april/env/environment.h>
+#include "april/common.h"
 
+using namespace april;
 using namespace april::env;
+
 
 TEST(EnvTest, empty_env) {
     Environment e;
@@ -171,4 +174,5 @@ TEST(EnvTest, particle_iterator_test) {
         i++;
     }
     EXPECT_EQ(i, 3);
-};
+}
+

@@ -67,7 +67,8 @@ namespace april::env::impl
 		type_interaction_forces.resize(map_size);
 
 		auto index = [=](const size_t a, const size_t b) {  // indexing an upper right triangle
-			return (n_types * a) - (a*(a+1))/2 + (b - a);
+			// first part: base offset, second part: sum of elements not part of the triangle
+			return ((n_types + 1) * a) - (a*(a+1))/2 + (b - a);
 		};
 
 		// add all user specified interactions between particle types
@@ -125,7 +126,7 @@ namespace april::env::impl
 
 		// check if both particles even have any individual interactions defined for them
 		if (p1.id < intra_particle_forces.key_size() && p2.id < intra_particle_forces.key_size()) {
-			if (const Force * id_force_fn = inter_type_forces.get(p1.type, p2.type)) {
+			if (const Force * id_force_fn = intra_particle_forces.get(p1.id, p2.id)) {
 				force += (*id_force_fn)(p1, p2, distance);
 			}
 		}

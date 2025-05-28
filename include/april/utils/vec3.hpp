@@ -12,6 +12,11 @@ namespace april::utils {
         explicit Vec3(const double v): x(v), y(v), z(v) {}
         Vec3(const double x, const double y, const double z) : x(x), y(y), z(z) {}
 
+        // unary minus
+        Vec3 operator-() const noexcept {
+            return Vec3{-x, -y, -z};
+        }
+
         // Addition operator: returns a new vector that is the sum of this and another vector
         Vec3 operator+(const Vec3& other) const noexcept {
             return {x + other.x, y + other.y, z + other.z};

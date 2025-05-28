@@ -2,6 +2,8 @@
 #include <concepts>
 
 #include "april/env/environment.h"
+#include "april/io/output.h"
+#include "april/io/observable.h"
 
 namespace april::env {
 	class Environment;
@@ -14,33 +16,39 @@ namespace april::core::impl {
 			{ t.integration_step() } -> std::same_as<void>;
 	};
 
-	// === CRTP Base Integrator ===
-	template <typename Derived> class Integrator {
+	template <io::IsOutputWriter OutputW = io::NullOutput>
+	class Integrator {
 	public:
 		explicit Integrator(env::Environment& env_ref)
-			: env(env_ref) {
-			static_assert(IsIntegrator<Derived>, "Derived must implement: void integration_step()");
-		}
+			: env(env_ref) {}
 
-		void run(const double dt, const double duration) {
+		// Call with total duration
+		void run(this auto&& self, double dt, const double duration) {
 			const std::size_t steps = static_cast<std::size_t>(duration / dt);
-			run_steps(dt, steps);
+			self.run_steps(dt, steps);
 		}
 
-		void run_steps(double dt, const size_t num_steps) {
+		// Call with explicit number of steps
+		void run_steps(this auto&& self, double dt, const std::size_t num_steps) {
 			this->dt = dt;
 			t = 0;
 
-			for (size_t i = 0; i < num_steps; i++) {
-				derived()->integration_step();
+			for (std::size_t i = 0, j = 0; i < num_steps; ++i, ++j) {
+				self.integration_step();
 				t += dt;
+
+				if (j >= output_writer.write_frequency) {
+					j = 0;
+					output_writer.write(t, env.export_particles());
+				}
 			}
 		}
 
 	protected:
-		Derived* derived() { return static_cast<Derived*>(this); }
+		OutputW output_writer;
 		env::Environment& env;
 		double t = 0;
 		double dt = 0;
 	};
+
 } // namespace april::core

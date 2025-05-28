@@ -11,12 +11,15 @@ namespace april::env {
 	class ParticleGrid;
 
 	enum class ParticleState : uint8_t {
-		ALIVE      = 0b00000001,
-		DEAD       = 0b00000010,
-		PASSIVE    = 0b00000100,
-		STATIONARY = 0b00001000,
-		ALL        = 0b11111111
+		ALIVE      = 0b00000001, // Moves, exerts and experiences forces
+		DEAD       = 0b00000010, // Inactive; no movement or interaction
+		PASSIVE    = 0b00000100, // Moves, experiences forces but exerts none
+		STATIONARY = 0b00001000, // Exerts forces but does not move or respond
+		EXERTING   = ALIVE | STATIONARY, // Can exert forces on others
+		MOVABLE    = ALIVE | PASSIVE,    // Can move (may or may not exert forces)
+		ALL        = 0b11111111  // Matches all states
 	};
+
 
 	// Bitwise OR
 	inline ParticleState operator|(ParticleState a, ParticleState b) {

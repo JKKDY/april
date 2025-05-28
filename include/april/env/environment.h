@@ -47,9 +47,9 @@ namespace april::env {
         std::vector<ParticleID> add_particle_cuboid(const ParticleCuboid& cuboid);
         std::vector<ParticleID> add_particle_sphere(const ParticleSphere& sphere);
 
-        template<IsForce F> void add_type_force(const F & force, ParticleType type);
-        template<IsForce F> void add_type_interaction(const F & force, ParticleType t1, ParticleType t2);
-        template<IsForce F> void add_id_interaction(const F & force, ParticleID id1, ParticleID id2);
+        template<IsForce F> void add_force_to_type(const F & force, ParticleType type);
+        template<IsForce F> void add_force_between_types(const F & force, ParticleType t1, ParticleType t2);
+        template<IsForce F> void add_force_between_ids(const F & force, ParticleID id1, ParticleID id2);
 
         void set_extent(const vec3 & size);
         void set_origin(const vec3 & origin);
@@ -86,15 +86,15 @@ namespace april::env {
     };
 
 
-    template<IsForce F> void Environment::add_type_force(const F & force, ParticleType type) {
+    template<IsForce F> void Environment::add_force_to_type(const F & force, ParticleType type) {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
         interactions.emplace_back(true, std::pair{ type, type }, std::move(ptr));
     }
-    template<IsForce F> void Environment::add_type_interaction(const F & force, ParticleType t1, ParticleType t2) {
+    template<IsForce F> void Environment::add_force_between_types(const F & force, ParticleType t1, ParticleType t2) {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
         interactions.emplace_back(true, ParticleTypePair{t1, t2}, std::move(ptr));
     }
-    template<IsForce F> void Environment::add_id_interaction(const F & force, ParticleID id1, ParticleID id2) {
+    template<IsForce F> void Environment::add_force_between_ids(const F & force, ParticleID id1, ParticleID id2) {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
         interactions.emplace_back(false, ParticleIDPair{id1, id2}, std::move(ptr));
     }

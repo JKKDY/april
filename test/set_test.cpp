@@ -2,12 +2,6 @@
 
 #include "april/utils/set.hpp"
 
-// For death tests
-#ifdef NDEBUG
-#  define MAYBE_DEATH_TEST(test_suite_name, test_name) DISABLED_##test_name
-#else
-#  define MAYBE_DEATH_TEST(test_suite_name, test_name) test_name
-#endif
 
 using namespace april::utils;
 using UInt = uint32_t;
@@ -80,23 +74,23 @@ TEST(IndexSet, ReinsertAfterErase) {
 }
 
 // Death tests for invalid operations
-TEST(MAYBE_DEATH_TEST(IndexSet, InsertDuplicate), IndexSetError_InsertDuplicate) {
+TEST(IndexSet, IndexSetError_InsertDuplicate) {
     IndexSet<UInt> s{2};
     s.insert(0);
     EXPECT_DEATH(s.insert(0), "");  // duplicate
 }
 
-TEST(MAYBE_DEATH_TEST(IndexSet, InsertOutOfRange), IndexSetError_InsertOutOfRange) {
+TEST(IndexSet, IndexSetError_InsertOutOfRange) {
     IndexSet<UInt> s{2};
     EXPECT_DEATH(s.insert(3), "");  // 3 >= N=3
 }
 
-TEST(MAYBE_DEATH_TEST(IndexSet, EraseNonexistent), IndexSetError_EraseNonexistent) {
+TEST(IndexSet, IndexSetError_EraseNonexistent) {
     IndexSet<UInt> s{5};
     EXPECT_DEATH(s.erase(1), "");  // never inserted
 }
 
-TEST(MAYBE_DEATH_TEST(IndexSet, EraseOutOfRange), IndexSetError_EraseOutOfRange) {
+TEST(IndexSet, IndexSetError_EraseOutOfRange) {
     IndexSet<UInt> s{5};
     EXPECT_DEATH(s.erase(7), "");  // 7 >= N
 }

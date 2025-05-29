@@ -55,7 +55,7 @@ namespace april::io {
 			const fs::path full_path = fs::path(dir) / filename;
 
 			std::ofstream out(full_path, std::ios::binary);
-			// if (!out) throw std::runtime_error("Failed to create output file: " + full_path.string());
+			if (!out) throw std::runtime_error("Failed to create output file: " + full_path.string());
 
 			// Write header
 			out.write(magic, sizeof(magic));							// 4 bytes

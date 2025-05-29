@@ -48,3 +48,4 @@
 
 # user specifics
 CMakeSettings.json
+/loc.py

@@ -7,7 +7,7 @@
 
 #include "april/env/particle.h"     // for env::impl::Particle
 #include "april/common.h"			// for vec3
-#include "april/io/output.h"		// wherever BinaryOutput is declared
+#include "april/io/output.h"
 
 using namespace april;
 using namespace april::env;

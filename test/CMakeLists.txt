@@ -20,6 +20,7 @@ add_executable(test_april
     set_test.cpp
         interaction_test.cpp
         directsum_test.cpp
+        output_test.cpp
 )
 
 target_link_libraries(test_april PRIVATE

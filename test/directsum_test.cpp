@@ -83,8 +83,6 @@ TEST(EnvTest, TwoParticles_IdSpecificForce) {
     e.update_forces();
     auto const& out = e.export_particles();
     ASSERT_EQ(out.size(), 2u);
-    const auto& p0 = (out[0].id == 42 ? out[0] : out[1]);
-    const auto& p1 = (out[0].id == 99 ? out[0] : out[1]);
 
 	EXPECT_EQ(out[0].force, -out[1].force);
 

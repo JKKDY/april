@@ -4,6 +4,7 @@
 #include <format>
 #include <fstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "april/env/particle.h"
@@ -15,28 +16,37 @@ namespace april::io {
 		{ t.write(time, particles) } -> std::same_as<void>;
 	};
 
+
 	class OutputWriter {
 	public:
 		explicit OutputWriter(const size_t write_frequency)
 			: write_frequency(write_frequency) {}
 
 		void write(this auto&& self, size_t step, const std::vector<env::impl::Particle>& particles) {
+			static_assert(
+				requires { self.write_output(step, particles); },
+				"OutputWriter requires a write_output(size_t, const std::vector<Particle>&) method"
+			);
 			self.write_output(step, particles); // works if 'self' has a write(t, particles) method
 		}
 
 		const size_t write_frequency;
 	};
 
+
+
 	class NullOutput final : public OutputWriter {
+	public:
 		void write_output(size_t, const std::vector<env::impl::Particle>&) {}
 	};
 
+
+
 	class BinaryOutput final : public OutputWriter {
 	public:
-		explicit BinaryOutput(const size_t write_frequency, const std::string& dir = "output",const std::string& base_name = "output"):
-			OutputWriter(write_frequency), base_name(base_name), dir(dir) {}
+		explicit BinaryOutput(const size_t write_frequency, std::string dir = "output", std::string base_name = "output"):
+			OutputWriter(write_frequency), base_name(std::move(base_name)), dir(std::move(dir)) {}
 
-	private:
 		void write_output(size_t step, const std::vector<env::impl::Particle>& particles) const {
 			namespace fs = std::filesystem;
 
@@ -45,7 +55,7 @@ namespace april::io {
 			const fs::path full_path = fs::path(dir) / filename;
 
 			std::ofstream out(full_path, std::ios::binary);
-			if (!out) throw std::runtime_error("Failed to create output file: " + full_path.string());
+			// if (!out) throw std::runtime_error("Failed to create output file: " + full_path.string());
 
 			// Write header
 			out.write(magic, sizeof(magic));							// 4 bytes

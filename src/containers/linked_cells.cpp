@@ -109,8 +109,8 @@ namespace april::core {
 
 		// go through every cell and apply direct sum
 		for (Cell & cell : cells) {
-			for (int i = 0; i < cell.particles.size(); i++) {
-				for (int j = i + 1; j < cell.particles.size(); j++) {
+			for (size_t i = 0; i < cell.particles.size(); i++) {
+				for (size_t j = i + 1; j < cell.particles.size(); j++) {
 					auto & p1 = (*particles)[i];
 					auto & p2 = (*particles)[j];
 
@@ -123,8 +123,8 @@ namespace april::core {
 
 		// go through all cell pairs
 		for (auto & cell_pair : cell_pairs) {
-			for (int i = 0; i < cell_pair.first.particles.size(); i++) {
-				for (int j = 0; j < cell_pair.second.particles.size(); j++) {
+			for (size_t i = 0; i < cell_pair.first.particles.size(); i++) {
+				for (size_t j = 0; j < cell_pair.second.particles.size(); j++) {
 					auto & p1 = (*particles)[i];
 					auto & p2 = (*particles)[j];
 

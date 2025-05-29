@@ -30,7 +30,7 @@ namespace april::env {
             return vec3{0.0, 0.0, 0.0};
         };
 
-        std::unique_ptr<Force> mix(const Force* other) const override {
+        std::unique_ptr<Force> mix(const Force* ) const override {
             return std::make_unique<NoForce>();
         }
     };
@@ -43,7 +43,7 @@ namespace april::env {
             cutoff_radius = (cutoff < 0) ? 3.0 * sigma : cutoff;
         }
 
-        vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const noexcept override {
+        vec3 operator()(const impl::Particle& , const impl::Particle& , const vec3& r) const noexcept override {
             const double r2 = r.norm_squared();
             if (cutoff_radius > 0 && r2 > cutoff_radius * cutoff_radius)
                 return vec3{0.0, 0.0, 0.0};
@@ -108,13 +108,13 @@ namespace april::env {
     struct Harmonic final : Force {
         Harmonic(const double k, const double r0) : k(k), r0(r0) {}
 
-        vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const noexcept override {
+        vec3 operator()(const impl::Particle& , const impl::Particle& , const vec3& r) const noexcept override {
             const double distance = r.norm();
             const double magnitude = k * (distance - r0) / distance;
             return -magnitude * r;  
         }
 
-        std::unique_ptr<Force> mix(const Force* other) const override {
+        std::unique_ptr<Force> mix(const Force* ) const override {
             return std::make_unique<NoForce>();
         }
 

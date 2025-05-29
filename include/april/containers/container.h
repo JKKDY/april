@@ -27,7 +27,7 @@ namespace april::core {
 		}
 		virtual void build() = 0;
 		virtual void calculate_forces() = 0;
-		virtual void update_particle(const Particle & particle) {};
+		virtual void update_particle(const Particle &) {}
 
 	protected:
 		InteractionManager * interaction_manager{};

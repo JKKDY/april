@@ -41,6 +41,7 @@ namespace april::env {
     public:
         Environment();
 
+        void add_particle(const vec3& position, const vec3& velocity, double mass, ParticleType type=0, ParticleID id = PARTICLE_ID_UNDEFINED);
         void add_particle(const Particle & particle);
         void add_particles(const std::vector<Particle> & particles);
 
@@ -87,14 +88,20 @@ namespace april::env {
 
 
     template<IsForce F> void Environment::add_force_to_type(const F & force, ParticleType type) {
+        if (is_built)
+            throw std::logic_error("cannot add force. environment has already been built.");
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
         interactions.emplace_back(true, std::pair{ type, type }, std::move(ptr));
     }
     template<IsForce F> void Environment::add_force_between_types(const F & force, ParticleType t1, ParticleType t2) {
+        if (is_built)
+            throw std::logic_error("cannot add force. environment has already been built.");
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
         interactions.emplace_back(true, ParticleTypePair{t1, t2}, std::move(ptr));
     }
     template<IsForce F> void Environment::add_force_between_ids(const F & force, ParticleID id1, ParticleID id2) {
+        if (is_built)
+            throw std::logic_error("cannot add force. environment has already been built.");
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
         interactions.emplace_back(false, ParticleIDPair{id1, id2}, std::move(ptr));
     }
@@ -103,11 +110,14 @@ namespace april::env {
     namespace impl {
 
         class ParticleIterator {
-            using reference = impl::Particle&;
-            using pointer = impl::Particle*;
-
             class Iterator {
             public:
+                using iterator_category = std::input_iterator_tag;
+                using value_type = impl::Particle;
+                using difference_type = std::ptrdiff_t;
+                using pointer = impl::Particle*;
+                using reference = impl::Particle&;
+
                 Iterator(std::vector<impl::Particle> & particles, const ParticleState state, const size_t index) :
                     particle_storage(particles), state(state), idx(index) {
 
@@ -138,6 +148,10 @@ namespace april::env {
 
                 bool operator==(const Iterator& other)const { 
                     return idx == other.idx; 
+                }
+
+                bool operator!=(const Iterator& other) const {
+                    return !(*this == other);
                 }
 
             private:

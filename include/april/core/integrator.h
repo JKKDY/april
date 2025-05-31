@@ -3,7 +3,7 @@
 
 #include "april/env/environment.h"
 #include "april/io/output.h"
-#include "april/io/observable.h"
+#include "april/io/monitor.h"
 
 namespace april::env {
 	class Environment;
@@ -20,26 +20,32 @@ namespace april::core::impl {
 	class Integrator {
 	public:
 		explicit Integrator(env::Environment& env_ref)
-			: env(env_ref) {}
+			: env(env_ref) {
+			env.build();
+		}
+
+		void set_writer(OutputW writer) {
+			output_writer = writer;
+		}
 
 		// Call with total duration
 		void run(this auto&& self, double dt, const double duration) {
-			const std::size_t steps = static_cast<std::size_t>(duration / dt);
+			const auto steps = static_cast<std::size_t>(duration / dt);
 			self.run_steps(dt, steps);
 		}
 
 		// Call with explicit number of steps
-		void run_steps(this auto&& self, double dt, const std::size_t num_steps) {
-			this->dt = dt;
-			t = 0;
+		void run_steps(this auto&& self, const double delta_t, const std::size_t num_steps) {
+			self.dt = delta_t;
+			self.t = 0;
 
 			for (std::size_t i = 0, j = 0; i < num_steps; ++i, ++j) {
 				self.integration_step();
-				t += dt;
+				self.t += self.dt;
 
-				if (j >= output_writer.write_frequency) {
+				if (++j >= self.output_writer.write_frequency) {
 					j = 0;
-					output_writer.write(t, env.export_particles());
+					self.output_writer.write(i, self.env.export_particles());
 				}
 			}
 		}

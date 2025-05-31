@@ -70,8 +70,8 @@ namespace april::env {
 		ParticleType type = 0;  				// The type of the particle.
 		vec3 position;      					// The position of the particle.
 		vec3 velocity;      					// The velocity of the particle.
-		double mass;        					// The mass of the particle.
-		ParticleState state;					// The state of the particle.
+		double mass{};        					// The mass of the particle.
+		ParticleState state{};					// The state of the particle.
 	};
 
 	namespace impl
@@ -123,7 +123,7 @@ namespace april::env {
 			const ParticleID id;		// id of the particle.
 			const ParticleIndex index;	// index of the particle in the particle vector.
 
-			std::string to_string() const;
+			[[nodiscard]] std::string to_string() const;
 		};
 	}
 }

@@ -3,8 +3,8 @@
 #include "april/common.h"
 #include "april/containers/direct_sum.h"
 #include <gmock/gmock.h>
-using ::testing::AnyOf;
-using ::testing::Eq;
+using testing::AnyOf;
+using testing::Eq;
 
 using namespace april;
 using namespace april::env;

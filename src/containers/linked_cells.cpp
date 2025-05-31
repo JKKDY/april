@@ -103,10 +103,6 @@ namespace april::core {
 
 
 	void LinkedCells::calculate_forces() {
-		for (auto & p: *particles) {
-			p.reset_force();
-		}
-
 		// go through every cell and apply direct sum
 		for (Cell & cell : cells) {
 			for (size_t i = 0; i < cell.particles.size(); i++) {

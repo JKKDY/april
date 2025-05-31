@@ -3,11 +3,18 @@
 #include "april/env/particle.h"
 
 namespace april::core {
-	class StoermerVerlet : public impl::Integrator<> {
+	template <io::IsOutputWriter OutputW = io::NullOutput>
+	class StoermerVerlet : public impl::Integrator<OutputW> {
+	public:
 		using State = env::ParticleState;
+		using Base = impl::Integrator<OutputW>;
+		using Base::env;
+		using Base::dt;
+		using Base::Base;
+
 		void integration_step() const {
 			for (auto &p : env.particles(State::MOVABLE)) {
-				p.update_position(dt * p.velocity + pow(dt, 2) / (2 * p.mass) * p.force);
+				p.update_position(dt * p.velocity + (dt*dt) / (2 * p.mass) * p.force);
 				p.reset_force();
 			}
 

@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include "april/env/particle.h"
 
@@ -30,14 +31,28 @@ namespace april::io {
 			self.write_output(step, particles); // works if 'self' has a write(t, particles) method
 		}
 
-		const size_t write_frequency;
+		size_t write_frequency;
 	};
 
 
 
 	class NullOutput final : public OutputWriter {
 	public:
+		NullOutput(): OutputWriter(-1) {}
 		void write_output(size_t, const std::vector<env::impl::Particle>&) {}
+	};
+
+
+	class TerminalOutput final : public OutputWriter {
+	public:
+		explicit TerminalOutput(const size_t write_frequency = 1): OutputWriter(write_frequency) {}
+
+		void write_output(size_t step, const std::vector<env::impl::Particle>& particles) {
+			std::cout << "step: " << step <<  "\n";
+			for (const auto & p : particles) {
+				std::cout << p.to_string() << "\n";
+			}
+		}
 	};
 
 
@@ -80,8 +95,8 @@ namespace april::io {
 			out.write(reinterpret_cast<const char*>(&value), sizeof(T));
 		}
 
-		const std::string base_name;
-		const std::string dir;
+		std::string base_name;
+		std::string dir;
 
 		static constexpr char magic[4] = { 'P', 'A', 'R', 'T' };
 		static constexpr uint32_t version = 1;

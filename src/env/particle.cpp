@@ -15,8 +15,8 @@ namespace april::env::impl {
 	std::string Particle::to_string() const {
 		std::ostringstream oss;
 		oss << "Particle ID: " << id << "\n"
-			<< "Position: " << position[0] << position[1] << position[2] << "\n"
-			<< "Velocity: " << velocity[0] << velocity[1] << velocity[2] << "\n"
+			<< "Position: " << position[0] << " " << position[1] << " " << position[2] << "\n"
+			<< "Velocity: " << velocity[0] << " " << velocity[1] << " " << velocity[2] << "\n"
 			<< "Mass: " << mass << "\n"
 			<< "Type: " << type << "\n"
 			<< "State: " << static_cast<int>(state) << "\n";

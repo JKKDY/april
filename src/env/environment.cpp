@@ -11,7 +11,22 @@ namespace april::env {
 
     }
 
+    void Environment::add_particle(const vec3& position, const vec3& velocity, const double mass, const ParticleType type, const ParticleID id) {
+        add_particle(Particle{
+            .id = id,
+            .type = type,
+            .position =  position,
+            .velocity = velocity,
+            .mass = mass,
+            .state = ParticleState::ALIVE
+        });
+    }
+
     void Environment::add_particle(const Particle &particle) {
+        if (is_built) {
+            throw std::logic_error("cannot add particle. environment has already been built.");
+        }
+
         if (particle.id != PARTICLE_ID_UNDEFINED && usr_particle_ids.contains(particle.id)) {
             throw std::invalid_argument("specified id is no unique");
         }
@@ -257,10 +272,18 @@ namespace april::env {
     }
 
     void Environment::set_extent(const vec3& size) {
+        if (is_built) {
+            throw std::logic_error("cannot set extent. environment has already been built.");
+        }
+
         this->extent = size;
     }
 
     void Environment::set_origin(const vec3& origin) {
+        if (is_built) {
+            throw std::logic_error("cannot set origin. environment has already been built.");
+        }
+
         this->origin = origin;
     }
 

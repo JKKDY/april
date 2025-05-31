@@ -1,9 +1,12 @@
+#pragma once
 #include "april/env/environment.h"
 #include "april/env/particle.h"
 #include "april/env/interaction.h"
 
+#include "april/io/monitor.h"
+#include "april/io/output.h"
+// #include "april/core/stoermer_verlet.h"
 
-#pragma once
 
 // Define APRIL_API for DLL import/export
 // #ifdef _WIN32
@@ -20,6 +23,8 @@
 
 
 namespace april {
+    // using namespace core;
+    // using namespace env;
+    // using namespace io;
 
-    APRIL_API void hello();
 }

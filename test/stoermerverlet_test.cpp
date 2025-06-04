@@ -74,29 +74,28 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 		particles.push_back(p);
 	}
 
-	const double f_mag = 1.0/2/2;
+	constexpr double f_mag = 1.0/2/2;
 
-	auto p1 =  particles[0].position.x < 0 ? particles[0] : particles[1];
-	auto p2 =  particles[0].position.x > 0 ? particles[0] : particles[1];
+	const auto p1 =  particles[0].position.x < 0 ? particles[0] : particles[1];
+	const auto p2 =  particles[0].position.x > 0 ? particles[0] : particles[1];
 
 	EXPECT_EQ(p1.force, vec3(f_mag,0,0));
 	EXPECT_EQ(p2.force, vec3(-f_mag,0,0));
 
-	double vel = 0.1 / 2 * f_mag;
+	constexpr double vel = 0.1 / 2 * f_mag;
 
 	EXPECT_EQ(p1.velocity, vec3(vel,0,0));
 	EXPECT_EQ(p2.velocity, vec3(-vel,0,0));
 }
 
 
-class OrbitMonitor final : public OutputWriter {
+class OrbitMonitor final : public Monitor {
 public:
-	OrbitMonitor(): OutputWriter(1) {}
-	explicit OrbitMonitor(double v, double r): OutputWriter(1), v(v), r(r) {}
+	OrbitMonitor(): Monitor(1) {}
+	explicit OrbitMonitor(const double v, const double r): Monitor(1), v(v), r(r) {}
 
-	void write_output(size_t step, const std::vector<env::impl::Particle>& particles) {
-
-		auto p = particles[0].mass < 1 ?  particles[0]: particles[1];
+	void write_output(size_t , double, const std::vector<env::impl::Particle>& particles) const {
+		const auto p = particles[0].mass < 1 ?  particles[0]: particles[1];
 
 		EXPECT_NEAR(p.velocity.norm(), v, 1e-3);
 		EXPECT_NEAR(p.position.norm(), r, 1e-3);
@@ -120,7 +119,7 @@ TEST(StoermerVerletTest, OrbitTest) {
 	env.add_force_to_type(InverseSquare(G), 0);
 
 	StoermerVerlet<OrbitMonitor> integrator(env);
-	integrator.set_writer(OrbitMonitor(v, R));
+	integrator.add_monitor<OrbitMonitor>(OrbitMonitor(v, R));
 	integrator.run(0.001, T);
 
 	std::vector<env::impl::Particle> particles;

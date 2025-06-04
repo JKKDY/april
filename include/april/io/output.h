@@ -8,46 +8,16 @@
 #include <vector>
 #include <iostream>
 
-#include "april/env/particle.h"
+#include "april/io/monitor.h"
 
 namespace april::io {
 
-	template <typename T> concept IsOutputWriter = requires(T t, double time,
-		const std::vector<env::impl::Particle>& particles) {
-		{ t.write(time, particles) } -> std::same_as<void>;
-	};
 
-
-	class OutputWriter {
+	class TerminalOutput final : public Monitor {
 	public:
-		explicit OutputWriter(const size_t write_frequency)
-			: write_frequency(write_frequency) {}
+		explicit TerminalOutput(const size_t write_frequency = 1): Monitor(write_frequency) {}
 
-		void write(this auto&& self, size_t step, const std::vector<env::impl::Particle>& particles) {
-			static_assert(
-				requires { self.write_output(step, particles); },
-				"OutputWriter requires a write_output(size_t, const std::vector<Particle>&) method"
-			);
-			self.write_output(step, particles); // works if 'self' has a write(t, particles) method
-		}
-
-		size_t write_frequency;
-	};
-
-
-
-	class NullOutput final : public OutputWriter {
-	public:
-		NullOutput(): OutputWriter(-1) {}
-		void write_output(size_t, const std::vector<env::impl::Particle>&) {}
-	};
-
-
-	class TerminalOutput final : public OutputWriter {
-	public:
-		explicit TerminalOutput(const size_t write_frequency = 1): OutputWriter(write_frequency) {}
-
-		void write_output(size_t step, const std::vector<env::impl::Particle>& particles) {
+		void write_output(const size_t step, double, const std::vector<env::impl::Particle>& particles) {
 			std::cout << "step: " << step <<  "\n";
 			for (const auto & p : particles) {
 				std::cout << p.to_string() << "\n";
@@ -57,12 +27,12 @@ namespace april::io {
 
 
 
-	class BinaryOutput final : public OutputWriter {
+	class BinaryOutput final : public Monitor {
 	public:
 		explicit BinaryOutput(const size_t write_frequency, std::string dir = "output", std::string base_name = "output"):
-			OutputWriter(write_frequency), base_name(std::move(base_name)), dir(std::move(dir)) {}
+			Monitor(write_frequency), base_name(std::move(base_name)), dir(std::move(dir)) {}
 
-		void write_output(size_t step, const std::vector<env::impl::Particle>& particles) const {
+		void write_output(size_t step, double, const std::vector<env::impl::Particle>& particles) const {
 			namespace fs = std::filesystem;
 
 			fs::create_directories(dir);

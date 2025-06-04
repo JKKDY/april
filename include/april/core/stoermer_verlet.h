@@ -1,13 +1,14 @@
 #pragma once
 #include "april/core/integrator.h"
 #include "april/env/particle.h"
+#include "april/io/monitor.h"
 
 namespace april::core {
-	template <io::IsOutputWriter OutputW = io::NullOutput>
-	class StoermerVerlet : public impl::Integrator<OutputW> {
+	template <io::IsMonitor ... TMonitors>
+	class StoermerVerlet : public impl::Integrator<TMonitors...> {
 	public:
 		using State = env::ParticleState;
-		using Base = impl::Integrator<OutputW>;
+		using Base = impl::Integrator<TMonitors...>;
 		using Base::env;
 		using Base::dt;
 		using Base::Base;

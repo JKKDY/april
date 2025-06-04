@@ -57,7 +57,7 @@ TEST_F(BinaryOutputTest, EmptyFileContainsOnlyHeader) {
 	std::vector<impl::Particle> empty;
 	BinaryOutput out(1, dir.string(), base);
 
-	out.write(0.0, empty);
+	out.record(0, 0, empty);
 
 	auto path = dir / (base + "_00000.bin");
 	ASSERT_TRUE(fs::exists(path));
@@ -93,7 +93,7 @@ TEST_F(BinaryOutputTest, SingleParticle) {
 	std::vector v {p};
 	BinaryOutput out(1, dir.string(), base);
 
-	out.write(1, v);
+	out.record(1, 0, v);
 
 	auto path = dir / (base + "_00001.bin");
 	std::ifstream in{path, std::ios::binary};
@@ -123,7 +123,7 @@ TEST_F(BinaryOutputTest, MultipleParticles) {
 	std::vector v {p1,p2,p3};
 	BinaryOutput out(1, dir.string(), base);
 
-	out.write(2, v);
+	out.record(2, 0, v);
 
 	auto path = dir / (base + "_00002.bin");
 	std::ifstream in{path, std::ios::binary};

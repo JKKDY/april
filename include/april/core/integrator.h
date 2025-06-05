@@ -32,6 +32,7 @@ namespace april::core::impl {
 
 		// Call with total duration
 		void run(this auto&& self, double dt, const double duration) {
+			self.duration = duration;
 			const auto steps = static_cast<std::size_t>(duration / dt);
 			self.run_steps(dt, steps);
 		}
@@ -40,6 +41,7 @@ namespace april::core::impl {
 		void run_steps(this auto&& self, const double delta_t, const std::size_t num_steps) {
 			self.dt = delta_t;
 			self.time = 0;
+			self.num_steps = num_steps;
 
 			for (self.step = 0; self.step < num_steps; ++self.step) {
 				self.integration_step();
@@ -52,12 +54,30 @@ namespace april::core::impl {
 
 	protected:
 		env::Environment& env;
+		size_t num_steps;
+		double duration = 0;
 		double time = 0;
 		double dt = 0;
 		size_t step = 0;
 
 	private:
 		std::tuple<std::vector<TMonitors>...> monitors{};
+
+		void init_monitors() {
+			auto init  = [&] (auto &lst) {
+				for (auto &monitor : lst) {
+					if (step % monitor.call_frequency() == 0) {
+						monitor.init(dt, 0, duration, num_steps);
+					}
+				}
+			};
+
+			std::apply(
+			   [init](auto &... lst) {
+				 (init(lst), ...);
+				},
+				monitors);
+		}
 
 		void dispatch_monitors() {
 			auto dispatch  = [&] (auto &lst) {

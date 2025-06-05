@@ -17,6 +17,13 @@ namespace april::io {
 
 		[[nodiscard]] size_t call_frequency() const { return call_frequency_m; }
 
+		void init(const double dt, const double start_t, const double end_t, const size_t num_steps) {
+			this->dt = dt;
+			this->start_time = start_t;
+			this->end_time = end_t;
+			this->num_steps = num_steps;
+		}
+
 		void record(this auto&& self, size_t step, double time, const std::vector<env::impl::Particle>& particles) {
 			static_assert(
 				requires { self.write_output(step, time, particles); },
@@ -25,7 +32,11 @@ namespace april::io {
 			self.write_output(step, time, particles);
 		}
 
-	private:
+	protected:
+		double dt{};
+		double start_time{};
+		double end_time{};
+		size_t num_steps{};
 		size_t call_frequency_m;
 	};
 }

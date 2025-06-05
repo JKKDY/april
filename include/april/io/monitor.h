@@ -4,10 +4,15 @@
 
 namespace april::io {
 
-	template <typename M> concept IsMonitor = requires(M m, size_t step, double time,
+	template <typename M> concept IsMonitor = requires(M m,
+		const double dt,
+		const double start_t,
+		const double end_t,
+		const size_t step,
 		const std::vector<env::impl::Particle>& particles) {
-			{ m.record(step, time, particles) } -> std::same_as<void>;
+			{ m.record(step, end_t, particles) } -> std::same_as<void>;
 	        { m.call_frequency() } -> std::convertible_to<std::size_t>;
+			{ m.init(dt, start_t, end_t, step) } -> std::same_as<void>;
 		};
 
 

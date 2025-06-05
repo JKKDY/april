@@ -5,6 +5,8 @@
 
 #include "april/io/monitor.h"
 #include "april/io/output.h"
+#include "april/io/status.h"
+
 
 #include "april/containers/container.h"
 #include "april/containers/direct_sum.h"
@@ -36,6 +38,7 @@ namespace april {
 
 	using io::BinaryOutput;
 	using io::TerminalOutput;
+	using io::ProgressBar;
 
 	using env::Environment;
 

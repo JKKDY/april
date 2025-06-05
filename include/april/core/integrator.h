@@ -32,16 +32,17 @@ namespace april::core::impl {
 
 		// Call with total duration
 		void run(this auto&& self, double dt, const double duration) {
-			self.duration = duration;
-			const auto steps = static_cast<std::size_t>(duration / dt);
-			self.run_steps(dt, steps);
+			self.run_steps(dt, static_cast<std::size_t>(duration / dt));
 		}
 
 		// Call with explicit number of steps
 		void run_steps(this auto&& self, const double delta_t, const std::size_t num_steps) {
+			self.duration = static_cast<double>(num_steps) * delta_t;
 			self.dt = delta_t;
 			self.time = 0;
 			self.num_steps = num_steps;
+
+			self.init_monitors();
 
 			for (self.step = 0; self.step < num_steps; ++self.step) {
 				self.integration_step();
@@ -54,7 +55,7 @@ namespace april::core::impl {
 
 	protected:
 		env::Environment& env;
-		size_t num_steps;
+		size_t num_steps{};
 		double duration = 0;
 		double time = 0;
 		double dt = 0;

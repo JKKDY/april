@@ -5,6 +5,8 @@ using namespace april;
 namespace fs = std::filesystem;
 
 int main() {
+	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/halleys_comet";
+
 	Environment env;
 	env.add_particle({0.0, 0.0, 0.0},     {0.0, 0.0, 0.0},     1.0);
 	env.add_particle({0.0, 1.0, 0.0},     {-1.0, 0.0, 0.0},    3.0e-6);
@@ -12,10 +14,11 @@ int main() {
 	env.add_particle({34.75, 0.0, 0.0},   {0.0, 0.0296, 0.0},  1.0e-14);
 	env.add_force_to_type(InverseSquare(), 0);
 
-	BinaryOutput out(50, fs::path(PROJECT_SOURCE_DIR) / "output/halleys_comet");
+	StoermerVerlet<BinaryOutput, ProgressBar, Benchmark> integrator(env);
+	integrator.add_monitor(BinaryOutput(50, dir_path));
+	integrator.add_monitor(ProgressBar(10));
+	integrator.add_monitor(Benchmark());
 
-	StoermerVerlet<BinaryOutput> integrator(env);
-	integrator.add_monitor(out);
 	integrator.run(0.014, 1000);
 }
 

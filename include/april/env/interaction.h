@@ -54,7 +54,7 @@ namespace april::env {
             const double sigma_r12 = sigma_r6 * sigma_r6;
             const double magnitude = 24.0 * epsilon * inv_r2 * (2.0 * sigma_r12 - sigma_r6);
 
-            return magnitude * r;  // Force vector
+            return - magnitude * r;  // Force vector
         }
 
         std::unique_ptr<Force> mix(const Force* other) const override {

@@ -11,9 +11,8 @@ function(add_example target_name source_file folder_name)
     set_target_properties(${target_name} PROPERTIES FOLDER "examples/${folder_name}")
 endfunction()
 
-add_example(example1 example1.cpp example1)
-add_example(example2 example2.cpp example2)
 add_example(halleys_comet halleys_comet.cpp halleys_comet)
+add_example(two_body_collision two_body_collision.cpp two_body_collision)
 
 
 

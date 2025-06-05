@@ -2,7 +2,6 @@
 #include <concepts>
 
 #include "april/env/environment.h"
-#include "april/io/output.h"
 #include "april/io/monitor.h"
 
 namespace april::env {
@@ -44,13 +43,16 @@ namespace april::core::impl {
 
 			self.init_monitors();
 
-			for (self.step = 0; self.step < num_steps; ++self.step) {
-				self.integration_step();
-				self.time += self.dt;
+			for (self.step = 0; self.step < num_steps; ++self.step, self.time+=self.dt) {
+				self.dispatch_monitor_preparation();
 
-				self.dispatch_monitors();
+				self.integration_step();
 				self.dispatch_controllers();
+
+				self.dispatch_monitor_recording();
 			}
+
+			self.finalize_monitors();
 		}
 
 	protected:
@@ -64,37 +66,51 @@ namespace april::core::impl {
 	private:
 		std::tuple<std::vector<TMonitors>...> monitors{};
 
+		template<typename Func> void for_each_monitor(Func&& f) {
+			std::apply(
+				[&](auto&... lst) {
+					(f(lst), ...);
+				},
+				monitors
+			);
+		}
+
 		void init_monitors() {
-			auto init  = [&] (auto &lst) {
-				for (auto &monitor : lst) {
-					if (step % monitor.call_frequency() == 0) {
-						monitor.init(dt, 0, duration, num_steps);
-					}
+			for_each_monitor([&](auto& list) {
+				for (auto& monitor : list) {
+					monitor.init(dt, 0, duration, num_steps);
 				}
-			};
-
-			std::apply(
-			   [init](auto &... lst) {
-				 (init(lst), ...);
-				},
-				monitors);
+			});
 		}
 
-		void dispatch_monitors() {
-			auto dispatch  = [&] (auto &lst) {
-				for (auto &monitor : lst) {
+		void dispatch_monitor_preparation() {
+			for_each_monitor([&](auto& list) {
+				for (auto& monitor : list) {
 					if (step % monitor.call_frequency() == 0) {
-						monitor.record(step, time, env.export_particles());
+						monitor.dispatch_before_step(step, time, env.export_particles());
 					}
 				}
-			};
-
-			std::apply(
-			   [dispatch](auto &... lst) {
-				 (dispatch(lst), ...);
-				},
-				monitors);
+			});
 		}
+
+		void dispatch_monitor_recording() {
+			for_each_monitor([&](auto& list) {
+				for (auto& monitor : list) {
+					if (step % monitor.call_frequency() == 0) {
+						monitor.dispatch_record(step, time, env.export_particles());
+					}
+				}
+			});
+		}
+
+		void finalize_monitors() {
+			for_each_monitor([&](auto& list) {
+				for (auto& monitor : list) {
+					monitor.dispatch_finalize();
+				}
+			});
+		}
+
 
 		void dispatch_controllers() {
 

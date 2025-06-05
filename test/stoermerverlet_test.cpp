@@ -94,7 +94,7 @@ public:
 	OrbitMonitor(): Monitor(1) {}
 	explicit OrbitMonitor(const double v, const double r): Monitor(1), v(v), r(r) {}
 
-	void write_output(size_t , double, const std::vector<env::impl::Particle>& particles) const {
+	void record(size_t , double, const std::vector<env::impl::Particle>& particles) const {
 		const auto p = particles[0].mass < 1 ?  particles[0]: particles[1];
 
 		EXPECT_NEAR(p.velocity.norm(), v, 1e-3);

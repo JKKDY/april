@@ -8,7 +8,7 @@ namespace april::io {
 	public:
 		using Monitor::Monitor;
 
-		void write_output(const size_t step, double, const std::vector<env::impl::Particle>&) const {
+		void record(const size_t step, double, const Particles&) const {
 			constexpr size_t bar_width = 50;
 			const float progress = static_cast<float>(step + 1) / static_cast<float>(num_steps);
 			const auto pos = static_cast<size_t>(bar_width * progress);

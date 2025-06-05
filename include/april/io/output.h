@@ -17,7 +17,7 @@ namespace april::io {
 	public:
 		explicit TerminalOutput(const size_t write_frequency = 1): Monitor(write_frequency) {}
 
-		void write_output(const size_t step, double, const std::vector<env::impl::Particle>& particles) {
+		void record(const size_t step, double, const Particles& particles) {
 			std::cout << "step: " << step <<  "\n";
 			for (const auto & p : particles) {
 				std::cout << p.to_string() << "\n";
@@ -32,7 +32,7 @@ namespace april::io {
 		explicit BinaryOutput(const size_t write_frequency, std::string dir = "output", std::string base_name = "output"):
 			Monitor(write_frequency), base_name(std::move(base_name)), dir(std::move(dir)) {}
 
-		void write_output(size_t step, double, const std::vector<env::impl::Particle>& particles) const {
+		void record(size_t step, double, const Particles& particles) const {
 			namespace fs = std::filesystem;
 
 			fs::create_directories(dir);

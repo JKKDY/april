@@ -10,7 +10,8 @@ namespace april::io {
 		const double end_t,
 		const size_t step,
 		const std::vector<env::impl::Particle>& particles) {
-			{ m.record(step, end_t, particles) } -> std::same_as<void>;
+			{ m.dispatch_before_step(step, end_t, particles) } -> std::same_as<void>;
+			{ m.dispatch_record(step, end_t, particles) } -> std::same_as<void>;
 	        { m.call_frequency() } -> std::convertible_to<std::size_t>;
 			{ m.init(dt, start_t, end_t, step) } -> std::same_as<void>;
 		};
@@ -18,10 +19,12 @@ namespace april::io {
 
 	class Monitor {
 	public:
+		using Particles = std::vector<env::impl::Particle>;
 		explicit Monitor(const size_t call_frequency) : call_frequency_m(call_frequency) {}
 
 		[[nodiscard]] size_t call_frequency() const { return call_frequency_m; }
 
+		// Called once at the start
 		void init(const double dt, const double start_t, const double end_t, const size_t num_steps) {
 			this->dt = dt;
 			this->start_time = start_t;
@@ -29,12 +32,28 @@ namespace april::io {
 			this->num_steps = num_steps;
 		}
 
-		void record(this auto&& self, size_t step, double time, const std::vector<env::impl::Particle>& particles) {
+		// Optional: Called before a step
+		void dispatch_before_step(this auto&& self, size_t step, double time, const Particles& particles) {
+			if constexpr (requires { self.before_step(step, time, particles); }) {
+				self.before_step(step, time, particles);
+			}
+		}
+
+		// Required: Called after a step
+		void dispatch_record(this auto&& self, size_t step, double time, const Particles& particles) {
 			static_assert(
-				requires { self.write_output(step, time, particles); },
-				"OutputWriter requires a write_output(size_t, const std::vector<Particle>&) method"
+				requires { self.record(step, time, particles); },
+				"Monitor subclass must implement: void before_step(size_t, double, const Particles&)"
 			);
-			self.write_output(step, time, particles);
+			self.record(step, time, particles);
+
+		};
+
+		// Optional: Called once at the end
+		void dispatch_finalize(this auto&& self) {
+			if constexpr (requires { self.finalize(); }) {
+				self.finalize();
+			}
 		}
 
 	protected:

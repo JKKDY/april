@@ -1,6 +1,13 @@
 #include "april/env/particle.h"
 #include <sstream>
 
+
+namespace april::env {
+	// Particle::Particle(const vec3& position, const vec3& velocity, const double mass, const ParticleType type, const ParticleID id,
+	// 						   const ParticleState state):
+	// 	id(id), type(type), position((position)), velocity(velocity), mass(mass), state(state) {}
+}
+
 namespace april::env::impl {
 	Particle::Particle(const size_t index, const unsigned int id, const vec3& position, const vec3& velocity,
 	                   const double mass, const unsigned int type, const State state, const vec3& force,
@@ -23,3 +30,5 @@ namespace april::env::impl {
 		return oss.str();
 	}
 }
+
+

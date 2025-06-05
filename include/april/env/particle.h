@@ -66,6 +66,8 @@ namespace april::env {
 	constexpr ParticleID PARTICLE_ID_UNDEFINED = std::numeric_limits<ParticleID>::min();
 
 	struct Particle {
+		// Particle() = default;
+		// Particle(const vec3& position, const vec3& velocity, double mass, ParticleType type = 0, ParticleID id = PARTICLE_ID_UNDEFINED, ParticleState state = ParticleState::ALIVE);
 		ParticleID id = PARTICLE_ID_UNDEFINED;  // The id of the particle.
 		ParticleType type = 0;  				// The type of the particle.
 		vec3 position;      					// The position of the particle.

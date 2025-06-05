@@ -13,6 +13,19 @@ else()
     add_compile_options(-Wall -Wextra -pedantic)
 endif()
 
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(GLOBAL_OPT_FLAGS -O3)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(GLOBAL_OPT_FLAGS -O0 -g)
+endif()
+
+add_compile_options(${GLOBAL_OPT_FLAGS})
+
 # Include subdirectories
 add_subdirectory(src)
 add_subdirectory(examples)

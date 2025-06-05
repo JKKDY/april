@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 
 #include "april/utils/Vec3.hpp"
 

@@ -6,8 +6,9 @@ namespace april::io {
 
 	template <typename M> concept IsMonitor = requires(M m, size_t step, double time,
 		const std::vector<env::impl::Particle>& particles) {
-		{ m.record(step, time, particles) } -> std::same_as<void>;
-        { m.call_frequency() } -> std::convertible_to<std::size_t>;	};
+			{ m.record(step, time, particles) } -> std::same_as<void>;
+	        { m.call_frequency() } -> std::convertible_to<std::size_t>;
+		};
 
 
 	class Monitor {
@@ -21,7 +22,7 @@ namespace april::io {
 				requires { self.write_output(step, time, particles); },
 				"OutputWriter requires a write_output(size_t, const std::vector<Particle>&) method"
 			);
-			self.write_output(step, time, particles); // works if 'self' has a write(t, particles) method
+			self.write_output(step, time, particles);
 		}
 
 	private:

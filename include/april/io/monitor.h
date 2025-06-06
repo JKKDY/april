@@ -25,11 +25,11 @@ namespace april::io {
 		[[nodiscard]] size_t call_frequency() const { return call_frequency_m; }
 
 		// Called once at the start
-		void init(const double dt, const double start_t, const double end_t, const size_t num_steps) {
-			this->dt = dt;
-			this->start_time = start_t;
-			this->end_time = end_t;
-			this->num_steps = num_steps;
+		void init(const double delta_t, const double start_t, const double end_t, const size_t steps) {
+			dt = delta_t;
+			start_time = start_t;
+			end_time = end_t;
+			num_steps = steps;
 		}
 
 		// Optional: Called before a step

@@ -53,7 +53,7 @@ namespace april::env {
         template<IsForce F> void add_force_between_ids(const F & force, ParticleID id1, ParticleID id2);
 
         void set_extent(const vec3 & size);
-        void set_origin(const vec3 & origin);
+        void set_origin(const vec3 & origin_vec);
         void set_container(std::unique_ptr<core::Container> container_ptr);
 
         void build();

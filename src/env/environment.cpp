@@ -231,7 +231,7 @@ namespace april::env {
         type_vector.insert(type_vector.end(), usr_particle_types.begin(), usr_particle_types.end());
 
         for (size_t  i = 0; i < type_vector.size(); i++) {
-            usr_types_to_impl_types[type_vector[i]] = i;
+            usr_types_to_impl_types[type_vector[i]] = static_cast<impl::ParticleType>(i);
         }
 
         // generate mapping for user ids to implementation ids
@@ -255,7 +255,7 @@ namespace april::env {
         
         // create id map
         for (size_t  i = 0; i < id_vector.size(); i++) {
-            usr_ids_to_impl_ids[id_vector[i]] = i;
+            usr_ids_to_impl_ids[id_vector[i]] = static_cast<impl::ParticleID>(i);
         }
     }
 
@@ -279,12 +279,12 @@ namespace april::env {
         this->extent = size;
     }
 
-    void Environment::set_origin(const vec3& origin) {
+    void Environment::set_origin(const vec3& origin_vec) {
         if (is_built) {
             throw std::logic_error("cannot set origin. environment has already been built.");
         }
 
-        this->origin = origin;
+        origin = origin_vec;
     }
 
     void Environment::set_container(std::unique_ptr<core::Container> container_ptr) {

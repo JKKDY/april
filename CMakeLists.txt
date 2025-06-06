@@ -6,23 +6,56 @@ project(April LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# For all targets in this directory and below
-if (MSVC)
-    add_compile_options(/W4 /permissive-)
-else()
-    add_compile_options(-Wall -Wextra -pedantic)
-endif()
+message(STATUS "CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(GLOBAL_OPT_FLAGS -O3)
-elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(GLOBAL_OPT_FLAGS -O0 -g)
-endif()
+# === Warnings, optimization ===
+function(set_target_build_flags target_name)
+    target_compile_options(${target_name}
+            PRIVATE
+            $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -Werror -Wpedantic>
+            $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -Werror -Wpedantic>
+            $<$<CXX_COMPILER_ID:MSVC>:/W4 /permissive- /WX>
+    )
+
+    target_compile_options(${target_name}
+            PRIVATE
+            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU>>:-O3>
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-O0 -g>
+            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:Clang>>:-O3>
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang>>:-O0 -g>
+            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:/O2>
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od /Zi>
+    )
+endfunction()
+
+# === Sanitizer ===
+function(enable_sanitizer_if_dbg target_name)
+    if (NOT CMAKE_BUILD_TYPE MATCHES "Debug")
+        message(STATUS "Skipping AddressSanitizer for target ${target_name} because build type is not Debug.")
+        return()
+    endif()
+
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        message(STATUS "Enabling AddressSanitizer + UBSan + Leak for target ${target_name} (GCC/Clang, Debug build)")
+        target_compile_options(${target_name}
+                PRIVATE
+                -fsanitize=address,undefined,leak -fno-omit-frame-pointer
+        )
+        target_link_options(${target_name}
+                PRIVATE
+                -fsanitize=address,undefined,leak
+        )
+    elseif (MSVC)
+        message(WARNING "Skipping AddressSanitizer on MSVC for target ${target_name} to avoid LNK2038 mismatches. Enable full sanitized build instead if desired.")
+    endif()
+endfunction()
+
+
 
 add_compile_options(${GLOBAL_OPT_FLAGS})
 

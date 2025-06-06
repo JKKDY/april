@@ -21,7 +21,7 @@ namespace april::utils {
     
         void insert(const T id) {
             AP_ASSERT(id < N && sparse[id] == static_cast<T>(-1), "inserting duplicate or out‑of‑range ID");
-            sparse[id] = dense.size(); // insert index into sparse
+            sparse[id] = static_cast<T>(dense.size()); // insert index into sparse
             dense.push_back(id); // insert id into dense
         }
     

@@ -19,11 +19,11 @@ namespace april::core {
 		explicit Container() = default;
 		virtual ~Container() = default;
 
-		void init(InteractionManager * interaction_manager, std::vector<Particle> * particles, const vec3 & size, const vec3 & origin) {
-			this->interaction_manager = interaction_manager;
-			this->particles = particles;
-			this->extent = size;
-			this->origin = origin;
+		void init(InteractionManager * manager, std::vector<Particle> * particles_ptr, const vec3 & size, const vec3 & origin_vec) {
+			interaction_manager = manager;
+			particles = particles_ptr;
+			extent = size;
+			origin = origin_vec;
 		}
 		virtual void build() = 0;
 		virtual void calculate_forces() = 0;

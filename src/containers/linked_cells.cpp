@@ -29,7 +29,7 @@ namespace april::core {
 			for (unsigned int y = 0; y < num_y; y++) {
 				for (unsigned int z = 0; z < num_z; z++) {
 					Cell cell = {
-						.particles = Cell::ParticleSet(particles->size()),
+						.particles = Cell::ParticleSet(static_cast<env::impl::ParticleID>(particles->size())),
 						.idx = {x,y,z},
 						.id = x + y * num_x + z * num_x * num_y
 					};

@@ -31,7 +31,7 @@ int main() {
 	env.add_force_to_type(LennardJones(5, 1), 0);
 
 	StoermerVerlet<BinaryOutput, ProgressBar, Benchmark> integrator(env);
-	integrator.add_monitor(BinaryOutput(50, dir_path));
+	//integrator.add_monitor(BinaryOutput(50, dir_path));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());
 	integrator.run(0.0002, 5);

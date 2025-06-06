@@ -2,20 +2,6 @@ include(FetchContent)
 
 set(CMAKE_CXX_STANDARD 23)
 
-# Download and add unordered_dense (Martin Ankerl's flat hash map)
-# FetchContent_Declare(
-#     unordered_dense 
-#     GIT_REPOSITORY https://github.com/martinus/unordered_dense.git
-#     GIT_TAG v4.5.0
-# )
-# FetchContent_MakeAvailable(unordered_dense)
-
-# FetchContent_Declare(
-#     spdlog
-#     GIT_REPOSITORY https://github.com/gabime/spdlog.git
-#     GIT_TAG v1.15.2
-# )
-# FetchContent_MakeAvailable(unordered_dense spdlog)
 
 # GLOB_RECURSE sources from src/
 file(GLOB_RECURSE APRIL_SOURCES CONFIGURE_DEPENDS
@@ -37,12 +23,13 @@ add_library(April STATIC ${APRIL_SOURCES} ${APRIL_HEADERS})
 
 # Public headers
 target_include_directories(April PUBLIC
-    ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/include
 )
 
-# Link unordered_dense (included via FetchContent)
-target_link_libraries(
-    April 
-    #unordered_dense::unordered_dense
-    #spdlog::spdlog
-)
+# Apply build flags
+set_target_build_flags(April)
+
+# enable sanitizer on debug builds
+ enable_sanitizer_if_dbg(April)
+
+

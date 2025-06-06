@@ -1,7 +1,7 @@
 #pragma once
 #include <cmath>
 
-#include "Debug.h"
+#include "april/utils/debug.h"
 
 
 namespace april::utils {

@@ -89,7 +89,7 @@ namespace april::env::impl
 					//? will the asymmetry that we are only calling f1->mix become a problem?
 					std::unique_ptr<Force> mixed = f1->mix(f2);
 					type_interaction_forces[index(a,b)] = f1->mix(f2);
-					type_interaction_keys[index(a,b)] = {a,b};
+					type_interaction_keys[index(a,b)] = {static_cast<ParticleType>(a),static_cast<ParticleType>(b)};
 				}
 			}
 		}

@@ -110,12 +110,12 @@ TEST(EnvTest, TwoParticles_InverseSquare) {
     e.update_forces();
     auto const& out = e.export_particles();
     // find each
-    const auto& pa = (out[0].id == 0 ? out[0] : out[1]);
-    const auto& pb = (out[0].id == 1 ? out[0] : out[1]);
+    const auto& pa = (out[0].mass == 1 ? out[0] : out[1]);
+    const auto& pb = (out[1].mass == 2 ? out[1] : out[0]);
     // magnitude = pre * m1*m2 / r^3 = 5*1*2/(2^3)=10/8=1.25  direction from pa->pb = (2,0,0)
-    // force on pa = -1.25*(2,0,0) = (-2.5,0,0); on pb = (+2.5,0,0)
-    EXPECT_NEAR(pa.force.x, -2.5, 1e-12);
-    EXPECT_NEAR(pb.force.x, +2.5, 1e-12);
+    // force on pa = 1.25*(2,0,0) = (2.5,0,0); on pb = (-2.5,0,0)
+    EXPECT_NEAR(pa.force.x, 2.5, 1e-12);
+    EXPECT_NEAR(pb.force.x, -2.5, 1e-12);
     EXPECT_EQ(pa.force.y, 0.0);
     EXPECT_EQ(pb.force.y, 0.0);
 }

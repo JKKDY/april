@@ -15,7 +15,7 @@ namespace april::io {
 		}
 
 		void record(const size_t, double, const Particles&) {
-			const auto end_time = std::chrono::high_resolution_clock::now();
+			end_time = std::chrono::high_resolution_clock::now();
 			const auto elapsed = std::chrono::duration<double>(end_time - start_time).count();
 			timings.push_back(elapsed);
 		}
@@ -34,6 +34,7 @@ namespace april::io {
 	private:
 		using Clock = std::chrono::high_resolution_clock;
 		Clock::time_point start_time;
+		Clock::time_point end_time;
 		std::vector<double> timings;
 	};
 

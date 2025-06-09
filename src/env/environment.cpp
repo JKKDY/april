@@ -21,7 +21,6 @@ namespace april::env {
     container(std::make_unique<core::DirectSum>()),
     interaction_manager()
     {
-
     }
 
     void Environment::add_particle(const vec3& position, const vec3& velocity, const double mass, const ParticleType type, const ParticleID id) {
@@ -366,10 +365,44 @@ namespace april::env {
     }
 
     void Environment::finalize_environment_size() {
-        if (extent == EXTENT_AUTO) {
+        const vec3 bbox_min    = particle_bbox_origin;
+        const vec3 bbox_max    = particle_bbox_origin + particle_bbox_extent;
+        const vec3 bbox_center = (bbox_min + bbox_max) * 0.5;
 
+        if (extent == EXTENT_AUTO && origin != ORIGIN_AUTO) {
+            // User gave origin but no extent:
+            // make the box symmetric around `origin` so that bbox_center stays in the middle
+            const vec3 opposite_corner = origin + 2 * (bbox_center - origin);
+            extent = vec3{
+                std::abs(opposite_corner.x - origin.x),
+                std::abs(opposite_corner.y - origin.y),
+                std::abs(opposite_corner.z - origin.z)
+            };
+            origin = vec3{
+                std::min(origin.x, opposite_corner.x),
+                std::min(origin.y, opposite_corner.y),
+                std::min(origin.z, opposite_corner.z)
+            };
+        }
+
+        else if (origin == ORIGIN_AUTO && extent != EXTENT_AUTO) {
+            // User gave extent but no origin:
+            // center the user‐box on the particle bbox center
+            extent = vec3{
+                std::abs(extent.x),
+                std::abs(extent.y),
+                std::abs(extent.z)
+            };
+            origin = bbox_center - 0.5 * extent;
+        }
+
+        else if (origin == ORIGIN_AUTO && extent == EXTENT_AUTO) {
+            // Neither origin nor extent given -> default to particle bbox + padding
+            extent = particle_bbox_extent * 2.0;        // twice as large in x,y,z
+            origin = bbox_center - 0.5 * extent;        // so the box stays centered
         }
     }
+
 
     void Environment::set_extent(const vec3& size) {
         if (is_built) {

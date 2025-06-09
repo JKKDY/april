@@ -31,7 +31,7 @@ struct ConstantForce final : Force {
 };
 
 
-TEST(EnvTest, SingleParticle_NoForce) {
+TEST(DirectSumTest, SingleParticle_NoForce) {
     Environment e;
 	e.set_container(std::make_unique<DirectSum>());
     e.add_particle(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
@@ -46,7 +46,7 @@ TEST(EnvTest, SingleParticle_NoForce) {
     EXPECT_EQ(out[0].force, vec3(0,0,0));
 }
 
-TEST(EnvTest, TwoParticles_ConstantTypeForce) {
+TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
     Environment e;
 	e.set_container(std::make_unique<DirectSum>());
 
@@ -69,7 +69,7 @@ TEST(EnvTest, TwoParticles_ConstantTypeForce) {
 
 }
 
-TEST(EnvTest, TwoParticles_IdSpecificForce) {
+TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
     Environment e;
 	e.set_container(std::make_unique<DirectSum>());
 
@@ -92,7 +92,7 @@ TEST(EnvTest, TwoParticles_IdSpecificForce) {
 	);
 }
 
-TEST(EnvTest, TwoParticles_InverseSquare) {
+TEST(DirectSumTest, TwoParticles_InverseSquare) {
     Environment e;
 	e.set_container(std::make_unique<DirectSum>());
 

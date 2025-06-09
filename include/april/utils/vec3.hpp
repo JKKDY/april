@@ -1,5 +1,7 @@
 #pragma once
 #include <cmath>
+#include <string>
+#include <format>
 
 #include "april/utils/debug.h"
 
@@ -107,6 +109,26 @@ namespace april::utils {
 
         bool operator==(const Vec3 & other) const noexcept {
             return x == other.x && y == other.y && z == other.z;
+        }
+
+        bool operator<=(const Vec3& other) const noexcept {
+            return x <= other.x and y <= other.y and z <= other.z;
+        }
+
+        bool operator>=(const Vec3& other) const noexcept {
+            return x >= other.x and y >= other.y and z >= other.z;
+        }
+
+        bool operator<(const Vec3& other) const noexcept {
+            return x < other.x and y < other.y and z < other.z;
+        }
+
+        bool operator>(const Vec3& other) const noexcept {
+            return x > other.x and y > other.y and z > other.z;
+        }
+
+        [[nodiscard]] std::string to_string() const {
+            return std::format("{{{}, {}, {}}}", x, y, z);
         }
     };
 } // namespace april::utils

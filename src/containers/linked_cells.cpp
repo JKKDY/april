@@ -14,7 +14,10 @@ namespace april::core {
 	}
 
 	void LinkedCells::build_cells() {
-		const double grid_constant = interaction_manager->get_max_cutoff();
+		double grid_constant = interaction_manager->get_max_cutoff();
+		if (grid_constant <= 0) {
+			grid_constant = std::max(extent[0], std::max(extent[1], extent[2]));
+		}
 
 		const auto num_x = static_cast<unsigned int>(std::max(1.0, floor(extent[0] / grid_constant)));
 		const auto num_y = static_cast<unsigned int>(std::max(1.0, floor(extent[1] / grid_constant)));

@@ -27,11 +27,15 @@ int main() {
 	Environment env;
 	env.add_particle_cuboid(cuboid1);
 	env.add_particle_cuboid(cuboid2);
+	env.set_extent({50,50,1});
+	env.set_origin({0,0,-0.5});
+
+	env.set_container(std::make_unique<LinkedCells>());
 
 	env.add_force_to_type(LennardJones(5, 1), 0);
 
 	StoermerVerlet<BinaryOutput, ProgressBar, Benchmark> integrator(env);
-	//integrator.add_monitor(BinaryOutput(50, dir_path));
+	integrator.add_monitor(BinaryOutput(50, dir_path.string()));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());
 	integrator.run(0.0002, 5);

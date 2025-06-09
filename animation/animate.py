@@ -108,23 +108,4 @@ class ParticleVisualizer(scene.SceneCanvas):
 if __name__ == "__main__": 
     vis = ParticleVisualizer("../output/two_body_collision")
     app.run()
-    # for file_path in bin_files[:10]:
-    #     print(f"Reading {file_path.name}")
-    #     particles, _ = load_particles(file_path)
-    #     print(f"  -> Loaded {len(particles)} particles")
-    #     print(particles)
-    # visualize_particles(bin_files)
-
-# points = load_particles("output_00001.bin")
-
-# plotter = pv.Plotter()
-# plotter.add_axes()
-
-# for point in points:
-#     sphere = pv.Sphere(radius=0.05, center=point)
-#     plotter.add_mesh(sphere, color="skyblue")
-
-# # Optional: add a bounding box
-# plotter.add_box_axes()
-
-# plotter.show()
+   

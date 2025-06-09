@@ -39,6 +39,9 @@ namespace april::env {
 
     class Environment {
     public:
+        static const vec3 EXTENT_AUTO;
+        static const vec3 ORIGIN_AUTO;
+
         Environment();
 
         void add_particle(const vec3& position, const vec3& velocity, double mass, ParticleType type=0, ParticleID id = PARTICLE_ID_UNDEFINED);
@@ -67,13 +70,18 @@ namespace april::env {
         void validate_inputs();
         void map_ids_and_types_to_internal();
         void build_particles();
+        void finalize_environment_size();
 
         std::vector<Particle> particle_infos;
 
         bool is_built;
 
-        vec3 extent;
-        vec3 origin;
+        vec3 extent = EXTENT_AUTO;
+        vec3 origin = ORIGIN_AUTO;
+
+        vec3 particle_bbox_extent;
+        vec3 particle_bbox_origin;
+
         std::unique_ptr<core::Container> container;
 
         std::vector<impl::Particle> particle_storage;

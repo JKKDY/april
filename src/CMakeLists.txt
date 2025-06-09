@@ -30,6 +30,6 @@ target_include_directories(April PUBLIC
 set_target_build_flags(April)
 
 # enable sanitizer on debug builds
- enable_sanitizer_if_dbg(April)
+enable_sanitizer_if_dbg(April)
 
 

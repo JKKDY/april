@@ -42,7 +42,7 @@ protected:
 	std::string base{"bin_test"};
 
 	void SetUp() override {
-		dir = fs::temp_directory_path() / "binary_output_test";
+		dir = fs::path(".") / "binary_output_test";
 		fs::remove_all(dir);
 		fs::create_directories(dir);
 	}

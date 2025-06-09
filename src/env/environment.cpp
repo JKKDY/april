@@ -3,11 +3,24 @@
 #include <stdexcept>
 #include <ranges>
 #include <unordered_set>
+#include <format>
 
 #include "april/containers/direct_sum.h"
 
+
 namespace april::env {
-    Environment::Environment(): is_built(false), container(std::make_unique<core::DirectSum>()), interaction_manager() {
+    const auto VEC3_UNDEF = vec3(std::numeric_limits<double>::infinity());
+
+    const vec3 Environment::EXTENT_AUTO = vec3(std::numeric_limits<double>::min());
+    const vec3 Environment::ORIGIN_AUTO = vec3(std::numeric_limits<double>::min());
+
+    Environment::Environment():
+    is_built(false),
+    particle_bbox_extent(0),
+    particle_bbox_origin(VEC3_UNDEF),
+    container(std::make_unique<core::DirectSum>()),
+    interaction_manager()
+    {
 
     }
 
@@ -34,8 +47,35 @@ namespace april::env {
         particle_infos.push_back(particle);   
 
         // collect id and type information
-        if (particle.id != PARTICLE_ID_UNDEFINED) usr_particle_ids.insert(particle.id);
+        if (particle.id != PARTICLE_ID_UNDEFINED) {
+            usr_particle_ids.insert(particle.id);
+        }
         usr_particle_types.insert(particle.type);
+
+        // adjust bounding box and origin
+        if (particle_bbox_origin == VEC3_UNDEF) { //branch is only taken on first particle
+            particle_bbox_origin = particle.position;
+            return;
+        }
+
+        const vec3 &p = particle.position;
+        const vec3 old_min = particle_bbox_origin;
+        const vec3 old_max = particle_bbox_origin + particle_bbox_extent;
+
+        const vec3 new_min {
+            std::min(old_min.x, p.x),
+            std::min(old_min.y, p.y),
+            std::min(old_min.z, p.z)
+        };
+
+        const vec3 new_max {
+            std::max(old_max.x, p.x),
+            std::max(old_max.y, p.y),
+            std::max(old_max.z, p.z)
+        };
+
+        particle_bbox_origin = new_min;
+        particle_bbox_extent = new_max - new_min;
     }
 
 
@@ -62,7 +102,7 @@ namespace april::env {
 
         particle_infos.reserve(particle_infos.size() + particle_count);
         
-       for (unsigned int x = 0; x < cuboid.particle_count[0]; ++x) {
+        for (unsigned int x = 0; x < cuboid.particle_count[0]; ++x) {
             for (unsigned int y = 0; y < cuboid.particle_count[1]; ++y) {
                 for (unsigned int z = 0; z < cuboid.particle_count[2]; ++z) {
 
@@ -209,6 +249,60 @@ namespace april::env {
                 }
             }
         }
+
+        // check that all particles are contained in the box specified by extent and origin
+
+        // check that extent is larger or equal than particle_bbox_extent
+        if (extent != EXTENT_AUTO and (
+                std::abs(extent.x) < particle_bbox_extent.x ||
+                std::abs(extent.y) < particle_bbox_extent.y ||
+                std::abs(extent.z) < particle_bbox_extent.z
+            )) {
+            throw std::invalid_argument(
+                "Specified Environment extent is too small to contain all particles: \n"
+                "\tSet Extent (abs): " + vec3{std::abs(extent.x), std::abs(extent.y), std::abs(extent.z)}.to_string() + "\n"
+                "\tParticle bounding box size: " + particle_bbox_extent.to_string()
+            );
+        }
+
+        const vec3 bbox_min = particle_bbox_origin;
+        const vec3 bbox_max = particle_bbox_origin + particle_bbox_extent;
+
+        // check that origin is not inside the box specified by (particle_bbox_origin, particle_bbox_extent)
+        if (origin != ORIGIN_AUTO and (
+            origin.x < bbox_min.x || origin.y < bbox_min.y || origin.z < bbox_min.z ||
+            origin.x > bbox_max.x || origin.y > bbox_max.y || origin.z > bbox_max.z
+            )) {
+            throw std::invalid_argument(
+                "Environment origin is not compatible with particle bounding box: \n"
+                "\tSet Origin: " + origin.to_string() + "\n"
+                "\tParticle bounding box: [" + bbox_min.to_string() + " — " + bbox_max.to_string() + "]"
+            );
+        }
+
+        //check that (particle_bbox_origin, particle_bbox_extent) is contained in (origin extent)
+        if (origin != ORIGIN_AUTO and extent != EXTENT_AUTO) {
+            const vec3 env_min {
+                std::min(origin.x, origin.x + extent.x),
+                std::min(origin.y, origin.y + extent.y),
+                std::min(origin.z, origin.z + extent.z)
+            };
+            const vec3 env_max {
+                std::max(origin.x, origin.x + extent.x),
+                std::max(origin.y, origin.y + extent.y),
+                std::max(origin.z, origin.z + extent.z)
+            };
+
+            if (bbox_min.x < env_min.x || bbox_min.y < env_min.y || bbox_min.z < env_min.z ||
+                bbox_max.x > env_max.x || bbox_max.y > env_max.y || bbox_max.z > env_max.z)
+            {
+                throw std::invalid_argument(
+                    "Particle cloud lies outside the user‐specified Environment box:\n"
+                    "  Env box: [" + env_min.to_string() + " — " + env_max.to_string() + "]\n"
+                    "  Particle box: [" + bbox_min .to_string() + " — " + bbox_max .to_string() + "]"
+                );
+            }
+        }
     }
 
 
@@ -271,6 +365,12 @@ namespace april::env {
         }
     }
 
+    void Environment::finalize_environment_size() {
+        if (extent == EXTENT_AUTO) {
+
+        }
+    }
+
     void Environment::set_extent(const vec3& size) {
         if (is_built) {
             throw std::logic_error("cannot set extent. environment has already been built.");
@@ -298,6 +398,7 @@ namespace april::env {
         validate_inputs();
         map_ids_and_types_to_internal();
         build_particles();
+        finalize_environment_size();
 
         interaction_manager.build(interactions, usr_types_to_impl_types, usr_ids_to_impl_ids);
         container->init(&interaction_manager, &particle_storage, extent, origin);

@@ -269,9 +269,10 @@ namespace april::env {
 
         // check that origin is not inside the box specified by (particle_bbox_origin, particle_bbox_extent)
         if (origin != ORIGIN_AUTO and (
-            origin.x < bbox_min.x || origin.y < bbox_min.y || origin.z < bbox_min.z ||
-            origin.x > bbox_max.x || origin.y > bbox_max.y || origin.z > bbox_max.z
-            )) {
+            (origin.x > bbox_min.x && origin.x < bbox_max.x) and
+            (origin.y > bbox_min.y && origin.y < bbox_max.y) and
+            (origin.z > bbox_min.z && origin.z < bbox_max.z))
+           ) {
             throw std::invalid_argument(
                 "Environment origin is not compatible with particle bounding box: \n"
                 "\tSet Origin: " + origin.to_string() + "\n"

@@ -57,6 +57,10 @@ namespace april::env {
 
         void set_extent(const vec3 & size);
         void set_origin(const vec3 & origin_vec);
+
+        vec3 get_origin() const { return origin; }
+        vec3 get_extent() const { return extent; }
+
         void set_container(std::unique_ptr<core::Container> container_ptr);
 
         void build();

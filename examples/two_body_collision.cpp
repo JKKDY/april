@@ -30,7 +30,7 @@ int main() {
 	env.set_extent({50,50,1});
 	env.set_origin({0,0,-0.5});
 
-	env.set_container(std::make_unique<LinkedCells>());
+	env.set_container(std::make_unique<DirectSum>());
 
 	env.add_force_to_type(LennardJones(5, 1), 0);
 

@@ -6,7 +6,10 @@
 #include "april/env/particle.h"
 
 namespace april::core {
-	LinkedCells::LinkedCells(): outside_cell(Cell::ParticleSet(0), {}, 0){}
+	LinkedCells::LinkedCells(const double cell_size):
+	grid_constant(cell_size),
+	outside_cell(Cell::ParticleSet(0), {}, 0)
+	{}
 
 	void LinkedCells::build() {
 		build_cells();
@@ -14,7 +17,7 @@ namespace april::core {
 	}
 
 	void LinkedCells::build_cells() {
-		double grid_constant = interaction_manager->get_max_cutoff();
+		grid_constant = std::max(interaction_manager->get_max_cutoff(), grid_constant);
 		if (grid_constant <= 0) {
 			grid_constant = std::max(extent[0], std::max(extent[1], extent[2]));
 		}
@@ -121,9 +124,9 @@ namespace april::core {
 		}
 
 		// go through all cell pairs
-		for (auto & cell_pair : cell_pairs) {
-			for (size_t i = 0; i < cell_pair.first.particles.size(); i++) {
-				for (size_t j = 0; j < cell_pair.second.particles.size(); j++) {
+		for (auto & [c1, c2] : cell_pairs) {
+			for (const unsigned int i : c1.particles) {
+				for (const unsigned int j : c2.particles) {
 					auto & p1 = (*particles)[i];
 					auto & p2 = (*particles)[j];
 

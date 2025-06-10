@@ -47,11 +47,13 @@ namespace april::core {
 		};
 
 	public:
-		LinkedCells();
+		explicit LinkedCells(double cell_size = -1);
 
 		void build() override;
 		void calculate_forces() override;
+
 	private:
+		double grid_constant;
 		void build_cells();
 		void build_cell_pairs();
 

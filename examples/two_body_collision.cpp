@@ -27,10 +27,10 @@ int main() {
 	Environment env;
 	env.add_particle_cuboid(cuboid1);
 	env.add_particle_cuboid(cuboid2);
-	env.set_extent({50,50,1});
-	env.set_origin({0,0,-0.5});
+	env.set_extent({60,50,1});
+	env.set_origin({-10,-10,0});
 
-	env.set_container(std::make_unique<DirectSum>());
+	env.set_container(std::make_unique<LinkedCells>());
 
 	env.add_force_to_type(LennardJones(5, 1), 0);
 

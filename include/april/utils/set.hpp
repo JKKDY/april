@@ -8,14 +8,20 @@ namespace april::utils {
 
    
     template <std::unsigned_integral T> class IndexSet {
-        size_t N;                   // universe size = maxId+1
+    public:
+        size_t N; // universe size = maxId+1
         std::vector<T> sparse; // maps id to index in dense
         std::vector<T> dense;  // densely packed inserted IDs
-    
-    public:
+
         explicit IndexSet(const T maxId):
             N(maxId + 1), sparse(N, static_cast<T>(-1))
         {
+            dense.reserve(N);
+        }
+
+        void set_capacity(const T maxId) {
+            N = maxId + 1;
+            sparse = std::vector<T>(N, static_cast<T>(-1));
             dense.reserve(N);
         }
     

@@ -3,6 +3,7 @@
 
 #include <april/env/environment.h>
 #include "april/common.h"
+#include "april/containers/linked_cells.h"
 #include "april/core/stoermer_verlet.h"
 #include "april/io/output.h"
 

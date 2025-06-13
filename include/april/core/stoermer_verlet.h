@@ -16,7 +16,6 @@ namespace april::core {
 		void integration_step() const {
 			for (auto &p : env.particles(State::MOVABLE)) {
 				p.update_position(dt * p.velocity + (dt*dt) / (2 * p.mass) * p.force);
-				p.reset_force();
 			}
 
 			env.update_forces();

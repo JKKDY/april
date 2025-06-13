@@ -32,6 +32,7 @@ def load_particles(filename):
             ('state', 'u1')
         ])
 
+
         # Read the particle data
         particles = np.fromfile(f, dtype=particle_dtype, count=count)
 

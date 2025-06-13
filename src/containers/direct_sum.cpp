@@ -6,6 +6,10 @@
 namespace april::core {
 	void DirectSum::build() {}
 	void DirectSum::calculate_forces() {
+		for (auto & p : *particles) {
+			p.reset_force();
+		}
+
 		for (size_t i = 0; i < particles->size()-1; i++) {
 			for (size_t j = i+1; j < particles->size(); j++) {
 				auto & p1 = (*particles)[i];

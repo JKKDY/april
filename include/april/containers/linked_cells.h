@@ -57,7 +57,7 @@ namespace april::core {
 		void build_cells();
 		void build_cell_pairs();
 
-		Cell & get_cell(const Particle & particle) noexcept;
+		Cell & get_cell(const vec3& position) noexcept;
 		Cell & get_cell(const uint3 & idx);
 
 		vec3 cell_size;

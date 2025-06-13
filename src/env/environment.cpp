@@ -360,7 +360,7 @@ namespace april::env {
         size_t idx = 0;
         for (const auto & p : particle_infos) {
             particle_storage.emplace_back(
-                idx++, usr_ids_to_impl_ids[p.id], p.position, p.velocity, p.mass,usr_types_to_impl_types[p.type], p.state
+                idx++, usr_ids_to_impl_ids[p.id], p.position, p.velocity, p.mass,usr_types_to_impl_types[p.type], p.state, vec3{}, vec3{}, p.position
             );
         }
     }

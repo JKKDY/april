@@ -1,10 +1,13 @@
 #include <gtest/gtest.h>
 #include <april/env/environment.h>
 #include "april/common.h"
-#include "april/containers/direct_sum.h"
 #include <gmock/gmock.h>
 
 #include "april/containers/linked_cells.h"
+#include "april/core/stoermer_verlet.h"
+#include "april/io/monitor.h"
+
+
 using testing::AnyOf;
 using testing::Eq;
 
@@ -17,7 +20,7 @@ struct ConstantForce final : Force {
 	ConstantForce(double x, double y, double z, double cutoff = -1) : v{x,y,z} {
 		cutoff_radius = cutoff;
 	}
-	vec3 operator()(const impl::Particle&, const impl::Particle&, const vec3&) const noexcept override {
+	vec3 operator()(const env::impl::Particle&, const env::impl::Particle&, const vec3&) const noexcept override {
 		return v;
 	}
 	std::unique_ptr<Force> mix(const Force* other) const override {
@@ -164,5 +167,68 @@ TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
     EXPECT_EQ(pb.force.y, 0.0);
 }
 
+
+class OrbitMonitor final : public io::Monitor {
+public:
+	OrbitMonitor(): Monitor(1) {}
+	explicit OrbitMonitor(const double v, const double r): Monitor(1), v(v), r(r) {}
+
+	void record(size_t i, double, const std::vector<env::impl::Particle>& particles) const {
+		const auto p = particles[0].mass < 1 ?  particles[0]: particles[1];
+
+		EXPECT_NEAR(p.velocity.norm(), v, 1e-3) << "Velocity mismatch at step " << i;
+		EXPECT_NEAR(p.position.norm(), r, 1e-3) << "Position mismatch at step " << i;
+	}
+
+	double v{};
+	double r{};
+};
+
+TEST(LinkedCellsTest, OrbitTest) {
+	constexpr double G = 1;
+	constexpr double R = 1;
+	constexpr double M = 1.0;
+	constexpr double m = 1e-10;
+	constexpr double v = G * M / R;
+	constexpr double T = 2 * 3.14159265359 * v / R;
+
+	Environment env;
+	env.add_particle({0,R,0}, {v, 0, 0}, m);
+	env.add_particle({0,0,0}, {0, 0, 0}, M);
+	env.add_force_to_type(InverseSquare(G), 0);
+	env.set_container(std::make_unique<LinkedCells>(v));
+	env.set_origin({-1.5*v,-1.5*v,0});
+	env.set_extent({3*v,3*v,1});
+
+	StoermerVerlet<OrbitMonitor> integrator(env);
+	integrator.add_monitor<OrbitMonitor>(OrbitMonitor(v, R));
+	integrator.run(0.001, T);
+
+	std::vector<env::impl::Particle> particles;
+	for (auto & p : env.particles()) {
+		particles.push_back(p);
+	}
+
+	auto p1 =  particles[0].mass == m ? particles[0] : particles[1];
+	auto p2 =  particles[0].mass == M ? particles[0] : particles[1];
+
+	EXPECT_NEAR(p1.velocity.norm(), v, 1e-3);
+
+	EXPECT_NEAR(p1.position.x, 0, 1e-3);
+	EXPECT_NEAR(p1.position.y, R, 1e-3);
+	EXPECT_EQ(p1.position.z, 0);
+
+	EXPECT_NEAR(p1.velocity.x, v, 1e-3);
+	EXPECT_NEAR(p1.velocity.y, 0, 1e-3);
+	EXPECT_EQ(p1.velocity.z, 0);
+
+	EXPECT_NEAR(p2.position.x, 0, 1e-3);
+	EXPECT_NEAR(p2.position.y, 0, 1e-3);
+	EXPECT_NEAR(p2.position.z, 0, 1e-3);
+
+	EXPECT_NEAR(p2.velocity.x, 0, 1e-3);
+	EXPECT_NEAR(p2.velocity.y, 0, 1e-3);
+	EXPECT_NEAR(p2.velocity.z, 0, 1e-3);
+}
 
 

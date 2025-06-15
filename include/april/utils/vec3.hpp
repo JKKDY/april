@@ -2,17 +2,19 @@
 #include <cmath>
 #include <string>
 #include <format>
+#include <concepts>
 
 #include "april/utils/debug.h"
 
 
 namespace april::utils {
+    template <typename  T> requires std::integral<T> || std::floating_point<T>
     struct Vec3 {
-        double x, y, z;
+        T x, y, z;
 
         Vec3() : x(0.0), y(0.0), z(0.0) {}
-        explicit Vec3(const double v): x(v), y(v), z(v) {}
-        Vec3(const double x, const double y, const double z) : x(x), y(y), z(z) {}
+        explicit Vec3(const T v): x(v), y(v), z(v) {}
+        Vec3(const T x, const T y, const T z) : x(x), y(y), z(z) {}
 
         // unary minus
         Vec3 operator-() const noexcept {
@@ -30,12 +32,12 @@ namespace april::utils {
         }
 
         // Scalar multiplication operator: returns a new vector scaled by a constant
-        Vec3 operator*(const double scalar) const noexcept {
+        Vec3 operator*(const T scalar) const noexcept {
             return {x * scalar, y * scalar, z * scalar};
         }
 
         // Friend function for scalar multiplication with the scalar on the left
-        friend Vec3 operator*(const double scalar, const Vec3& vec) noexcept {
+        friend Vec3 operator*(const T scalar, const Vec3& vec) noexcept {
             return vec * scalar;
         }
 
@@ -64,12 +66,12 @@ namespace april::utils {
         }
 
         // scalar product
-        double operator*=(const Vec3 & other) const noexcept {
+        T operator*=(const Vec3 & other) const noexcept {
             return x * other.x + y * other.y + z * other.z;
         }
 
         // Compound assignment for scalar multiplication
-        Vec3& operator*=(const double scalar) {
+        Vec3& operator*=(const T scalar) {
             x *= scalar;
             y *= scalar;
             z *= scalar;
@@ -77,7 +79,7 @@ namespace april::utils {
         }
 
         // Access component by index: 0 for x, 1 for y, 2 for z.
-        double operator[](const int index) const noexcept{
+        T operator[](const int index) const noexcept{
             AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
             switch (index) {
                 case 0: return x;
@@ -88,7 +90,7 @@ namespace april::utils {
 			return 0; // This line should never be reached due to the assertion above.
         }
 
-        double & operator[](const int index) noexcept {
+        T & operator[](const int index) noexcept {
             AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
             switch (index) {
                 case 0: return x;

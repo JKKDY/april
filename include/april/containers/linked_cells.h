@@ -29,6 +29,7 @@ namespace april::core {
 	};
 
 
+
 	class LinkedCells final : public Container {
 		using Particle = env::impl::Particle;
 
@@ -61,6 +62,7 @@ namespace april::core {
 		Cell & get_cell(const uint3 & idx);
 
 		vec3 cell_size;
+		vec3 inv_cell_size;
 		uint3 cell_count{};
 		Cell outside_cell;
 		std::vector<Cell> cells;

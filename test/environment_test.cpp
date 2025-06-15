@@ -38,8 +38,8 @@ TEST(EnvTest, one_particle_test) {
     EXPECT_TRUE(p.id == 0);
     EXPECT_TRUE(p.mass == 10);
     EXPECT_TRUE(p.state == ParticleState::ALIVE);
-    EXPECT_TRUE(p.velocity == april::utils::Vec3(1,2,3));
-    EXPECT_TRUE(p.position == april::utils::Vec3(3,4,5));
+    EXPECT_TRUE(p.velocity == vec3(1,2,3));
+    EXPECT_TRUE(p.position == vec3(3,4,5));
 }
 
 

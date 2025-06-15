@@ -30,11 +30,12 @@ namespace april::core {
 		const auto num_z = static_cast<unsigned int>(std::max(1.0, floor(extent[2] / grid_constant)));
 
 		cell_size = {extent[0] / num_x, extent[1] / num_y, extent[2] / num_z};
+		inv_cell_size = {1/cell_size[0], 1/cell_size[1], 1/cell_size[2]};
 		cell_count = uint3{num_x, num_y, num_z};
 		cells.reserve(num_x * num_y * num_z);
 
 		// create cells
-		auto N = static_cast<env::impl::ParticleID>(particles->size());
+		const auto N = static_cast<env::impl::ParticleID>(particles->size());
 		for (unsigned int x = 0; x < num_x; x++) {
 			for (unsigned int y = 0; y < num_y; y++) {
 				for (unsigned int z = 0; z < num_z; z++) {
@@ -58,29 +59,32 @@ namespace april::core {
 	}
 
 	void LinkedCells::build_cell_pairs() {
-		std::vector<int3> displacements;
-
-		for (int dx = -1; dx <= 1; dx++) {
-			for (int dy = -1; dy <= 1; dy++) {
-				for (int dz = -1; dz <= 1; dz++) {
-					if (dx == 0 && dy == 0 && dz == 0) continue;
-					displacements.push_back({dx, dy, dz});
-				}
-			}
-		}
+		static const int3 displacements[13] = {
+			{ 1, 0, 0}, { 0, 1, 0}, { 0, 0, 1},
+			{ 1, 1, 0}, { 1,-1, 0}, { 1, 0, 1},
+			{-1, 0, 1}, { 0, 1, 1}, { 0,-1, 1},
+			{ 1, 1, 1}, { 1,-1, 1}, {-1, 1, 1},
+			{-1,-1, 1}
+		};
 
 		for (const auto d : displacements) {
 			for (unsigned int z = 0; z < cell_count[2]; z++) {
 				for (unsigned int y = 0; y < cell_count[1]; y++) {
 					for (unsigned int x = 0; x < cell_count[0]; x++) {
-						uint3 idx1 = {x,y,z};
-						uint3 idx2 = {idx1[0] + d[0], idx1[1] + d[1], idx1[2] + d[2]};
+						const int3 base{static_cast<int>(x), static_cast<int>(y), static_cast<int>(z)};
+						const int3 n = base + d;
 
-						if (idx1 >= idx2 || // ensure only unique pairs are added
-							idx2[0] < 0 || idx2[1] < 0 || idx2[2] < 0 ||
-							idx2[0] >= cell_count[0] ||idx2[1] >= cell_count[1] || idx2[2] >= cell_count[2]
-						) continue;
-						
+						if (n.x < 0 || n.y < 0 || n.z < 0)
+							continue;
+						if (n.x >= static_cast<int>(cell_count[0]) || n.y >= static_cast<int>(cell_count[1]) || n.z >= static_cast<int>(cell_count[2]))
+							continue;
+
+						uint3 idx1 = {x,y,z};
+						uint3 idx2{static_cast<uint32_t>(n.x), static_cast<uint32_t>(n.y), static_cast<uint32_t>(n.z)};
+
+						// if (idx1 >= idx2) // ensure only unique pairs are added
+						// 	continue;
+
 						cell_pairs.emplace_back(get_cell(idx1), get_cell(idx2));
 					}
 				}
@@ -95,9 +99,9 @@ namespace april::core {
 		}
 
 		// maybe we can somehow get around the division?
-		const auto x = static_cast<uint32_t>(pos[0] / cell_size[0]);
-		const auto y = static_cast<uint32_t>(pos[1] / cell_size[1]);
-		const auto z = static_cast<uint32_t>(pos[2] / cell_size[2]);
+		const auto x = static_cast<uint32_t>(pos[0] * inv_cell_size[0]);
+		const auto y = static_cast<uint32_t>(pos[1] * inv_cell_size[1]);
+		const auto z = static_cast<uint32_t>(pos[2] * inv_cell_size[2]);
 
 		if (x >= cell_count[0] || y >= cell_count[1] || z >= cell_count[2]) {
 			return outside_cell;

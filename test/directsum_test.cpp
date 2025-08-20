@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <april/env/environment.h>
 #include "april/common.h"
-#include "april/containers/direct_sum.h"
+#include "april/algo/direct_sum.h"
 #include <gmock/gmock.h>
 using testing::AnyOf;
 using testing::Eq;

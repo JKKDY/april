@@ -9,9 +9,9 @@
 #include "april/io/performance.h"
 
 
-#include "april/containers/container.h"
-#include "april/containers/direct_sum.h"
-#include "april/containers/linked_cells.h"
+#include "april/algo/container.h"
+#include "april/algo/direct_sum.h"
+#include "april/algo/linked_cells.h"
 
 
 #include "april/core/integrator.h"
@@ -50,7 +50,7 @@ namespace april {
 	using env::Particle;
 	using env::ParticleID;
 	using env::ParticleType;
-	using env::PARTICLE_ID_UNDEFINED;
+	using env::PARTICLE_ID_DONT_CARE;
 
 	using env::Force;
 	using env::Harmonic;

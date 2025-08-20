@@ -1,4 +1,4 @@
-#include "april/containers/direct_sum.h"
+#include "april/algo/direct_sum.h"
 
 #include "april/env/interaction.h"
 #include "april/env/particle.h"

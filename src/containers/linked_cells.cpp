@@ -1,6 +1,6 @@
 
 
-#include "april/containers/linked_cells.h"
+#include "april/algo/linked_cells.h"
 
 #include <iostream>
 #include <limits>

@@ -1,5 +1,4 @@
 #pragma once
-#include <type_traits>
 #include <vector>
 
 #include "april/common.h"
@@ -19,10 +18,10 @@ namespace april::core {
 		explicit Container() = default;
 		virtual ~Container() = default;
 
-		void init(InteractionManager * manager, std::vector<Particle> * particles_ptr, const vec3 & size, const vec3 & origin_vec) {
+		void init(InteractionManager * manager, std::vector<Particle> & particles, const vec3 & extent_vec, const vec3 & origin_vec) {
 			interaction_manager = manager;
-			particles = particles_ptr;
-			extent = size;
+			particles = particles;
+			extent = extent_vec;
 			origin = origin_vec;
 		}
 		virtual void build() = 0;
@@ -31,12 +30,17 @@ namespace april::core {
 
 	protected:
 		InteractionManager * interaction_manager{};
-		std::vector<Particle> * particles{};
+		std::vector<Particle> particles{};
 
 		vec3 extent;
 		vec3 origin;
 	};
 
-	template<typename T> concept IsContainer = std::is_base_of_v<Container, T>;
+	template<typename C> concept IsContainer = std::derived_from<C, Container>;
+
+	template<typename C> concept IsContainerDeclaration = requires {
+		typename C::Container;
+	}  && IsContainer<typename C::Container>;
+
 
 } // namespace april::core

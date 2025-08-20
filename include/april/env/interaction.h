@@ -149,6 +149,7 @@ namespace april::env::impl {
                 this->key_pair = {key_pair.second, key_pair.first};
             }
         }
+
         bool pair_contains_types;
         std::pair<int, int> key_pair;
         ForcePtr force;
@@ -176,7 +177,7 @@ namespace april::env::impl {
 
     private:
         TypeForceMap inter_type_forces;   // Forces between different particle types (e.g. type A <-> type B)
-        IdForceMap intra_particle_forces; // Forces between specific particle instances (by ID)
+        IdForceMap intra_particle_forces; // Forces between specific particle instances (by ID e.g. id1 <-> id2)
 
         double max_cutoff;
     };

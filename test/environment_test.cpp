@@ -20,7 +20,7 @@ TEST(EnvTest, one_particle_test) {
     Environment e;
 
     e.add_particle(Particle{
-        .id = PARTICLE_ID_UNDEFINED,
+        .id = PARTICLE_ID_DONT_CARE,
         .type = 0,
         .position = {3,4,5},
         .velocity = {1,2,3},
@@ -56,7 +56,7 @@ TEST(EnvTest, type_force_missing) {
     });
 
     e.add_particle(Particle{
-        .id = PARTICLE_ID_UNDEFINED,
+        .id = PARTICLE_ID_DONT_CARE,
         .type = 0,
         .position = {3,4,5},
         .velocity = {1,2,3},
@@ -181,8 +181,8 @@ TEST(EnvTest, particle_iterator_test) {
 TEST(EnvTest, ExtentTooSmallThrows) {
     Environment e;
     // Two particles 0 and 2 apart in x
-    e.add_particle({.id = PARTICLE_ID_UNDEFINED, .type = 0, .position = {0,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
-    e.add_particle({.id = PARTICLE_ID_UNDEFINED, .type = 0, .position = {2,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {0,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {2,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     // Set extent too small to cover span=2
     e.set_origin({0,0,0});
     e.set_extent({1,1,1});
@@ -193,8 +193,8 @@ TEST(EnvTest, ExtentTooSmallThrows) {
 TEST(EnvTest, OriginOutsideThrows) {
     Environment e;
     // Particles inside [0,1] in each dim
-    e.add_particle({.id = PARTICLE_ID_UNDEFINED, .type = 0, .position = {0,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
-    e.add_particle({.id = PARTICLE_ID_UNDEFINED, .type = 0, .position = {1,1,1}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {0,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {1,1,1}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     // Set origin outside that box
     e.set_origin({2,2,2});
     e.set_extent({2,2,2});
@@ -205,7 +205,7 @@ TEST(EnvTest, OriginOutsideThrows) {
 TEST(EnvTest, OnlyExtentCentersOrigin) {
     Environment e;
     // Single particle at (3,4,5)
-    e.add_particle({.id = PARTICLE_ID_UNDEFINED, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     // Only extent given
     e.set_extent({4,4,4});
     e.add_force_to_type(NoForce(), 0);
@@ -221,7 +221,7 @@ TEST(EnvTest, OnlyExtentCentersOrigin) {
 TEST(EnvTest, OnlyOriginSymmetricExtent) {
     Environment e;
     // Single particle at (3,4,5)
-    e.add_particle({.id = PARTICLE_ID_UNDEFINED, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     // Only origin given
     e.set_origin({0,0,0});
     e.add_force_to_type(NoForce(), 0);
@@ -237,8 +237,8 @@ TEST(EnvTest, OnlyOriginSymmetricExtent) {
 TEST(EnvTest, AutoOriginExtentDoublesBBox) {
     Environment e;
     // Two particles at (1,2,3) and (3,4,5)
-    e.add_particle({.id = PARTICLE_ID_UNDEFINED, .type = 0, .position = {1,2,3}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
-    e.add_particle({.id = PARTICLE_ID_UNDEFINED, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {1,2,3}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     e.add_force_to_type(NoForce(), 0);
     // neither origin nor extent set
     EXPECT_NO_THROW(e.build());

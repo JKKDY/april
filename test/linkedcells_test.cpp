@@ -3,7 +3,7 @@
 #include "april/common.h"
 #include <gmock/gmock.h>
 
-#include "april/containers/linked_cells.h"
+#include "april/algo/linked_cells.h"
 #include "april/core/stoermer_verlet.h"
 #include "april/io/monitor.h"
 

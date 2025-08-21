@@ -155,10 +155,6 @@ namespace april::env {
 
 
 namespace april::env {
-    void Environment::update_forces() const {
-        container->calculate_forces();
-    }
-
     impl::ParticleIterator Environment::particles(const ParticleState state) {
          return {particle_storage, state};
     }

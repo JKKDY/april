@@ -1,15 +1,15 @@
 #pragma once
 
-#include "april/algo/container.h"
+#include "april/algo/algorithm.h"
 #include "april/utils/set.hpp"
 #include "april/env/particle.h"
 
-namespace april::core::impl {
-	class LinkedCells;
-}
 
-namespace april::core {
 
+namespace april::algo {
+	namespace impl {
+		class LinkedCells;
+	}
 
 	template<typename T> concept IsParticleSet = requires(T set, size_t id) {
 		// Construction with maxId
@@ -34,15 +34,13 @@ namespace april::core {
 
 
 	struct LinkedCells {
-		using Container = impl::LinkedCells;
+		using impl = impl::LinkedCells;
 		double cell_size_hint;
 	};
 
 
 	namespace impl {
-		class LinkedCells final : public Container {
-			using Particle = env::impl::Particle;
-
+		class LinkedCells final : public Algorithm<algo::LinkedCells> {
 			struct Cell {
 				using ParticleSet = utils::IndexSet<env::impl::ParticleID>;
 				static_assert(IsParticleSet<ParticleSet>, "ParticleSet must implement IsParticleSet interface");
@@ -56,15 +54,13 @@ namespace april::core {
 				Cell& first;
 				Cell& second;
 			};
-
 		public:
-			explicit LinkedCells(double cell_size = -1);
+			using Algorithm::Algorithm;
 
-			void build() override;
+			void build(const std::vector<Particle>& particles) override;
 			void calculate_forces() override;
 
 		private:
-			double grid_constant;
 			void build_cells();
 			void build_cell_pairs();
 
@@ -77,6 +73,7 @@ namespace april::core {
 			Cell outside_cell;
 			std::vector<Cell> cells;
 			std::vector<CellPair> cell_pairs;
+			std::vector<Particle> particles;
 		};
 	}
 }

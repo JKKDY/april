@@ -179,7 +179,7 @@ namespace april::env::impl {
         TypeForceMap inter_type_forces;   // Forces between different particle types (e.g. type A <-> type B)
         IdForceMap intra_particle_forces; // Forces between specific particle instances (by ID e.g. id1 <-> id2)
 
-        double max_cutoff;
+        double max_cutoff = 0;
     };
 
 } // namespace april::env::impl

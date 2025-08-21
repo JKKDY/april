@@ -132,5 +132,13 @@ namespace april::utils {
         [[nodiscard]] std::string to_string() const {
             return std::format("{{{}, {}, {}}}", x, y, z);
         }
+
+        double max() {
+            return std::max(x, std::max(y, z));
+        }
+
+        double min() {
+            return std::min(x, std::min(y, z));
+        }
     };
 } // namespace april::utils

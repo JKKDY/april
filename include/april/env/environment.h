@@ -6,9 +6,9 @@
 
 #include "april/env/particle.h"
 #include "april/env/interaction.h"
-#include "april/algo/container.h"
 
 namespace april::env {
+    struct Environment;
     inline const auto EXTENT_AUTO = vec3(std::numeric_limits<double>::infinity());
     inline const auto ORIGIN_AUTO = vec3(std::numeric_limits<double>::infinity());
     inline const auto zero_velocity = [](const Particle&) {return vec3{}; };
@@ -28,6 +28,8 @@ namespace april::env {
             std::vector<env::Particle> particles;
             std::vector<InteractionInfo> interactions;
         };
+
+        EnvironmentData get_env_data(const Environment& env);
     }
 
     struct ParticleCuboid {
@@ -53,8 +55,6 @@ namespace april::env {
     };
 
     struct Environment {
-        using namespace core;
-
         void add_particle(const vec3& position, const vec3& velocity, double mass, ParticleType type=0, ParticleID id = PARTICLE_ID_DONT_CARE);
         void add_particle(const Particle & particle);
         void add_particles(const std::vector<Particle> & particles);
@@ -73,17 +73,12 @@ namespace april::env {
         void add_barrier();
         void set_boundary_conditions();
 
-        // template<core::IsContainerDeclaration C> void set_container (const C & container_config);
     private:
         impl::EnvironmentData data;
 
         friend impl::EnvironmentData impl::get_env_data(const Environment & env);
     };
 
-
-    // template<core::IsContainerDeclaration C> void Environment::set_container (const C & container_config) {
-    //     data.container = std::make_unique<C::Container>(container_config);
-    // }
 
     template<IsForce F> void Environment::add_force_to_type(const F & force, ParticleType type) {
         std::unique_ptr<Force> ptr = std::make_unique<F>(force);
@@ -98,9 +93,6 @@ namespace april::env {
         data.interactions.emplace_back(false, ParticleIDPair{id1, id2}, std::move(ptr));
     }
 
-    namespace impl {
-        EnvironmentData get_env_data(const Environment& env);
-    }
 
 
 

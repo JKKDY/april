@@ -9,7 +9,7 @@
 #include "april/io/performance.h"
 
 
-#include "april/algo/container.h"
+#include "april/algo/algorithm.h"
 #include "april/algo/direct_sum.h"
 #include "april/algo/linked_cells.h"
 
@@ -64,7 +64,7 @@ namespace april {
 
 	namespace ext {
 		using io::Monitor;
-		using core::Container;
+		using core::Algorithm;
 		template <io::IsMonitor... TMonitors> using Integrator = core::impl::Integrator<TMonitors...>;
 	}
 }

@@ -5,6 +5,7 @@
 namespace april::core {
 
 	using namespace env;
+	using namespace algo;
 
 	Domain calculate_bounding_box(const std::vector<Particle> & particles) {
 		Domain bbox;
@@ -94,7 +95,7 @@ namespace april::core {
 	}
 
 	void validate_particle_params(
-		std::vector<impl::InteractionInfo>& interactions,
+		std::vector<env::impl::InteractionInfo>& interactions,
 		const std::unordered_set<ParticleID> & usr_particle_ids,
 		const std::unordered_set<ParticleType> & usr_particle_types)
 	{
@@ -183,7 +184,7 @@ namespace april::core {
 
 	UserToInternalMappings map_ids_and_types_to_internal(
 		 std::vector<Particle> & particles,
-		 std::vector<impl::InteractionInfo> & interactions,
+		 std::vector<env::impl::InteractionInfo> & interactions,
 		 std::unordered_set<ParticleID> & usr_particle_ids,
 		 std::unordered_set<ParticleType> & usr_particle_types
 		 ) {
@@ -206,7 +207,7 @@ namespace april::core {
 		type_vector.insert(type_vector.end(), usr_particle_types.begin(), usr_particle_types.end());
 
 		for (size_t  i = 0; i < type_vector.size(); i++) {
-			mapping.usr_types_to_impl_types[type_vector[i]] = static_cast<impl::ParticleType>(i);
+			mapping.usr_types_to_impl_types[type_vector[i]] = static_cast<env::impl::ParticleType>(i);
 		}
 
 		// generate mapping for user ids to implementation ids
@@ -230,7 +231,7 @@ namespace april::core {
 
 		// create id map
 		for (size_t  i = 0; i < id_vector.size(); i++) {
-			mapping.usr_ids_to_impl_ids[id_vector[i]] = static_cast<impl::ParticleID>(i);
+			mapping.usr_ids_to_impl_ids[id_vector[i]] = static_cast<env::impl::ParticleID>(i);
 		}
 
 		return mapping;
@@ -283,8 +284,8 @@ namespace april::core {
 		return domain;
 	}
 
-	std::vector<impl::Particle> build_particles(const std::vector<Particle> & particle_infos, const UserToInternalMappings& mapping) {
-		std::vector<impl::Particle> particles;
+	std::vector<env::impl::Particle> build_particles(const std::vector<Particle> & particle_infos, const UserToInternalMappings& mapping) {
+		std::vector<env::impl::Particle> particles;
 		particles.reserve(particle_infos.size());
 
 		size_t idx = 0;
@@ -304,33 +305,6 @@ namespace april::core {
 		}
 
 		return particles;
-	}
-
-	template<IsContainerDeclaration C> System compile(
-		const Environment & environment,
-		const C & container,
-		UserToInternalMappings * particle_mappings
-	) {
-		auto env = impl::get_env_data(environment);
-		const Domain bbox = calculate_bounding_box(env.particles);
-
-		validate_domain_params(env.domain, bbox, env.particles);
-		validate_particle_params(env.interactions, env.usr_particle_ids, env.usr_particle_types);
-
-		UserToInternalMappings mapping = map_ids_and_types_to_internal(env.particles,env.interactions, env.usr_particle_ids, env.usr_particle_types);
-		Domain domain = finalize_environment_domain(bbox, env.domain);
-		std::vector<impl::Particle> particles = build_particles(env.particles, mapping);
-
-		impl::InteractionManager interaction_manager;
-		interaction_manager.build(env.interactions, mapping.usr_types_to_impl_types, mapping.usr_ids_to_impl_ids);
-
-		auto cont = std::make_unique<C::Container>(container);
-
-		if (particle_mappings) {
-			particle_mappings->usr_ids_to_impl_ids = mapping.usr_ids_to_impl_ids;
-			particle_mappings->usr_types_to_impl_types = mapping.usr_types_to_impl_types;
-		}
-
 	}
 }
 

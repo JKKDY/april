@@ -1,25 +1,27 @@
 #pragma once
 
 
-#include "april/algo/container.h"
+#include "april/algo/algorithm.h"
 
-namespace april::core::impl {
+namespace april::algo::impl {
 	class DirectSum;
 }
 
-namespace april::core {
+namespace april::algo {
 
 	class DirectSum {
-		using Container = impl::DirectSum;
+		using impl = impl::DirectSum;
 	};
 
 	namespace impl {
-		class DirectSum final : public Container {
+		class DirectSum final : public Algorithm<algo::DirectSum> {
 		public:
-			using Container::Container;
+			using Algorithm::Algorithm;
 
-			void build() override;
+			void build(const std::vector<Particle> & particles) override;
 			void calculate_forces() override;
+		private:
+			std::vector<Particle> particles;
 		};
 	}
 }

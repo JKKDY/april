@@ -7,35 +7,33 @@
 #include "april/env/interaction.h"
 #include "april/env/particle.h"
 
-namespace april::core {
+namespace april::algo::impl {
 	constexpr unsigned max_uint = std::numeric_limits<unsigned>::max();
-	LinkedCells::LinkedCells(const double cell_size):
-	grid_constant(cell_size),
-	outside_cell(Cell::ParticleSet(0), {max_uint, max_uint, max_uint}, 0)
-	{}
 
-	void LinkedCells::build() {
+
+	void LinkedCells::build(const std::vector<Particle>& particles) {
+		this->particles = particles;
 		build_cells();
 		build_cell_pairs();
 	}
 
 	void LinkedCells::build_cells() {
-		grid_constant = std::max(interaction_manager->get_max_cutoff(), grid_constant);
-		if (grid_constant <= 0) {
-			grid_constant = std::max(extent[0], std::max(extent[1], extent[2]));
+		cfg.cell_size_hint = std::max(interactions.get_max_cutoff(), cfg.cell_size_hint);
+		if (cfg.cell_size_hint <= 0) {
+			cfg.cell_size_hint = domain.extent.max();
 		}
 
-		const auto num_x = static_cast<unsigned int>(std::max(1.0, floor(extent[0] / grid_constant)));
-		const auto num_y = static_cast<unsigned int>(std::max(1.0, floor(extent[1] / grid_constant)));
-		const auto num_z = static_cast<unsigned int>(std::max(1.0, floor(extent[2] / grid_constant)));
+		const auto num_x = static_cast<unsigned int>(std::max(1.0, floor(domain.extent[0] / cfg.cell_size_hint)));
+		const auto num_y = static_cast<unsigned int>(std::max(1.0, floor(domain.extent[1] / cfg.cell_size_hint)));
+		const auto num_z = static_cast<unsigned int>(std::max(1.0, floor(domain.extent[2] / cfg.cell_size_hint)));
 
-		cell_size = {extent[0] / num_x, extent[1] / num_y, extent[2] / num_z};
+		cell_size = {domain.extent[0] / num_x, domain.extent[1] / num_y, domain.extent[2] / num_z};
 		inv_cell_size = {1/cell_size[0], 1/cell_size[1], 1/cell_size[2]};
 		cell_count = uint3{num_x, num_y, num_z};
 		cells.reserve(num_x * num_y * num_z);
 
 		// create cells
-		const auto N = static_cast<env::impl::ParticleID>(particles->size());
+		const auto N = static_cast<env::impl::ParticleID>(particles.size());
 		for (unsigned int x = 0; x < num_x; x++) {
 			for (unsigned int y = 0; y < num_y; y++) {
 				for (unsigned int z = 0; z < num_z; z++) {
@@ -52,7 +50,7 @@ namespace april::core {
 		outside_cell.particles.set_capacity(N);
 
 		// fill cells with particles
-		for (auto & p : *particles) {
+		for (auto & p : particles) {
 			if (p.state == env::ParticleState::DEAD) continue;
 			get_cell(p.position).particles.insert(p.index);
 		}
@@ -93,7 +91,7 @@ namespace april::core {
 	}
 
 	LinkedCells::Cell & LinkedCells::get_cell(const vec3& position) noexcept {
-		const vec3 pos = position - origin;
+		const vec3 pos = position - domain.origin;
 		if (pos[0] < 0 || pos[1] < 0 || pos[2] < 0) {
 			return outside_cell;
 		}
@@ -117,7 +115,7 @@ namespace april::core {
 
 	void LinkedCells::calculate_forces() {
 
-		for (auto & p : *particles) {
+		for (auto & p : particles) {
 			p.reset_force();
 
 			Cell & old_cell = get_cell(p.old_position);
@@ -133,10 +131,10 @@ namespace april::core {
 		for (Cell & cell : cells) {
 			for (size_t i = 0; i < cell.particles.size(); i++) {
 				for (size_t j = i + 1; j < cell.particles.size(); j++) {
-					auto & p1 = (*particles)[cell.particles[i]];
-					auto & p2 = (*particles)[cell.particles[j]];
+					auto & p1 = particles[cell.particles[i]];
+					auto & p2 = particles[cell.particles[j]];
 
-					const vec3 force = interaction_manager->evaluate(p1, p2);
+					const vec3 force = interactions.evaluate(p1, p2);
 					p1.force += force;
 					p2.force -= force;
 				}
@@ -147,10 +145,10 @@ namespace april::core {
 		for (auto & [c1, c2] : cell_pairs) {
 			for (const unsigned int i : c1.particles) {
 				for (const unsigned int j : c2.particles) {
-					auto & p1 = (*particles)[i];
-					auto & p2 = (*particles)[j];
+					auto & p1 = particles[i];
+					auto & p2 = particles[j];
 
-					const vec3 force = interaction_manager->evaluate(p1, p2);
+					const vec3 force = interactions.evaluate(p1, p2);
 					p1.force += force;
 					p2.force -= force;
 				}

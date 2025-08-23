@@ -20,6 +20,15 @@ namespace april::algo {
 
 			void build(const std::vector<Particle> & particles) override;
 			void calculate_forces() override;
+
+			Particle & get_particle_by_id(ParticleID id) override;
+			ParticleID id_start() override;
+			ParticleID id_end() override;
+
+			Particle & get_particle_by_index(size_t index) noexcept override;
+			size_t index_start() override;
+			size_t index_end() override;
+
 		private:
 			std::vector<Particle> particles;
 		};

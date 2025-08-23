@@ -34,8 +34,8 @@
 
 namespace april {
 
-	using core::DirectSum;
-	using core::LinkedCells;
+	using algo::DirectSum;
+	using algo::LinkedCells;
 
 	using io::BinaryOutput;
 	using io::TerminalOutput;
@@ -64,7 +64,7 @@ namespace april {
 
 	namespace ext {
 		using io::Monitor;
-		using core::Algorithm;
+		using algo::impl::Algorithm;
 		template <io::IsMonitor... TMonitors> using Integrator = core::impl::Integrator<TMonitors...>;
 	}
 }

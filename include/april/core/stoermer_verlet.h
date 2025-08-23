@@ -11,17 +11,22 @@ namespace april::core {
 		using Base = impl::Integrator<TMonitors...>;
 		using Base::env;
 		using Base::dt;
+		using Base::sys;
 		using Base::Base;
 
 		void integration_step() const {
-			for (auto &p : env.particles(State::MOVABLE)) {
-				p.update_position(dt * p.velocity + (dt*dt) / (2 * p.mass) * p.force);
+			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
+				auto & p = sys.get_particle_by_index(i);
+				if (p.state == State::MOVABLE)
+					p.update_position(dt * p.velocity + (dt*dt) / (2 * p.mass) * p.force);
 			}
 
-			env.update_forces();
+			sys.update_forces();
 
-			for (auto &p: env.particles(State::MOVABLE)) {
-				p.update_velocity(dt / 2 / p.mass * (p.force + p.old_force));
+			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
+				auto & p = sys.get_particle_by_index(i);
+				if (p.state == State::MOVABLE)
+					p.update_velocity(dt / 2 / p.mass * (p.force + p.old_force));
 			}
 		}
 	};

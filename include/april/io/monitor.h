@@ -19,7 +19,7 @@ namespace april::io {
 
 	class Monitor {
 	public:
-		using Particles = std::vector<env::impl::Particle>;
+		using Particles = std::vector<env::impl::ParticleView>;
 		explicit Monitor(const size_t call_frequency) : call_frequency_m(call_frequency) {}
 
 		[[nodiscard]] size_t call_frequency() const { return call_frequency_m; }

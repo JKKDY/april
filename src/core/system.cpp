@@ -36,7 +36,7 @@ namespace april::core {
 		return  bbox;
 	}
 
-	void validate_domain_params(const Domain & domain, const Domain & bbox, const std::vector<env::Particle> & particles) {
+	void validate_domain_params(const Domain & domain, const Domain & bbox) {
 		const vec3& extent = domain.extent;
 		const vec3& origin = domain.origin;
 		// check that all particles are contained in the box specified by extent and origin
@@ -288,10 +288,8 @@ namespace april::core {
 		std::vector<env::impl::Particle> particles;
 		particles.reserve(particle_infos.size());
 
-		size_t idx = 0;
 		for (const auto & p : particle_infos) {
 			particles.emplace_back(
-				idx++,
 				mapping.usr_ids_to_impl_ids.at(p.id),
 				p.position,
 				p.velocity,

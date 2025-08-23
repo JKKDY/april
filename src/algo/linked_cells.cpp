@@ -4,21 +4,28 @@
 
 #include <iostream>
 #include <limits>
+#include <algorithm>
+
 #include "april/env/interaction.h"
 #include "april/env/particle.h"
 
 namespace april::algo::impl {
-	constexpr unsigned max_uint = std::numeric_limits<unsigned>::max();
+	// constexpr unsigned max_uint = std::numeric_limits<unsigned>::max();
 
 
 	void LinkedCells::build(const std::vector<Particle>& particles) {
-		this->particles = particles;
+		this->particles = std::vector(particles);
+		std::ranges::sort(this->particles,
+		                  [](const Particle& a, const Particle& b) {
+			                  return a.id < b.id;
+		                  });
+
 		build_cells();
 		build_cell_pairs();
 	}
 
 	void LinkedCells::build_cells() {
-		cfg.cell_size_hint = std::max(interactions.get_max_cutoff(), cfg.cell_size_hint);
+		cfg.cell_size_hint = std::max(interactions->get_max_cutoff(), cfg.cell_size_hint);
 		if (cfg.cell_size_hint <= 0) {
 			cfg.cell_size_hint = domain.extent.max();
 		}
@@ -52,7 +59,7 @@ namespace april::algo::impl {
 		// fill cells with particles
 		for (auto & p : particles) {
 			if (p.state == env::ParticleState::DEAD) continue;
-			get_cell(p.position).particles.insert(p.index);
+			get_cell(p.position).particles.insert(p.id);
 		}
 	}
 
@@ -122,8 +129,8 @@ namespace april::algo::impl {
 			Cell & new_cell = get_cell(p.position);
 
 			if (old_cell.idx != new_cell.idx) {
-				old_cell.particles.erase(p.index);
-				new_cell.particles.insert(p.index);
+				old_cell.particles.erase(p.id);
+				new_cell.particles.insert(p.id);
 			}
 		}
 
@@ -134,7 +141,7 @@ namespace april::algo::impl {
 					auto & p1 = particles[cell.particles[i]];
 					auto & p2 = particles[cell.particles[j]];
 
-					const vec3 force = interactions.evaluate(p1, p2);
+					const vec3 force = interactions->evaluate(p1, p2);
 					p1.force += force;
 					p2.force -= force;
 				}
@@ -148,7 +155,7 @@ namespace april::algo::impl {
 					auto & p1 = particles[i];
 					auto & p2 = particles[j];
 
-					const vec3 force = interactions.evaluate(p1, p2);
+					const vec3 force = interactions->evaluate(p1, p2);
 					p1.force += force;
 					p2.force -= force;
 				}
@@ -156,4 +163,22 @@ namespace april::algo::impl {
 		}
 	}
 
+	IAlgorithm::Particle& LinkedCells::get_particle_by_id(ParticleID) {
+		throw std::runtime_error("Not implemented yet");
+	}
+	IAlgorithm::ParticleID LinkedCells::id_start() {
+		return 0;
+	}
+	IAlgorithm::ParticleID LinkedCells::id_end() {
+		return particles.size() - 1;
+	}
+	IAlgorithm::Particle& LinkedCells::get_particle_by_index(const size_t index) noexcept {
+		return particles[index];
+	}
+	size_t LinkedCells::index_start() {
+		return 0;
+	}
+	size_t LinkedCells::index_end() {
+		return particles.size();
+	}
 }

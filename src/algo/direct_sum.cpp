@@ -6,12 +6,12 @@
 namespace april::algo::impl {
 
 	void DirectSum::build(const std::vector<Particle> & particles) {
-		this->particles = particles;
+		this->particles = std::vector(particles);
 	}
 
 	void DirectSum::calculate_forces() {
-		for (auto & p : particles) {
-			p.reset_force();
+		for (size_t i = 0; i < particles.size()-1; i++) {
+			particles[i].reset_force();
 		}
 
 		for (size_t i = 0; i < particles.size()-1; i++) {
@@ -19,11 +19,30 @@ namespace april::algo::impl {
 				auto & p1 = particles[i];
 				auto & p2 = particles[j];
 
-				const vec3 force = interactions.evaluate(p1, p2);
+				const vec3 force = interactions->evaluate(p1, p2);
 
 				p1.force += force;
 				p2.force -= force;
 			}
 		}
+	}
+
+	IAlgorithm::Particle& DirectSum::get_particle_by_id(ParticleID) {
+		throw std::runtime_error("Not implemented yet");
+	}
+	IAlgorithm::ParticleID DirectSum::id_start() {
+		return 0;
+	}
+	IAlgorithm::ParticleID DirectSum::id_end() {
+		return particles.size() - 1;
+	}
+	IAlgorithm::Particle& DirectSum::get_particle_by_index(const size_t index) noexcept {
+		return particles[index];
+	}
+	size_t DirectSum::index_start() {
+		return 0;
+	}
+	size_t DirectSum::index_end() {
+		return particles.size();
 	}
 }

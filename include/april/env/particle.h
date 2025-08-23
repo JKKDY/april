@@ -86,45 +86,70 @@ namespace april::env {
 
 		struct Particle {
 			using State = ParticleState;
-			using ParticleIndex = size_t;
 
-			Particle(size_t index, ParticleID id, const vec3& position, const vec3& velocity, double mass, ParticleType type,
+			Particle(ParticleID id, const vec3& position, const vec3& velocity, double mass, ParticleType type,
 				State state = State::ALIVE, const vec3& force = {}, const vec3& old_force = {}, const vec3& old_position = {});
 
-
-			void update_position(const vec3& dx) noexcept {
-				old_position = position;
-				position += dx;
-			}
-
-			void update_velocity(const vec3& dv) noexcept {
-				velocity += dv;
-			}
-
-			void update_force(const vec3& df) noexcept {
-				force += df;
-			}
-
-			void reset_force() noexcept {
-				old_force = force;
-				force = vec3(0, 0, 0);
-			}
+			void update_position(const vec3& dx) noexcept;
+			void update_velocity(const vec3& dv) noexcept;
+			void update_force(const vec3& df) noexcept;
+			void reset_force() noexcept;
 
 			bool operator==(const Particle& other) const;
 
-			vec3 position;				// current position of the particle.
-			vec3 old_position;			// previous position of the particle. Useful for applying boundary conditions
-			vec3 velocity;				// current velocity of the particle.
-			vec3 force;					// current force acting on the particle.
-			vec3 old_force;				// previous force acting on the particle.
+			vec3 position;			// current position of the particle.
+			vec3 old_position;		// previous position of the particle. Useful for applying boundary conditions
+			vec3 velocity;			// current velocity of the particle.
+			vec3 force;				// current force acting on the particle.
+			vec3 old_force;			// previous force acting on the particle.
 
-			State state;				// state of the particle.
+			State state;			// state of the particle.
+			double mass;			// mass of the particle.
+			ParticleType type;		// type of the particle.
+			ParticleID id;			// id of the particle.
 
-			const double mass;			// mass of the particle.
-			const ParticleType type;    // type of the particle.
-			const ParticleID id;		// id of the particle.
-			const ParticleIndex index;	// index of the particle in the particle vector.
+			[[nodiscard]] std::string to_string() const;
+		};
 
+		struct ParticleRef {
+			explicit ParticleRef(Particle & p);
+
+			void update_position(const vec3& dx) const noexcept;
+			void update_velocity(const vec3& dv) const noexcept;
+			void update_force(const vec3& df) const noexcept;
+			void reset_force() const noexcept;
+
+			vec3 & position;
+			vec3 & old_position;
+			vec3 & velocity;
+			vec3 & force;
+			vec3 & old_force;
+
+			Particle::State & state;
+
+			double & mass;
+			ParticleType & type;
+			const ParticleID & id;
+
+			bool operator==(const Particle& other) const;
+			[[nodiscard]] std::string to_string() const;
+		};
+
+		struct ParticleView {
+			explicit ParticleView(const Particle& p);
+
+			const vec3& position;
+			const vec3& old_position;
+			const vec3& velocity;
+			const vec3& force;
+			const vec3& old_force;
+
+			const Particle::State& state;
+			const double&           mass;
+			const ParticleType&     type;
+			const ParticleID&       id;
+
+			bool operator==(const Particle& other) const;
 			[[nodiscard]] std::string to_string() const;
 		};
 	}

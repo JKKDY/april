@@ -29,7 +29,7 @@ namespace april::env {
             std::vector<InteractionInfo> interactions;
         };
 
-        EnvironmentData get_env_data(const Environment& env);
+        EnvironmentData & get_env_data(Environment& env);
     }
 
     struct ParticleCuboid {
@@ -76,7 +76,7 @@ namespace april::env {
     private:
         impl::EnvironmentData data;
 
-        friend impl::EnvironmentData impl::get_env_data(const Environment & env);
+        friend impl::EnvironmentData & impl::get_env_data(Environment & env);
     };
 
 

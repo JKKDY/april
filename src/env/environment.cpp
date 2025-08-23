@@ -146,17 +146,9 @@ namespace april::env {
 
 
     namespace impl {
-        EnvironmentData get_env_data(const Environment& env) {
+        EnvironmentData & get_env_data(Environment& env) {
             return env.data;
         }
-    }
-}
-
-
-
-namespace april::env {
-    impl::ParticleIterator Environment::particles(const ParticleState state) {
-         return {particle_storage, state};
     }
 } // namespace april::env
 

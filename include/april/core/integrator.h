@@ -1,12 +1,10 @@
 #pragma once
 #include <concepts>
 
-#include "april/env/environment.h"
+#include "april/core/system.h"
 #include "april/io/monitor.h"
 
-namespace april::env {
-	class Environment;
-}
+
 
 namespace april::core::impl {
 
@@ -19,10 +17,9 @@ namespace april::core::impl {
 	template <io::IsMonitor ... TMonitors>
 	class Integrator {
 	public:
-		explicit Integrator(env::Environment& env_ref)
-			: env(env_ref) {
-			env.build();
-		}
+		explicit Integrator(System& sys_ref)
+			: sys(sys_ref)
+		{}
 
 		template<typename T> requires same_as_any<T, TMonitors...>
 		void add_monitor(T monitor) {
@@ -56,7 +53,7 @@ namespace april::core::impl {
 		}
 
 	protected:
-		env::Environment& env;
+		System & sys;
 		size_t num_steps{};
 		double duration = 0;
 		double time = 0;
@@ -87,7 +84,7 @@ namespace april::core::impl {
 			for_each_monitor([&](auto& list) {
 				for (auto& monitor : list) {
 					if (step % monitor.call_frequency() == 0) {
-						monitor.dispatch_before_step(step, time, env.export_particles());
+						monitor.dispatch_before_step(step, time, sys.export_particles());
 					}
 				}
 			});
@@ -97,7 +94,7 @@ namespace april::core::impl {
 			for_each_monitor([&](auto& list) {
 				for (auto& monitor : list) {
 					if (step % monitor.call_frequency() == 0) {
-						monitor.dispatch_record(step, time, env.export_particles());
+						monitor.dispatch_record(step, time, sys.export_particles());
 					}
 				}
 			});

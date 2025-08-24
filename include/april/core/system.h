@@ -6,6 +6,16 @@
 #include "april/algo/algorithm.h"
 
 namespace april::core {
+	class System;
+	struct UserToInternalMappings {
+		std::unordered_map<env::ParticleType, env::impl::ParticleType> usr_types_to_impl_types;
+		std::unordered_map<env::ParticleID, env::impl::ParticleID> usr_ids_to_impl_ids;
+	};
+
+	template <algo::impl::IsAlgoDecl Algo>
+	System compile(env::Environment& environment,
+							  const Algo& algorithm,
+							  UserToInternalMappings* particle_mappings = nullptr);
 
 
 	class System {
@@ -52,19 +62,22 @@ namespace april::core {
 		[[nodiscard]] std::vector<ParticleView> export_particles() const {
 			std::vector<ParticleView> particles;
 			particles.reserve(index_end());
-			for (auto i = index_start(); i < index_end(); i++) {
+			for (auto i = index_start(); i <= index_end(); i++) {
 				particles.emplace_back(get_particle_by_index(i));
 			}
-			return {};
+			return particles;
 		}
 
 	private:
 		System(
-			std::unique_ptr<algo::impl::IAlgorithm> algorithm, Interactions interactions,
-			const env::Domain& domain, const std::vector<env::impl::Particle>& particles)
-			: algorithm(std::move(algorithm)),
-			  interaction_manager(std::move(interactions)) {
-			algorithm->init(interactions, domain);
+			std::unique_ptr<algo::impl::IAlgorithm> algo,
+			const env::Domain& domain, const std::vector<env::impl::Particle>& particles,
+			std::vector<env::impl::InteractionInfo> & interaction_infos,
+			const std::unordered_map<env::ParticleType, env::impl::ParticleType> & usr_types_to_impl_types,
+			const std::unordered_map<env::ParticleID, env::impl::ParticleID> & usr_ids_to_impl_ids)
+			: algorithm(std::move(algo)) {
+			interaction_manager.build(interaction_infos, usr_types_to_impl_types, usr_ids_to_impl_ids);
+			algorithm->init(interaction_manager, domain);
 			algorithm->build(particles);
 		}
 
@@ -73,15 +86,14 @@ namespace april::core {
 
 		double time{};
 
+		template <algo::impl::IsAlgoDecl Algo>
+		friend System compile(env::Environment& environment,
+							  const Algo& algorithm,
+							  UserToInternalMappings* particle_mappings);
 
-		friend System compile(env::Environment);
+
 	};
 
-
-	struct UserToInternalMappings {
-		std::unordered_map<env::ParticleType, env::impl::ParticleType> usr_types_to_impl_types;
-		std::unordered_map<env::ParticleID, env::impl::ParticleID> usr_ids_to_impl_ids;
-	};
 
 
 	namespace impl {
@@ -118,11 +130,9 @@ namespace april::core {
 
 
 	template <algo::impl::IsAlgoDecl Algo>
-	auto compile(
-		env::Environment& environment,
-		const Algo& algorithm,
-		UserToInternalMappings* particle_mappings = nullptr
-	) -> System {
+System compile(env::Environment& environment,
+			   const Algo& algorithm,
+			   UserToInternalMappings* particle_mappings)  {
 		using namespace impl;
 		auto & env = env::impl::get_env_data(environment);
 		const env::Domain bbox = calculate_bounding_box(env.particles);
@@ -130,27 +140,24 @@ namespace april::core {
 		validate_domain_params(env.domain, bbox);
 		validate_particle_params(env.interactions, env.usr_particle_ids, env.usr_particle_types);
 
-		UserToInternalMappings mapping = map_ids_and_types_to_internal(
+		const UserToInternalMappings mapping = map_ids_and_types_to_internal(
 			env.particles,
 			env.interactions,
 			env.usr_particle_ids,
 			env.usr_particle_types
 		);
 
-		env::Domain domain = finalize_environment_domain(bbox, env.domain);
-		std::vector<env::impl::Particle> particles = build_particles(env.particles, mapping);
+		const env::Domain domain = finalize_environment_domain(bbox, env.domain);
+		const std::vector<env::impl::Particle> particles = build_particles(env.particles, mapping);
 
-		env::impl::InteractionManager interaction_manager;
-		interaction_manager.build(env.interactions, mapping.usr_types_to_impl_types, mapping.usr_ids_to_impl_ids);
-
-		auto algo = std::make_unique<Algo::impl>(algorithm);
+		auto algo = std::make_unique<typename Algo::impl>(algorithm);
 
 		if (particle_mappings) {
 			particle_mappings->usr_ids_to_impl_ids = mapping.usr_ids_to_impl_ids;
 			particle_mappings->usr_types_to_impl_types = mapping.usr_types_to_impl_types;
 		}
 
-		System system(std::move(algo), algorithm, interaction_manager, domain);
-		return system;
+		return System (std::move(algo), domain, particles,
+			env.interactions, mapping.usr_types_to_impl_types, mapping.usr_ids_to_impl_ids);
 	}
 }

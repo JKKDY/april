@@ -9,7 +9,7 @@ namespace april::io {
 		const double start_t,
 		const double end_t,
 		const size_t step,
-		const std::vector<env::impl::Particle>& particles) {
+		const std::vector<env::impl::ParticleView>& particles) {
 			{ m.dispatch_before_step(step, end_t, particles) } -> std::same_as<void>;
 			{ m.dispatch_record(step, end_t, particles) } -> std::same_as<void>;
 	        { m.call_frequency() } -> std::convertible_to<std::size_t>;
@@ -46,8 +46,7 @@ namespace april::io {
 				"Monitor subclass must implement: void before_step(size_t, double, const Particles&)"
 			);
 			self.record(step, time, particles);
-
-		};
+		}
 
 		// Optional: Called once at the end
 		void dispatch_finalize(this auto&& self) {

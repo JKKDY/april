@@ -2,7 +2,7 @@
 
 #include <bits/ranges_algo.h>
 
-namespace april::core {
+namespace april::core::impl {
 
 	using namespace env;
 	using namespace algo;

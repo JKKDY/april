@@ -60,6 +60,9 @@ namespace april {
 
 	using utils::Vec3;
 
+	using core::System;
+	using core::compile;
+	using core::UserToInternalMappings;
 	template <io::IsMonitor... TMonitors> using StoermerVerlet = core::StoermerVerlet<TMonitors...>;
 
 	namespace ext {

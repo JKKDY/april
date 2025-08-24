@@ -20,7 +20,7 @@ namespace april::env {
 
     namespace impl {
         struct EnvironmentData {
-            Domain domain;
+            Domain domain = {EXTENT_AUTO, ORIGIN_AUTO};
 
             std::unordered_set<env::ParticleID> usr_particle_ids;
             std::unordered_set<env::ParticleType> usr_particle_types;

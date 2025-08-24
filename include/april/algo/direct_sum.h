@@ -9,7 +9,7 @@ namespace april::algo::impl {
 
 namespace april::algo {
 
-	class DirectSum {
+	struct DirectSum {
 		using impl = impl::DirectSum;
 	};
 

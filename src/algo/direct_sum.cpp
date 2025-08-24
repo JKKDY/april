@@ -10,8 +10,8 @@ namespace april::algo::impl {
 	}
 
 	void DirectSum::calculate_forces() {
-		for (size_t i = 0; i < particles.size()-1; i++) {
-			particles[i].reset_force();
+		for (auto & particle : particles) {
+			particle.reset_force();
 		}
 
 		for (size_t i = 0; i < particles.size()-1; i++) {
@@ -43,6 +43,6 @@ namespace april::algo::impl {
 		return 0;
 	}
 	size_t DirectSum::index_end() {
-		return particles.size();
+		return particles.size() - 1;
 	}
 }

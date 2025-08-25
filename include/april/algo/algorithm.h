@@ -21,9 +21,9 @@ namespace april::algo::impl {
 		using ParticleID = env::impl::ParticleID;
 	public:
 		IAlgorithm() = default;
-		void init(InteractionManager & interactions, const Domain & domain) {
-			this->interactions = &interactions;
-			this->domain = domain;
+		void init(InteractionManager & interaction_mngr, const Domain & dom) {
+			interactions = &interaction_mngr;
+			domain = dom;
 		}
 		virtual ~IAlgorithm() = default;
 		virtual void build(const std::vector<env::impl::Particle>& particles) = 0;

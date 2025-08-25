@@ -63,7 +63,7 @@ namespace april::env {
 	using ParticleTypePair = std::pair<ParticleType, ParticleType>;
 	using ParticleIDPair = std::pair<ParticleID, ParticleID>;
 
-	constexpr ParticleID PARTICLE_ID_DONT_CARE = std::numeric_limits<ParticleID>::infinity();
+	constexpr ParticleID PARTICLE_ID_DONT_CARE = std::numeric_limits<ParticleID>::min();
 
 	struct Particle {
 		// Particle() = default;

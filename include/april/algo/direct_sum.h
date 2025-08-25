@@ -29,6 +29,7 @@ namespace april::algo {
 			size_t index_start() override;
 			size_t index_end() override;
 
+			size_t particle_count() override;
 		private:
 			std::vector<Particle> particles;
 		};

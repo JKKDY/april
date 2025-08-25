@@ -39,6 +39,7 @@ namespace april::core {
 			return algorithm->id_start();
 		}
 
+		// inclusive bound
 		[[nodiscard]] ParticleID id_end() const noexcept {
 			return algorithm->id_end();
 		}
@@ -51,6 +52,7 @@ namespace april::core {
 			return algorithm->index_start();
 		}
 
+		// inclusive bound
 		[[nodiscard]] size_t index_end() const noexcept {
 			return algorithm->index_end();
 		}
@@ -59,14 +61,21 @@ namespace april::core {
 			return time;
 		}
 
-		[[nodiscard]] std::vector<ParticleView> export_particles() const {
+		[[nodiscard]] std::vector<ParticleView> export_particles(const env::ParticleState state = env::ParticleState::ALL) const {
 			std::vector<ParticleView> particles;
-			particles.reserve(index_end());
+			if (algorithm->particle_count() == 0) {
+				return {};
+			}
+			particles.reserve(index_end() - index_start() + 1);
 			for (auto i = index_start(); i <= index_end(); i++) {
-				particles.emplace_back(get_particle_by_index(i));
+				auto & p = get_particle_by_index(i);
+				if (static_cast<int>(p.state & state))
+					particles.emplace_back(p);
 			}
 			return particles;
 		}
+
+		const env::Domain domain;
 
 	private:
 		System(
@@ -75,7 +84,8 @@ namespace april::core {
 			std::vector<env::impl::InteractionInfo> & interaction_infos,
 			const std::unordered_map<env::ParticleType, env::impl::ParticleType> & usr_types_to_impl_types,
 			const std::unordered_map<env::ParticleID, env::impl::ParticleID> & usr_ids_to_impl_ids)
-			: algorithm(std::move(algo)) {
+			: domain(domain), algorithm(std::move(algo))
+		{
 			interaction_manager.build(interaction_infos, usr_types_to_impl_types, usr_ids_to_impl_ids);
 			algorithm->init(interaction_manager, domain);
 			algorithm->build(particles);

@@ -25,7 +25,6 @@ template<typename T> static T read_binary(std::ifstream& in) {
 // helper to create dummy particle
 static impl::Particle make_particle(impl::ParticleType type, impl::ParticleID id, vec3 pos={0,0,0}, ParticleState state= ParticleState::ALIVE) {
 	return {
-		/* index       */ id,
 		/* id          */ id,
 		/* position    */ pos,
 		/* velocity    */ vec3{0,0,0},
@@ -54,7 +53,7 @@ protected:
 
 // TEST 1: Header only, zero particles
 TEST_F(BinaryOutputTest, EmptyFileContainsOnlyHeader) {
-	std::vector<impl::Particle> empty;
+	std::vector<impl::ParticleView> empty;
 	BinaryOutput out(1, dir.string(), base);
 
 	out.record(0, 0, empty);
@@ -90,7 +89,7 @@ TEST_F(BinaryOutputTest, EmptyFileContainsOnlyHeader) {
 // TEST 2: Single particle record
 TEST_F(BinaryOutputTest, SingleParticle) {
 	auto p = make_particle(5, 2, vec3{1,2,3}, ParticleState::ALIVE);
-	std::vector v {p};
+	std::vector v {impl::ParticleView(p)};
 	BinaryOutput out(1, dir.string(), base);
 
 	out.record(1, 0, v);
@@ -120,7 +119,7 @@ TEST_F(BinaryOutputTest, MultipleParticles) {
 	auto p1 = make_particle(1, 0, vec3{0,0,0}, ParticleState::DEAD);
 	auto p2 = make_particle(2, 1, vec3{4,5,6}, ParticleState::ALIVE);
 	auto p3 = make_particle(3, 2, vec3{7,8,9}, ParticleState::PASSIVE);
-	std::vector v {p1,p2,p3};
+	std::vector v {impl::ParticleView(p1),impl::ParticleView(p2),impl::ParticleView(p3)};
 	BinaryOutput out(1, dir.string(), base);
 
 	out.record(2, 0, v);

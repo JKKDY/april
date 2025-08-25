@@ -38,7 +38,6 @@ struct ConstantForce final : Force {
 // Helper to make a dummy particle
 static impl::Particle make_particle(impl::ParticleType type, impl::ParticleID id, double mass=1.0, vec3 pos={0,0,0}) {
     return {
-    /* index       */ id,
     /* id          */ id,
     /* position    */ pos,
     /* velocity    */ vec3{0,0,0},

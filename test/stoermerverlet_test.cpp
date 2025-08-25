@@ -3,6 +3,7 @@
 
 #include <april/env/environment.h>
 #include "april/common.h"
+#include "april/algo/direct_sum.h"
 #include "april/algo/linked_cells.h"
 #include "april/core/stoermer_verlet.h"
 #include "april/io/output.h"
@@ -22,10 +23,13 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	env.add_particle({}, {}, 1);
 	env.add_force_to_type(NoForce(), 0);
 
-	StoermerVerlet<> integrator(env);
+	constexpr auto algo = algo::DirectSum();
+	auto system = compile(env, algo);
+
+	StoermerVerlet<> integrator(system);
 	integrator.run_steps(0.1, 10);
 
-	for (auto & p : env.particles()) {
+	for (auto & p : system.export_particles()) {
 		EXPECT_EQ(p.position, vec3(0,0,0));
 		EXPECT_EQ(p.velocity, vec3(0,0,0));
 	}
@@ -37,11 +41,14 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	env.add_particle({}, {4,5,6}, 2);
 	env.add_force_to_type(NoForce(), 0);
 
-	StoermerVerlet<> integrator(env);
+	constexpr auto algo = algo::DirectSum();
+	auto system = compile(env, algo);
+
+	StoermerVerlet<> integrator(system);
 	integrator.run_steps(1, 1);
 
-	std::vector<env::impl::Particle> particles;
-	for (auto & p : env.particles()) {
+	std::vector<env::impl::ParticleView> particles;
+	for (auto & p : system.export_particles()) {
 		particles.push_back(p);
 	}
 
@@ -67,11 +74,14 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	env.add_particle({1,0,0}, {}, 1);
 	env.add_force_to_type(InverseSquare(1), 0);
 
-	StoermerVerlet<> integrator(env);
+	constexpr auto algo = algo::DirectSum();
+	auto system = compile(env, algo);
+
+	StoermerVerlet<> integrator(system);
 	integrator.run_steps(0.1, 1);
 
-	std::vector<env::impl::Particle> particles;
-	for (auto & p : env.particles()) {
+	std::vector<env::impl::ParticleView> particles;
+	for (auto & p : system.export_particles()) {
 		particles.push_back(p);
 	}
 
@@ -95,7 +105,7 @@ public:
 	OrbitMonitor(): Monitor(1) {}
 	explicit OrbitMonitor(const double v, const double r): Monitor(1), v(v), r(r) {}
 
-	void record(size_t , double, const std::vector<env::impl::Particle>& particles) const {
+	void record(size_t , double, const Particles& particles) const {
 		const auto p = particles[0].mass < 1 ?  particles[0]: particles[1];
 
 		EXPECT_NEAR(p.velocity.norm(), v, 1e-3);
@@ -119,12 +129,15 @@ TEST(StoermerVerletTest, OrbitTest) {
 	env.add_particle({0,0,0}, {0, 0, 0}, M);
 	env.add_force_to_type(InverseSquare(G), 0);
 
-	StoermerVerlet<OrbitMonitor> integrator(env);
-	integrator.add_monitor<OrbitMonitor>(OrbitMonitor(v, R));
+	constexpr auto algo = algo::DirectSum();
+	auto system = compile(env, algo);
+
+	StoermerVerlet<OrbitMonitor> integrator(system);
+	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run(0.001, T);
 
-	std::vector<env::impl::Particle> particles;
-	for (auto & p : env.particles()) {
+	std::vector<env::impl::ParticleView> particles;
+	for (auto & p : system.export_particles()) {
 		particles.push_back(p);
 	}
 

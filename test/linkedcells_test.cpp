@@ -6,18 +6,20 @@
 #include "april/algo/linked_cells.h"
 #include "april/core/stoermer_verlet.h"
 #include "april/io/monitor.h"
-
+#include "april/env/particle.h"
+#include "april/core/system.h"
 
 using testing::AnyOf;
 using testing::Eq;
 
 using namespace april;
 using namespace april::env;
+using namespace april::algo;
 using namespace april::core;
 
 struct ConstantForce final : Force {
 	vec3 v;
-	ConstantForce(double x, double y, double z, double cutoff = -1) : v{x,y,z} {
+	ConstantForce(const double x, const double y, const double z, const double cutoff = -1) : v{x,y,z} {
 		cutoff_radius = cutoff;
 	}
 	vec3 operator()(const env::impl::Particle&, const env::impl::Particle&, const vec3&) const noexcept override {
@@ -41,12 +43,11 @@ TEST(LinkedCellsTest, SingleParticle_NoForce) {
     e.add_particle(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
     e.add_force_to_type(NoForce(), 0);
 	e.set_extent({4,4,4});
-	e.set_container(std::make_unique<LinkedCells>(4));
 
-    e.build();
+    const auto sys = compile(e, LinkedCells(4));
+    sys.update_forces();
 
-    e.update_forces();
-    auto const& out = e.export_particles();
+    auto const& out = sys.export_particles();
     ASSERT_EQ(out.size(), 1u);
     EXPECT_EQ(out[0].force, vec3(0,0,0));
 }
@@ -55,14 +56,14 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
     Environment e;
 	e.set_extent({2,2,2});
 	e.set_origin({0,0,0});
-	e.set_container(std::make_unique<LinkedCells>(2));
 	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
     e.add_particle(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 	e.add_force_to_type(ConstantForce(3,4,5), 7);
-    e.build();
 
-    e.update_forces();
-    auto const& out = e.export_particles();
+	const auto sys = compile(e, LinkedCells(2));
+	sys.update_forces();
+
+    auto const& out = sys.export_particles();
     ASSERT_EQ(out.size(), 2u);
 
 	auto & p1 = out[0].mass == 1 ? out[0] : out[1];
@@ -77,14 +78,15 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 	Environment e;
 	e.set_extent({2,1,1});
 	e.set_origin({0,0,0});
-	e.set_container(std::make_unique<LinkedCells>(1));
 	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
 	e.add_particle(Particle{.id = 1, .type = 7, .position={1.5,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 	e.add_force_to_type(ConstantForce(3,4,5), 7);
-	e.build();
 
-	e.update_forces();
-	auto const& out = e.export_particles();
+	const auto sys = compile(e, LinkedCells(1));
+	sys.update_forces();
+
+	sys.update_forces();
+	auto const& out = sys.export_particles();
 	ASSERT_EQ(out.size(), 2u);
 
 	auto & p1 = out[0].mass == 1 ? out[0] : out[1];
@@ -97,16 +99,15 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 
 TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 	Environment e;
-	e.set_extent({2,1,1});
+	e.set_extent({2,1,0.5});
 	e.set_origin({0,0,0});
-	e.set_container(std::make_unique<LinkedCells>(0.5));
 	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
 	e.add_particle(Particle{.id = 1, .type = 7, .position={1.5,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 	e.add_force_to_type(ConstantForce(3,4,5), 7);
-	e.build();
 
-	e.update_forces();
-	auto const& out = e.export_particles();
+	const auto sys = compile(e, LinkedCells(0.5));
+	sys.update_forces();
+	auto const& out = sys.export_particles();
 	ASSERT_EQ(out.size(), 2u);
 
 	auto & p1 = out[0].mass == 1 ? out[0] : out[1];
@@ -118,17 +119,16 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 
 TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
     Environment e;
-	e.set_container(std::make_unique<LinkedCells>());
-
     e.add_particle(Particle{.id = 42, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
     e.add_particle(Particle{.id = 99, .type = 0, .position={0,1,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add_force_to_type(NoForce(), 0);
 
+	e.add_force_to_type(NoForce(), 0);
     e.add_force_between_ids(ConstantForce(-1,2,-3), 42, 99);
-    e.build();
 
-    e.update_forces();
-    auto const& out = e.export_particles();
+	const auto sys = compile(e, LinkedCells());
+	sys.update_forces();
+
+    auto const& out = sys.export_particles();
     ASSERT_EQ(out.size(), 2u);
 
 	EXPECT_EQ(out[0].force, -out[1].force);
@@ -141,7 +141,6 @@ TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
 
 TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
     Environment e;
-	e.set_container(std::make_unique<LinkedCells>());
 
     e.set_extent({10,10,10});
 
@@ -152,10 +151,11 @@ TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 	e.add_force_to_type(NoForce(), 1);
 
     e.add_force_between_types(InverseSquare(5.0), 0, 1);
-    e.build();
 
-    e.update_forces();
-    auto const& out = e.export_particles();
+	const auto sys = compile(e, LinkedCells());
+	sys.update_forces();
+
+	auto const& out = sys.export_particles();
     // find each
     const auto& pa = (out[0].mass == 1 ? out[0] : out[1]);
     const auto& pb = (out[1].mass == 2 ? out[1] : out[0]);
@@ -173,7 +173,7 @@ public:
 	OrbitMonitor(): Monitor(1) {}
 	explicit OrbitMonitor(const double v, const double r): Monitor(1), v(v), r(r) {}
 
-	void record(size_t i, double, const std::vector<env::impl::Particle>& particles) const {
+	void record(const size_t i, double, const Particles& particles) const {
 		const auto p = particles[0].mass < 1 ?  particles[0]: particles[1];
 
 		EXPECT_NEAR(p.velocity.norm(), v, 1e-3) << "Velocity mismatch at step " << i;
@@ -196,16 +196,18 @@ TEST(LinkedCellsTest, OrbitTest) {
 	env.add_particle({0,R,0}, {v, 0, 0}, m);
 	env.add_particle({0,0,0}, {0, 0, 0}, M);
 	env.add_force_to_type(InverseSquare(G), 0);
-	env.set_container(std::make_unique<LinkedCells>(v));
 	env.set_origin({-1.5*v,-1.5*v,0});
 	env.set_extent({3*v,3*v,1});
 
-	StoermerVerlet<OrbitMonitor> integrator(env);
+	auto sys = compile(env, LinkedCells(v));
+	sys.update_forces();
+
+	StoermerVerlet<OrbitMonitor> integrator(sys);
 	integrator.add_monitor<OrbitMonitor>(OrbitMonitor(v, R));
 	integrator.run(0.001, T);
 
-	std::vector<env::impl::Particle> particles;
-	for (auto & p : env.particles()) {
+	std::vector<env::impl::ParticleView> particles;
+	for (auto & p : sys.export_particles()) {
 		particles.push_back(p);
 	}
 

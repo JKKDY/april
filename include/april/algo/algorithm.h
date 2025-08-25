@@ -37,6 +37,8 @@ namespace april::algo::impl {
 		virtual size_t index_start() = 0;
 		virtual size_t index_end() = 0;
 
+		virtual size_t particle_count() = 0;
+
 	protected:
 		InteractionManager * interactions{};
 		Domain domain;

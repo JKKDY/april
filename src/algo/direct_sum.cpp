@@ -37,6 +37,7 @@ namespace april::algo::impl {
 		return particles.size() - 1;
 	}
 	IAlgorithm::Particle& DirectSum::get_particle_by_index(const size_t index) noexcept {
+		AP_ASSERT(index < particles.size(), "index must be < #particles");
 		return particles[index];
 	}
 	size_t DirectSum::index_start() {
@@ -44,5 +45,9 @@ namespace april::algo::impl {
 	}
 	size_t DirectSum::index_end() {
 		return particles.size() - 1;
+	}
+
+	size_t DirectSum::particle_count() {
+		return particles.size();
 	}
 }

@@ -1,24 +1,27 @@
 #include <gtest/gtest.h>
 #include <april/env/environment.h>
 #include "april/common.h"
+#include <april/core/system.h>
+#include <april/algo/direct_sum.h>
 
 using namespace april;
 using namespace april::env;
+using namespace april::core;
+using namespace april::algo;
 
 
 TEST(EnvTest, empty_env) {
     Environment e;
 
-    e.build();
+    const auto sys = compile(e, DirectSum());
 
-    auto & p = e.export_particles();
+    const auto p = sys.export_particles();
     EXPECT_EQ(p.size(), 0);
 }
 
 
 TEST(EnvTest, one_particle_test) {
     Environment e;
-
     e.add_particle(Particle{
         .id = PARTICLE_ID_DONT_CARE,
         .type = 0,
@@ -28,12 +31,13 @@ TEST(EnvTest, one_particle_test) {
         .state = ParticleState::ALIVE,
     });
     e.add_force_to_type(LennardJones(3,5), 0);
-    e.build();
 
-    auto & particles = e.export_particles();
+    auto sys = compile(e, DirectSum());
+    auto particles = sys.export_particles();
+
     EXPECT_EQ(particles.size(), 1);
 
-    const impl::Particle & p = particles[0];
+    const env::impl::ParticleView p = particles[0];
     EXPECT_TRUE(p.type == 0);
     EXPECT_TRUE(p.id == 0);
     EXPECT_TRUE(p.mass == 10);
@@ -66,7 +70,7 @@ TEST(EnvTest, type_force_missing) {
 
     e.add_force_between_ids(InverseSquare(), -1, 0);
 
-    EXPECT_THROW(e.build(), std::invalid_argument);
+    EXPECT_THROW(compile(e, DirectSum()), std::invalid_argument);
 }
 
 
@@ -95,13 +99,13 @@ TEST(EnvTest, two_particle_force_test) {
     e.add_force_between_ids(InverseSquare(), -1, 0);
     e.add_force_to_type(InverseSquare(), 0);
 
-    e.build();
+    auto sys = compile(e, DirectSum());
 
-    auto & particles = e.export_particles();
+    auto particles = sys.export_particles();
     EXPECT_EQ(particles.size(), 2);
 
-    const impl::Particle & p1 = particles[0].id == 0? particles[0] : particles[1];
-    const impl::Particle & p2 = particles[0].id == 0? particles[1] : particles[0];
+    const env::impl::ParticleView & p1 = particles[0].id == 0? particles[0] : particles[1];
+    const env::impl::ParticleView & p2 = particles[0].id == 0? particles[1] : particles[0];
 
     EXPECT_TRUE(p1.type == 0);
     EXPECT_TRUE(p1.id == 0);
@@ -142,17 +146,17 @@ TEST(EnvTest, particle_iterator_test) {
 
     e.add_force_to_type(NoForce(), 0);
 
-    e.build();
+    auto sys = compile(e, DirectSum());
 
     int i = 0;
-    for (const auto & p : e.particles()) {
+    for (const auto & p : sys.export_particles()) {
         EXPECT_TRUE(p.type == 0);
         i++;
     }
     EXPECT_EQ(i, 3);
 
     i = 0;
-    for (const auto & p : e.particles(ParticleState::DEAD)) {
+    for (const auto & p : sys.export_particles(ParticleState::DEAD)) {
         EXPECT_TRUE(p.mass == 1);
         EXPECT_TRUE(p.state == ParticleState::DEAD);
         i++;
@@ -160,7 +164,7 @@ TEST(EnvTest, particle_iterator_test) {
     EXPECT_EQ(i, 2);
 
     i = 0;
-    for (const auto & p : e.particles(ParticleState::ALIVE)) {
+    for (const auto & p : sys.export_particles(ParticleState::ALIVE)) {
         EXPECT_TRUE(p.mass == 10);
         EXPECT_TRUE(p.state == ParticleState::ALIVE);
         i++;
@@ -169,7 +173,7 @@ TEST(EnvTest, particle_iterator_test) {
 
 
     i = 0;
-    for (const auto & p : e.particles()) {
+    for (const auto & p : sys.export_particles()) {
         EXPECT_TRUE(p.type == 0);
         i++;
     }
@@ -187,7 +191,7 @@ TEST(EnvTest, ExtentTooSmallThrows) {
     e.set_origin({0,0,0});
     e.set_extent({1,1,1});
     e.add_force_to_type(NoForce(), 0);
-    EXPECT_THROW(e.build(), std::invalid_argument);
+    EXPECT_THROW(compile(e, DirectSum()), std::invalid_argument);
 }
 
 TEST(EnvTest, OriginOutsideThrows) {
@@ -199,7 +203,7 @@ TEST(EnvTest, OriginOutsideThrows) {
     e.set_origin({2,2,2});
     e.set_extent({2,2,2});
     e.add_force_to_type(NoForce(), 0);
-    EXPECT_THROW(e.build(), std::invalid_argument);
+    EXPECT_THROW(compile(e, DirectSum()), std::invalid_argument);
 }
 
 TEST(EnvTest, OnlyExtentCentersOrigin) {
@@ -209,9 +213,9 @@ TEST(EnvTest, OnlyExtentCentersOrigin) {
     // Only extent given
     e.set_extent({4,4,4});
     e.add_force_to_type(NoForce(), 0);
-    EXPECT_NO_THROW(e.build());
-    const vec3 origin = e.get_origin();
-    const vec3 extent = e.get_extent();
+    auto sys = compile(e, DirectSum());
+    const vec3 origin = sys.domain.origin;
+    const vec3 extent = sys.domain.extent;
     // bbox_min = (3,4,5), bbox_center = same
     // origin = center - extent/2 = (3,4,5) - (2,2,2) = (1,2,3)
     EXPECT_EQ(origin, vec3(1,2,3));
@@ -225,9 +229,10 @@ TEST(EnvTest, OnlyOriginSymmetricExtent) {
     // Only origin given
     e.set_origin({0,0,0});
     e.add_force_to_type(NoForce(), 0);
-    EXPECT_NO_THROW(e.build());
-    const vec3 origin = e.get_origin();
-    const vec3 extent = e.get_extent();
+    auto sys = compile(e, DirectSum());
+
+    const vec3 origin = sys.domain.origin;
+    const vec3 extent = sys.domain.extent;
     // bbox_center = (3,4,5), opposite = origin + 2*(center-origin) = 2*center = (6,8,10)
     // extent = abs(opposite-origin) = (6,8,10)
     EXPECT_EQ(origin, vec3(0,0,0));
@@ -241,9 +246,10 @@ TEST(EnvTest, AutoOriginExtentDoublesBBox) {
     e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     e.add_force_to_type(NoForce(), 0);
     // neither origin nor extent set
-    EXPECT_NO_THROW(e.build());
-    const vec3 origin = e.get_origin();
-    const vec3 extent = e.get_extent();
+    auto sys = compile(e, DirectSum());
+
+    const vec3 origin = sys.domain.origin;
+    const vec3 extent = sys.domain.extent;
     // bbox_min = (1,2,3), bbox_max = (3,4,5), bbox_center = (2,3,4), bbox_extent = (2,2,2)
     // extent = bbox_extent * 2 = (4,4,4)
     // origin = center - extent/2 = (2,3,4) - (2,2,2) = (0,1,2)

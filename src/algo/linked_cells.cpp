@@ -90,8 +90,8 @@ namespace april::algo::impl {
 						uint3 idx1 = {x,y,z};
 						uint3 idx2{static_cast<uint32_t>(n.x), static_cast<uint32_t>(n.y), static_cast<uint32_t>(n.z)};
 
-						if (idx1 >= idx2) // ensure only unique pairs are added
-							continue;
+						// if (idx1 >= idx2) // ensure only unique pairs are added
+						// 	continue;
 
 						cell_pairs.emplace_back(get_cell(idx1), get_cell(idx2));
 					}
@@ -182,6 +182,10 @@ namespace april::algo::impl {
 		return 0;
 	}
 	size_t LinkedCells::index_end() {
+		return particles.size() - 1;
+	}
+
+	size_t LinkedCells::particle_count() {
 		return particles.size();
 	}
 }

@@ -242,7 +242,7 @@ namespace april::core::impl {
 		const Domain & usr_domain
 		)
 	{
-		Domain domain;
+		Domain domain = {usr_domain.extent, usr_domain.origin};
 		const vec3& extent = usr_domain.extent;
 		const vec3& origin = usr_domain.origin;
 
@@ -281,6 +281,9 @@ namespace april::core::impl {
 			domain.origin = bbox_center - 0.5 * domain.extent;  // domain is centered
 		}
 
+		AP_ASSERT(domain.extent.x >= bbox.extent.x &&
+			domain.extent.y >= bbox.extent.y &&
+			domain.extent.z >= bbox.extent.z, "Domain extent must be larger than bounding box");
 		return domain;
 	}
 

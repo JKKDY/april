@@ -29,12 +29,12 @@ int main() {
 	env.add_particle_cuboid(cuboid2);
 	env.set_extent({60,50,1});
 	env.set_origin({-10,-10,0});
-
-	env.set_container(std::make_unique<LinkedCells>());
-
 	env.add_force_to_type(LennardJones(5, 1), 0);
 
-	StoermerVerlet<BinaryOutput, ProgressBar, Benchmark> integrator(env);
+	auto algo = LinkedCells();
+	auto system = compile(env, algo);
+
+	StoermerVerlet<BinaryOutput, ProgressBar, Benchmark> integrator(system);
 	integrator.add_monitor(BinaryOutput(50, dir_path.string()));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());

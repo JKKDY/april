@@ -55,7 +55,7 @@ namespace april::algo {
 				Cell& second;
 			};
 		public:
-			using Algorithm::Algorithm;
+			explicit LinkedCells(const algo::LinkedCells & config);
 
 			void build(const std::vector<Particle>& particles) override;
 			void calculate_forces() override;

@@ -10,8 +10,11 @@
 #include "april/env/particle.h"
 
 namespace april::algo::impl {
-	// constexpr unsigned max_uint = std::numeric_limits<unsigned>::max();
+	constexpr unsigned max_uint = std::numeric_limits<unsigned>::max();
 
+
+	LinkedCells::LinkedCells(const algo::LinkedCells& config):
+	Algorithm(config), outside_cell(Cell::ParticleSet(0), {max_uint, max_uint, max_uint}, 0){}
 
 	void LinkedCells::build(const std::vector<Particle>& particles) {
 		this->particles = std::vector(particles);
@@ -87,8 +90,8 @@ namespace april::algo::impl {
 						uint3 idx1 = {x,y,z};
 						uint3 idx2{static_cast<uint32_t>(n.x), static_cast<uint32_t>(n.y), static_cast<uint32_t>(n.z)};
 
-						// if (idx1 >= idx2) // ensure only unique pairs are added
-						// 	continue;
+						if (idx1 >= idx2) // ensure only unique pairs are added
+							continue;
 
 						cell_pairs.emplace_back(get_cell(idx1), get_cell(idx2));
 					}

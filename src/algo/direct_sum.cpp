@@ -27,27 +27,27 @@ namespace april::algo::impl {
 		}
 	}
 
-	IAlgorithm::Particle& DirectSum::get_particle_by_id(ParticleID) {
+	IAlgorithm::Particle& DirectSum::get_particle_by_id(ParticleID){
 		throw std::runtime_error("Not implemented yet");
 	}
-	IAlgorithm::ParticleID DirectSum::id_start() {
+	IAlgorithm::ParticleID DirectSum::id_start() const {
 		return 0;
 	}
-	IAlgorithm::ParticleID DirectSum::id_end() {
+	IAlgorithm::ParticleID DirectSum::id_end() const {
 		return particles.size() - 1;
 	}
 	IAlgorithm::Particle& DirectSum::get_particle_by_index(const size_t index) noexcept {
 		AP_ASSERT(index < particles.size(), "index must be < #particles");
 		return particles[index];
 	}
-	size_t DirectSum::index_start() {
+	size_t DirectSum::index_start() const {
 		return 0;
 	}
-	size_t DirectSum::index_end() {
+	size_t DirectSum::index_end() const {
 		return particles.size() - 1;
 	}
 
-	size_t DirectSum::particle_count() {
+	size_t DirectSum::particle_count() const {
 		return particles.size();
 	}
 }

@@ -57,18 +57,18 @@ namespace april::algo {
 		public:
 			explicit LinkedCells(const algo::LinkedCells & config);
 
-			void build(const std::vector<Particle>& particles) override;
-			void calculate_forces() override;
+			void build(const std::vector<Particle>& particles);
+			void calculate_forces();
 
-			Particle & get_particle_by_id(ParticleID id) override;
-			ParticleID id_start() override;
-			ParticleID id_end() override;
+			[[nodiscard]] Particle & get_particle_by_id(ParticleID id);
+			[[nodiscard]] ParticleID id_start() const;
+			[[nodiscard]] ParticleID id_end() const;
 
-			Particle & get_particle_by_index(size_t index) noexcept override;
-			size_t index_start() override;
-			size_t index_end() override;
+			[[nodiscard]] Particle & get_particle_by_index(size_t index) noexcept;
+			[[nodiscard]] size_t index_start() const;
+			[[nodiscard]] size_t index_end() const;
 
-			size_t particle_count() override;
+			[[nodiscard]] size_t particle_count() const;
 		private:
 			void build_cells();
 			void build_cell_pairs();

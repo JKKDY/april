@@ -63,7 +63,7 @@ namespace april {
 	using core::System;
 	using core::compile;
 	using core::UserToInternalMappings;
-	template <io::IsMonitor... TMonitors> using StoermerVerlet = core::StoermerVerlet<TMonitors...>;
+	template <core::IsSystem Sys, io::IsMonitor... TMonitors> using StoermerVerlet = core::StoermerVerlet<Sys, TMonitors...>;
 
 	namespace ext {
 		using io::Monitor;

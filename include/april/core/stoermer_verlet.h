@@ -1,14 +1,15 @@
 #pragma once
 #include "april/core/integrator.h"
+#include "april/core/system.h"
 #include "april/env/particle.h"
 #include "april/io/monitor.h"
 
 namespace april::core {
-	template <io::IsMonitor ... TMonitors>
-	class StoermerVerlet : public impl::Integrator<TMonitors...> {
+	template <IsSystem Sys, io::IsMonitor ... TMonitors>
+	class StoermerVerlet : public impl::Integrator<Sys, TMonitors...> {
 	public:
 		using State = env::ParticleState;
-		using Base = impl::Integrator<TMonitors...>;
+		using Base = impl::Integrator<Sys, TMonitors...>;
 		using Base::dt;
 		using Base::sys;
 		using Base::Base;
@@ -29,4 +30,7 @@ namespace april::core {
 			}
 		}
 	};
+
+	// Deduction guide (CTAD)
+	// template<class Sys> StoermerVerlet(Sys&) -> StoermerVerlet<Sys>;
 }

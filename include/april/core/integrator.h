@@ -14,10 +14,10 @@ namespace april::core::impl {
 
 	template <typename T, typename... Ts> concept same_as_any = (... or std::same_as<T, Ts>);
 
-	template <io::IsMonitor ... TMonitors>
+	template <IsSystem Sys, io::IsMonitor ... TMonitors>
 	class Integrator {
 	public:
-		explicit Integrator(System& sys_ref)
+		explicit Integrator(Sys& sys_ref)
 			: sys(sys_ref)
 		{}
 
@@ -53,7 +53,7 @@ namespace april::core::impl {
 		}
 
 	protected:
-		System & sys;
+		Sys & sys;
 		size_t num_steps{};
 		double duration = 0;
 		double time = 0;
@@ -113,5 +113,4 @@ namespace april::core::impl {
 
 		}
 	};
-
 } // namespace april::core

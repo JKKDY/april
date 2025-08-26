@@ -17,11 +17,10 @@ int main() {
 	constexpr auto algo = DirectSum();
 	auto system = compile(env, algo);
 
-	StoermerVerlet<BinaryOutput, ProgressBar, Benchmark> integrator(system);
+	StoermerVerlet<System<DirectSum>, BinaryOutput, ProgressBar, Benchmark> integrator(system);
 	integrator.add_monitor(BinaryOutput(50, dir_path));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());
-
 
 	integrator.run(0.014, 1000);
 }

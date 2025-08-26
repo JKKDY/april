@@ -34,7 +34,7 @@ int main() {
 	auto algo = LinkedCells();
 	auto system = compile(env, algo);
 
-	StoermerVerlet<BinaryOutput, ProgressBar, Benchmark> integrator(system);
+	StoermerVerlet<decltype(system), BinaryOutput, ProgressBar, Benchmark> integrator(system);
 	integrator.add_monitor(BinaryOutput(50, dir_path.string()));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());

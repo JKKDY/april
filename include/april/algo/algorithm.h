@@ -26,36 +26,99 @@ namespace april::algo::impl {
 			domain = dom;
 		}
 		virtual ~IAlgorithm() = default;
-		virtual void build(const std::vector<env::impl::Particle>& particles) = 0;
-		virtual void calculate_forces() = 0;
 
-		virtual Particle & get_particle_by_id(ParticleID id) = 0;
-		virtual ParticleID id_start() = 0;
-		virtual ParticleID id_end() = 0;
+		void dispatch_build(this auto&& self, const std::vector<Particle>& particles) {
+	        static_assert(
+	            requires { self.build(particles); },
+	            "Algorithm subclass must implement: void build(const vector<Particle>&)"
+	        );
+	        self.build(particles);
+	    }
 
-		virtual Particle & get_particle_by_index(size_t index) noexcept = 0;
-		virtual size_t index_start() = 0;
-		virtual size_t index_end() = 0;
+	    void dispatch_calculate_forces(this auto&& self) {
+	        static_assert(
+	            requires { self.calculate_forces(); },
+	            "Algorithm subclass must implement: void calculate_forces()"
+	        );
+	        self.calculate_forces();
+	    }
 
-		virtual size_t particle_count() = 0;
+	    Particle& dispatch_get_particle_by_id(this auto&& self, ParticleID id) {
+	        static_assert(
+	            requires { { self.get_particle_by_id(id) } -> std::same_as<Particle&>; },
+	            "Algorithm subclass must implement: Particle& get_particle_by_id(ParticleID)"
+	        );
+	        return self.get_particle_by_id(id);
+	    }
 
+	    ParticleID dispatch_id_start(this auto&& self) {
+	        static_assert(
+	            requires { { self.id_start() } -> std::same_as<ParticleID>; },
+	            "Algorithm subclass must implement: ParticleID id_start()"
+	        );
+	        return self.id_start();
+	    }
+
+	    ParticleID dispatch_id_end(this auto&& self) {
+	        static_assert(
+	            requires { { self.id_end() } -> std::same_as<ParticleID>; },
+	            "Algorithm subclass must implement: ParticleID id_end()"
+	        );
+	        return self.id_end();
+	    }
+
+	    Particle& dispatch_get_particle_by_index(this auto&& self, size_t index) noexcept {
+	        static_assert(
+	            requires { { self.get_particle_by_index(index) } -> std::same_as<Particle&>; },
+	            "Algorithm subclass must implement: Particle& get_particle_by_index(size_t)"
+	        );
+	        return self.get_particle_by_index(index);
+	    }
+
+	    size_t dispatch_index_start(this auto&& self) {
+	        static_assert(
+	            requires { { self.index_start() } -> std::same_as<size_t>; },
+	            "Algorithm subclass must implement: size_t index_start()"
+	        );
+	        return self.index_start();
+	    }
+
+	    size_t dispatch_index_end(this auto&& self) {
+	        static_assert(
+	            requires { { self.index_end() } -> std::same_as<size_t>; },
+	            "Algorithm subclass must implement: size_t index_end()"
+	        );
+	        return self.index_end();
+	    }
+
+	    size_t dispatch_particle_count(this auto&& self) {
+	        static_assert(
+	            requires { { self.particle_count() } -> std::same_as<size_t>; },
+	            "Algorithm subclass must implement: size_t particle_count()"
+	        );
+	        return self.particle_count();
+	    }
 	protected:
 		InteractionManager * interactions{};
 		Domain domain;
 	};
 
+
 	template<typename Config> class Algorithm : public IAlgorithm {
 	public:
 		using CFG = Config;
 		explicit Algorithm(Config config): cfg(config) {}
+
 	protected:
 		Config cfg;
 	};
+
 
 	template<typename A> concept IsAlgo =
 		std::derived_from<A, Algorithm<typename A::CFG>> && requires {
 		typename A::CFG::impl;
 	};
+
 
 	template<typename A> concept IsAlgoDecl = requires {
 		typename A::impl;

@@ -169,23 +169,24 @@ namespace april::algo::impl {
 	IAlgorithm::Particle& LinkedCells::get_particle_by_id(ParticleID) {
 		throw std::runtime_error("Not implemented yet");
 	}
-	IAlgorithm::ParticleID LinkedCells::id_start() {
+	IAlgorithm::ParticleID LinkedCells::id_start() const {
 		return 0;
 	}
-	IAlgorithm::ParticleID LinkedCells::id_end() {
-		return particles.size() - 1;
-	}
-	IAlgorithm::Particle& LinkedCells::get_particle_by_index(const size_t index) noexcept {
-		return particles[index];
-	}
-	size_t LinkedCells::index_start() {
-		return 0;
-	}
-	size_t LinkedCells::index_end() {
+	IAlgorithm::ParticleID LinkedCells::id_end() const {
 		return particles.size() - 1;
 	}
 
-	size_t LinkedCells::particle_count() {
+	IAlgorithm::Particle& LinkedCells::get_particle_by_index(const size_t index) noexcept {
+		return particles[index];
+	}
+	size_t LinkedCells::index_start() const {
+		return 0;
+	}
+	size_t LinkedCells::index_end() const {
+		return particles.size() - 1;
+	}
+
+	size_t LinkedCells::particle_count() const {
 		return particles.size();
 	}
 }

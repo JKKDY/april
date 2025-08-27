@@ -62,4 +62,6 @@ namespace april::io {
 		size_t num_steps{};
 		size_t call_frequency_m;
 	};
+
+	template<IsMonitor... Ts> struct MonitorPack {};
 }

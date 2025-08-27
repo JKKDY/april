@@ -18,6 +18,5 @@ namespace april::env {
 
 	private:
 		size_t call_frequency_m{};
-
 	};
 }

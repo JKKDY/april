@@ -34,7 +34,10 @@ int main() {
 	auto algo = DirectSum();
 	auto system = compile(env, algo);
 
-	StoermerVerlet<decltype(system), BinaryOutput, ProgressBar, Benchmark> integrator(system);
+	// using Monitors = april::io::Monitors<BinaryOutput, ProgressBar, Benchmark>;
+
+
+	auto integrator = StoermerVerlet(system);
 	// integrator.add_monitor(BinaryOutput(50, dir_path.string()));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());

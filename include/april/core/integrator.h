@@ -13,13 +13,19 @@ namespace april::core::impl {
 	};
 
 	template <typename T, typename... Ts> concept same_as_any = (... or std::same_as<T, Ts>);
+	// using Monitors = monitors_pack<BinaryOutput, ProgressBar, Benchmark>;
 
-	template <IsSystem Sys, io::IsMonitor ... TMonitors>
-	class Integrator {
+	template<IsSystem Sys, class Pack> class Integrator;
+
+	template <IsSystem Sys, class... TMonitors>
+	class Integrator<Sys, io::MonitorPack<TMonitors...>> {
 	public:
 		explicit Integrator(Sys& sys_ref)
 			: sys(sys_ref)
 		{}
+
+		explicit Integrator(Sys& s, io::MonitorPack<TMonitors...>) : sys(s) {}
+
 
 		template<typename T> requires same_as_any<T, TMonitors...>
 		void add_monitor(T monitor) {

@@ -3,13 +3,18 @@
 #include "april/core/system.h"
 #include "april/env/particle.h"
 #include "april/io/monitor.h"
+#include "april/defaults.h"
 
 namespace april::core {
-	template <IsSystem Sys, io::IsMonitor ... TMonitors>
-	class StoermerVerlet : public impl::Integrator<Sys, TMonitors...> {
+
+	template<IsSystem Sys, class Pack> class StoermerVerlet;
+
+	template <IsSystem Sys, class ... TMonitors>
+	class StoermerVerlet<Sys, io::MonitorPack<TMonitors...>>
+		: public impl::Integrator<Sys, io::MonitorPack<TMonitors...>> {
 	public:
 		using State = env::ParticleState;
-		using Base = impl::Integrator<Sys, TMonitors...>;
+		using Base = impl::Integrator<Sys, io::MonitorPack<TMonitors...>>;
 		using Base::dt;
 		using Base::sys;
 		using Base::Base;
@@ -31,6 +36,11 @@ namespace april::core {
 		}
 	};
 
-	// Deduction guide (CTAD)
-	// template<class Sys> StoermerVerlet(Sys&) -> StoermerVerlet<Sys>;
+	template<class Sys, class... Ms>
+	StoermerVerlet(Sys&, io::MonitorPack<Ms...>)
+		-> StoermerVerlet<Sys, io::MonitorPack<Ms...>>;
+
+	using core::StoermerVerlet;
+	template<class Sys> StoermerVerlet(Sys&)
+		-> StoermerVerlet<Sys, DefaultMonitors>;
 }

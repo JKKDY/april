@@ -8,11 +8,9 @@
 #include "april/io/status.h"
 #include "april/io/performance.h"
 
-
 #include "april/algo/algorithm.h"
 #include "april/algo/direct_sum.h"
 #include "april/algo/linked_cells.h"
-
 
 #include "april/core/integrator.h"
 #include "april/core/stoermer_verlet.h"
@@ -37,11 +35,6 @@ namespace april {
 	using algo::DirectSum;
 	using algo::LinkedCells;
 
-	using io::BinaryOutput;
-	using io::TerminalOutput;
-	using io::ProgressBar;
-	using io::Benchmark;
-
 	using env::Environment;
 
 	using env::ParticleCuboid;
@@ -63,11 +56,19 @@ namespace april {
 	using core::System;
 	using core::compile;
 	using core::UserToInternalMappings;
-	template <core::IsSystem Sys, io::IsMonitor... TMonitors> using StoermerVerlet = core::StoermerVerlet<Sys, TMonitors...>;
+
+	using io::BinaryOutput;
+	using io::TerminalOutput;
+	using io::ProgressBar;
+	using io::Benchmark;
+
+	using io::MonitorPack;
+
+	using core::StoermerVerlet;
 
 	namespace ext {
 		using io::Monitor;
 		using algo::impl::Algorithm;
-		template <io::IsMonitor... TMonitors> using Integrator = core::impl::Integrator<TMonitors...>;
+		using core::impl::Integrator;
 	}
 }

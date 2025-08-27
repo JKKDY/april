@@ -17,21 +17,33 @@ endif()
 function(set_target_build_flags target_name)
     target_compile_options(${target_name}
             PRIVATE
+            # common warning flags
             $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -Werror -Wpedantic>
             $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -Werror -Wpedantic>
             $<$<CXX_COMPILER_ID:MSVC>:/W4 /permissive- /WX>
+
+            # Release → -O3
+            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU>>:-O3>
+            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:Clang>>:-O3>
+            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:/O2>
+
+            # Debug → -O0 -g
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-O0 -g>
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang>>:-O0 -g>
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od /Zi>
+
+            # Profile → -O2 -g -pg
+            $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:GNU>>:-O2 -g -pg>
+            $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:Clang>>:-O2 -g -pg>
     )
 
-    target_compile_options(${target_name}
-            PRIVATE
-            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU>>:-O3>
-            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-O0 -g>
-            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:Clang>>:-O3>
-            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang>>:-O0 -g>
-            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:/O2>
-            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od /Zi>
+    # tell the linker to generate gmon.out
+    target_link_options(${target_name} PRIVATE
+        $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:GNU>>:-pg>
+        $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:Clang>>:-pg>
     )
 endfunction()
+
 
 # === Sanitizer ===
 function(enable_sanitizer_if_dbg target_name)

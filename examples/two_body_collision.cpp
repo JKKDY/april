@@ -31,12 +31,12 @@ int main() {
 	env.set_origin({-10,-10,0});
 	env.add_force_to_type(LennardJones(5, 1), 0);
 
-	auto algo = LinkedCells();
+	auto algo = DirectSum();
 	auto system = compile(env, algo);
 
 	StoermerVerlet<decltype(system), BinaryOutput, ProgressBar, Benchmark> integrator(system);
-	integrator.add_monitor(BinaryOutput(50, dir_path.string()));
+	// integrator.add_monitor(BinaryOutput(50, dir_path.string()));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());
-	integrator.run(0.0002, 5);
+	integrator.run(0.0002, 2);
 }

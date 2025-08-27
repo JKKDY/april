@@ -26,7 +26,7 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	constexpr auto algo = algo::DirectSum();
 	auto system = compile(env, algo);
 
-	StoermerVerlet<> integrator(system);
+	StoermerVerlet integrator(system);
 	integrator.run_steps(0.1, 10);
 
 	for (auto & p : system.export_particles()) {
@@ -44,7 +44,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	constexpr auto algo = algo::DirectSum();
 	auto system = compile(env, algo);
 
-	StoermerVerlet<> integrator(system);
+	StoermerVerlet integrator(system);
 	integrator.run_steps(1, 1);
 
 	std::vector<env::impl::ParticleView> particles;
@@ -77,7 +77,7 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	constexpr auto algo = algo::DirectSum();
 	auto system = compile(env, algo);
 
-	StoermerVerlet<> integrator(system);
+	StoermerVerlet integrator(system);
 	integrator.run_steps(0.1, 1);
 
 	std::vector<env::impl::ParticleView> particles;
@@ -132,7 +132,7 @@ TEST(StoermerVerletTest, OrbitTest) {
 	constexpr auto algo = algo::DirectSum();
 	auto system = compile(env, algo);
 
-	StoermerVerlet<OrbitMonitor> integrator(system);
+	StoermerVerlet integrator(system, io::monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run(0.001, T);
 

@@ -64,4 +64,6 @@ namespace april::io {
 	};
 
 	template<IsMonitor... Ts> struct MonitorPack {};
+	template<class... Ms> inline constexpr MonitorPack<Ms...> monitors{};
+
 }

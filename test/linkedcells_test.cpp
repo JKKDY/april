@@ -44,7 +44,7 @@ TEST(LinkedCellsTest, SingleParticle_NoForce) {
     e.add_force_to_type(NoForce(), 0);
 	e.set_extent({4,4,4});
 
-    const auto sys = compile(e, LinkedCells(4));
+	auto sys = compile(e, LinkedCells(4));
     sys.update_forces();
 
     auto const& out = sys.export_particles();
@@ -60,7 +60,7 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
     e.add_particle(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 	e.add_force_to_type(ConstantForce(3,4,5), 7);
 
-	const auto sys = compile(e, LinkedCells(2));
+	auto sys = compile(e, LinkedCells(2));
 	sys.update_forces();
 
     auto const& out = sys.export_particles();
@@ -82,10 +82,9 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 	e.add_particle(Particle{.id = 1, .type = 7, .position={1.5,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 	e.add_force_to_type(ConstantForce(3,4,5), 7);
 
-	const auto sys = compile(e, LinkedCells(1));
+	auto sys = compile(e, LinkedCells(1));
 	sys.update_forces();
 
-	sys.update_forces();
 	auto const& out = sys.export_particles();
 	ASSERT_EQ(out.size(), 2u);
 
@@ -105,7 +104,7 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 	e.add_particle(Particle{.id = 1, .type = 7, .position={1.5,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 	e.add_force_to_type(ConstantForce(3,4,5), 7);
 
-	const auto sys = compile(e, LinkedCells(0.5));
+	auto sys = compile(e, LinkedCells(0.5));
 	sys.update_forces();
 	auto const& out = sys.export_particles();
 	ASSERT_EQ(out.size(), 2u);
@@ -125,7 +124,7 @@ TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
 	e.add_force_to_type(NoForce(), 0);
     e.add_force_between_ids(ConstantForce(-1,2,-3), 42, 99);
 
-	const auto sys = compile(e, LinkedCells());
+	auto sys = compile(e, LinkedCells());
 	sys.update_forces();
 
     auto const& out = sys.export_particles();
@@ -152,7 +151,7 @@ TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 
     e.add_force_between_types(InverseSquare(5.0), 0, 1);
 
-	const auto sys = compile(e, LinkedCells());
+	auto sys = compile(e, LinkedCells());
 	sys.update_forces();
 
 	auto const& out = sys.export_particles();
@@ -202,7 +201,7 @@ TEST(LinkedCellsTest, OrbitTest) {
 	auto sys = compile(env, LinkedCells(v));
 	sys.update_forces();
 
-	StoermerVerlet<OrbitMonitor> integrator(sys);
+	StoermerVerlet integrator(sys, io::monitors<OrbitMonitor>);
 	integrator.add_monitor<OrbitMonitor>(OrbitMonitor(v, R));
 	integrator.run(0.001, T);
 

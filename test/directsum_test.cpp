@@ -39,9 +39,9 @@ TEST(DirectSumTest, SingleParticle_NoForce) {
     e.add_particle(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
     e.add_force_to_type(NoForce(), 0);
 
-    const auto sys = core::compile(e, DirectSum());
-
+	auto sys = core::compile(e, DirectSum());
     sys.update_forces();
+
     auto const& out = sys.export_particles();
     ASSERT_EQ(out.size(), 1u);
     EXPECT_EQ(out[0].force, vec3(0,0,0));
@@ -53,10 +53,10 @@ TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
     e.add_particle(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
 	e.add_force_to_type(ConstantForce(3,4,5), 7);
 
-	const auto sys = core::compile(e, DirectSum());
-
+	auto sys = core::compile(e, DirectSum());
     sys.update_forces();
     auto const& out = sys.export_particles();
+
     ASSERT_EQ(out.size(), 2u);
     // both should see the same force vector
     EXPECT_EQ(out[0].force, -out[1].force);
@@ -75,8 +75,7 @@ TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
     e.add_force_to_type(NoForce(), 0);
     e.add_force_between_ids(ConstantForce(-1,2,-3), 42, 99);
 
-	const auto sys = core::compile(e, DirectSum());
-
+	auto sys = core::compile(e, DirectSum());
 	sys.update_forces();
 
     auto const& out = sys.export_particles();
@@ -101,7 +100,7 @@ TEST(DirectSumTest, TwoParticles_InverseSquare) {
 	e.add_force_to_type(NoForce(), 1);
     e.add_force_between_types(InverseSquare(5.0), 0, 1);
 
-	const auto sys = core::compile(e, DirectSum());
+	auto sys = core::compile(e, DirectSum());
     sys.update_forces();
 
     auto const& out = sys.export_particles();

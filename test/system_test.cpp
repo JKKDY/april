@@ -13,7 +13,7 @@ using namespace april::algo;
 TEST(EnvTest, empty_env) {
     Environment e;
 
-    const auto sys = compile(e, DirectSum());
+    auto sys = compile(e, DirectSum());
 
     const auto p = sys.export_particles();
     EXPECT_EQ(p.size(), 0);

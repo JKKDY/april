@@ -33,7 +33,7 @@ namespace april::core::impl {
 		}
 
 		// Call with total duration
-		void run(this auto&& self, double dt, const double duration) {
+		void run_for(this auto&& self, double dt, const double duration) {
 			self.run_steps(dt, static_cast<std::size_t>(duration / dt));
 		}
 

@@ -1,9 +1,9 @@
-#include "april/algo/direct_sum.h"
+#include "april/containers/direct_sum.h"
 
 #include "april/env/interaction.h"
 #include "april/env/particle.h"
 
-namespace april::algo::impl {
+namespace april::cont::impl {
 
 	void DirectSum::build(const std::vector<Particle> & particles) {
 		this->particles = std::vector(particles);
@@ -32,16 +32,16 @@ namespace april::algo::impl {
 		}
 	}
 
-	IAlgorithm::Particle& DirectSum::get_particle_by_id(ParticleID){
+	IContainer::Particle& DirectSum::get_particle_by_id(ParticleID){
 		throw std::runtime_error("Not implemented yet");
 	}
-	IAlgorithm::ParticleID DirectSum::id_start() const {
+	IContainer::ParticleID DirectSum::id_start() const {
 		return 0;
 	}
-	IAlgorithm::ParticleID DirectSum::id_end() const {
+	IContainer::ParticleID DirectSum::id_end() const {
 		return particles.size() - 1;
 	}
-	IAlgorithm::Particle& DirectSum::get_particle_by_index(const size_t index) noexcept {
+	IContainer::Particle& DirectSum::get_particle_by_index(const size_t index) noexcept {
 		AP_ASSERT(index < particles.size(), "index must be < #particles");
 		return particles[index];
 	}

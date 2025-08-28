@@ -11,12 +11,13 @@ namespace april::env {
     struct Environment;
     inline const auto EXTENT_AUTO = vec3(std::numeric_limits<double>::infinity());
     inline const auto ORIGIN_AUTO = vec3(std::numeric_limits<double>::infinity());
-    inline const auto zero_velocity = [](const Particle&) {return vec3{}; };
+    inline const auto ZERO_THERMAL_V = [](const Particle&) {return vec3{}; };
 
     struct Domain {
         vec3 extent = {};
         vec3 origin = {};
     };
+
 
     namespace impl {
         struct EnvironmentData {
@@ -32,42 +33,80 @@ namespace april::env {
         EnvironmentData & get_env_data(Environment& env);
     }
 
+
     struct ParticleCuboid {
         vec3 origin;
         vec3 mean_velocity;
         uint3 particle_count;
         double distance;
-        double mass;
-        int type;
-        std::function<vec3(const Particle&)> thermal_velocity = zero_velocity;
-        ParticleState state = ParticleState::ALIVE;
+        double particle_mass;
+        int type_id;
+        std::function<vec3(const Particle&)> thermal_velocity = ZERO_THERMAL_V;
+        ParticleState particle_state = ParticleState::ALIVE;
+
+        // fluent setters
+        [[nodiscard]] ParticleCuboid& at(const vec3& p) noexcept;
+        [[nodiscard]] ParticleCuboid& velocity(const vec3& v) noexcept;
+        [[nodiscard]] ParticleCuboid& count(const uint3& n) noexcept;
+        [[nodiscard]] ParticleCuboid& spacing(double d) noexcept;
+        [[nodiscard]] ParticleCuboid& mass(double m) noexcept;
+        [[nodiscard]] ParticleCuboid& type(int t) noexcept;
+        [[nodiscard]] ParticleCuboid& thermal(std::function<vec3(const Particle&)> tv);
+        [[nodiscard]] ParticleCuboid& state(ParticleState s) noexcept;
     };
+
 
     struct ParticleSphere {
         vec3 center;
         vec3 mean_velocity;
-        vec3 radius;
-        double distance;
-        double mass;
-        int type;
-        std::function<vec3(const Particle&)> thermal_velocity = zero_velocity;
-        ParticleState state = ParticleState::ALIVE;
+        vec3 radii;  // for true sphere set all equal
+        double distance;  // packing spacing
+        double particle_mass;
+        int type_id;
+        std::function<vec3(const Particle&)> thermal_velocity = ZERO_THERMAL_V;
+        ParticleState particle_state = ParticleState::ALIVE;
+
+        // fluent setters
+        [[nodiscard]] ParticleSphere& at(const vec3& c) noexcept;
+        [[nodiscard]] ParticleSphere& velocity(const vec3& v) noexcept;
+        [[nodiscard]] ParticleSphere& radius_xyz(const vec3& r) noexcept;
+        [[nodiscard]] ParticleSphere& radius(double r) noexcept;   // convenience: uniform
+        [[nodiscard]] ParticleSphere& spacing(double d) noexcept;
+        [[nodiscard]] ParticleSphere& mass(double m) noexcept;
+        [[nodiscard]] ParticleSphere& type(int t) noexcept;
+        [[nodiscard]] ParticleSphere& thermal(std::function<vec3(const Particle&)> tv);
+        [[nodiscard]] ParticleSphere& state(ParticleState s) noexcept;
+    };
+
+
+    struct to_type {
+        ParticleType type;
+    };
+
+    struct between_types {
+        ParticleType t1, t2;
+    };
+
+    struct between_ids {
+        ParticleID id1, id2;
     };
 
     struct Environment {
-        void add_particle(const vec3& position, const vec3& velocity, double mass, ParticleType type=0, ParticleID id = PARTICLE_ID_DONT_CARE);
-        void add_particle(const Particle & particle);
-        void add_particles(const std::vector<Particle> & particles);
+        void add(const vec3& position, const vec3& velocity, double mass, ParticleType type=0, ParticleID id = PARTICLE_ID_DONT_CARE);
+        void add(const Particle & particle);
+        void add(const std::vector<Particle> & particles);
 
-        std::vector<ParticleID> add_particle_cuboid(const ParticleCuboid& cuboid);
-        std::vector<ParticleID> add_particle_sphere(const ParticleSphere& sphere);
+        std::vector<ParticleID> add(const ParticleCuboid& cuboid);
+        std::vector<ParticleID> add(const ParticleSphere& sphere);
 
-        template<IsForce F> void add_force_to_type(const F & force, ParticleType type);
-        template<IsForce F> void add_force_between_types(const F & force, ParticleType t1, ParticleType t2);
-        template<IsForce F> void add_force_between_ids(const F & force, ParticleID id1, ParticleID id2);
+        template<IsForce F> void add_force(const F& force, to_type scope);
+        template<IsForce F> void add_force(const F& force, between_types scope);
+        template<IsForce F> void add_force(const F& force, between_ids scope);
 
         void set_origin(const vec3& origin);
         void set_extent(const vec3& extent);
+        void set_domain(const Domain & domain);
+        void auto_extent(double margin);
 
         void add_force_field();
         void add_barrier();
@@ -79,89 +118,21 @@ namespace april::env {
         friend impl::EnvironmentData & impl::get_env_data(Environment & env);
     };
 
-
-    template<IsForce F> void Environment::add_force_to_type(const F & force, ParticleType type) {
-        std::unique_ptr<Force> ptr = std::make_unique<F>(force);
-        data.interactions.emplace_back(true, std::pair{ type, type }, std::move(ptr));
-    }
-    template<IsForce F> void Environment::add_force_between_types(const F & force, ParticleType t1, ParticleType t2) {
-        std::unique_ptr<Force> ptr = std::make_unique<F>(force);
-        data.interactions.emplace_back(true, ParticleTypePair{t1, t2}, std::move(ptr));
-    }
-    template<IsForce F> void Environment::add_force_between_ids(const F & force, ParticleID id1, ParticleID id2) {
-        std::unique_ptr<Force> ptr = std::make_unique<F>(force);
-        data.interactions.emplace_back(false, ParticleIDPair{id1, id2}, std::move(ptr));
+    template<IsForce F>
+    void Environment::add_force(const F& force, to_type scope) {
+        auto ptr = std::make_unique<F>(force);
+        data.interactions.emplace_back(true, std::pair{scope.type, scope.type}, std::move(ptr));
     }
 
+    template<IsForce F>
+    void Environment::add_force(const F& force, between_types scope) {
+        auto ptr = std::make_unique<F>(force);
+        data.interactions.emplace_back(true, ParticleTypePair{scope.t1, scope.t2}, std::move(ptr));
+    }
 
-
-
-
-
-
-
-    // namespace impl {
-    //
-    //     class ParticleIterator {
-    //         class Iterator {
-    //         public:
-    //             using iterator_category = std::input_iterator_tag;
-    //             using value_type = impl::Particle;
-    //             using difference_type = std::ptrdiff_t;
-    //             using pointer = impl::Particle*;
-    //             using reference = impl::Particle&;
-    //
-    //             Iterator(std::vector<impl::Particle> & particles, const ParticleState state, const size_t index) :
-    //                 particle_storage(particles), state(state), idx(index) {
-    //
-    //                 while (idx < particle_storage.size() && not
-    //                     (static_cast<unsigned int>(particle_storage[idx].state) & static_cast<unsigned int>(state))) {
-    //                     idx++;
-    //                 }
-    //             }
-    //
-    //             reference operator*() const {
-    //                 return particle_storage[idx];
-    //             }
-    //
-    //             Iterator& operator++() {
-    //                 if (++idx == particle_storage.size()) return *this;
-    //                 const Particle & p = particle_storage[idx];
-    //                 if (static_cast<bool>(p.state & state))
-    //                     return *this;
-    //                 else
-    //                     return ++*this; //TODO use loop instead of recursion
-    //             }
-    //
-    //             Iterator operator++(int) {
-    //                 const auto tmp = *this;
-    //                 ++*this;
-    //                 return tmp;
-    //             }
-    //
-    //             bool operator==(const Iterator& other)const {
-    //                 return idx == other.idx;
-    //             }
-    //
-    //             bool operator!=(const Iterator& other) const {
-    //                 return !(*this == other);
-    //             }
-    //
-    //         private:
-    //             std::vector<impl::Particle> & particle_storage;
-    //             ParticleState state;
-    //             size_t idx;
-    //         };
-    //     public:
-    //         ParticleIterator(std::vector<impl::Particle> & particles, const ParticleState state) :
-    //             particle_storage(particles), state(state) {}
-    //
-    //         [[nodiscard]] auto begin() const {return Iterator(particle_storage, state, 0);}
-    //         [[nodiscard]] auto end() const {return Iterator(particle_storage, state, particle_storage.size());}
-    //
-    //     private:
-    //         std::vector<impl::Particle> & particle_storage;
-    //         ParticleState state;
-    //     };
-    // }
+    template<IsForce F>
+    void Environment::add_force(const F& force, between_ids scope) {
+        auto ptr = std::make_unique<F>(force);
+        data.interactions.emplace_back(false, ParticleIDPair{scope.id1, scope.id2}, std::move(ptr));
+    }
 }

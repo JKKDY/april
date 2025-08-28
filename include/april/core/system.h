@@ -3,7 +3,7 @@
 #include "april/env/particle.h"
 #include "april/env/environment.h"
 #include "april/env/interaction.h"
-#include "april/algo/algorithm.h"
+#include "april/containers/container.h"
 
 namespace april::core {
 
@@ -12,9 +12,9 @@ namespace april::core {
 		std::unordered_map<env::ParticleID, env::impl::ParticleID> usr_ids_to_impl_ids;
 	};
 
-	template <algo::impl::IsAlgoDecl Algo> class System;
+	template <cont::impl::IsContDecl Algo> class System;
 
-	template <algo::impl::IsAlgoDecl Algo> System<Algo> compile(
+	template <cont::impl::IsContDecl Algo> System<Algo> build_system(
 		env::Environment& environment,
 		const Algo& algorithm,
 		UserToInternalMappings* particle_mappings = nullptr
@@ -43,7 +43,7 @@ namespace april::core {
 		{ s.export_particles() } -> std::same_as<std::vector<typename S::ParticleView>>;
 	};
 
-	template <algo::impl::IsAlgoDecl Algo> class System {
+	template <cont::impl::IsContDecl Algo> class System {
 	public:
 		using Algorithm = typename Algo::impl;
 		using Interactions = env::impl::InteractionManager;
@@ -121,7 +121,7 @@ namespace april::core {
 
 		double time{};
 
-		template <algo::impl::IsAlgoDecl AlgoCfg> friend System<AlgoCfg> compile(
+		template <cont::impl::IsContDecl AlgoCfg> friend System<AlgoCfg> build_system(
 			env::Environment& environment,
 			const AlgoCfg& algorithm,
 			UserToInternalMappings* particle_mappings
@@ -163,7 +163,7 @@ namespace april::core {
 	}
 
 
-	template <algo::impl::IsAlgoDecl AlgoCfg> System<AlgoCfg> compile(
+	template <cont::impl::IsContDecl AlgoCfg> System<AlgoCfg> build_system(
 		env::Environment& environment,
 		const AlgoCfg& algorithm,
 		UserToInternalMappings* particle_mappings

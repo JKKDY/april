@@ -11,21 +11,21 @@ namespace april::env::impl {
 }
 
 
-namespace april::algo::impl {
+namespace april::cont::impl {
 
-	class  IAlgorithm {
+	class  IContainer {
 	protected:
 		using InteractionManager = env::impl::InteractionManager;
 		using Domain = env::Domain;
 		using Particle = env::impl::Particle;
 		using ParticleID = env::impl::ParticleID;
 	public:
-		IAlgorithm() = default;
+		IContainer() = default;
 		void init(InteractionManager & interaction_mngr, const Domain & dom) {
 			interactions = &interaction_mngr;
 			domain = dom;
 		}
-		virtual ~IAlgorithm() = default;
+		virtual ~IContainer() = default;
 
 		void dispatch_build(this auto&& self, const std::vector<Particle>& particles) {
 	        static_assert(
@@ -104,23 +104,23 @@ namespace april::algo::impl {
 	};
 
 
-	template<typename Config> class Algorithm : public IAlgorithm {
+	template<typename Config> class Container : public IContainer {
 	public:
 		using CFG = Config;
-		explicit Algorithm(Config config): cfg(config) {}
+		explicit Container(Config config): cfg(config) {}
 
 	protected:
 		Config cfg;
 	};
 
 
-	template<typename A> concept IsAlgo =
-		std::derived_from<A, Algorithm<typename A::CFG>> && requires {
+	template<typename A> concept IsContainer =
+		std::derived_from<A, Container<typename A::CFG>> && requires {
 		typename A::CFG::impl;
 	};
 
 
-	template<typename A> concept IsAlgoDecl = requires {
+	template<typename A> concept IsContDecl = requires {
 		typename A::impl;
-	}  && IsAlgo<typename A::impl>;
+	}  && IsContainer<typename A::impl>;
 } // namespace april::core

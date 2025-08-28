@@ -5,7 +5,7 @@
 namespace april::core::impl {
 
 	using namespace env;
-	using namespace algo;
+	using namespace cont;
 
 	Domain calculate_bounding_box(const std::vector<Particle> & particles) {
 		Domain bbox;

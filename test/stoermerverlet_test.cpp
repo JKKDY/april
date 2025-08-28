@@ -3,8 +3,8 @@
 
 #include <april/env/environment.h>
 #include "april/common.h"
-#include "april/algo/direct_sum.h"
-#include "april/algo/linked_cells.h"
+#include "april/containers/direct_sum.h"
+#include "april/containers/linked_cells.h"
 #include "april/core/stoermer_verlet.h"
 #include "april/io/output.h"
 
@@ -19,12 +19,12 @@ using namespace april::io;
 TEST(StoermerVerletTest,ConstructionTest) {
 
 	Environment env;
-	env.add_particle({}, {}, 1);
-	env.add_particle({}, {}, 1);
-	env.add_force_to_type(NoForce(), 0);
+	env.add({}, {}, 1);
+	env.add({}, {}, 1);
+	env.add_force(NoForce(), to_type(0));
 
-	constexpr auto algo = algo::DirectSum();
-	auto system = compile(env, algo);
+	constexpr auto algo = cont::DirectSum();
+	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
 	integrator.run_steps(0.1, 10);
@@ -37,12 +37,12 @@ TEST(StoermerVerletTest,ConstructionTest) {
 
 TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	Environment env;
-	env.add_particle({}, {1,2,3}, 1);
-	env.add_particle({}, {4,5,6}, 2);
-	env.add_force_to_type(NoForce(), 0);
+	env.add({}, {1,2,3}, 1);
+	env.add({}, {4,5,6}, 2);
+	env.add_force(NoForce(), to_type(0));
 
-	constexpr auto algo = algo::DirectSum();
-	auto system = compile(env, algo);
+	constexpr auto algo = cont::DirectSum();
+	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
 	integrator.run_steps(1, 1);
@@ -70,12 +70,12 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 
 TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	Environment env;
-	env.add_particle({-1,0,0}, {}, 1 );
-	env.add_particle({1,0,0}, {}, 1);
-	env.add_force_to_type(InverseSquare(1), 0);
+	env.add({-1,0,0}, {}, 1 );
+	env.add({1,0,0}, {}, 1);
+	env.add_force(InverseSquare(1), to_type(0));
 
-	constexpr auto algo = algo::DirectSum();
-	auto system = compile(env, algo);
+	constexpr auto algo = cont::DirectSum();
+	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
 	integrator.run_steps(0.1, 1);
@@ -125,16 +125,16 @@ TEST(StoermerVerletTest, OrbitTest) {
 	constexpr double T = 2 * 3.14159265359 * v / R;
 
 	Environment env;
-	env.add_particle({0,R,0}, {v, 0, 0}, m);
-	env.add_particle({0,0,0}, {0, 0, 0}, M);
-	env.add_force_to_type(InverseSquare(G), 0);
+	env.add({0,R,0}, {v, 0, 0}, m);
+	env.add({0,0,0}, {0, 0, 0}, M);
+	env.add_force(InverseSquare(G), to_type(0));
 
-	constexpr auto algo = algo::DirectSum();
-	auto system = compile(env, algo);
+	constexpr auto algo = cont::DirectSum();
+	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system, io::monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
-	integrator.run(0.001, T);
+	integrator.run_for(0.001, T);
 
 	std::vector<env::impl::ParticleView> particles;
 	for (auto & p : system.export_particles()) {

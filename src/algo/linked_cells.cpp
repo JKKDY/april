@@ -1,6 +1,6 @@
 
 
-#include "april/algo/linked_cells.h"
+#include "april/containers/linked_cells.h"
 
 #include <iostream>
 #include <limits>
@@ -9,12 +9,12 @@
 #include "april/env/interaction.h"
 #include "april/env/particle.h"
 
-namespace april::algo::impl {
+namespace april::cont::impl {
 	constexpr unsigned max_uint = std::numeric_limits<unsigned>::max();
 
 
-	LinkedCells::LinkedCells(const algo::LinkedCells& config):
-	Algorithm(config), outside_cell(Cell::ParticleSet(0), {max_uint, max_uint, max_uint}, 0){}
+	LinkedCells::LinkedCells(const cont::LinkedCells& config):
+	Container(config), outside_cell(Cell::ParticleSet(0), {max_uint, max_uint, max_uint}, 0){}
 
 	void LinkedCells::build(const std::vector<Particle>& particles) {
 		this->particles = std::vector(particles);
@@ -166,17 +166,17 @@ namespace april::algo::impl {
 		}
 	}
 
-	IAlgorithm::Particle& LinkedCells::get_particle_by_id(ParticleID) {
+	IContainer::Particle& LinkedCells::get_particle_by_id(ParticleID) {
 		throw std::runtime_error("Not implemented yet");
 	}
-	IAlgorithm::ParticleID LinkedCells::id_start() const {
+	IContainer::ParticleID LinkedCells::id_start() const {
 		return 0;
 	}
-	IAlgorithm::ParticleID LinkedCells::id_end() const {
+	IContainer::ParticleID LinkedCells::id_end() const {
 		return particles.size() - 1;
 	}
 
-	IAlgorithm::Particle& LinkedCells::get_particle_by_index(const size_t index) noexcept {
+	IContainer::Particle& LinkedCells::get_particle_by_index(const size_t index) noexcept {
 		return particles[index];
 	}
 	size_t LinkedCells::index_start() const {

@@ -8,9 +8,9 @@
 #include "april/io/status.h"
 #include "april/io/performance.h"
 
-#include "april/algo/algorithm.h"
-#include "april/algo/direct_sum.h"
-#include "april/algo/linked_cells.h"
+#include "april/containers/container.h"
+#include "april/containers/direct_sum.h"
+#include "april/containers/linked_cells.h"
 
 #include "april/core/integrator.h"
 #include "april/core/stoermer_verlet.h"
@@ -32,8 +32,8 @@
 
 namespace april {
 
-	using algo::DirectSum;
-	using algo::LinkedCells;
+	using cont::DirectSum;
+	using cont::LinkedCells;
 
 	using env::Environment;
 
@@ -51,10 +51,14 @@ namespace april {
 	using env::InverseSquare;
 	using env::LennardJones;
 
+	using env::between_types;
+	using env::to_type;
+	using env::between_ids;
+
 	using utils::Vec3;
 
 	using core::System;
-	using core::compile;
+	using core::build_system;
 	using core::UserToInternalMappings;
 
 	using io::BinaryOutput;
@@ -68,7 +72,7 @@ namespace april {
 
 	namespace ext {
 		using io::Monitor;
-		using algo::impl::Algorithm;
+		using cont::impl::Container;
 		using core::impl::Integrator;
 	}
 }

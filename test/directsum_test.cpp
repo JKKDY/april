@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <april/env/environment.h>
 #include "april/common.h"
-#include "april/algo/direct_sum.h"
+#include "april/containers/direct_sum.h"
 #include "april/env/particle.h"
 #include <gmock/gmock.h>
 
@@ -11,7 +11,7 @@ using testing::Eq;
 
 using namespace april;
 using namespace april::env;
-using namespace april::algo;
+using namespace april::cont;
 
 struct ConstantForce final : Force {
 	vec3 v;
@@ -36,10 +36,10 @@ struct ConstantForce final : Force {
 
 TEST(DirectSumTest, SingleParticle_NoForce) {
     Environment e;
-    e.add_particle(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
-    e.add_force_to_type(NoForce(), 0);
+    e.add(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
+	e.add_force(NoForce(), to_type(0));
 
-	auto sys = core::compile(e, DirectSum());
+	auto sys = core::build_system(e, DirectSum());
     sys.update_forces();
 
     auto const& out = sys.export_particles();
@@ -49,11 +49,11 @@ TEST(DirectSumTest, SingleParticle_NoForce) {
 
 TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
     Environment e;
-	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add_particle(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-	e.add_force_to_type(ConstantForce(3,4,5), 7);
+	e.add(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+    e.add(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = core::compile(e, DirectSum());
+	auto sys = core::build_system(e, DirectSum());
     sys.update_forces();
     auto const& out = sys.export_particles();
 
@@ -70,12 +70,12 @@ TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
 
 TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
     Environment e;
-    e.add_particle(Particle{.id = 42, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add_particle(Particle{.id = 99, .type = 0, .position={0,1,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add_force_to_type(NoForce(), 0);
-    e.add_force_between_ids(ConstantForce(-1,2,-3), 42, 99);
+    e.add(Particle{.id = 42, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+    e.add(Particle{.id = 99, .type = 0, .position={0,1,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	e.add_force(NoForce(), to_type(0));
+	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
 
-	auto sys = core::compile(e, DirectSum());
+	auto sys = core::build_system(e, DirectSum());
 	sys.update_forces();
 
     auto const& out = sys.export_particles();
@@ -93,14 +93,14 @@ TEST(DirectSumTest, TwoParticles_InverseSquare) {
     Environment e;
 
 	e.set_extent({10,10,10});
-	e.add_particle(Particle{.id = 0, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add_particle(Particle{.id = 1, .type = 1, .position={2,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
+	e.add(Particle{.id = 0, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+    e.add(Particle{.id = 1, .type = 1, .position={2,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 
-	e.add_force_to_type(NoForce(), 0);
-	e.add_force_to_type(NoForce(), 1);
-    e.add_force_between_types(InverseSquare(5.0), 0, 1);
+	e.add_force(NoForce(), to_type(0));
+	e.add_force(NoForce(), to_type(1));
+	e.add_force(InverseSquare(5.0), between_types(0, 1));
 
-	auto sys = core::compile(e, DirectSum());
+	auto sys = core::build_system(e, DirectSum());
     sys.update_forces();
 
     auto const& out = sys.export_particles();

@@ -2,18 +2,18 @@
 #include <april/env/environment.h>
 #include "april/common.h"
 #include <april/core/system.h>
-#include <april/algo/direct_sum.h>
+#include <april/containers/direct_sum.h>
 
 using namespace april;
 using namespace april::env;
 using namespace april::core;
-using namespace april::algo;
+using namespace april::cont;
 
 
 TEST(EnvTest, empty_env) {
     Environment e;
 
-    auto sys = compile(e, DirectSum());
+    auto sys = build_system(e, DirectSum());
 
     const auto p = sys.export_particles();
     EXPECT_EQ(p.size(), 0);
@@ -22,7 +22,7 @@ TEST(EnvTest, empty_env) {
 
 TEST(EnvTest, one_particle_test) {
     Environment e;
-    e.add_particle(Particle{
+    e.add(Particle{
         .id = PARTICLE_ID_DONT_CARE,
         .type = 0,
         .position = {3,4,5},
@@ -30,9 +30,9 @@ TEST(EnvTest, one_particle_test) {
         .mass = 10,
         .state = ParticleState::ALIVE,
     });
-    e.add_force_to_type(LennardJones(3,5), 0);
+    e.add_force(LennardJones(3, 5), to_type(0));
 
-    auto sys = compile(e, DirectSum());
+    auto sys = build_system(e, DirectSum());
     auto particles = sys.export_particles();
 
     EXPECT_EQ(particles.size(), 1);
@@ -50,7 +50,7 @@ TEST(EnvTest, one_particle_test) {
 TEST(EnvTest, type_force_missing) {
     Environment e;
 
-    e.add_particle(Particle{
+    e.add(Particle{
         .id = -1,
         .type = 0,
         .position = {1,2,3},
@@ -59,7 +59,7 @@ TEST(EnvTest, type_force_missing) {
         .state = ParticleState::DEAD,
     });
 
-    e.add_particle(Particle{
+    e.add(Particle{
         .id = PARTICLE_ID_DONT_CARE,
         .type = 0,
         .position = {3,4,5},
@@ -68,9 +68,9 @@ TEST(EnvTest, type_force_missing) {
         .state = ParticleState::ALIVE,
     });
 
-    e.add_force_between_ids(InverseSquare(), -1, 0);
+    e.add_force(InverseSquare(), between_ids(-1, 0));
 
-    EXPECT_THROW(compile(e, DirectSum()), std::invalid_argument);
+    EXPECT_THROW(build_system(e, DirectSum()), std::invalid_argument);
 }
 
 
@@ -78,7 +78,7 @@ TEST(EnvTest, type_force_missing) {
 TEST(EnvTest, two_particle_force_test) {
     Environment e;
 
-    e.add_particle(Particle{
+    e.add(Particle{
         .id = -1,
         .type = 0,
         .position = {1,2,3},
@@ -87,7 +87,7 @@ TEST(EnvTest, two_particle_force_test) {
         .state = ParticleState::DEAD,
     });
 
-    e.add_particle(Particle{
+    e.add(Particle{
         .id = 0,
         .type = 0,
         .position = {3,4,5},
@@ -96,10 +96,11 @@ TEST(EnvTest, two_particle_force_test) {
         .state = ParticleState::ALIVE,
     });
 
-    e.add_force_between_ids(InverseSquare(), -1, 0);
-    e.add_force_to_type(InverseSquare(), 0);
+    e.add_force(InverseSquare(), between_ids(-1, 0));
+    e.add_force(InverseSquare(), to_type(0));
 
-    auto sys = compile(e, DirectSum());
+
+    auto sys = build_system(e, DirectSum());
 
     auto particles = sys.export_particles();
     EXPECT_EQ(particles.size(), 2);
@@ -117,7 +118,7 @@ TEST(EnvTest, two_particle_force_test) {
 TEST(EnvTest, particle_iterator_test) {
     Environment e;
 
-    e.add_particle(Particle{
+    e.add(Particle{
         .id = 0,
         .type = 0,
         .position = {1,2,3},
@@ -126,7 +127,7 @@ TEST(EnvTest, particle_iterator_test) {
         .state = ParticleState::DEAD,
     });
 
-    e.add_particle(Particle{
+    e.add(Particle{
         .id = 1,
         .type = 0,
         .position = {3,4,5},
@@ -135,7 +136,7 @@ TEST(EnvTest, particle_iterator_test) {
         .state = ParticleState::ALIVE,
     });
 
-    e.add_particle(Particle{
+    e.add(Particle{
         .id = 2,
         .type = 0,
         .position = {1,2,3},
@@ -144,9 +145,9 @@ TEST(EnvTest, particle_iterator_test) {
         .state = ParticleState::DEAD,
     });
 
-    e.add_force_to_type(NoForce(), 0);
+    e.add_force(NoForce(), to_type(0));
 
-    auto sys = compile(e, DirectSum());
+    auto sys = build_system(e, DirectSum());
 
     int i = 0;
     for (const auto & p : sys.export_particles()) {
@@ -185,35 +186,35 @@ TEST(EnvTest, particle_iterator_test) {
 TEST(EnvTest, ExtentTooSmallThrows) {
     Environment e;
     // Two particles 0 and 2 apart in x
-    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {0,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
-    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {2,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {0,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {2,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     // Set extent too small to cover span=2
     e.set_origin({0,0,0});
     e.set_extent({1,1,1});
-    e.add_force_to_type(NoForce(), 0);
-    EXPECT_THROW(compile(e, DirectSum()), std::invalid_argument);
+    e.add_force(NoForce(), to_type(0));
+    EXPECT_THROW(build_system(e, DirectSum()), std::invalid_argument);
 }
 
 TEST(EnvTest, OriginOutsideThrows) {
     Environment e;
     // Particles inside [0,1] in each dim
-    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {0,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
-    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {1,1,1}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {0,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {1,1,1}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     // Set origin outside that box
     e.set_origin({2,2,2});
     e.set_extent({2,2,2});
-    e.add_force_to_type(NoForce(), 0);
-    EXPECT_THROW(compile(e, DirectSum()), std::invalid_argument);
+    e.add_force(NoForce(), to_type(0));
+    EXPECT_THROW(build_system(e, DirectSum()), std::invalid_argument);
 }
 
 TEST(EnvTest, OnlyExtentCentersOrigin) {
     Environment e;
     // Single particle at (3,4,5)
-    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     // Only extent given
     e.set_extent({4,4,4});
-    e.add_force_to_type(NoForce(), 0);
-    auto sys = compile(e, DirectSum());
+    e.add_force(NoForce(), to_type(0));
+    auto sys = build_system(e, DirectSum());
     const vec3 origin = sys.domain.origin;
     const vec3 extent = sys.domain.extent;
     // bbox_min = (3,4,5), bbox_center = same
@@ -225,11 +226,11 @@ TEST(EnvTest, OnlyExtentCentersOrigin) {
 TEST(EnvTest, OnlyOriginSymmetricExtent) {
     Environment e;
     // Single particle at (3,4,5)
-    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     // Only origin given
     e.set_origin({0,0,0});
-    e.add_force_to_type(NoForce(), 0);
-    auto sys = compile(e, DirectSum());
+    e.add_force(NoForce(), to_type(0));
+    auto sys = build_system(e, DirectSum());
 
     const vec3 origin = sys.domain.origin;
     const vec3 extent = sys.domain.extent;
@@ -242,11 +243,11 @@ TEST(EnvTest, OnlyOriginSymmetricExtent) {
 TEST(EnvTest, AutoOriginExtentDoublesBBox) {
     Environment e;
     // Two particles at (1,2,3) and (3,4,5)
-    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {1,2,3}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
-    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
-    e.add_force_to_type(NoForce(), 0);
+    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {1,2,3}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_force(NoForce(), to_type(0));
     // neither origin nor extent set
-    auto sys = compile(e, DirectSum());
+    auto sys = build_system(e, DirectSum());
 
     const vec3 origin = sys.domain.origin;
     const vec3 extent = sys.domain.extent;

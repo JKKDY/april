@@ -1,12 +1,12 @@
 #pragma once
 
-#include "april/algo/algorithm.h"
+#include "april/containers/container.h"
 #include "april/utils/set.hpp"
 #include "april/env/particle.h"
 
 
 
-namespace april::algo {
+namespace april::cont {
 	namespace impl {
 		class LinkedCells;
 	}
@@ -40,7 +40,7 @@ namespace april::algo {
 
 
 	namespace impl {
-		class LinkedCells final : public Algorithm<algo::LinkedCells> {
+		class LinkedCells final : public Container<cont::LinkedCells> {
 			struct Cell {
 				using ParticleSet = utils::IndexSet<env::impl::ParticleID>;
 				static_assert(IsParticleSet<ParticleSet>, "ParticleSet must implement IsParticleSet interface");
@@ -55,7 +55,7 @@ namespace april::algo {
 				Cell& second;
 			};
 		public:
-			explicit LinkedCells(const algo::LinkedCells & config);
+			explicit LinkedCells(const cont::LinkedCells & config);
 
 			void build(const std::vector<Particle>& particles);
 			void calculate_forces();

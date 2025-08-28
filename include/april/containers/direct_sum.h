@@ -1,22 +1,22 @@
 #pragma once
 
 
-#include "april/algo/algorithm.h"
+#include "april/containers/container.h"
 
-namespace april::algo::impl {
+namespace april::cont::impl {
 	class DirectSum;
 }
 
-namespace april::algo {
+namespace april::cont {
 
 	struct DirectSum {
 		using impl = impl::DirectSum;
 	};
 
 	namespace impl {
-		class DirectSum final : public Algorithm<algo::DirectSum> {
+		class DirectSum final : public Container<cont::DirectSum> {
 		public:
-			using Algorithm::Algorithm;
+			using Container::Container;
 
 			void build(const std::vector<Particle> & particles);
 			void calculate_forces();

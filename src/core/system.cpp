@@ -203,15 +203,18 @@ namespace april::core::impl {
 
 		// generate mapping for user types to implementation types
 		std::vector<ParticleType> type_vector;
+		// copy user types
 		type_vector.reserve(usr_particle_types.size());
 		type_vector.insert(type_vector.end(), usr_particle_types.begin(), usr_particle_types.end());
 
+		// create types map
 		for (size_t  i = 0; i < type_vector.size(); i++) {
 			mapping.usr_types_to_impl_types[type_vector[i]] = static_cast<env::impl::ParticleType>(i);
 		}
 
 		// generate mapping for user ids to implementation ids
 		std::vector<ParticleType> id_vector;
+		// copy user ids
 		id_vector.reserve(usr_particle_ids.size());
 		id_vector.insert(id_vector.end(), usr_particle_ids.begin(), usr_particle_ids.end());
 
@@ -224,7 +227,7 @@ namespace april::core::impl {
 			}
 		}
 
-		//swap ids, such that all ID-interacting particles have the lowest ids
+		//swap ids, such that all ID-interacting particles have the lowest implementation ids
 		std::ranges::partition(id_vector,
 				[&](const ParticleID id_) { return interacting_ids.contains(id_); }
 		);
@@ -308,8 +311,3 @@ namespace april::core::impl {
 		return particles;
 	}
 }
-
-
-// interaction_manager.build(interactions, usr_types_to_impl_types, usr_ids_to_impl_ids);
-// container->init(&interaction_manager, &particle_storage, extent, origin);
-// container->build();

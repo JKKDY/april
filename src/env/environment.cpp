@@ -30,7 +30,7 @@ namespace april::env {
     ParticleCuboid& ParticleCuboid::thermal(std::function<vec3(const Particle&)> tv) {
         thermal_velocity = std::move(tv); return *this;
     }
-    ParticleCuboid& ParticleCuboid::state(ParticleState s) noexcept {
+    ParticleCuboid& ParticleCuboid::state(const ParticleState s) noexcept {
         particle_state = s; return *this;
     }
 
@@ -47,19 +47,19 @@ namespace april::env {
     ParticleSphere& ParticleSphere::radius(double r) noexcept {
         radii = {r, r, r}; return *this;
     }
-    ParticleSphere& ParticleSphere::spacing(double d) noexcept {
+    ParticleSphere& ParticleSphere::spacing(const double d) noexcept {
         distance = d; return *this;
     }
-    ParticleSphere& ParticleSphere::mass(double m) noexcept {
+    ParticleSphere& ParticleSphere::mass(const double m) noexcept {
         particle_mass = m; return *this;
     }
-    ParticleSphere& ParticleSphere::type(int t) noexcept {
+    ParticleSphere& ParticleSphere::type(const int t) noexcept {
         type_id = t; return *this;
     }
     ParticleSphere& ParticleSphere::thermal(std::function<vec3(const Particle&)> tv) {
         thermal_velocity = std::move(tv); return *this;
     }
-    ParticleSphere& ParticleSphere::state(ParticleState s) noexcept {
+    ParticleSphere& ParticleSphere::state(const ParticleState s) noexcept {
         particle_state = s; return *this;
     }
 

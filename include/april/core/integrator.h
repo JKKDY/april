@@ -26,6 +26,9 @@ namespace april::core::impl {
 
 		explicit Integrator(Sys& s, io::MonitorPack<TMonitors...>) : sys(s) {}
 
+		explicit Integrator(Sys& s, TMonitors... mons) : sys(s) {
+			(this->add_monitor(std::move(mons)), ...);
+		}
 
 		template<typename T> requires same_as_any<T, TMonitors...>
 		void add_monitor(T monitor) {

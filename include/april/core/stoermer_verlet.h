@@ -40,7 +40,10 @@ namespace april::core {
 	StoermerVerlet(Sys&, io::MonitorPack<Ms...>)
 		-> StoermerVerlet<Sys, io::MonitorPack<Ms...>>;
 
-	using core::StoermerVerlet;
 	template<class Sys> StoermerVerlet(Sys&)
 		-> StoermerVerlet<Sys, DefaultMonitors>;
+
+	template<class Sys, class... Ms>
+	StoermerVerlet(Sys&, Ms...)
+		-> StoermerVerlet<Sys, io::MonitorPack<std::decay_t<Ms>...>>;
 }

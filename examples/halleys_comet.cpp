@@ -7,7 +7,7 @@ namespace fs = std::filesystem;
 int main() {
 	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/halleys_comet";
 
-	Environment env;
+	Environment env (forces<InverseSquare>);
 	env.add({0.0, 0.0, 0.0},     {0.0, 0.0, 0.0},     1.0);
 	env.add({0.0, 1.0, 0.0},     {-1.0, 0.0, 0.0},    3.0e-6);
 	env.add({0.0, 5.36, 0.0},    {-0.425, 0.0, 0.0},  9.55e-4);

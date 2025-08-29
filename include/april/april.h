@@ -45,11 +45,11 @@ namespace april {
 	using env::ParticleType;
 	using env::PARTICLE_ID_DONT_CARE;
 
-	using env::Force;
 	using env::Harmonic;
 	using env::NoForce;
 	using env::InverseSquare;
 	using env::LennardJones;
+	using env::forces;
 
 	using env::between_types;
 	using env::to_type;
@@ -65,8 +65,7 @@ namespace april {
 	using io::TerminalOutput;
 	using io::ProgressBar;
 	using io::Benchmark;
-
-	using io::MonitorPack;
+	using io::monitors;
 
 	using core::StoermerVerlet;
 

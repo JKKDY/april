@@ -151,13 +151,6 @@ namespace april::core::impl {
                         std::to_string(type1) + ", " + std::to_string(type2) + ")"
                     );
                 }
-                if (!usr_particle_types.contains(type1) || !usr_particle_types.contains(type2)) {
-                    throw std::invalid_argument(
-                        "Specified interacting particle IDs do not exist: (" +
-                        std::to_string(type1) + ", " + std::to_string(type2) + ")"
-                    );
-                }
-
             } else { // check if ids are valid
                 auto [id1, id2] = interaction.key_pair;
                 if (id1 == PARTICLE_ID_DONT_CARE || id2 == PARTICLE_ID_DONT_CARE) {

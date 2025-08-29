@@ -3,7 +3,7 @@
 
 #include "april/core/system.h"
 #include "april/io/monitor.h"
-
+#include "april/common.h"
 
 
 namespace april::core::impl {
@@ -12,12 +12,9 @@ namespace april::core::impl {
 			{ t.integration_step() } -> std::same_as<void>;
 	};
 
-	template <typename T, typename... Ts> concept same_as_any = (... or std::same_as<T, Ts>);
-	// using Monitors = monitors_pack<BinaryOutput, ProgressBar, Benchmark>;
+	template<IsSystem Sys, class Pack> class Integrator;  // primary template
 
-	template<IsSystem Sys, class Pack> class Integrator;
-
-	template <IsSystem Sys, class... TMonitors>
+	template <IsSystem Sys, class... TMonitors>  // partial specialization
 	class Integrator<Sys, io::MonitorPack<TMonitors...>> {
 	public:
 		explicit Integrator(Sys& sys_ref)

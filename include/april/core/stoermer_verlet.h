@@ -36,13 +36,17 @@ namespace april::core {
 		}
 	};
 
+	// Deduction guide so user can write StoermerVerlet(sys, MonitorPack<M1, M2, M3>)
 	template<class Sys, class... Ms>
 	StoermerVerlet(Sys&, io::MonitorPack<Ms...>)
 		-> StoermerVerlet<Sys, io::MonitorPack<Ms...>>;
 
-	template<class Sys> StoermerVerlet(Sys&)
+	// Deduction guide so user can write StoermerVerlet(sys)
+	template<class Sys>
+	StoermerVerlet(Sys&)
 		-> StoermerVerlet<Sys, DefaultMonitors>;
 
+	// Deduction guide so user can write StoermerVerlet(sys, m1, m2, m3)
 	template<class Sys, class... Ms>
 	StoermerVerlet(Sys&, Ms...)
 		-> StoermerVerlet<Sys, io::MonitorPack<std::decay_t<Ms>...>>;

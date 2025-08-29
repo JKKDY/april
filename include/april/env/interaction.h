@@ -1,186 +1,241 @@
 #pragma once
-#include <concepts>
+#include <cassert>
 #include <functional>
-#include <variant>
-#include <cmath>
-
+#include <utility>
+#include <unordered_set>
 
 #include "april/env/particle.h"
-#include "april/utils/map.hpp"
+#include "april/env/force.h"
 #include "april/common.h"
-
-
-namespace april::env {
-    // Base functor for force calculations
-    struct Force {
-        virtual ~Force() = default;
-
-        // Main functor interface: computes force between p1 and p2
-        virtual vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const noexcept = 0;
-
-        // Mixes this force with another force; returns a new heap-allocated Force
-        virtual std::unique_ptr<Force> mix(const Force* other) const = 0;
-
-        double cutoff_radius = -1;  // Negative value means no cutoff
-    };
-
-
-    struct NoForce final : Force {
-        vec3 operator()(const impl::Particle&, const impl::Particle&, const vec3&) const noexcept override {
-            return vec3{0.0, 0.0, 0.0};
-        };
-
-        std::unique_ptr<Force> mix(const Force* ) const override {
-            return std::make_unique<NoForce>();
-        }
-    };
-
-
-    // Lennard-Jones potential (12-6)
-    struct LennardJones final : Force {
-        LennardJones(const double epsilon, const double sigma, const double cutoff = -1)
-            : epsilon(epsilon), sigma(sigma) {
-            cutoff_radius = (cutoff < 0) ? 3.0 * sigma : cutoff;
-        }
-
-        vec3 operator()(const impl::Particle& , const impl::Particle& , const vec3& r) const noexcept override {
-            const double r2 = r.norm_squared();
-            if (cutoff_radius > 0 && r2 > cutoff_radius * cutoff_radius)
-                return vec3{0.0, 0.0, 0.0};
-
-            const double inv_r2 = 1.0 / r2;
-            const double sigma_r2 = sigma * sigma * inv_r2;
-            const double sigma_r6 = sigma_r2 * sigma_r2 * sigma_r2;
-            const double sigma_r12 = sigma_r6 * sigma_r6;
-            const double magnitude = 24.0 * epsilon * inv_r2 * (2.0 * sigma_r12 - sigma_r6);
-
-            return - magnitude * r;  // Force vector
-        }
-
-        std::unique_ptr<Force> mix(const Force* other) const override {
-            const auto* o = dynamic_cast<const LennardJones*>(other);
-            if (!o)
-                throw std::invalid_argument("Cannot mix LennardJones with non-LennardJones force");
-    
-            // Lorentz-Berthelot mixing 
-            double mixed_epsilon = std::sqrt(this->epsilon * o->epsilon);
-            double mixed_sigma = 0.5* (this->sigma + o->sigma);
-            double cutoff = std::sqrt(this->cutoff_radius * o->cutoff_radius);
-            return std::make_unique<LennardJones>(mixed_epsilon, mixed_sigma, cutoff);
-        }
-
-        double epsilon;  // Depth of the potential well
-        double sigma;    // Distance at which potential is zero
-    };
-
-
-    // Inverse-square law (e.g., gravity, Coulomb)
-    struct InverseSquare final : Force {
-        explicit InverseSquare(const double pre_factor = 1.0, const double cutoff = -1)
-            : pre_factor(pre_factor) {
-            cutoff_radius = cutoff;
-        }
-
-        vec3 operator()(const impl::Particle& p1, const impl::Particle& p2, const vec3& r) const noexcept override {
-            const double distance = r.norm();
-            if (cutoff_radius > 0 && distance > cutoff_radius)
-                return vec3{0.0, 0.0, 0.0};
-
-            const double magnitude = pre_factor * p1.mass * p2.mass / (distance * distance * distance);
-            return magnitude * r;
-        }
-
-        std::unique_ptr<Force> mix(const Force* other) const override {
-            const auto* o = dynamic_cast<const InverseSquare*>(other);
-            if (!o)
-                throw std::invalid_argument("Cannot mix InverseSquare with non-InverseSquare force");
-            
-            double k = 0.5 * (pre_factor + o->pre_factor); 
-            double cutoff = 0.5 * (cutoff_radius + o->cutoff_radius);
-            return std::make_unique<InverseSquare>(k, cutoff);
-        }
-
-        double pre_factor;  // G or k constant
-    };
-
-
-    // Harmonic spring force (Hooke's law)
-    struct Harmonic final : Force {
-        Harmonic(const double k, const double r0) : k(k), r0(r0) {}
-
-        vec3 operator()(const impl::Particle& , const impl::Particle& , const vec3& r) const noexcept override {
-            const double distance = r.norm();
-            const double magnitude = k * (distance - r0) / distance;
-            return -magnitude * r;  
-        }
-
-        std::unique_ptr<Force> mix(const Force* ) const override {
-            return std::make_unique<NoForce>();
-        }
-
-        double k;   // Spring constant
-        double r0;  // Equilibrium distance
-    };
-
-
-    template <typename T> concept IsForce = std::is_base_of_v<Force, T>;
-} // namespace april::env
-
+#include "april/env/environment.h"
 
 
 namespace april::env::impl {
-    using ForcePtr = std::unique_ptr<Force>;
 
-
-    template <typename T> concept ForceMap = requires(
-        T t, size_t i, size_t j
-    ) {
-        {t.get(i,j) } -> std::same_as<Force*>;
-        {t.key_size() } -> std::same_as<size_t>;
-    };
-
-
-    struct InteractionInfo {
-        InteractionInfo(const bool pair_contains_types, std::pair<int, int> key_pair, ForcePtr force):
-            pair_contains_types(pair_contains_types), force(std::move(force)) {
-            if (key_pair.first < key_pair.second) {
-                this->key_pair = {key_pair.first, key_pair.second};
-            } else {
-                this->key_pair = {key_pair.second, key_pair.first};
-            }
+    // internal placeholder only
+    struct NullForce {
+        constexpr double cutoff_radius = -1.0;
+        vec3 operator()(const Particle&, const Particle&, const vec3&) const noexcept {
+            assert(false && "NullForce should never be executed");
+             return {};
         }
-
-        bool pair_contains_types;
-        std::pair<int, int> key_pair;
-        ForcePtr force;
+        [[nodiscard]] NullForce mix(NullForce const&) const { return {}; }
     };
 
 
-    class InteractionManager {
-        using TypeForceMap = utils::impl::DensePairMap<Force, ParticleType>;
-        using IdForceMap = utils::impl::DensePairMap<Force, ParticleID>;
+    template<class Env> class InteractionManager;
 
-        static_assert(ForceMap<TypeForceMap>, "TypeForceMap must implement ForceMap interface");
-        static_assert(ForceMap<IdForceMap>, "IdForceMap must implement ForceMap interface");
+    template<IsForce... Fs>
+    class InteractionManager<Environment<ForcePack<Fs...>>> {
 
     public:
+        using force_variant_t = std::variant<NullForce, Fs..., NoForce>;
+        using info_t = InteractionInfo<force_variant_t>;
+
 		InteractionManager() = default;
-        void build(std::vector<InteractionInfo> & interaction_infos,
+        void build(std::vector<InteractionInfo<force_variant_t>> & interaction_infos,
             const std::unordered_map<env::ParticleType, impl::ParticleType> & usr_types_to_impl_types,
             const std::unordered_map<env::ParticleID, impl::ParticleID> & usr_ids_to_impl_ids
         );
 
         [[nodiscard]] vec3 evaluate(const Particle& p1, const Particle& p2) const;
-		[[nodiscard]] vec3 evaluate(const Particle& p1, const Particle& p2, const vec3& distance) const;
+		[[nodiscard]] vec3 evaluate(const Particle& p1, const Particle& p2, const vec3& r) const;
 
         [[nodiscard]] double get_max_cutoff() const;
 
     private:
-        TypeForceMap inter_type_forces;   // Forces between different particle types (e.g. type A <-> type B)
-        IdForceMap intra_particle_forces; // Forces between specific particle instances (by ID e.g. id1 <-> id2)
+        std::vector<force_variant_t> inter_type_forces; // Forces between different particle types (e.g. type A <-> type B)
+        std::vector<force_variant_t> intra_particle_forces; // Forces between specific particle instances (by ID e.g. id1 <-> id2)
+
+        [[nodiscard]] size_t type_index(const size_t a, const size_t b) const noexcept{
+            return n_types * a + b;
+        }
+
+        [[nodiscard]] size_t id_index(const size_t a, const size_t b) const noexcept{
+            return n_ids * a + b;
+        }
+
+        force_variant_t & get_type_force(const size_t a, const size_t b) noexcept {
+            return inter_type_forces[type_index(a, b)];
+        }
+
+        force_variant_t & get_id_force(const size_t a, const size_t b) noexcept {
+            return intra_particle_forces[id_index(a, b)];
+        }
+
+        const force_variant_t& get_type_force(size_t a, size_t b) const noexcept {
+            return inter_type_forces[type_index(a,b)];
+        }
+        const force_variant_t& get_id_force(size_t a, size_t b) const noexcept {
+            return intra_particle_forces[id_index(a,b)];
+        }
+
+        size_t n_types{};
+        size_t n_ids{};
 
         double max_cutoff = 0;
     };
+
+
+    template <IsForce ... Fs>
+    void InteractionManager<Environment<ForcePack<Fs...>>>::build(
+        std::vector<InteractionInfo<force_variant_t>>& interaction_infos,
+        const std::unordered_map<env::ParticleType, impl::ParticleType>& usr_types_to_impl_types,
+        const std::unordered_map<env::ParticleID, impl::ParticleID>& usr_ids_to_impl_ids) {
+
+        // partition type vs id
+        const auto it = std::partition(interaction_infos.begin(), interaction_infos.end(),
+           [](const auto& info) {return info.pair_contains_types;});
+
+        // contains all interaction infos for particle types
+        std::vector<InteractionInfo<force_variant_t>> type_infos{
+            std::make_move_iterator(interaction_infos.begin()),
+            std::make_move_iterator(it)
+        };
+
+        // contains all interaction infos for particle (id) pairs
+        std::vector<InteractionInfo<force_variant_t>> id_infos{
+            std::make_move_iterator(it),
+            std::make_move_iterator(interaction_infos.end())
+        };
+
+
+        // collect unique particle types to define types map size (implementation types are dense [0, N-1])
+        std::unordered_set<ParticleType> particle_types_set;
+        for (auto & x : type_infos) {
+            particle_types_set.insert(usr_types_to_impl_types.at(x.key_pair.first));
+            particle_types_set.insert(usr_types_to_impl_types.at(x.key_pair.second));
+        }
+        this->n_types = particle_types_set.size();
+        inter_type_forces = std::vector<force_variant_t>(n_types*n_types);
+
+        // collect particle ids to define ids map size (implementation ids are dense [0, M-1])
+        std::unordered_set<ParticleID> particle_id_set;
+        for (auto x : id_infos) {
+            particle_id_set.insert(usr_ids_to_impl_ids.at(x.key_pair.first));
+            particle_id_set.insert(usr_ids_to_impl_ids.at(x.key_pair.second));
+        }
+        this->n_ids = particle_id_set.size();
+        intra_particle_forces = std::vector<force_variant_t>(n_ids*n_ids);
+
+
+        // insert type forces into map & apply usr mappings
+        for (auto & x : type_infos) {
+            const ParticleType a = usr_types_to_impl_types.at(x.key_pair.first);
+            const ParticleType b = usr_types_to_impl_types.at(x.key_pair.second);
+
+            inter_type_forces[type_index(a, b)] = x.force;
+            inter_type_forces[type_index(b, a)] = x.force;
+        }
+
+        //  mix missing type pairs from diagonals
+        for (size_t a = 0; a < n_types; a++) {
+            for (size_t b = 0; b < n_types; b++) {
+                auto & force = get_type_force(a, b);
+                if (a == b || !std::holds_alternative<NullForce>(force)) continue;
+
+                auto &va = get_type_force(a,a);
+                auto &vb = get_type_force(b,b);
+
+                auto f = std::visit([]<typename T0, typename T1>(T0 const& fa, T1 const& fb)->force_variant_t {
+                    using A = std::decay_t<T0>;
+                    using B = std::decay_t<T1>;
+                    if constexpr (std::same_as<A,B>) {
+                        return fa.mix(fb); // returns A
+                    } else {
+                        throw std::invalid_argument("Cannot mix different force types");
+                    }
+                }, va, vb);
+
+                inter_type_forces[type_index(a, b)] = f;
+                inter_type_forces[type_index(b, a)] = f;
+            }
+        }
+
+
+        // insert id forces into map & apply usr mappings
+        for (auto & x : id_infos) {
+            const ParticleType a = usr_ids_to_impl_ids.at(x.key_pair.first);
+            const ParticleType b = usr_ids_to_impl_ids.at(x.key_pair.second);
+
+            intra_particle_forces[id_index(a, b)] = x.force;
+            intra_particle_forces[id_index(b, a)] = x.force;
+        }
+
+        // Fill undefined id interactions with no forces
+        for (size_t a = 0; a < n_ids; a++) {
+            for (size_t b = 0; b < n_ids; b++) {
+                auto & v = intra_particle_forces[id_index(a, b)];
+                if (a != b && std::holds_alternative<NullForce>(v)) {
+                    v = NoForce();
+                }
+            }
+        }
+
+
+        // check if force maps are valid
+        for (size_t i = 0; i < n_types; i++) {
+            for (size_t j = 0; j < n_types; j++) {
+                auto v = inter_type_forces[type_index(i, j)];
+                AP_ASSERT(!std::holds_alternative<NullForce>(v), "inter_type_forces should not contain NullForce");
+            }
+        }
+
+        for (size_t i = 0; i < n_ids; i++) {
+            for (size_t j = 0; j < n_ids; j++) {
+                auto v = intra_particle_forces[id_index(i, j)];
+                if (i == j) {
+                    AP_ASSERT(std::holds_alternative<NullForce>(v),
+                        "intra_particle_forces should contain NullForce for p1.id = p2.id");
+                } else {
+                    AP_ASSERT(std::holds_alternative<NullForce>(v),
+                        "intra_particle_forces should not contain NullForce for differing particle ids");
+                }
+            }
+        }
+
+
+        // get the max cutoff distance
+        auto cutoff_of = [](auto const& v){
+            return std::visit([](auto const& f){ return f.cutoff_radius; }, v);
+        };
+
+        max_cutoff = 0.0;
+        for (auto const& v : inter_type_forces)
+            max_cutoff = std::max(max_cutoff, cutoff_of(v));
+
+        for (auto const& v : intra_particle_forces)
+            if (!std::holds_alternative<NullForce>(v))
+                max_cutoff = std::max(max_cutoff, cutoff_of(v));
+    }
+
+    template <IsForce ... Fs>
+    vec3 InteractionManager<Environment<ForcePack<Fs...>>>::evaluate(
+        const Particle& p1, const Particle& p2) const {
+        return evaluate(p1, p2, p2.position - p1.position); // dist vector points from p1 to p2
+    }
+
+    template <IsForce ... Fs>
+    vec3 InteractionManager<Environment<ForcePack<Fs...>>>::evaluate(
+        const Particle& p1, const Particle& p2, const vec3& r) const {
+
+        auto & tF = get_type_force(p1.type, p2.type);
+        vec3 force = std::visit([&](auto const& f){ return f(p1,p2,r); }, tF);
+
+        // check if both particles even have any individual interactions defined for them
+        if (p1.id < n_ids && p2.id < n_ids) {
+             auto & iF = get_id_force(p1.id, p2.id);
+             force += std::visit([&](auto const& f){ return f(p1,p2,r); }, iF);
+        }
+
+        return force;
+    }
+
+    template <IsForce ... Fs>
+    double InteractionManager<Environment<ForcePack<Fs...>>>::get_max_cutoff() const {
+        return max_cutoff;
+    }
+
 
 } // namespace april::env::impl
 

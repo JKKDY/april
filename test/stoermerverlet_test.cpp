@@ -18,7 +18,7 @@ using namespace april::io;
 
 TEST(StoermerVerletTest,ConstructionTest) {
 
-	Environment env;
+	Environment env (forces<NoForce>);
 	env.add({}, {}, 1);
 	env.add({}, {}, 1);
 	env.add_force(NoForce(), to_type(0));
@@ -36,7 +36,7 @@ TEST(StoermerVerletTest,ConstructionTest) {
 }
 
 TEST(StoermerVerletTest, SingleStepNoForceTest) {
-	Environment env;
+	Environment env (forces<NoForce>);
 	env.add({}, {1,2,3}, 1);
 	env.add({}, {4,5,6}, 2);
 	env.add_force(NoForce(), to_type(0));
@@ -69,7 +69,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 
 
 TEST(StoermerVerletTest, SingleStepWithForceTest) {
-	Environment env;
+	Environment env (forces<InverseSquare>);
 	env.add({-1,0,0}, {}, 1 );
 	env.add({1,0,0}, {}, 1);
 	env.add_force(InverseSquare(1), to_type(0));
@@ -124,9 +124,9 @@ TEST(StoermerVerletTest, OrbitTest) {
 	constexpr double v = G * M / R;
 	constexpr double T = 2 * 3.14159265359 * v / R;
 
-	Environment env;
-	env.add({0,R,0}, {v, 0, 0}, m);
+	Environment env (forces<InverseSquare>);
 	env.add({0,0,0}, {0, 0, 0}, M);
+	env.add({0,R,0}, {v, 0, 0}, m);
 	env.add_force(InverseSquare(G), to_type(0));
 
 	constexpr auto algo = cont::DirectSum();

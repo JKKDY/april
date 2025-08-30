@@ -11,27 +11,28 @@
 
 using namespace april;
 using namespace april::env;
-using InteractionManager = impl::InteractionManager;
-using InteractionInfo = impl::InteractionInfo;
+
+template <class Env>
+using InteractionManager = impl::InteractionManager<Env>;
 
 // A tiny force that returns a constant vector and mixes by summing
-struct ConstantForce final : Force {
+struct ConstantForce final {
     vec3 v;
+    double cutoff_radius;
     ConstantForce(double x, double y, double z, double cutoff = -1) : v{x,y,z} {
         cutoff_radius = cutoff;
     }
-    vec3 operator()(const impl::Particle&, const impl::Particle&, const vec3&) const noexcept override {
+    vec3 operator()(const impl::Particle&, const impl::Particle&, const vec3&) const noexcept {
         return v;
     }
-    std::unique_ptr<Force> mix(const Force* other) const override {
-        auto* o = dynamic_cast<const ConstantForce*>(other);
-        if (!o) throw std::invalid_argument("mix mismatch");
-        return std::make_unique<ConstantForce>(
-            v.x + o->v.x,
-            v.y + o->v.y,
-            v.z + o->v.z,
-            std::max(cutoff_radius, o->cutoff_radius)
-        );
+
+     [[nodiscard]] ConstantForce mix(const ConstantForce& other) const noexcept {
+        return {
+            v.x + other.v.x,
+            v.y + other.v.y,
+            v.z + other.v.z,
+            std::max(cutoff_radius, other.cutoff_radius)
+        };
     }
 };
 
@@ -47,64 +48,73 @@ static impl::Particle make_particle(impl::ParticleType type, impl::ParticleID id
     };
 }
 
+
+// Use an environment that supports ConstantForce
+using Env = Environment<ForcePack<ConstantForce>>;
+using IM  = InteractionManager<Env>;
+using Info = impl::InteractionInfo<typename IM::force_variant_info_t>; // variant<ConstantForce>
+
+
 TEST(InteractionManagerTest, EmptyBuild) {
-    InteractionManager mgr;
-    std::vector<InteractionInfo> info;
-    // empty maps fine
+    IM mgr;
+    std::vector<Info> info;  // empty
+
+    // empty maps are fine
     EXPECT_NO_THROW(mgr.build(info, {}, {}));
-    EXPECT_EQ(mgr.get_max_cutoff(), 0.0);
+    EXPECT_DOUBLE_EQ(mgr.get_max_cutoff(), 0.0);
 }
 
 TEST(InteractionManagerTest, MaxCutoffCalculation) {
-    InteractionManager mgr;
+    IM mgr;
 
-    // two user type‐based interactions with cutoffs 1.5 and 2.5
-    std::vector<InteractionInfo> info;
-    info.emplace_back(true, std::pair{0,0},std::make_unique<ConstantForce>(1,1,1,1.5));
-    info.emplace_back(true, std::pair{1,1},std::make_unique<ConstantForce>(2,2,2,2.5));
+    // two type-based interactions with cutoffs 1.5 and 2.5
+    std::vector<Info> info;
+    info.emplace_back(true, std::pair{0, 0}, ConstantForce(1, 1, 1, 1.5));
+    info.emplace_back(true, std::pair{1, 1}, ConstantForce(2, 2, 2, 2.5));
 
-    std::unordered_map<ParticleType, impl::ParticleType> type_map {{0,0},{1,1}};
+    std::unordered_map<ParticleType, impl::ParticleType> type_map{{0, 0}, {1, 1}};
 
     EXPECT_NO_THROW(mgr.build(info, type_map, {}));
     EXPECT_DOUBLE_EQ(mgr.get_max_cutoff(), 2.5);
 }
 
 TEST(InteractionManagerTest, TypeBasedLookup) {
-    InteractionManager mgr;
+    IM mgr;
 
-    std::vector<InteractionInfo> info;
-    info.emplace_back(true, std::pair{0,0},std::make_unique<ConstantForce>(4,5,6, -1));
-    info.emplace_back(true, std::pair{1,1},std::make_unique<ConstantForce>(1,2,3, -1));
-    info.emplace_back(true, std::pair{0,1},std::make_unique<ConstantForce>(7,8,9, -1));
+    std::vector<Info> info;
+    info.emplace_back(true, std::pair{0, 0}, ConstantForce(4, 5, 6, -1));
+    info.emplace_back(true, std::pair{1, 1}, ConstantForce(1, 2, 3, -1));
+    info.emplace_back(true, std::pair{0, 1}, ConstantForce(7, 8, 9, -1));
 
-    std::unordered_map<ParticleType, impl::ParticleType> type_map {{0,0},{1,1}};
+    std::unordered_map<ParticleType, impl::ParticleType> type_map{{0, 0}, {1, 1}};
     mgr.build(info, type_map, {});
 
-    auto p0 = make_particle(0, 10, 1.0, {0,0,0});
-    auto p1 = make_particle(1, 11, 1.0, {1,1,1});
+    auto p0 = make_particle(0, 10, 1.0, {0, 0, 0});
+    auto p1 = make_particle(1, 11, 1.0, {1, 1, 1});
 
-    vec3 f1 = mgr.evaluate(p0, p0); // in actual use a particle should never interact with itself ofc
-    EXPECT_EQ(f1, vec3(4,5,6));
+    vec3 f1 = mgr.evaluate(p0, p0); // self-interaction (just for lookup test)
+    EXPECT_EQ(f1, vec3(4, 5, 6));
 
     vec3 f2 = mgr.evaluate(p1, p1);
-    EXPECT_EQ(f2, vec3(1,2,3));
+    EXPECT_EQ(f2, vec3(1, 2, 3));
 
     vec3 f3 = mgr.evaluate(p0, p1);
     vec3 f4 = mgr.evaluate(p1, p0);
     EXPECT_EQ(f3, f4);
-    EXPECT_EQ(f3, vec3(7,8,9));
+    EXPECT_EQ(f3, vec3(7, 8, 9));
 }
 
 TEST(InteractionManagerTest, IdBasedLookup) {
-    InteractionManager mgr;
-    // one id‐based entry for (42,99)
-    std::vector<InteractionInfo> info;
-    info.emplace_back(false, std::pair{42,99}, std::make_unique<ConstantForce>(7,8,9));
-    info.emplace_back(true, std::pair{0,0},std::make_unique<NoForce>());
+    IM mgr;
 
+    std::vector<Info> info;
+    // Provide a zero type-force for (0,0) so evaluate never hits NullForce
+    info.emplace_back(true,  std::pair{0, 0}, ConstantForce(0, 0, 0));
+    // one id-based entry for (42,99)
+    info.emplace_back(false, std::pair{42, 99}, ConstantForce(7, 8, 9));
 
-    std::unordered_map<ParticleType, impl::ParticleType> type_map { {0,0}};
-    std::unordered_map<ParticleID, impl::ParticleID> id_map {{42,0},{99,1}};
+    std::unordered_map<ParticleType, impl::ParticleType> type_map{{0, 0}};
+    std::unordered_map<ParticleID, impl::ParticleID> id_map{{42, 0}, {99, 1}};
     mgr.build(info, type_map, id_map);
 
     auto p1 = make_particle(0, 0);
@@ -114,35 +124,35 @@ TEST(InteractionManagerTest, IdBasedLookup) {
     vec3 f1 = mgr.evaluate(p1, p2);
     vec3 f2 = mgr.evaluate(p2, p1);
     EXPECT_EQ(f1, f2);
-    EXPECT_EQ(f1, vec3(7,8,9));
+    EXPECT_EQ(f1, vec3(7, 8, 9));
 
+    // no id interaction for (2,2), and type force is zero; expect zero
     vec3 f = mgr.evaluate(p3, p3);
-
     EXPECT_EQ(f, vec3{});
 }
 
 
 TEST(InteractionManagerTest, MixingForces) {
-    InteractionManager mgr;
+    IM mgr;
 
-    std::vector<InteractionInfo> info;
-    info.emplace_back(true, std::pair{0,0},std::make_unique<ConstantForce>(4,5,6, -1));
-    info.emplace_back(true, std::pair{1,1},std::make_unique<ConstantForce>(1,2,3, -1));
+    std::vector<Info> info;
+    info.emplace_back(true, std::pair{0, 0}, ConstantForce(4, 5, 6, -1));
+    info.emplace_back(true, std::pair{1, 1}, ConstantForce(1, 2, 3, -1));
 
-    std::unordered_map<ParticleType, impl::ParticleType> type_map {{0,0},{1,1}};
+    std::unordered_map<ParticleType, impl::ParticleType> type_map{{0, 0}, {1, 1}};
     mgr.build(info, type_map, {});
 
-    auto p0 = make_particle(0, 10, 1.0, {0,0,0});
-    auto p1 = make_particle(1, 11, 1.0, {1,1,1});
+    auto p0 = make_particle(0, 10, 1.0, {0, 0, 0});
+    auto p1 = make_particle(1, 11, 1.0, {1, 1, 1});
 
     vec3 f1 = mgr.evaluate(p0, p0);
-    EXPECT_EQ(f1, vec3(4,5,6));
+    EXPECT_EQ(f1, vec3(4, 5, 6));
 
     vec3 f2 = mgr.evaluate(p1, p1);
-    EXPECT_EQ(f2, vec3(1,2,3));
+    EXPECT_EQ(f2, vec3(1, 2, 3));
 
     vec3 f3 = mgr.evaluate(p0, p1);
     vec3 f4 = mgr.evaluate(p1, p0);
     EXPECT_EQ(f3, f4);
-    EXPECT_EQ(f3, vec3(5,7,9));
+    EXPECT_EQ(f3, vec3(5, 7, 9)); // assuming your container mixes type (0,0) with (1,1) for cross-type
 }

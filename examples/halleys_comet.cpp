@@ -6,6 +6,8 @@ namespace fs = std::filesystem;
 
 int main() {
 	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/halleys_comet";
+	fs::remove_all(dir_path);   // delete the directory and all contents
+	fs::create_directory(dir_path); // recreate the empty directory
 
 	Environment env (forces<InverseSquare>);
 	env.add({0.0, 0.0, 0.0},     {0.0, 0.0, 0.0},     1.0);
@@ -18,7 +20,7 @@ int main() {
 	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
-	integrator.add_monitor(BinaryOutput(100, dir_path));
+	integrator.add_monitor(BinaryOutput(50, dir_path));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());
 

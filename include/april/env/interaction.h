@@ -27,9 +27,22 @@ namespace april::env::impl {
 
     template<IsForce... Fs>
     class InteractionManager<Environment<ForcePack<Fs...>>> {
-
     public:
-        using force_variant_t = std::variant<NullForce, Fs..., NoForce>;
+        // forbid the internal sentinel in user pack
+        static_assert((!std::is_same_v<NullForce, Fs> && ...),
+                      "impl::NullForce must NOT be part of ForcePack (internal sentinel).");
+
+        // detect if NoForce is already provided by the user
+        static constexpr bool has_no_force = (std::is_same_v<NoForce, Fs> || ...);
+
+        // big variant used internally by the manager:
+        //   always include NullForce (internal), and include NoForce only if not already present
+        using force_variant_t =
+            std::conditional_t<has_no_force,
+                std::variant<NullForce, Fs...>,                // NoForce already in Fs...
+                std::variant<NullForce, Fs..., NoForce>        // append NoForce
+            >;
+
         using force_variant_info_t = std::variant<Fs...>;
         // using info_t = InteractionInfo<force_variant_t>;
 

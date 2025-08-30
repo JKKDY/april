@@ -17,29 +17,30 @@ using namespace april::env;
 using namespace april::cont;
 using namespace april::core;
 
-struct ConstantForce final : Force {
+// A tiny force that returns a constant vector and mixes by summing
+struct ConstantForce final {
 	vec3 v;
-	ConstantForce(const double x, const double y, const double z, const double cutoff = -1) : v{x,y,z} {
+	double cutoff_radius;
+	ConstantForce(double x, double y, double z, double cutoff = -1) : v{x,y,z} {
 		cutoff_radius = cutoff;
 	}
-	vec3 operator()(const env::impl::Particle&, const env::impl::Particle&, const vec3&) const noexcept override {
+	vec3 operator()(const env::impl::Particle&, const env::impl::Particle&, const vec3&) const noexcept {
 		return v;
 	}
-	std::unique_ptr<Force> mix(const Force* other) const override {
-		auto* o = dynamic_cast<const ConstantForce*>(other);
-		if (!o) throw std::invalid_argument("mix mismatch");
-		return std::make_unique<ConstantForce>(
-			v.x + o->v.x,
-			v.y + o->v.y,
-			v.z + o->v.z,
-			std::max(cutoff_radius, o->cutoff_radius)
-		);
+
+	[[nodiscard]] ConstantForce mix(const ConstantForce& other) const noexcept {
+		return {
+			v.x + other.v.x,
+			v.y + other.v.y,
+			v.z + other.v.z,
+			std::max(cutoff_radius, other.cutoff_radius)
+		};
 	}
 };
 
 
 TEST(LinkedCellsTest, SingleParticle_NoForce) {
-    Environment e;
+    Environment e (forces<NoForce>);
     e.add(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
 	e.add_force(NoForce(), to_type(0));
 
@@ -54,7 +55,7 @@ TEST(LinkedCellsTest, SingleParticle_NoForce) {
 }
 
 TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
-    Environment e;
+    Environment e(forces<ConstantForce>);
 	e.set_extent({2,2,2});
 	e.set_origin({0,0,0});
 	e.add(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
@@ -76,7 +77,7 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
 }
 
 TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
-	Environment e;
+	Environment e(forces<ConstantForce>);
 	e.set_extent({2,1,1});
 	e.set_origin({0,0,0});
 	e.add(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
@@ -98,7 +99,7 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 }
 
 TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
-	Environment e;
+	Environment e(forces<ConstantForce>);
 	e.set_extent({2,1,0.5});
 	e.set_origin({0,0,0});
 	e.add(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
@@ -118,7 +119,7 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 }
 
 TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
-    Environment e;
+    Environment e(forces<NoForce, ConstantForce>);
     e.add(Particle{.id = 42, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
     e.add(Particle{.id = 99, .type = 0, .position={0,1,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
 
@@ -140,7 +141,7 @@ TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
 }
 
 TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
-    Environment e;
+    Environment e(forces<NoForce, InverseSquare>);
 
     e.set_extent({10,10,10});
 
@@ -192,7 +193,7 @@ TEST(LinkedCellsTest, OrbitTest) {
 	constexpr double v = G * M / R;
 	constexpr double T = 2 * 3.14159265359 * v / R;
 
-	Environment env;
+	Environment env (forces<InverseSquare>);
 	env.add({0,R,0}, {v, 0, 0}, m);
 	env.add({0,0,0}, {0, 0, 0}, M);
 	env.add_force(InverseSquare(G), to_type(0));

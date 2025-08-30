@@ -69,12 +69,13 @@ namespace april::cont {
 
 		template <class Env>
 		void DirectSum<Env>::calculate_forces() {
-			// const auto f = env::LennardJones(5,1);
+			for (auto & particle : particles) {
+				particle.reset_force();
+			}
 
 			for (size_t i = 0; i < particles.size()-1; i++) {
-				auto & p1 = particles[i];
-				p1.reset_force();
 				for (size_t j = i+1; j < particles.size(); j++) {
+					auto & p1 = particles[i];
 					auto & p2 = particles[j];
 
 					const vec3 force = interactions->evaluate(p1, p2);

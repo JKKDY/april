@@ -13,29 +13,30 @@ using namespace april;
 using namespace april::env;
 using namespace april::cont;
 
-struct ConstantForce final : Force {
+// A tiny force that returns a constant vector and mixes by summing
+struct ConstantForce final {
 	vec3 v;
-	ConstantForce(const double x, const double y, const double z, const double cutoff = -1) : v{x,y,z} {
+	double cutoff_radius;
+	ConstantForce(double x, double y, double z, double cutoff = -1) : v{x,y,z} {
 		cutoff_radius = cutoff;
 	}
-	vec3 operator()(const env::impl::Particle&, const env::impl::Particle&, const vec3&) const noexcept override {
+	vec3 operator()(const env::impl::Particle&, const env::impl::Particle&, const vec3&) const noexcept {
 		return v;
 	}
-	std::unique_ptr<Force> mix(const Force* other) const override {
-		auto* o = dynamic_cast<const ConstantForce*>(other);
-		if (!o) throw std::invalid_argument("mix mismatch");
-		return std::make_unique<ConstantForce>(
-			v.x + o->v.x,
-			v.y + o->v.y,
-			v.z + o->v.z,
-			std::max(cutoff_radius, o->cutoff_radius)
-		);
+
+	[[nodiscard]] ConstantForce mix(const ConstantForce& other) const noexcept {
+		return {
+			v.x + other.v.x,
+			v.y + other.v.y,
+			v.z + other.v.z,
+			std::max(cutoff_radius, other.cutoff_radius)
+		};
 	}
 };
 
 
 TEST(DirectSumTest, SingleParticle_NoForce) {
-    Environment e;
+    Environment e (forces<NoForce>);
     e.add(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
 	e.add_force(NoForce(), to_type(0));
 
@@ -48,7 +49,7 @@ TEST(DirectSumTest, SingleParticle_NoForce) {
 }
 
 TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
-    Environment e;
+    Environment e (forces<ConstantForce>);
 	e.add(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
     e.add(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
 	e.add_force(ConstantForce(3,4,5), to_type(7));
@@ -69,7 +70,7 @@ TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
 }
 
 TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
-    Environment e;
+    Environment e (forces<ConstantForce, NoForce>);
     e.add(Particle{.id = 42, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
     e.add(Particle{.id = 99, .type = 0, .position={0,1,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
 	e.add_force(NoForce(), to_type(0));
@@ -90,7 +91,7 @@ TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
 }
 
 TEST(DirectSumTest, TwoParticles_InverseSquare) {
-    Environment e;
+	Environment e (forces<InverseSquare, NoForce>);
 
 	e.set_extent({10,10,10});
 	e.add(Particle{.id = 0, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});

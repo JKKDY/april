@@ -31,11 +31,11 @@ int main() {
 	env.set_origin({-10,-10,0});
 	env.add_force(LennardJones(5, 1), to_type(0));
 
-	auto container = DirectSum();
+	auto container = LinkedCells();
 	auto system = build_system(env, container);
 
 	auto integrator = StoermerVerlet(system, io::monitors<BinaryOutput, ProgressBar, Benchmark>);
-	integrator.add_monitor(BinaryOutput(100));
+	// integrator.add_monitor(BinaryOutput(100));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());
 	integrator.run_for(0.0002, 5);

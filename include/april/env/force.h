@@ -103,22 +103,14 @@ namespace april::env {
             : pre_factor(pre_factor_), cutoff_radius(cutoff) {}
 
         vec3 operator()(impl::Particle const& p1, impl::Particle const& p2, vec3 const& r) const noexcept {
-            // const double r2 = r.norm_squared();
-            // if (cutoff_radius > 0.0 && r2 > cutoff_radius*cutoff_radius) return {};
-            //
-            // const double inv_r = 1.0 / std::sqrt(r2);
-            // const double inv_r3 = inv_r * inv_r * inv_r;
-            // const double mag = pre_factor * p1.mass * p2.mass * inv_r3;
-            //
-            // return mag * r;  // Force vector pointing along +r
+            const double r2 = r.norm_squared();
+            if (cutoff_radius > 0.0 && r2 > cutoff_radius*cutoff_radius) return {};
 
-            const double distance = r.norm();
-            if (cutoff_radius > 0 && distance > cutoff_radius)
-                return vec3{0.0, 0.0, 0.0};
+            const double inv_r = 1.0 / std::sqrt(r2);
+            const double inv_r3 = inv_r * inv_r * inv_r;
+            const double mag = pre_factor * p1.mass * p2.mass * inv_r3;
 
-            const double magnitude = pre_factor * p1.mass * p2.mass / (distance * distance * distance);
-            return magnitude * r;
-
+            return mag * r;  // Force vector pointing along +r
         }
 
         [[nodiscard]] InverseSquare mix(InverseSquare const& other) const noexcept {
@@ -160,15 +152,12 @@ namespace april::env {
         template<ForceVariant FV>
         struct InteractionInfo {
             bool pair_contains_types;
-            std::pair<int,int> key_pair; // canonicalized to a<=b. //? I think this is no longer needed
+            std::pair<int,int> key_pair;
             FV force;
 
-            InteractionInfo(const bool is_type_pair, std::pair<int,int> key, FV f)
-              : pair_contains_types(is_type_pair), force(std::move(f))
-            {
-                if (key.first <= key.second) key_pair = key;
-                else key_pair = {key.second, key.first};
-            }
+            InteractionInfo(const bool is_type_pair, const std::pair<int,int>& key, FV f)
+              : pair_contains_types(is_type_pair), key_pair(key), force(std::move(f))
+            {}
         };
     }
 

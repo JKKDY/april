@@ -72,57 +72,17 @@ namespace april::cont {
 			for (auto & particle : particles) {
 				particle.reset_force();
 			}
-
 			for (size_t i = 0; i < particles.size()-1; i++) {
 				for (size_t j = i+1; j < particles.size(); j++) {
 					auto & p1 = particles[i];
 					auto & p2 = particles[j];
 
 					const vec3 force = interactions->evaluate(p1, p2);
-					// const vec3 r = p2.position - p1.position;
-					// const vec3 force = f(p1, p2, r);
 
 					p1.force += force;
 					p2.force -= force;
 				}
 			}
 		}
-
-		// template <class Env>
-		// typename Container<cont::DirectSum, Env>::Particle& DirectSum<Env>::get_particle_by_id(ParticleID id) {
-		// 		throw std::runtime_error("Not implemented yet");
-		// }
-		//
-		// template <class Env>
-		// typename Container<cont::DirectSum, Env>::ParticleID DirectSum<Env>::id_start() const {
-		// 	return 0;
-		// }
-		//
-		// template <class Env>
-		// typename Container<cont::DirectSum, Env>::ParticleID DirectSum<Env>::id_end() const {
-		// 	return particles.size() - 1;
-		// }
-		//
-		// template <class Env>
-		// typename Container<cont::DirectSum, Env>::Particle& DirectSum<Env>::
-		// get_particle_by_index(size_t index) noexcept {
-		// 	AP_ASSERT(index < particles.size(), "index must be < #particles");
-		// 	return particles[index];
-		// }
-		//
-		// template <class Env>
-		// size_t DirectSum<Env>::index_start() const {
-		// 	return 0;
-		// }
-		//
-		// template <class Env>
-		// size_t DirectSum<Env>::index_end() const {
-		// 	return particles.size() - 1;
-		// }
-		//
-		// template <class Env>
-		// size_t DirectSum<Env>::particle_count() const {
-		// 	return particles.size();
-		// }
 	}
 }

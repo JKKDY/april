@@ -103,14 +103,21 @@ namespace april::env {
             : pre_factor(pre_factor_), cutoff_radius(cutoff) {}
 
         vec3 operator()(impl::Particle const& p1, impl::Particle const& p2, vec3 const& r) const noexcept {
-            const double r2 = r.norm_squared();
-            if (cutoff_radius > 0.0 && r2 > cutoff_radius*cutoff_radius) return {};
+            // const double r2 = r.norm_squared();
+            // if (cutoff_radius > 0.0 && r2 > cutoff_radius*cutoff_radius) return {};
+            //
+            // const double inv_r = 1.0 / std::sqrt(r2);
+            // const double inv_r3 = inv_r * inv_r * inv_r;
+            // const double mag = pre_factor * p1.mass * p2.mass * inv_r3;
+            //
+            // return mag * r;  // Force vector pointing along +r
 
-            const double inv_r = 1.0 / std::sqrt(r2);
-            const double inv_r3 = inv_r * inv_r * inv_r;
-            const double mag = pre_factor * p1.mass * p2.mass * inv_r3;
+            const double distance = r.norm();
+            if (cutoff_radius > 0 && distance > cutoff_radius)
+                return vec3{0.0, 0.0, 0.0};
 
-            return mag * r;  // Force vector pointing along +r
+            const double magnitude = pre_factor * p1.mass * p2.mass / (distance * distance * distance);
+            return magnitude * r;
 
         }
 

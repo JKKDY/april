@@ -13,7 +13,7 @@ namespace april::utils {
         std::vector<T> sparse; // maps id to index in dense
         std::vector<T> dense;  // densely packed inserted IDs
 
-        explicit IndexSet(const T maxId):
+        explicit IndexSet(const T maxId = 0):
             N(maxId + 1), sparse(N, static_cast<T>(-1))
         {
             dense.reserve(N);

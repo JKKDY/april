@@ -95,7 +95,7 @@ namespace april::core::impl {
 	}
 
 	void validate_particle_params(
-		std::vector<env::impl::InteractionInfo>& interactions,
+		std::vector<InteractionParams> interactions,
 		const std::unordered_set<ParticleID> & usr_particle_ids,
 		const std::unordered_set<ParticleType> & usr_particle_types)
 	{
@@ -177,7 +177,7 @@ namespace april::core::impl {
 
 	UserToInternalMappings map_ids_and_types_to_internal(
 		 std::vector<Particle> & particles,
-		 std::vector<env::impl::InteractionInfo> & interactions,
+		 std::vector<InteractionParams> interactions,
 		 std::unordered_set<ParticleID> & usr_particle_ids,
 		 std::unordered_set<ParticleType> & usr_particle_types
 		 ) {

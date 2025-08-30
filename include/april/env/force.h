@@ -13,8 +13,8 @@ namespace april::env {
     template<typename F> concept IsForce =
         std::copy_constructible<F> && std::assignable_from<F&, F const&> && std::movable<F> &&
     requires(F const& f,
-             Particle const& p1,
-             Particle const& p2,
+             impl::Particle const& p1,
+             impl::Particle const& p2,
              vec3 const& r,
              F const& o)
     {
@@ -46,7 +46,7 @@ namespace april::env {
         // Negative cutoff_radius means "no cutoff"
         double cutoff_radius = 0.0;
 
-        constexpr vec3 operator()(Particle const&, Particle const&, vec3 const&) const noexcept {
+        vec3 operator()(impl::Particle const&, impl::Particle const&, vec3 const&) const noexcept {
             return vec3{0.0, 0.0, 0.0};
         }
 
@@ -67,7 +67,7 @@ namespace april::env {
             cutoff_radius = (cutoff < 0.0) ? 3.0 * sigma : cutoff;
         }
 
-        vec3 operator()(Particle const&, Particle const&, vec3 const& r) const noexcept {
+        vec3 operator()(impl::Particle const&, impl::Particle const&, vec3 const& r) const noexcept {
             const double r2 = r.norm_squared();
             if (cutoff_radius > 0.0 && r2 > cutoff_radius * cutoff_radius)
                 return vec3{0.0, 0.0, 0.0};
@@ -102,7 +102,7 @@ namespace april::env {
         explicit InverseSquare(const double pre_factor_ = 1.0, const double cutoff = -1.0)
             : pre_factor(pre_factor_), cutoff_radius(cutoff) {}
 
-        vec3 operator()(Particle const& p1, Particle const& p2, vec3 const& r) const noexcept {
+        vec3 operator()(impl::Particle const& p1, impl::Particle const& p2, vec3 const& r) const noexcept {
             const double r2 = r.norm_squared();
             if (cutoff_radius > 0.0 && r2 > cutoff_radius*cutoff_radius) return {};
 
@@ -131,7 +131,7 @@ namespace april::env {
         Harmonic(const double k_, const double r0_)
         : k(k_), r0(r0_), cutoff_radius(-1.0) {}
 
-        vec3 operator()(Particle const&, Particle const&, vec3 const& r) const noexcept {
+        vec3 operator()(impl::Particle const&, impl::Particle const&, vec3 const& r) const noexcept {
             const double dist = r.norm();
             // F = -k * (dist - r0) * (r / dist)
             const double magnitude = k * (dist - r0) / dist;
@@ -153,7 +153,7 @@ namespace april::env {
         template<ForceVariant FV>
         struct InteractionInfo {
             bool pair_contains_types;
-            std::pair<int,int> key_pair; // canonicalized to a<=b
+            std::pair<int,int> key_pair; // canonicalized to a<=b. //? I think this is no longer needed
             FV force;
 
             InteractionInfo(const bool is_type_pair, std::pair<int,int> key, FV f)

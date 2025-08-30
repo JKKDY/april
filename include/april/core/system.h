@@ -1,6 +1,7 @@
 #pragma once
 
 #include "april/env/particle.h"
+#include "april/env/force.h"
 #include "april/env/environment.h"
 #include "april/env/interaction.h"
 #include "april/containers/container.h"
@@ -12,13 +13,14 @@ namespace april::core {
 		std::unordered_map<env::ParticleID, env::impl::ParticleID> usr_ids_to_impl_ids;
 	};
 
-	template <cont::impl::IsContDecl Algo> class System;
+	template <cont::impl::IsContDecl C, class Env>
+	class System;
 
-	template <cont::impl::IsContDecl Algo> System<Algo> build_system(
-		env::Environment& environment,
-		const Algo& algorithm,
-		UserToInternalMappings* particle_mappings = nullptr
-	);
+	template <cont::impl::IsContDecl C, class FPack>
+		System<C, env::Environment<FPack>>
+	build_system(env::Environment<FPack>& environment,
+			 const C& container,
+			 UserToInternalMappings* particle_mappings = nullptr);
 
 
 	template<class S>
@@ -43,14 +45,17 @@ namespace april::core {
 		{ s.export_particles() } -> std::same_as<std::vector<typename S::ParticleView>>;
 	};
 
-	template <cont::impl::IsContDecl Algo> class System {
+	template <cont::impl::IsContDecl C, env::IsForce ... Fs>
+	class System <C, env::Environment<env::ForcePack<Fs...>>> {
 	public:
-		using Algorithm = typename Algo::impl;
-		using Interactions = env::impl::InteractionManager;
-		using Particle = env::impl::Particle;
-		using ParticleRef = env::impl::ParticleRef;
+		using EnvT         = env::Environment<env::ForcePack<Fs...>>;
+		using Container    = typename C::template impl<env::Environment<env::ForcePack<Fs...>>>;
+
+		using Particle     = env::impl::Particle;
+		using ParticleRef  = env::impl::ParticleRef;
 		using ParticleView = env::impl::ParticleView;
-		using ParticleID = env::impl::ParticleID;
+		using ParticleID   = env::impl::ParticleID;
+
 
 		void update_forces() {
 			algorithm.dispatch_calculate_forces();
@@ -103,10 +108,11 @@ namespace april::core {
 		const env::Domain domain;
 
 	private:
+
 		System(
-			const Algo & algo_cfg,
+			const C & algo_cfg,
 			const env::Domain& domain, const std::vector<env::impl::Particle>& particles,
-			std::vector<env::impl::InteractionInfo> & interaction_infos,
+			std::vector<env::impl::InteractionInfo<typename EnvT::force_variant_t>> & interaction_infos,
 			const std::unordered_map<env::ParticleType, env::impl::ParticleType> & usr_types_to_impl_types,
 			const std::unordered_map<env::ParticleID, env::impl::ParticleID> & usr_ids_to_impl_ids)
 			: domain(domain), algorithm(algo_cfg)
@@ -116,22 +122,28 @@ namespace april::core {
 			algorithm.dispatch_build(particles);
 		}
 
-		Algorithm algorithm;
-		env::impl::InteractionManager interaction_manager;
+		Container algorithm;
+		env::impl::InteractionManager<EnvT> interaction_manager;
 
 		double time{};
 
-		template <cont::impl::IsContDecl AlgoCfg> friend System<AlgoCfg> build_system(
-			env::Environment& environment,
-			const AlgoCfg& algorithm,
-			UserToInternalMappings* particle_mappings
-		);
+		template <cont::impl::IsContDecl Cont, class FPack>
+		friend System<Cont, env::Environment<FPack>>
+		build_system(
+			env::Environment<FPack>& environment,
+			 const Cont& container,
+			 UserToInternalMappings* particle_mappings
+			 );
 	};
-
 
 
 	namespace impl {
 		env::Domain calculate_bounding_box(const std::vector<env::Particle>& particles);
+
+		struct InteractionParams {
+			bool pair_contains_types;
+			std::pair<int,int> key_pair;
+		};
 
 		void validate_domain_params(
 			const env::Domain& domain,
@@ -139,14 +151,14 @@ namespace april::core {
 		);
 
 		void validate_particle_params(
-			std::vector<env::impl::InteractionInfo>& interactions,
+			std::vector<InteractionParams> interactions,
 			const std::unordered_set<env::ParticleID>& usr_particle_ids,
 			const std::unordered_set<env::ParticleType>& usr_particle_types
 		);
 
 		UserToInternalMappings map_ids_and_types_to_internal(
 			std::vector<env::Particle>& particles,
-			std::vector<env::impl::InteractionInfo>& interactions,
+			std::vector<InteractionParams> interactions,
 			std::unordered_set<env::ParticleID>& usr_particle_ids,
 			std::unordered_set<env::ParticleType>& usr_particle_types
 		);
@@ -162,22 +174,28 @@ namespace april::core {
 		);
 	}
 
-
-	template <cont::impl::IsContDecl AlgoCfg> System<AlgoCfg> build_system(
-		env::Environment& environment,
-		const AlgoCfg& algorithm,
+	template <cont::impl::IsContDecl C, class FPack>
+	System<C, env::Environment<FPack>> build_system(
+		env::Environment<FPack>& environment,
+		const C& container,
 		UserToInternalMappings* particle_mappings
 	) {
 		using namespace impl;
 		auto & env = env::impl::get_env_data(environment);
 		const env::Domain bbox = calculate_bounding_box(env.particles);
 
+		std::vector<InteractionParams> interactions(env.interactions.size());
+		for (size_t i = 0; i < interactions.size(); i++) {
+			interactions[i].key_pair = env.interactions[i].key_pair;
+			interactions[i].pair_contains_types = env.interactions[i].pair_contains_types;
+		}
+
 		validate_domain_params(env.domain, bbox);
-		validate_particle_params(env.interactions, env.usr_particle_ids, env.usr_particle_types);
+		validate_particle_params(interactions, env.usr_particle_ids, env.usr_particle_types);
 
 		const UserToInternalMappings mapping = map_ids_and_types_to_internal(
 			env.particles,
-			env.interactions,
+			interactions,
 			env.usr_particle_ids,
 			env.usr_particle_types
 		);
@@ -190,7 +208,7 @@ namespace april::core {
 			particle_mappings->usr_types_to_impl_types = mapping.usr_types_to_impl_types;
 		}
 
-		return System (algorithm, domain, particles,
+		return System<C, env::Environment<FPack>> (container, domain, particles,
 			env.interactions, mapping.usr_types_to_impl_types, mapping.usr_ids_to_impl_ids);
 	}
 }

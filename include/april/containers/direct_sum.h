@@ -2,36 +2,126 @@
 
 
 #include "april/containers/container.h"
+#include "april/env/particle.h"
 
-namespace april::cont::impl {
-	class DirectSum;
-}
+
 
 namespace april::cont {
 
+	namespace impl {
+		template <class Env> class DirectSum;
+	}
+
 	struct DirectSum {
-		using impl = impl::DirectSum;
+		template<typename  Env> using impl = impl::DirectSum<Env>;
 	};
 
 	namespace impl {
-		class DirectSum final : public Container<cont::DirectSum> {
+		template <class Env>
+		class DirectSum final : public Container<cont::DirectSum, Env> {
+			using Base = Container<cont::DirectSum, Env>;
+			using typename Base::Particle;
+			using typename Base::ParticleID;
+			using Base::interactions;
 		public:
-			using Container::Container;
+			using Base::Base;
 
 			void build(const std::vector<Particle> & particles);
 			void calculate_forces();
 
-			[[nodiscard]] Particle & get_particle_by_id(ParticleID id);
-			[[nodiscard]] ParticleID id_start() const;
-			[[nodiscard]] ParticleID id_end() const;
+			[[nodiscard]] Particle& get_particle_by_id(ParticleID) {
+				throw std::runtime_error("Not implemented yet");
+			}
 
-			[[nodiscard]] Particle & get_particle_by_index(size_t index) noexcept;
-			[[nodiscard]] size_t index_start() const;
-			[[nodiscard]] size_t index_end() const;
+			[[nodiscard]] ParticleID id_start() const {
+				return 0;
+			}
 
-			[[nodiscard]] size_t particle_count() const;
+			[[nodiscard]] ParticleID id_end() const {
+				return particles.size() - 1;
+			}
+
+			[[nodiscard]] Particle& get_particle_by_index(size_t index) noexcept {
+				AP_ASSERT(index < particles.size(), "index must be < #particles");
+				return particles[index];
+			}
+
+			[[nodiscard]] size_t index_start() const {
+				return 0;
+			}
+
+			[[nodiscard]] size_t index_end() const {
+				return particles.size() - 1;
+			}
+
+			[[nodiscard]] size_t particle_count() const {
+				return particles.size();
+			}
+
 		private:
 			std::vector<Particle> particles;
 		};
+
+		template <class Env>
+		void DirectSum<Env>::build(const std::vector<Particle>& particles) {
+			this->particles = std::vector(particles);
+		}
+
+		template <class Env>
+		void DirectSum<Env>::calculate_forces() {
+			// const auto f = env::LennardJones(5,1);
+
+			for (size_t i = 0; i < particles.size()-1; i++) {
+				auto & p1 = particles[i];
+				p1.reset_force();
+				for (size_t j = i+1; j < particles.size(); j++) {
+					auto & p2 = particles[j];
+
+					const vec3 force = interactions->evaluate(p1, p2);
+					// const vec3 r = p2.position - p1.position;
+					// const vec3 force = f(p1, p2, r);
+
+					p1.force += force;
+					p2.force -= force;
+				}
+			}
+		}
+
+		// template <class Env>
+		// typename Container<cont::DirectSum, Env>::Particle& DirectSum<Env>::get_particle_by_id(ParticleID id) {
+		// 		throw std::runtime_error("Not implemented yet");
+		// }
+		//
+		// template <class Env>
+		// typename Container<cont::DirectSum, Env>::ParticleID DirectSum<Env>::id_start() const {
+		// 	return 0;
+		// }
+		//
+		// template <class Env>
+		// typename Container<cont::DirectSum, Env>::ParticleID DirectSum<Env>::id_end() const {
+		// 	return particles.size() - 1;
+		// }
+		//
+		// template <class Env>
+		// typename Container<cont::DirectSum, Env>::Particle& DirectSum<Env>::
+		// get_particle_by_index(size_t index) noexcept {
+		// 	AP_ASSERT(index < particles.size(), "index must be < #particles");
+		// 	return particles[index];
+		// }
+		//
+		// template <class Env>
+		// size_t DirectSum<Env>::index_start() const {
+		// 	return 0;
+		// }
+		//
+		// template <class Env>
+		// size_t DirectSum<Env>::index_end() const {
+		// 	return particles.size() - 1;
+		// }
+		//
+		// template <class Env>
+		// size_t DirectSum<Env>::particle_count() const {
+		// 	return particles.size();
+		// }
 	}
 }

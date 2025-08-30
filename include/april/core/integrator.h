@@ -50,7 +50,6 @@ namespace april::core::impl {
 				self.dispatch_monitor_preparation();
 
 				self.integration_step();
-				self.dispatch_controllers();
 
 				self.dispatch_monitor_recording();
 			}
@@ -112,11 +111,6 @@ namespace april::core::impl {
 					monitor.dispatch_finalize();
 				}
 			});
-		}
-
-
-		void dispatch_controllers() {
-
 		}
 	};
 } // namespace april::core

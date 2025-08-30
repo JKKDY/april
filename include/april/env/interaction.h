@@ -14,7 +14,7 @@ namespace april::env::impl {
 
     // internal placeholder only
     struct NullForce {
-        constexpr double cutoff_radius = -1.0;
+        double cutoff_radius = -1.0;
         vec3 operator()(const Particle&, const Particle&, const vec3&) const noexcept {
             assert(false && "NullForce should never be executed");
              return {};
@@ -30,10 +30,11 @@ namespace april::env::impl {
 
     public:
         using force_variant_t = std::variant<NullForce, Fs..., NoForce>;
-        using info_t = InteractionInfo<force_variant_t>;
+        using force_variant_info_t = std::variant<Fs...>;
+        // using info_t = InteractionInfo<force_variant_t>;
 
 		InteractionManager() = default;
-        void build(std::vector<InteractionInfo<force_variant_t>> & interaction_infos,
+        void build(std::vector<InteractionInfo<force_variant_info_t>> & interaction_infos,
             const std::unordered_map<env::ParticleType, impl::ParticleType> & usr_types_to_impl_types,
             const std::unordered_map<env::ParticleID, impl::ParticleID> & usr_ids_to_impl_ids
         );
@@ -79,7 +80,7 @@ namespace april::env::impl {
 
     template <IsForce ... Fs>
     void InteractionManager<Environment<ForcePack<Fs...>>>::build(
-        std::vector<InteractionInfo<force_variant_t>>& interaction_infos,
+        std::vector<InteractionInfo<force_variant_info_t>>& interaction_infos,
         const std::unordered_map<env::ParticleType, impl::ParticleType>& usr_types_to_impl_types,
         const std::unordered_map<env::ParticleID, impl::ParticleID>& usr_ids_to_impl_ids) {
 
@@ -88,15 +89,22 @@ namespace april::env::impl {
            [](const auto& info) {return info.pair_contains_types;});
 
         // contains all interaction infos for particle types
-        std::vector<InteractionInfo<force_variant_t>> type_infos{
+        std::vector<InteractionInfo<force_variant_info_t>> type_infos{
             std::make_move_iterator(interaction_infos.begin()),
             std::make_move_iterator(it)
         };
 
         // contains all interaction infos for particle (id) pairs
-        std::vector<InteractionInfo<force_variant_t>> id_infos{
+        std::vector<InteractionInfo<force_variant_info_t>> id_infos{
             std::make_move_iterator(it),
             std::make_move_iterator(interaction_infos.end())
+        };
+
+
+        // helper lambda (local) to widen info-variant -> manager-variant
+        auto widen = [](auto&& small) -> force_variant_t {
+            using T = std::decay_t<decltype(small)>;
+            return force_variant_t{std::forward<T>(small)};
         };
 
 
@@ -111,7 +119,7 @@ namespace april::env::impl {
 
         // collect particle ids to define ids map size (implementation ids are dense [0, M-1])
         std::unordered_set<ParticleID> particle_id_set;
-        for (auto x : id_infos) {
+        for (auto & x : id_infos) {
             particle_id_set.insert(usr_ids_to_impl_ids.at(x.key_pair.first));
             particle_id_set.insert(usr_ids_to_impl_ids.at(x.key_pair.second));
         }
@@ -124,8 +132,8 @@ namespace april::env::impl {
             const ParticleType a = usr_types_to_impl_types.at(x.key_pair.first);
             const ParticleType b = usr_types_to_impl_types.at(x.key_pair.second);
 
-            inter_type_forces[type_index(a, b)] = x.force;
-            inter_type_forces[type_index(b, a)] = x.force;
+            inter_type_forces[type_index(a, b)] = std::visit(widen, x.force);
+            inter_type_forces[type_index(b, a)] = std::visit(widen, x.force);
         }
 
         //  mix missing type pairs from diagonals
@@ -158,8 +166,8 @@ namespace april::env::impl {
             const ParticleType a = usr_ids_to_impl_ids.at(x.key_pair.first);
             const ParticleType b = usr_ids_to_impl_ids.at(x.key_pair.second);
 
-            intra_particle_forces[id_index(a, b)] = x.force;
-            intra_particle_forces[id_index(b, a)] = x.force;
+            intra_particle_forces[id_index(a, b)] = std::visit(widen, x.force);
+            intra_particle_forces[id_index(b, a)] = std::visit(widen, x.force);
         }
 
         // Fill undefined id interactions with no forces
@@ -176,19 +184,18 @@ namespace april::env::impl {
         // check if force maps are valid
         for (size_t i = 0; i < n_types; i++) {
             for (size_t j = 0; j < n_types; j++) {
-                auto v = inter_type_forces[type_index(i, j)];
-                AP_ASSERT(!std::holds_alternative<NullForce>(v), "inter_type_forces should not contain NullForce");
+                AP_ASSERT(!std::holds_alternative<NullForce>(inter_type_forces[type_index(i, j)]),
+                    "inter_type_forces should not contain NullForce");
             }
         }
 
         for (size_t i = 0; i < n_ids; i++) {
             for (size_t j = 0; j < n_ids; j++) {
-                auto v = intra_particle_forces[id_index(i, j)];
                 if (i == j) {
-                    AP_ASSERT(std::holds_alternative<NullForce>(v),
+                    AP_ASSERT(std::holds_alternative<NullForce>(intra_particle_forces[id_index(i, j)]),
                         "intra_particle_forces should contain NullForce for p1.id = p2.id");
                 } else {
-                    AP_ASSERT(std::holds_alternative<NullForce>(v),
+                    AP_ASSERT(!std::holds_alternative<NullForce>(intra_particle_forces[id_index(i, j)]),
                         "intra_particle_forces should not contain NullForce for differing particle ids");
                 }
             }

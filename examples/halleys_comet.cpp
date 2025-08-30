@@ -18,7 +18,7 @@ int main() {
 	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
-	integrator.add_monitor(BinaryOutput(50, dir_path));
+	integrator.add_monitor(BinaryOutput(100, dir_path));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());
 

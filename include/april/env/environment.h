@@ -101,7 +101,7 @@ namespace april::env {
     };
 
 
-    // template<class Pack> struct Environment;
+    template<class Pack> struct Environment;
 
     template<class... Fs>
     struct Environment<ForcePack<Fs...>>{
@@ -148,7 +148,7 @@ namespace april::env {
             data.domain = domain;
         }
 
-        void auto_extent(double margin) {
+        void auto_extent(double) {
             throw std::logic_error("Not implemented yet");
         }
 

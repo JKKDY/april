@@ -1,25 +1,21 @@
 #pragma once
 #include <vector>
 
-#include "april/common.h"
+#include "april/env/particle.h"
+#include "april/env/interaction.h"
 #include "april/env/environment.h"
 
-
-namespace april::env::impl {
-	struct Particle;
-	class InteractionManager;
-}
 
 
 namespace april::cont::impl {
 
-	class  IContainer {
-	protected:
-		using InteractionManager = env::impl::InteractionManager;
+	template <class Env> class IContainer {
+	public:
+		using InteractionManager = env::impl::InteractionManager<Env>;
 		using Domain = env::Domain;
 		using Particle = env::impl::Particle;
 		using ParticleID = env::impl::ParticleID;
-	public:
+
 		IContainer() = default;
 		void init(InteractionManager & interaction_mngr, const Domain & dom) {
 			interactions = &interaction_mngr;
@@ -35,7 +31,7 @@ namespace april::cont::impl {
 	        self.build(particles);
 	    }
 
-	    void dispatch_calculate_forces(this auto&& self) {
+		void dispatch_calculate_forces(this auto&& self) {
 	        static_assert(
 	            requires { self.calculate_forces(); },
 	            "Algorithm subclass must implement: void calculate_forces()"
@@ -104,23 +100,29 @@ namespace april::cont::impl {
 	};
 
 
-	template<typename Config> class Container : public IContainer {
+	template<typename Config, typename Env> class Container : public IContainer<Env> {
 	public:
 		using CFG = Config;
 		explicit Container(Config config): cfg(config) {}
 
+		using typename IContainer<Env>::Particle;
+		using typename IContainer<Env>::ParticleID;
 	protected:
 		Config cfg;
 	};
 
 
 	template<typename A> concept IsContainer =
-		std::derived_from<A, Container<typename A::CFG>> && requires {
+		// std::derived_from<A, Container<typename A::CFG, >> &&
+			requires {
 		typename A::CFG::impl;
 	};
 
 
-	template<typename A> concept IsContDecl = requires {
-		typename A::impl;
-	}  && IsContainer<typename A::impl>;
+	template<typename A> concept IsContDecl = std::true_type::value;
+
+
+	// 	requires {
+	// 	typename A::impl;
+	// }  && IsContainer<typename A::impl>;
 } // namespace april::core

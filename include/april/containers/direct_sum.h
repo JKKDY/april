@@ -1,9 +1,7 @@
 #pragma once
 
-
-#include "april/containers/container.h"
 #include "april/env/particle.h"
-
+#include "april/containers/contiguous_container.h"
 
 
 namespace april::cont {
@@ -18,48 +16,17 @@ namespace april::cont {
 
 	namespace impl {
 		template <class Env>
-		class DirectSum final : public Container<cont::DirectSum, Env> {
-			using Base = Container<cont::DirectSum, Env>;
+		class DirectSum final : public ContiguousContainer<cont::DirectSum, Env> {
+			using Base = ContiguousContainer<cont::DirectSum, Env>;
 			using typename Base::Particle;
 			using typename Base::ParticleID;
 			using Base::interactions;
+			using Base::particles;
 		public:
 			using Base::Base;
 
 			void build(const std::vector<Particle> & particles);
 			void calculate_forces();
-
-			[[nodiscard]] Particle& get_particle_by_id(ParticleID) {
-				throw std::runtime_error("Not implemented yet");
-			}
-
-			[[nodiscard]] ParticleID id_start() const {
-				return 0;
-			}
-
-			[[nodiscard]] ParticleID id_end() const {
-				return particles.size() - 1;
-			}
-
-			[[nodiscard]] Particle& get_particle_by_index(size_t index) noexcept {
-				AP_ASSERT(index < particles.size(), "index must be < #particles");
-				return particles[index];
-			}
-
-			[[nodiscard]] size_t index_start() const {
-				return 0;
-			}
-
-			[[nodiscard]] size_t index_end() const {
-				return particles.size() - 1;
-			}
-
-			[[nodiscard]] size_t particle_count() const {
-				return particles.size();
-			}
-
-		private:
-			std::vector<Particle> particles;
 		};
 
 		template <class Env>

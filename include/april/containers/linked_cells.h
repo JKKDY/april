@@ -1,6 +1,6 @@
 #pragma once
 
-#include "april/containers/container.h"
+#include "april/containers/contiguous_container.h"
 #include "april/utils/set.hpp"
 #include "april/env/particle.h"
 
@@ -41,7 +41,7 @@ namespace april::cont {
 
 	namespace impl {
 		template <class Env>
-		class LinkedCells final : public Container<cont::LinkedCells, Env> {
+		class LinkedCells final : public ContiguousContainer<cont::LinkedCells, Env> {
 
 			static constexpr unsigned max_uint = std::numeric_limits<unsigned>::max();
 
@@ -59,15 +59,16 @@ namespace april::cont {
 				Cell& second;
 			};
 
-			using Base = Container<cont::LinkedCells, Env>;
+			using Base = ContiguousContainer<cont::LinkedCells, Env>;
 			using typename Base::Particle;
 			using typename Base::ParticleID;
 			using Base::interactions;
 			using Base::cfg;
 			using Base::domain;
+			using Base::particles;
 		public:
 			explicit LinkedCells(const cont::LinkedCells& config)
-			  : Container<cont::LinkedCells, Env>(config)
+			  : Base(config)
 				// outside_cell{ Cell::ParticleSet, uint3{max_uint, max_uint, max_uint}, 0u }
 			{
 				outside_cell.id = 0;
@@ -124,36 +125,6 @@ namespace april::cont {
 						}
 					}
 				}
-			}
-
-			// TODO create super class Contiguous container that maintains a std::vector<Particle> particles;
-			[[nodiscard]] Particle& get_particle_by_id(ParticleID) {
-				throw std::runtime_error("Not implemented yet");
-			}
-
-			[[nodiscard]] ParticleID id_start() const {
-				return 0;
-			}
-
-			[[nodiscard]] ParticleID id_end() const {
-				return particles.size() - 1;
-			}
-
-			[[nodiscard]] Particle& get_particle_by_index(size_t index) noexcept {
-				AP_ASSERT(index < particles.size(), "index must be < #particles");
-				return particles[index];
-			}
-
-			[[nodiscard]] size_t index_start() const {
-				return 0;
-			}
-
-			[[nodiscard]] size_t index_end() const {
-				return particles.size() - 1;
-			}
-
-			[[nodiscard]] size_t particle_count() const {
-				return particles.size();
 			}
 		private:
 			void build_cells() {
@@ -258,7 +229,6 @@ namespace april::cont {
 			Cell outside_cell;
 			std::vector<Cell> cells;
 			std::vector<CellPair> cell_pairs;
-			std::vector<Particle> particles;
 		};
 	}
 }

@@ -12,8 +12,9 @@ namespace april::cont::impl {
 
 		using Base::Base;
 
-		[[nodiscard]] Particle& get_particle_by_id(ParticleID) {
-			throw std::runtime_error("Not implemented yet");
+		[[nodiscard]] Particle& get_particle_by_id(ParticleID id) noexcept{
+			AP_ASSERT(id >= id_start() && id <= id_end(), "invalid id. got " + std::to_string(id));
+			return particles[indices[static_cast<size_t>(id)]];
 		}
 
 		[[nodiscard]] ParticleID id_start() const {
@@ -42,7 +43,12 @@ namespace april::cont::impl {
 		}
 
 	protected:
-		std::vector<Particle> particles;
+		void swap_particles (size_t idx1, size_t idx2) {
+			std::swap(particles[idx1], particles[idx2]);
+			std::swap(indices[idx1], indices[idx2]);
+		}
 
+		std::vector<Particle> particles;
+		std::vector<size_t> indices;
 	};
 }

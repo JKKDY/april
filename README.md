@@ -248,4 +248,5 @@ Planned additions (subject to change):
 - [ ] Interacting geometries (e.g., box obstacles)
 - [ ] SOA support
 - [ ] Extendable particles via template parameter (e.g. add charge property)
+- [ ] Parallelism
 

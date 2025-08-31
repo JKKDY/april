@@ -274,9 +274,9 @@ namespace april::env {
         );
         int id = (it == data.particles.end() ? 0 : it->id+1);
 
-        for (int x = -static_cast<int>(sphere.radii.x/width); x < sphere.radii.x; ++x) {
-            for (int y = -static_cast<int>(sphere.radii.y/width); y < sphere.radii.y; ++y) {
-                for (int z = -static_cast<int>(sphere.radii.z/width); z < sphere.radii.z; ++z) {
+        for (int x = -static_cast<int>(sphere.radii.x/width); x < static_cast<int>(sphere.radii.x/width); ++x) {
+            for (int y = -static_cast<int>(sphere.radii.y/width); y < static_cast<int>(sphere.radii.y/width); ++y) {
+                for (int z = -static_cast<int>(sphere.radii.z/width); z < static_cast<int>(sphere.radii.z/width); ++z) {
 
                     vec3 pos = {x * width, y * width, z * width};
                     const vec3 pos_sq = pos.mul(pos);

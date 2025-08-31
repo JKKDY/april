@@ -76,7 +76,7 @@ namespace april::cont {
 			}
 
 			void build(const std::vector<Particle>& particles) {
-				this->particles = std::vector(particles);
+				this->build_storage(particles);
 				std::ranges::sort(this->particles,
 								  [](const Particle& a, const Particle& b) {
 									  return a.id < b.id;

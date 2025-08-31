@@ -43,7 +43,7 @@ namespace april::io {
 		void dispatch_record(this auto&& self, size_t step, double time, const Particles& particles) {
 			static_assert(
 				requires { self.record(step, time, particles); },
-				"Monitor subclass must implement: void before_step(size_t, double, const Particles&)"
+				"Monitor subclass must implement: void dispatch_record(size_t, double, const Particles&)"
 			);
 			self.record(step, time, particles);
 		}

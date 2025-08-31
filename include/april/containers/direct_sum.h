@@ -31,7 +31,7 @@ namespace april::cont {
 
 		template <class Env>
 		void DirectSum<Env>::build(const std::vector<Particle>& particles) {
-			this->particles = std::vector(particles);
+			this->build_storage(particles);
 		}
 
 		template <class Env>
@@ -39,6 +39,9 @@ namespace april::cont {
 			for (auto & particle : particles) {
 				particle.reset_force();
 			}
+
+			if (particles.size() < 2) return;
+
 			for (size_t i = 0; i < particles.size()-1; i++) {
 				for (size_t j = i+1; j < particles.size(); j++) {
 					auto & p1 = particles[i];

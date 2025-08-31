@@ -36,6 +36,7 @@ namespace april::cont::impl {
 			return particles.size() - 1; // note: will underflow if particles.size == 0
 		}
 
+		// index for non-stable iteration
 		[[nodiscard]] Particle& get_particle_by_index(size_t index) noexcept {
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
 			AP_ASSERT(index < particles.size(), "index must be < #particles");

@@ -39,6 +39,8 @@ namespace april::cont::impl {
 	        self.calculate_forces();
 	    }
 
+		// ids are always dense in [0, N-1]
+		// use ids for stable iteartion
 	    Particle& dispatch_get_particle_by_id(this auto&& self, ParticleID id) {
 	        static_assert(
 	            requires { { self.get_particle_by_id(id) } -> std::same_as<Particle&>; },
@@ -62,6 +64,7 @@ namespace april::cont::impl {
 	        );
 	        return self.id_end();
 	    }
+
 
 	    Particle& dispatch_get_particle_by_index(this auto&& self, size_t index) noexcept {
 	        static_assert(

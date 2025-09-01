@@ -199,8 +199,8 @@ class MyIntegrator;
 
 template<core::IsSystem Sys, class... Ms>
 class MyIntegrator<Sys, io::MonitorPack<Ms...>>
-  : public core::impl::Integrator<Sys, io::MonitorPack<Ms...>> {
-    using Base = core::impl::Integrator<Sys, io::MonitorPack<Ms...>>;
+  : public impl::Integrator<Sys, MonitorPack<Ms...>> {
+    using Base = impl::Integrator<Sys, MonitorPack<Ms...>>;
     using Base::sys; using Base::dt;
 
 public:
@@ -218,7 +218,7 @@ public:
     explicit MyMonitor(std::size_t every = 1) : Monitor(every) {}
 
     void record(std::size_t step, double time,
-                const std::vector<env::impl::ParticleView>& particles) {
+                const std::vector<impl::ParticleView>& particles) {
         // emit logs, write files, aggregate stats, etc.
     }
 
@@ -249,4 +249,5 @@ Planned additions (subject to change):
 - [ ] SOA support
 - [ ] Extendable particles via template parameter (e.g. add charge property)
 - [ ] Parallelism
+- [ ] C++ Modules
 

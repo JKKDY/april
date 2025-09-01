@@ -4,8 +4,7 @@
 #include <april/env/environment.h>
 #include "april/common.h"
 #include "april/containers/direct_sum.h"
-#include "april/core/stoermer_verlet.h"
-#include "april/io/output.h"
+#include "april/core/yoshida4.h"
 
 using namespace april;
 using namespace april::env;
@@ -15,7 +14,7 @@ using namespace april::io;
 
 
 
-TEST(StoermerVerletTest,ConstructionTest) {
+TEST(Yoshida4Test,ConstructionTest) {
 
 	Environment env (forces<NoForce>);
 	env.add({}, {}, 1);
@@ -25,7 +24,7 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	constexpr auto algo = cont::DirectSum();
 	auto system = build_system(env, algo);
 
-	StoermerVerlet integrator(system);
+	Yoshida4 integrator(system);
 	integrator.run_steps(0.1, 10);
 
 	for (auto & p : system.export_particles()) {
@@ -34,7 +33,7 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	}
 }
 
-TEST(StoermerVerletTest, SingleStepNoForceTest) {
+TEST(Yoshida4Test, SingleStepNoForceTest) {
 	Environment env (forces<NoForce>);
 	env.add({}, {1,2,3}, 1);
 	env.add({}, {4,5,6}, 2);
@@ -43,7 +42,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	constexpr auto algo = cont::DirectSum();
 	auto system = build_system(env, algo);
 
-	StoermerVerlet integrator(system);
+	Yoshida4 integrator(system);
 	integrator.run_steps(1, 1);
 
 	std::vector<env::impl::ParticleView> particles;
@@ -67,7 +66,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 }
 
 
-TEST(StoermerVerletTest, SingleStepWithForceTest) {
+TEST(Yoshida4Test, SingleStepWithForceTest) {
 	Environment env (forces<InverseSquare>);
 	env.add({-1,0,0}, {}, 1 );
 	env.add({1,0,0}, {}, 1);
@@ -76,7 +75,7 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	constexpr auto algo = cont::DirectSum();
 	auto system = build_system(env, algo);
 
-	StoermerVerlet integrator(system);
+	Yoshida4 integrator(system);
 	integrator.run_steps(0.1, 1);
 
 	std::vector<env::impl::ParticleView> particles;
@@ -89,13 +88,23 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	const auto p1 =  particles[0].position.x < 0 ? particles[0] : particles[1];
 	const auto p2 =  particles[0].position.x > 0 ? particles[0] : particles[1];
 
-	EXPECT_EQ(p1.force, vec3(f_mag,0,0));
-	EXPECT_EQ(p2.force, vec3(-f_mag,0,0));
+	EXPECT_NEAR(p1.force.x,  f_mag, 1e-2);
+	EXPECT_NEAR(p1.force.y,  0.0,   1e-2);
+	EXPECT_NEAR(p1.force.z,  0.0,   1e-2);
+
+	EXPECT_NEAR(p2.force.x, -f_mag, 1e-2);
+	EXPECT_NEAR(p2.force.y,  0.0,   1e-2);
+	EXPECT_NEAR(p2.force.z,  0.0,   1e-2);
 
 	constexpr double vel = 0.1 / 2 * f_mag;
 
-	EXPECT_EQ(p1.velocity, vec3(vel,0,0));
-	EXPECT_EQ(p2.velocity, vec3(-vel,0,0));
+	EXPECT_NEAR(p1.velocity.x,  vel, 1e-2);
+	EXPECT_NEAR(p1.velocity.y,  0.0, 1e-2);
+	EXPECT_NEAR(p1.velocity.z,  0.0, 1e-2);
+
+	EXPECT_NEAR(p2.velocity.x, -vel, 1e-2);
+	EXPECT_NEAR(p2.velocity.y,  0.0, 1e-2);
+	EXPECT_NEAR(p2.velocity.z,  0.0, 1e-2);
 }
 
 
@@ -115,7 +124,7 @@ public:
 	double r{};
 };
 
-TEST(StoermerVerletTest, OrbitTest) {
+TEST(Yoshida4Test, OrbitTest) {
 	constexpr double G = 1;
 	constexpr double R = 1;
 	constexpr double M = 1.0;
@@ -131,7 +140,7 @@ TEST(StoermerVerletTest, OrbitTest) {
 	constexpr auto algo = cont::DirectSum();
 	auto system = build_system(env, algo);
 
-	StoermerVerlet integrator(system, io::monitors<OrbitMonitor>);
+	Yoshida4 integrator(system, io::monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for(0.001, T);
 

@@ -45,6 +45,7 @@ namespace april::core::impl {
 			self.num_steps = num_steps;
 
 			self.init_monitors();
+			self.dispatch_initialize_monitors();
 
 			for (self.step = 0; self.step < num_steps; ++self.step, self.time+=self.dt) {
 				self.dispatch_monitor_preparation();
@@ -81,6 +82,14 @@ namespace april::core::impl {
 			for_each_monitor([&](auto& list) {
 				for (auto& monitor : list) {
 					monitor.init(dt, 0, duration, num_steps);
+				}
+			});
+		}
+
+		void dispatch_initialize_monitors() {
+			for_each_monitor([&](auto& list) {
+				for (auto& monitor : list) {
+					monitor.dispatch_initialize();
 				}
 			});
 		}

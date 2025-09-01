@@ -32,6 +32,12 @@ namespace april::io {
 			num_steps = steps;
 		}
 
+		void dispatch_initialize(this auto&& self) {
+			if constexpr (requires { self.initialize(); }) {
+				self.initialize();
+			}
+		}
+
 		// Optional: Called before a step
 		void dispatch_before_step(this auto&& self, size_t step, double time, const Particles& particles) {
 			if constexpr (requires { self.before_step(step, time, particles); }) {

@@ -14,6 +14,7 @@
 
 #include "april/core/integrator.h"
 #include "april/core/stoermer_verlet.h"
+#include "april/core/yoshida4.h"
 
 
 
@@ -59,6 +60,7 @@ namespace april {
 	using io::monitors;
 
 	using core::StoermerVerlet;
+	using core::Yoshida4;
 
 	namespace ext {
 		using io::Monitor;

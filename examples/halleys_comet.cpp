@@ -19,7 +19,7 @@ int main() {
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
-	StoermerVerlet integrator(system);
+	Yoshida4 integrator(system);
 	integrator.add_monitor(BinaryOutput(50, dir_path));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());

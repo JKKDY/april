@@ -19,6 +19,7 @@ add_executable(test_april
         output_test.cpp
         stoermerverlet_test.cpp
         linkedcells_test.cpp
+        yoshida_test.cpp
 )
 
 target_link_libraries(test_april PRIVATE

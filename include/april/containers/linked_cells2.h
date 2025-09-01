@@ -31,8 +31,8 @@ namespace april::cont {
 		public:
 			using Base::Base;
 
-			void build(const std::vector<Particle>& particles) {
-				this->build_storage(particles);
+			void build(const std::vector<Particle>& particles_) {
+				this->build_storage(particles_);
 				set_cell_size();
 				build_cells();
 				build_neighbour_pairs();
@@ -41,6 +41,9 @@ namespace april::cont {
 			void calculate_forces() {
 				// reset & sort particles
 				build_cells();
+				// for (auto & p : particles) {
+				// 	p.reset_force();
+				// }
 
 				// for every cell
 				for (uint32_t cid = 0; cid < cell_start.size() - 1; cid++) {
@@ -109,8 +112,8 @@ namespace april::cont {
 				}
 
 				// build cell indices
-				size_t idx = 0;
-				for (size_t i = 0; i < cell_start.size(); i++) {
+				uint32_t idx = 0;
+				for (uint32_t i = 0; i < cell_start.size(); i++) {
 					cell_start[i] = idx;
 					idx += cell_count[i];
 				}

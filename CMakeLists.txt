@@ -20,12 +20,23 @@ function(set_target_build_flags target_name)
             # common warning flags
             $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -Werror -Wpedantic>
             $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -Werror -Wpedantic>
-            $<$<CXX_COMPILER_ID:MSVC>:/W4 /permissive- /WX>
+            $<$<CXX_COMPILER_ID:MSVC>:/W2 /permissive- /WX>
 
             # Release → -O3
-            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU>>:-O3>
-            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:Clang>>:-O3>
-            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:/O2>
+            # GCC/Clang
+            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang>>:-O3 -DNDEBUG -march=native -ffast-math>
+            # MSVC
+            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:
+            /O2           # optimize for speed
+            /GL           # whole program optimization (LTCG)
+            /fp:fast      # fast-math (matches -ffast-math spirit)
+            /arch:AVX2    # enable AVX2 on x64
+            /favor:INTEL64
+            /Oi           # intrinsic functions
+            /Ot           # favor fast code
+            /Ob3          # aggressive inlining
+            /DNDEBUG
+            >
 
             # Debug → -O0 -g
             $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-O0 -g>

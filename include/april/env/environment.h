@@ -14,8 +14,8 @@
 namespace april::env {
   template<class Pack> struct Environment;
 
-    inline const auto EXTENT_AUTO = vec3(std::numeric_limits<double>::infinity());
-    inline const auto ORIGIN_AUTO = vec3(std::numeric_limits<double>::infinity());
+    inline const auto EXTENT_AUTO = vec3(std::numeric_limits<double>::max());
+    inline const auto ORIGIN_AUTO = vec3(std::numeric_limits<double>::max());
     inline const auto ZERO_THERMAL_V = [](const Particle&) {return vec3{}; };
 
     struct Domain {

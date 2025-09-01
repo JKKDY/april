@@ -110,6 +110,9 @@ if __name__ == "__main__":
     vis = ParticleVisualizer("../output/two_body_collision")
     app.run()
 
+    # for f in list_bin_files("../output/two_body_collision"):
+    #     print(f)
+
     # print(load_particles(files[0]))
 
    

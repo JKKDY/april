@@ -12,7 +12,7 @@ namespace april::utils {
     struct Vec3 {
         T x, y, z;
 
-        Vec3() : x(0.0), y(0.0), z(0.0) {}
+        Vec3() : x(static_cast<T>(0.0)), y(static_cast<T>(0.0)), z(static_cast<T>(0.0)) {}
         explicit Vec3(const T v): x(v), y(v), z(v) {}
         Vec3(const T x, const T y, const T z) : x(x), y(y), z(z) {}
 

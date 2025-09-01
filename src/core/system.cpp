@@ -1,6 +1,5 @@
 #include "april/core/system.h"
 
-#include <bits/ranges_algo.h>
 
 namespace april::core::impl {
 

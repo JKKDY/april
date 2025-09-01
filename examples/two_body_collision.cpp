@@ -13,7 +13,7 @@ int main() {
 	auto cuboid1 = ParticleCuboid{}
 		.at({0, 0, 0})
 		.velocity({0, 0, 0})
-		.count({40, 8, 1})
+		.count({40, 8, 3})
 		.mass(1.0)
 		.spacing(1.1225)
 		.type(0);
@@ -21,24 +21,24 @@ int main() {
 	auto cuboid2 = ParticleCuboid{}
 		.at({15, 15, 0})
 		.velocity({0, -10, 0})
-		.count({8, 8, 1})
+		.count({8, 8, 3})
 		.mass(1.0)
 		.spacing(1.1225)
 		.type(0);
 
-	Environment env (forces<LennardJones>);
+	Environment env (forces<LennardJones, Harmonic, InverseSquare>);
 	env.add(cuboid1);
 	env.add(cuboid2);
 	env.set_extent({60,50,10});
 	env.set_origin({-10,-10,-5});
 	env.add_force(LennardJones(5, 1), to_type(0));
 
-	auto container = LinkedCells2(3);
+	auto container = LinkedCells2();
 	auto system = build_system(env, container);
 
-	auto integrator = StoermerVerlet(system, io::monitors<BinaryOutput, ProgressBar, Benchmark>);
-	// integrator.add_monitor(BinaryOutput(100));
-	integrator.add_monitor(ProgressBar(10));
+	auto integrator = StoermerVerlet(system, io::monitors<Benchmark, ProgressBar, BinaryOutput>);
+	// integrator.add_monitor(BinaryOutput(50, dir_path));
 	integrator.add_monitor(Benchmark());
+	integrator.add_monitor(ProgressBar(100));
 	integrator.run_for(0.0002, 5);
 }

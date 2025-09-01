@@ -166,7 +166,7 @@ class MyContainerImpl final : public Container<MyContainer, Env> {
     using Base = Container<MyContainerCfg, Env>;
     using Particle = typename Base::Particle;
 public:
-    using Base::Base; // forward config. To access config data use this->config.
+    using Base::Base; // forward config. To access config data use this->cfg.
 	
     void build(const std::vector<Particle> & particles) { ... }
     void calculate_forces() { ... }
@@ -240,7 +240,7 @@ integrator.add_monitor(MyMonitor{10});  // call every 10 steps
 Planned additions (subject to change):
 - [ ] Boundaries & boundary conditions 
 - [ ] More integrators: 
-  - [ ] Yoshida4
+  - [x] Yoshida4
   - [ ] Boris Pusher
 - [ ] Barnes–Hut container
 - [ ] Controllers: particle sources/sinks, thermostats

@@ -45,6 +45,7 @@ namespace april::env::impl {
 		oss << "Particle ID: " << id << "\n"
 			<< "Position: " << position[0] << " " << position[1] << " " << position[2] << "\n"
 			<< "Velocity: " << velocity[0] << " " << velocity[1] << " " << velocity[2] << "\n"
+			<< "Force: " << force[0] << " " << force[1] << " " << force[2] << "\n"
 			<< "Mass: " << mass << "\n"
 			<< "Type: " << type << "\n"
 			<< "State: " << static_cast<int>(state) << "\n";
@@ -89,6 +90,7 @@ namespace april::env::impl {
 		oss << "Particle ID: " << id << "\n"
 			<< "Position: " << position[0] << " " << position[1] << " " << position[2] << "\n"
 			<< "Velocity: " << velocity[0] << " " << velocity[1] << " " << velocity[2] << "\n"
+			<< "Force: " << force[0] << " " << force[1] << " " << force[2] << "\n"
 			<< "Mass: " << mass << "\n"
 			<< "Type: " << type << "\n"
 			<< "State: " << static_cast<int>(state) << "\n";
@@ -114,6 +116,7 @@ namespace april::env::impl {
 		oss << "Particle ID: " << id << "\n"
 			<< "Position: " << position[0] << " " << position[1] << " " << position[2] << "\n"
 			<< "Velocity: " << velocity[0] << " " << velocity[1] << " " << velocity[2] << "\n"
+			<< "Force: " << force[0] << " " << force[1] << " " << force[2] << "\n"
 			<< "Mass: " << mass << "\n"
 			<< "Type: " << type << "\n"
 			<< "State: " << static_cast<int>(state) << "\n";

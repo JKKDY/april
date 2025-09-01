@@ -17,9 +17,9 @@ namespace april::io {
 		explicit TerminalOutput(const size_t write_frequency = 1): Monitor(write_frequency) {}
 
 		void record(const size_t step, double, const Particles& particles) {
-			std::cout << "step: " << step <<  "\n";
+			std::cerr << "step: " << step <<  "\n";
 			for (const auto & p : particles) {
-				std::cout << p.to_string() << "\n";
+				std::cerr << p.to_string() << "\n";
 			}
 		}
 	};

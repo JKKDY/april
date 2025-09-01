@@ -58,13 +58,13 @@ namespace april::cont::impl {
 		}
 
 	protected:
-		void swap_particles (size_t idx1, size_t idx2) {
+		void swap_particles (uint32_t idx1, uint32_t idx2) {
 			std::swap(particles[idx1], particles[idx2]);
 			std::swap(indices[idx1], indices[idx2]);
 		}
 
 		std::vector<Particle> particles;
-		std::vector<size_t> indices;
+		std::vector<uint32_t> indices;
 	private:
 		bool is_built = false;
 	};

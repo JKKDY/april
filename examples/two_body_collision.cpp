@@ -7,6 +7,8 @@ namespace fs = std::filesystem;
 
 int main() {
 	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/two_body_collision";
+	fs::remove_all(dir_path);   // delete the directory and all contents
+	fs::create_directory(dir_path); // recreate the empty directory
 
 	auto cuboid1 = ParticleCuboid{}
 		.at({0, 0, 0})
@@ -27,15 +29,15 @@ int main() {
 	Environment env (forces<LennardJones>);
 	env.add(cuboid1);
 	env.add(cuboid2);
-	env.set_extent({60,50,1});
-	env.set_origin({-10,-10,0});
-	env.add_force(LennardJones(5, 1, -1), to_type(0));
+	env.set_extent({60,50,10});
+	env.set_origin({-10,-10,-5});
+	env.add_force(LennardJones(5, 1), to_type(0));
 
-	auto container = DirectSum();
+	auto container = LinkedCells2(3);
 	auto system = build_system(env, container);
 
 	auto integrator = StoermerVerlet(system, io::monitors<BinaryOutput, ProgressBar, Benchmark>);
-	integrator.add_monitor(BinaryOutput(100));
+	// integrator.add_monitor(BinaryOutput(100));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());
 	integrator.run_for(0.0002, 5);

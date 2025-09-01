@@ -11,6 +11,7 @@
 #include "april/containers/container.h"
 #include "april/containers/direct_sum.h"
 #include "april/containers/linked_cells.h"
+#include "april/containers/linked_cells2.h"
 
 #include "april/core/integrator.h"
 #include "april/core/stoermer_verlet.h"
@@ -23,10 +24,6 @@
 // TODO rework namespace
 // TODO use modules
 namespace april {
-
-	using cont::DirectSum;
-	using cont::LinkedCells;
-
 	using env::Environment;
 
 	using env::ParticleCuboid;
@@ -47,7 +44,9 @@ namespace april {
 	using env::to_type;
 	using env::between_ids;
 
-	using utils::Vec3;
+	using cont::DirectSum;
+	using cont::LinkedCells;
+	using cont::LinkedCells2;
 
 	using core::System;
 	using core::build_system;

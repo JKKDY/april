@@ -3,9 +3,10 @@
 #include "april/common.h"
 #include <gmock/gmock.h>
 
-#include "april/containers/linked_cells.h"
+#include "april/containers/linked_cells2.h"
 #include "april/core/stoermer_verlet.h"
 #include "april/io/monitor.h"
+#include "april/io/output.h"
 #include "april/env/particle.h"
 #include "april/core/system.h"
 
@@ -46,7 +47,7 @@ TEST(LinkedCellsTest, SingleParticle_NoForce) {
 
 	e.set_extent({4,4,4});
 
-	auto sys = build_system(e, LinkedCells(4));
+	auto sys = build_system(e, LinkedCells2(4));
     sys.update_forces();
 
     auto const& out = sys.export_particles();
@@ -62,7 +63,7 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
     e.add(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = build_system(e, LinkedCells(2));
+	auto sys = build_system(e, LinkedCells2(2));
 	sys.update_forces();
 
     auto const& out = sys.export_particles();
@@ -84,7 +85,7 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 	e.add(Particle{.id = 1, .type = 7, .position={1.5,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = build_system(e, LinkedCells(1));
+	auto sys = build_system(e, LinkedCells2(1));
 	sys.update_forces();
 
 	auto const& out = sys.export_particles();
@@ -106,7 +107,7 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 	e.add(Particle{.id = 1, .type = 7, .position={1.5,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = build_system(e, LinkedCells(0.5));
+	auto sys = build_system(e, LinkedCells2(0.5));
 	sys.update_forces();
 	auto const& out = sys.export_particles();
 	ASSERT_EQ(out.size(), 2u);
@@ -126,7 +127,7 @@ TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
 
-	auto sys = build_system(e, LinkedCells());
+	auto sys = build_system(e, LinkedCells2());
 	sys.update_forces();
 
     auto const& out = sys.export_particles();
@@ -153,7 +154,7 @@ TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 
 	e.add_force(InverseSquare(5.0), between_types(0, 1));
 
-	auto sys = build_system(e, LinkedCells());
+	auto sys = build_system(e, LinkedCells2());
 	sys.update_forces();
 
 	auto const& out = sys.export_particles();
@@ -179,6 +180,8 @@ public:
 
 		EXPECT_NEAR(p.velocity.norm(), v, 1e-3) << "Velocity mismatch at step " << i;
 		EXPECT_NEAR(p.position.norm(), r, 1e-3) << "Position mismatch at step " << i;
+
+		std::cerr << "step " << i << std::endl;
 	}
 
 	double v{};
@@ -201,11 +204,11 @@ TEST(LinkedCellsTest, OrbitTest) {
 	env.set_origin({-1.5*v,-1.5*v,0});
 	env.set_extent({3*v,3*v,1});
 
-	auto sys = build_system(env, LinkedCells(v));
+	auto sys = build_system(env, LinkedCells2(v));
 	sys.update_forces();
 
 	StoermerVerlet integrator(sys, io::monitors<OrbitMonitor>);
-	integrator.add_monitor<OrbitMonitor>(OrbitMonitor(v, R));
+	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for(0.001, T);
 
 	std::vector<env::impl::ParticleView> particles;

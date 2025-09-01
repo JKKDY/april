@@ -87,6 +87,7 @@ namespace april::env {
 		struct Particle {
 			using State = ParticleState;
 
+			Particle() {}
 			Particle(ParticleID id, const vec3& position, const vec3& velocity, double mass, ParticleType type,
 				State state = State::ALIVE, const vec3& force = {}, const vec3& old_force = {}, const vec3& old_position = {});
 
@@ -104,9 +105,9 @@ namespace april::env {
 			vec3 old_force;			// previous force acting on the particle.
 
 			State state;			// state of the particle.
-			double mass;			// mass of the particle.
-			ParticleType type;		// type of the particle.
-			ParticleID id;			// id of the particle.
+			double mass{};			// mass of the particle.
+			ParticleType type{};	// type of the particle.
+			ParticleID id{};		// id of the particle.
 
 			[[nodiscard]] std::string to_string() const;
 		};

@@ -1,17 +1,11 @@
 #include <gtest/gtest.h>
-#include <april/env/environment.h>
-#include "april/common.h"
-#include "april/containers/direct_sum.h"
-#include "april/env/particle.h"
 #include <gmock/gmock.h>
 
-#include "april/core/system.h"
 using testing::AnyOf;
 using testing::Eq;
 
+#include "april/april.h"
 using namespace april;
-using namespace april::env;
-using namespace april::cont;
 
 // A tiny force that returns a constant vector and mixes by summing
 struct ConstantForce final {

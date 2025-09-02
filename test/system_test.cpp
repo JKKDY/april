@@ -1,14 +1,7 @@
 #include <gtest/gtest.h>
-#include <april/env/environment.h>
-#include "april/common.h"
-#include <april/core/system.h>
-#include <april/containers/direct_sum.h>
 
+# include "april/april.h"
 using namespace april;
-using namespace april::env;
-using namespace april::core;
-using namespace april::cont;
-
 
 TEST(EnvTest, empty_env) {
     Environment e (forces<NoForce>);

@@ -5,13 +5,10 @@
 #include <cstdint>
 #include <cstring>
 
-#include "april/env/particle.h"     // for env::impl::Particle
-#include "april/common.h"			// for vec3
-#include "april/io/output.h"
 
+
+# include "april/april.h"
 using namespace april;
-using namespace april::env;
-using namespace april::io;
 namespace fs = std::filesystem;
 
 
@@ -23,7 +20,7 @@ template<typename T> static T read_binary(std::ifstream& in) {
 }
 
 // helper to create dummy particle
-static impl::Particle make_particle(impl::ParticleType type, impl::ParticleID id, vec3 pos={0,0,0}, ParticleState state= ParticleState::ALIVE) {
+static ext::Particle make_particle(env::impl::ParticleType type, env::impl::ParticleID id, vec3 pos={0,0,0}, ParticleState state= ParticleState::ALIVE) {
 	return {
 		/* id          */ id,
 		/* position    */ pos,
@@ -53,7 +50,7 @@ protected:
 
 // TEST 1: Header only, zero particles
 TEST_F(BinaryOutputTest, EmptyFileContainsOnlyHeader) {
-	std::vector<impl::ParticleView> empty;
+	std::vector<ParticleView> empty;
 	BinaryOutput out(1, dir.string(), base);
 
 	out.record(0, 0, empty);
@@ -89,7 +86,7 @@ TEST_F(BinaryOutputTest, EmptyFileContainsOnlyHeader) {
 // TEST 2: Single particle record
 TEST_F(BinaryOutputTest, SingleParticle) {
 	auto p = make_particle(5, 2, vec3{1,2,3}, ParticleState::ALIVE);
-	std::vector v {impl::ParticleView(p)};
+	std::vector v {ParticleView(p)};
 	BinaryOutput out(1, dir.string(), base);
 
 	out.record(1, 0, v);
@@ -119,7 +116,7 @@ TEST_F(BinaryOutputTest, MultipleParticles) {
 	auto p1 = make_particle(1, 0, vec3{0,0,0}, ParticleState::DEAD);
 	auto p2 = make_particle(2, 1, vec3{4,5,6}, ParticleState::ALIVE);
 	auto p3 = make_particle(3, 2, vec3{7,8,9}, ParticleState::PASSIVE);
-	std::vector v {impl::ParticleView(p1),impl::ParticleView(p2),impl::ParticleView(p3)};
+	std::vector v {ParticleView(p1),ParticleView(p2),ParticleView(p3)};
 	BinaryOutput out(1, dir.string(), base);
 
 	out.record(2, 0, v);
@@ -137,8 +134,8 @@ TEST_F(BinaryOutputTest, MultipleParticles) {
 		EXPECT_FLOAT_EQ(y, static_cast<float>(i.position.y));
 		EXPECT_FLOAT_EQ(z, static_cast<float>(i.position.z));
 
-		EXPECT_EQ(read_binary<uint32_t>(in), static_cast<uint32_t>(i.type));
-		EXPECT_EQ(read_binary<uint32_t>(in), static_cast<uint32_t>(i.id));
+		EXPECT_EQ(read_binary<uint32_t>(in), i.type);
+		EXPECT_EQ(read_binary<uint32_t>(in), i.id);
 		EXPECT_EQ(read_binary<uint8_t>(in), static_cast<uint8_t>(i.state));
 	}
 }

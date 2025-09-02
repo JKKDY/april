@@ -1,18 +1,9 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include <april/env/environment.h>
-#include "april/common.h"
-#include "april/containers/direct_sum.h"
-#include "april/core/yoshida4.h"
 
+# include "april/april.h"
 using namespace april;
-using namespace april::env;
-using namespace april::core;
-using namespace april::io;
-
-
-
 
 TEST(Yoshida4Test,ConstructionTest) {
 
@@ -108,7 +99,7 @@ TEST(Yoshida4Test, SingleStepWithForceTest) {
 }
 
 
-class OrbitMonitor final : public Monitor {
+class OrbitMonitor final : public ext::Monitor {
 public:
 	OrbitMonitor(): Monitor(1) {}
 	explicit OrbitMonitor(const double v, const double r): Monitor(1), v(v), r(r) {}

@@ -59,9 +59,12 @@ namespace april {
 	using core::StoermerVerlet;
 	using core::Yoshida4;
 
+	using env::impl::ParticleView; // move to non impl
+
 	namespace ext {
 		using io::Monitor;
 		using cont::impl::Container;
 		using core::impl::Integrator;
+		using env::impl::Particle;
 	}
 }

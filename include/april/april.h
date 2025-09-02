@@ -11,7 +11,6 @@
 #include "april/containers/container.h"
 #include "april/containers/direct_sum.h"
 #include "april/containers/linked_cells.h"
-#include "april/containers/linked_cells2.h"
 
 #include "april/core/integrator.h"
 #include "april/core/stoermer_verlet.h"
@@ -46,7 +45,6 @@ namespace april {
 
 	using cont::DirectSum;
 	using cont::LinkedCells;
-	using cont::LinkedCells2;
 
 	using core::System;
 	using core::build_system;

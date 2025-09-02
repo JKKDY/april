@@ -41,9 +41,6 @@ namespace april::cont {
 			void calculate_forces() {
 				// reset & sort particles
 				build_cells();
-				// for (auto & p : particles) {
-				// 	p.reset_force();
-				// }
 
 				// for every cell
 				for (uint32_t cid = 0; cid < cell_start.size() - 1; cid++) {
@@ -111,11 +108,9 @@ namespace april::cont {
 					++cell_count[cid];
 				}
 
-				// build cell indices
-				uint32_t idx = 0;
-				for (uint32_t i = 0; i < cell_start.size(); i++) {
-					cell_start[i] = idx;
-					idx += cell_count[i];
+				cell_start.assign(cell_start.size(), 0);
+				for (uint32_t c = 1; c < cell_start.size(); ++c) {
+					cell_start[c] = cell_start[c-1] + cell_count[c-1];
 				}
 
 				// scatter particles into bins

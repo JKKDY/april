@@ -118,6 +118,24 @@ Further examples can be found in `examples/`:
 - Defaults (e.g., automatic domain extent/origin) are provided, but can always be overridden explicitly.
 
 
+## Benchmarks
+
+Benchmarks were conducted for **10 000 integration steps** on a **single CPU thread** with Lennard–Jones interactions (ε = 5, σ = 1, cutoff = 3σ, dt = 0.0002).
+
+**System:** simple cubic lattice of varying size (1000–8000 particles).  
+**Hardware:** Windows 10, Intel Core i7-11370H @ 3.30 GHz.  
+**Compilers / Versions:**
+- APRIL: Clang (via WSL)
+- LAMMPS: 22 Jul 2025
+- HOOMD: v5.3.1 (via WSL)
+  
+For comparison, both **“parity”** and **“production”** configurations were used. Parity mode disables optimizations such as Verlet buffers to match APRIL’s linked cells implementation, to provide
+a more direct comparison. Production mode corresponds to each library’s standard tuned settings.
+
+![Linked Cells benchmark](benchmark/results/bench_LC.png)
+
+APRIL’s linked-cell implementation achieves higher performance than HOOMD in parity configuration, which is expected given HOOMD’s primary focus on GPU execution. Compared to LAMMPS in parity configuration, APRIL shows a modest advantage of a few percent. Production runs of LAMMPS and HOOMD achieve greater throughput by employing neighbor list buffering.
+
 ## Extending APRIL
 
 APRIL’s components are designed to be easy to implement and drop in. In the following all nested namespaces inside april - aside from ::impl:: - are omitted for clarity. 
@@ -250,7 +268,7 @@ Additional Features:
   - [x] Yoshida4
   - [ ] Boris Pusher
 - [ ] Barnes–Hut container
-- [ ] SOA support
+- [ ] SOA & SIMD support
 - [ ] Extendable particles via template parameter (e.g. add charge property)
 - [ ] C++ Modules
 - [ ] more build feedback from `build_system` (e.g. spatial partition parameters) 

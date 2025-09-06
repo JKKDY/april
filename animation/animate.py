@@ -107,7 +107,7 @@ class ParticleVisualizer(scene.SceneCanvas):
 
 
 if __name__ == "__main__": 
-    vis = ParticleVisualizer("../output/two_body_collision")
+    vis = ParticleVisualizer("../output/bench")
     app.run()
 
     # for f in list_bin_files("../output/two_body_collision"):

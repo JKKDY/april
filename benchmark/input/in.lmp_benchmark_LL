@@ -1,0 +1,69 @@
+# ---- Parameters (match APRIL benchmark) ----
+units       lj
+atom_style  atomic
+boundary    f f f
+
+variable NX equal 20
+variable NY equal 20
+variable NZ equal 20
+variable a  equal 1.1225
+variable sigma equal 1.0
+variable eps   equal 5.0
+variable rc    equal 3.0*${sigma}
+variable dt    equal 0.0002
+variable steps equal 10000
+
+processors 1 1 1
+
+# Grid physical span: L* = (N-1)*a
+variable Lx equal (${NX}-1)*${a}
+variable Ly equal (${NY}-1)*${a}
+variable Lz equal (${NZ}-1)*${a}
+
+
+# Box domain centered at 0, size 2*L
+region box block -${Lx} ${Lx} -${Ly} ${Ly} -${Lz} ${Lz} units box
+create_box 1 box
+
+# Explicit lattice spacing
+variable halfa equal 0.5 * ${a}
+lattice sc 1.0 origin ${halfa} ${halfa} ${halfa} spacing ${a} ${a} ${a}
+
+# Half-spans for lattice region
+variable Hx equal 0.5*${Lx}
+variable Hy equal 0.5*${Ly}
+variable Hz equal 0.5*${Lz}
+
+variable Dx equal 0.5*(${Lx}) - ${a}
+variable Dy equal 0.5*(${Ly}) - ${a}
+variable Dz equal 0.5*(${Lz}) - ${a}
+
+region lattice block -${Hx} ${Dx} -${Hy} ${Dy} -${Hz} ${Dz} units box
+create_atoms 1 region lattice
+
+mass 1 1.0
+velocity all set 0.0 0.0 0.0 units box
+
+
+# ---- LJ interactions ----
+pair_style  lj/cut ${rc}
+pair_coeff  1 1 ${eps} ${sigma} ${rc}
+
+
+# Neighbor list similar to linked-cells with rebuild every step
+neighbor 0.0 bin
+neigh_modify every 1 delay 0 check yes
+neigh_modify binsize ${rc}       
+newton on 
+
+
+# ---- Integrator & timestep ----
+fix 1 all nve
+timestep ${dt}
+
+# ---- Clean timing (no per-step output) ----
+thermo          0
+thermo_style    custom step time temp pe ke etotal
+
+
+run ${steps} post no

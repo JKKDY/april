@@ -86,5 +86,6 @@ add_compile_options(${GLOBAL_OPT_FLAGS})
 add_subdirectory(src)
 add_subdirectory(examples)
 add_subdirectory(test)
+add_subdirectory(benchmark)
 
 

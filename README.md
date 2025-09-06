@@ -74,7 +74,7 @@ The following diagram shows the typical flow of a program using APRIL:
 Defines the simulation setup: particles, simulation domain (origin/extent), and the list of interactions (by **type pair** or **id pair**).
 - **System** \
 Materializes the environment: maps user IDs/types to dense internals, builds interaction tables, finalizes the domain, and wires everything together.
-- **Container** \ 
+- **Container** \
 Owns internal particle storage/indices and computes pairwise forces (e.g., **DirectSum**, **LinkedCells**). It’s injected with the interaction manager built by the system.
 - **Integrator** \
 Advances the state in time (e.g., Stoermer–Verlet). On each step it updates positions/velocities and asks the system to refresh forces.
@@ -237,17 +237,21 @@ integrator.add_monitor(MyMonitor{10});  // call every 10 steps
 
 ## Roadmap
 
-Planned additions (subject to change):
-- [ ] Boundaries & boundary conditions 
+Planned additions (subject to change)
+
+Foundational: 
+- [ ] Boundaries & boundary conditions
+- [ ] Controllers: particle sources/sinks, thermostats
+- [ ] Force fields, including time-dependent fields
+- [ ] Parallelism
+
+Additional Features: 
 - [ ] More integrators: 
   - [x] Yoshida4
   - [ ] Boris Pusher
 - [ ] Barnes–Hut container
-- [ ] Controllers: particle sources/sinks, thermostats
-- [ ] Force fields, including time-dependent fields
-- [ ] Interacting geometries (e.g., box obstacles)
 - [ ] SOA support
 - [ ] Extendable particles via template parameter (e.g. add charge property)
-- [ ] Parallelism
 - [ ] C++ Modules
+- [ ] more build feedback from `build_system` (e.g. spatial partition parameters) 
 

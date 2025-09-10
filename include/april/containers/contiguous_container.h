@@ -22,7 +22,7 @@ namespace april::cont::impl {
 
 		[[nodiscard]] Particle& get_particle_by_id(ParticleID id) noexcept{
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
-			AP_ASSERT(id >= id_start() && id <= id_end(), "invalid id. got " + std::to_string(id));
+			AP_ASSERT(id >= id_start() && id < id_end(), "invalid id. got " + std::to_string(id));
 			return particles[indices[static_cast<size_t>(id)]];
 		}
 
@@ -33,7 +33,7 @@ namespace april::cont::impl {
 
 		[[nodiscard]] ParticleID id_end() const {
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
-			return particles.size() - 1; // note: will underflow if particles.size == 0
+			return particles.size();
 		}
 
 		// index for non-stable iteration
@@ -50,7 +50,7 @@ namespace april::cont::impl {
 
 		[[nodiscard]] size_t index_end() const {
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
-			return particles.size() - 1; // note: will underflow if particles.size == 0
+			return particles.size();
 		}
 
 		[[nodiscard]] size_t particle_count() const {

@@ -20,7 +20,7 @@ namespace april::core {
 		using Base::Base;
 
 		void stoermer_verlet_step(double delta_t) const {
-			for (auto i = sys.index_start(); i <= sys.index_end(); ++i) {
+			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
 				auto & p = sys.get_particle_by_index(i);
 				if (static_cast<int>(p.state & State::MOVABLE))
 					p.update_position(delta_t * p.velocity + (delta_t*delta_t) / (2 * p.mass) * p.force);
@@ -28,7 +28,7 @@ namespace april::core {
 
 			sys.update_forces();
 
-			for (auto i = sys.index_start(); i <= sys.index_end(); ++i) {
+			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
 				auto & p = sys.get_particle_by_index(i);
 				if (static_cast<int>(p.state & State::MOVABLE))
 					p.update_velocity(delta_t / 2 / p.mass * (p.force + p.old_force));

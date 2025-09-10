@@ -40,7 +40,7 @@ namespace april::cont::impl {
 	    }
 
 		// ids are always dense in [0, N-1]
-		// use ids for stable iteartion
+		// use ids for stable iteration
 	    Particle& dispatch_get_particle_by_id(this auto&& self, ParticleID id) {
 	        static_assert(
 	            requires { { self.get_particle_by_id(id) } -> std::same_as<Particle&>; },

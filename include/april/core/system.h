@@ -106,7 +106,7 @@ namespace april::core {
 				return {};
 			}
 			particles.reserve(index_end() - index_start() + 1);
-			for (auto i = index_start(); i <= index_end(); ++i) {
+			for (auto i = index_start(); i < index_end(); ++i) {
 				auto & p = get_particle_by_index(i);
 				if (static_cast<int>(p.state & state))
 					particles.emplace_back(p);
@@ -134,7 +134,6 @@ namespace april::core {
 		Container container;
 		env::impl::InteractionManager<EnvT> interaction_manager;
 
-		// TODO make System time aware
 		double time_;
 
 		template <cont::impl::IsContDecl Cont, class FPack>

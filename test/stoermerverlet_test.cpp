@@ -151,3 +151,62 @@ TEST(StoermerVerletTest, OrbitTest) {
 	EXPECT_NEAR(p2.velocity.y, 0, 1e-3);
 	EXPECT_NEAR(p2.velocity.z, 0, 1e-3);
 }
+
+
+TEST(StoermerVerletTest, OrbitTestSplitRuns) {
+	constexpr double G = 1;
+	constexpr double R = 1;
+	constexpr double M = 1.0;
+	constexpr double m = 1e-10;
+	constexpr double v = G * M / R;
+	constexpr double T = 2 * 3.14159265359 * v / R;
+
+	Environment env (forces<InverseSquare>);
+	env.add({0,0,0}, {0, 0, 0}, M);
+	env.add({0,R,0}, {v, 0, 0}, m);
+	env.add_force(InverseSquare(G), to_type(0));
+
+	constexpr auto algo = DirectSum();
+	auto system = build_system(env, algo);
+
+	{
+		StoermerVerlet integrator(system, io::monitors<OrbitMonitor>);
+		integrator.add_monitor(OrbitMonitor(v, R));
+		integrator.run_for(0.001, T/2);
+		EXPECT_NEAR(system.time(), T/2, 0.005);
+	}
+
+	{
+		StoermerVerlet integrator(system, io::monitors<OrbitMonitor>);
+		integrator.add_monitor(OrbitMonitor(v, R));
+		integrator.run_for(0.001, T/2);
+		EXPECT_NEAR(system.time(), T, 0.005);
+	}
+
+	std::vector<ParticleView> particles;
+	for (auto & p : system.export_particles()) {
+		particles.push_back(p);
+	}
+
+	auto p1 =  particles[0].mass == m ? particles[0] : particles[1];
+	auto p2 =  particles[0].mass == M ? particles[0] : particles[1];
+
+	EXPECT_NEAR(p1.velocity.norm(), v, 1e-3);
+
+	// more relaxed conditions since #integration steps may be off by a little
+	EXPECT_NEAR(p1.position.x, 0, 2e-3);
+	EXPECT_NEAR(p1.position.y, R, 2e-3);
+	EXPECT_EQ(p1.position.z, 0);
+
+	EXPECT_NEAR(p1.velocity.x, v, 2e-3);
+	EXPECT_NEAR(p1.velocity.y, 0, 2e-3);
+	EXPECT_EQ(p1.velocity.z, 0);
+
+	EXPECT_NEAR(p2.position.x, 0, 2e-3);
+	EXPECT_NEAR(p2.position.y, 0, 2e-3);
+	EXPECT_NEAR(p2.position.z, 0, 2e-3);
+
+	EXPECT_NEAR(p2.velocity.x, 0, 2e-3);
+	EXPECT_NEAR(p2.velocity.y, 0, 2e-3);
+	EXPECT_NEAR(p2.velocity.z, 0, 2e-3);
+}

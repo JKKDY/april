@@ -17,10 +17,11 @@ namespace april::core {
 	class System;
 
 	template <cont::impl::IsContDecl C, class FPack>
-		System<C, env::Environment<FPack>>
-	build_system(env::Environment<FPack>& environment,
-			 const C& container,
-			 UserToInternalMappings* particle_mappings = nullptr);
+	System<C, env::Environment<FPack>> build_system(
+		env::Environment<FPack>& environment,
+		const C& container,
+		UserToInternalMappings* particle_mappings = nullptr
+		);
 
 
 	template<class S>
@@ -39,7 +40,7 @@ namespace april::core {
 		{ s.index_end()   } -> std::same_as<size_t>;
 
 		// time query
-		{ s.t() } -> std::convertible_to<double>;
+		{ s.time() } -> std::convertible_to<double>;
 
 		// export
 		{ s.export_particles() } -> std::same_as<std::vector<typename S::ParticleView>>;
@@ -58,42 +59,50 @@ namespace april::core {
 
 
 		void update_forces() {
-			algorithm.dispatch_calculate_forces();
+			container.dispatch_calculate_forces();
 		}
 
 		[[nodiscard]] Particle & get_particle_by_id(const ParticleID id) noexcept {
-			return algorithm.dispatch_get_particle_by_id(id);
+			return container.dispatch_get_particle_by_id(id);
 		}
 
 		[[nodiscard]] ParticleID id_start() const noexcept{
-			return algorithm.dispatch_id_start();
+			return container.dispatch_id_start();
 		}
 
 		// inclusive bound
 		[[nodiscard]] ParticleID id_end() const noexcept {
-			return algorithm.dispatch_id_end();
+			return container.dispatch_id_end();
 		}
 
 		[[nodiscard]] Particle & get_particle_by_index(const size_t index) noexcept {
-			return algorithm.dispatch_get_particle_by_index(index);
+			return container.dispatch_get_particle_by_index(index);
 		}
 
 		[[nodiscard]] size_t index_start() const noexcept {
-			return algorithm.dispatch_index_start();
+			return container.dispatch_index_start();
 		}
 
 		// inclusive bound
 		[[nodiscard]] size_t index_end() const noexcept {
-			return algorithm.dispatch_index_end();
+			return container.dispatch_index_end();
 		}
 
-		[[nodiscard]] double t() const noexcept {
-			return time;
+		[[nodiscard]] double time() const noexcept {
+			return time_;
+		}
+
+		void update_time(const double dt) noexcept {
+			time_ += dt;
+		}
+
+		void reset_time() noexcept {
+			time_ = 0;
 		}
 
 		[[nodiscard]] std::vector<ParticleView> export_particles(const env::ParticleState state = env::ParticleState::ALL) {
 			std::vector<ParticleView> particles;
-			if (algorithm.dispatch_particle_count() == 0) {
+			if (container.dispatch_particle_count() == 0) {
 				return {};
 			}
 			particles.reserve(index_end() - index_start() + 1);
@@ -115,18 +124,18 @@ namespace april::core {
 			std::vector<env::impl::InteractionInfo<typename EnvT::force_variant_t>> & interaction_infos,
 			const std::unordered_map<env::ParticleType, env::impl::ParticleType> & usr_types_to_impl_types,
 			const std::unordered_map<env::ParticleID, env::impl::ParticleID> & usr_ids_to_impl_ids)
-			: domain(domain), algorithm(algo_cfg)
+			: domain(domain), container(algo_cfg), time_(0)
 		{
 			interaction_manager.build(interaction_infos, usr_types_to_impl_types, usr_ids_to_impl_ids);
-			algorithm.init(interaction_manager, domain);
-			algorithm.dispatch_build(particles);
+			container.init(interaction_manager, domain);
+			container.dispatch_build(particles);
 		}
 
-		Container algorithm;
+		Container container;
 		env::impl::InteractionManager<EnvT> interaction_manager;
 
 		// TODO make System time aware
-		double time{};
+		double time_;
 
 		template <cont::impl::IsContDecl Cont, class FPack>
 		friend System<Cont, env::Environment<FPack>>

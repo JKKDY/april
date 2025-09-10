@@ -45,13 +45,12 @@ namespace april::core::impl {
 
 			self.duration = static_cast<double>(num_steps) * delta_t;
 			self.dt = delta_t;
-			self.time = 0;
 			self.num_steps = num_steps;
 
 			self.init_monitors();
 			self.dispatch_initialize_monitors();
 
-			for (self.step = 0; self.step < num_steps; ++self.step, self.time+=self.dt) {
+			for (self.step = 0; self.step < num_steps; ++self.step, self.sys.update_time(self.dt)) {
 				self.dispatch_monitor_preparation();
 
 				self.integration_step();
@@ -66,7 +65,6 @@ namespace april::core::impl {
 		Sys & sys;
 		size_t num_steps{};
 		double duration = 0;
-		double time = 0;
 		double dt = 0;
 		size_t step = 0;
 
@@ -102,7 +100,7 @@ namespace april::core::impl {
 			for_each_monitor([&](auto& list) {
 				for (auto& monitor : list) {
 					if (step % monitor.call_frequency() == 0) {
-						monitor.dispatch_before_step(step, time, sys.export_particles());
+						monitor.dispatch_before_step(step, sys.time(), sys.export_particles());
 					}
 				}
 			});
@@ -112,7 +110,7 @@ namespace april::core::impl {
 			for_each_monitor([&](auto& list) {
 				for (auto& monitor : list) {
 					if (step % monitor.call_frequency() == 0) {
-						monitor.dispatch_record(step, time, sys.export_particles());
+						monitor.dispatch_record(step, sys.time(), sys.export_particles());
 					}
 				}
 			});

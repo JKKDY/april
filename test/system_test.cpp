@@ -40,6 +40,22 @@ TEST(EnvTest, one_particle_test) {
 }
 
 
+TEST(EnvTest, negative_mass_throws) {
+    Environment e (forces<NoForce>);
+    e.add(Particle{
+        .id = PARTICLE_ID_DONT_CARE,
+        .type = 0,
+        .position = {0,0,0},
+        .velocity = {0,0,0},
+        .mass = -5,
+        .state = ParticleState::ALIVE,
+    });
+    e.add_force(NoForce(), to_type(0));
+    EXPECT_THROW(build_system(e, DirectSum()), std::invalid_argument);
+}
+
+
+
 TEST(EnvTest, type_force_missing) {
     Environment e (forces<InverseSquare>);
 

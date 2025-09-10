@@ -94,6 +94,7 @@ namespace april::core::impl {
 	}
 
 	void validate_particle_params(
+		const std::vector<Particle> & particles,
 		std::vector<InteractionParams> interactions,
 		const std::unordered_set<ParticleID> & usr_particle_ids,
 		const std::unordered_set<ParticleType> & usr_particle_types)
@@ -172,6 +173,16 @@ namespace april::core::impl {
                 }
             }
         }
+
+		// check for positive particle masses
+		for (auto & p : particles) {
+			if (p.mass <= 0) {
+				throw std::invalid_argument(
+				   "Particles cannot have negative masses. Particle with ID " +
+				   std::to_string(p.id) + " has mass " + std::to_string(p.mass)
+				);
+			}
+		}
 	}
 
 	UserToInternalMappings map_ids_and_types_to_internal(

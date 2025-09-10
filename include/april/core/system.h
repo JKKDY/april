@@ -152,6 +152,7 @@ namespace april::core {
 		);
 
 		void validate_particle_params(
+			const std::vector<env::Particle> & particles,
 			std::vector<InteractionParams> interactions,
 			const std::unordered_set<env::ParticleID>& usr_particle_ids,
 			const std::unordered_set<env::ParticleType>& usr_particle_types
@@ -192,7 +193,11 @@ namespace april::core {
 		}
 
 		validate_domain_params(env.domain, bbox);
-		validate_particle_params(interactions, env.usr_particle_ids, env.usr_particle_types);
+		validate_particle_params(
+			env.particles,
+			interactions,
+			env.usr_particle_ids,
+			env.usr_particle_types);
 
 		const UserToInternalMappings mapping = map_ids_and_types_to_internal(
 			env.particles,

@@ -39,6 +39,10 @@ namespace april::core::impl {
 
 		// Call with explicit number of steps
 		void run_steps(this auto&& self, const double delta_t, const std::size_t num_steps) {
+			if (delta_t <= 0) {
+				throw std::invalid_argument("time step cannot be negative. Got delta_t=" + std::to_string(delta_t));
+			}
+
 			self.duration = static_cast<double>(num_steps) * delta_t;
 			self.dt = delta_t;
 			self.time = 0;

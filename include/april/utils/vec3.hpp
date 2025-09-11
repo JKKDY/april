@@ -65,6 +65,14 @@ namespace april::utils {
             return *this;
         }
 
+        // point wise division
+        Vec3& div(const Vec3 & other) noexcept {
+            x /= other.x;
+            y /= other.y;
+            z /= other.z;
+            return *this;
+        }
+
         // scalar product
         T operator*=(const Vec3 & other) const noexcept {
             return x * other.x + y * other.y + z * other.z;
@@ -105,6 +113,10 @@ namespace april::utils {
 			return x * x + y * y + z * z;
 		}
 
+        [[nodiscard]] double inv_norm() const noexcept {
+            return 1 / std::sqrt(norm_squared()); // compiler may optimize with fast inverse square root
+        }
+
 		[[nodiscard]] double norm() const noexcept {
 			return sqrt(norm_squared());
 		}
@@ -133,11 +145,11 @@ namespace april::utils {
             return std::format("{{{}, {}, {}}}", x, y, z);
         }
 
-        double max() {
+        T max() {
             return std::max(x, std::max(y, z));
         }
 
-        double min() {
+        T min() {
             return std::min(x, std::min(y, z));
         }
     };

@@ -26,13 +26,17 @@ namespace april::core {
 					p.update_position(delta_t * p.velocity + (delta_t*delta_t) / (2 * p.mass) * p.force);
 			}
 
+			sys.apply_boundary_conditions();
 			sys.update_forces();
+			sys.apply_force_fields();
 
 			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
 				auto & p = sys.get_particle_by_index(i);
 				if (static_cast<int>(p.state & State::MOVABLE))
 					p.update_velocity(delta_t / 2 / p.mass * (p.force + p.old_force));
 			}
+
+			sys.apply_controllers();
 		}
 
 		void integration_step() const {

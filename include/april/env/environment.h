@@ -8,36 +8,24 @@
 #include <variant>
 #include <limits>
 
+#include "april/common.h"
 #include "april/env/particle.h"
 #include "april/env/force.h"
+#include "april/domain/boundary.h"
+#include "april/domain/domain.h"
 
 namespace april::env {
-  template<class Pack> struct Environment;
+    template<class FPack, class BPack> struct Environment;
 
     inline const auto EXTENT_AUTO = vec3(std::numeric_limits<double>::max());
     inline const auto ORIGIN_AUTO = vec3(std::numeric_limits<double>::max());
     inline const auto ZERO_THERMAL_V = [](const Particle&) {return vec3{}; };
 
-    struct Domain {
-        vec3 extent = {};
-        vec3 origin = {};
-
-        [[nodiscard]] bool contains(const vec3 & p) const noexcept{
-            const vec3 max = extent + origin;
-            return (p.x >= origin.x && p.x <= max.x) &&
-                  (p.y >= origin.y && p.y <= max.y) &&
-                  (p.z >= origin.z && p.z <= max.z);
-        }
-
-        [[nodiscard]] double volume() const noexcept {
-            return extent.x * extent.y * extent.z;
-        }
-    };
-
 
     namespace impl {
-        template<ForceVariant FV> struct EnvironmentData {
+        template<ForceVariant FV, BoundaryVariant BV> struct EnvironmentData {
             using force_variant_t = FV;
+            using boundary_variant_t = BV;
 
             Domain domain = {EXTENT_AUTO, ORIGIN_AUTO};
 
@@ -46,9 +34,10 @@ namespace april::env {
 
             std::vector<env::Particle> particles;
             std::vector<InteractionInfo<force_variant_t>> interactions {};
+            // std::array<boundary_variant_t, 6> boundary;
         };
 
-        template<class Pack> auto& get_env_data(Environment<Pack>& env) {
+        template<class FPack, class BPack> auto& get_env_data(Environment<FPack, BPack>& env) {
             return env.data;
         }
     }
@@ -112,23 +101,141 @@ namespace april::env {
     };
 
 
-    template<class Pack> struct Environment;
+    template<class FPack, class BPack> struct Environment;
 
-    template<class... Fs>
-    struct Environment<ForcePack<Fs...>>{
-        explicit Environment(ForcePack<Fs...>) {}
+    template<class... Fs, class... BCs>
+    struct Environment<ForcePack<Fs...>, BoundaryPack<BCs...>>{
+        explicit Environment(ForcePack<Fs...>, BoundaryPack<BCs...>) {}
+
+        static constexpr bool has_absorb = (std::is_same_v<Absorb, BCs> || ...);
+
 
         // expose types for deduction by ForceManager/build_system
         using forces_pack_t = ForcePack<Fs...>;
+        using boundary_pack_t = ForcePack<Fs...>;
 
         using force_variant_t = std::variant<Fs...>;
+        using boundary_variant_t =
+            std::conditional_t<has_absorb,
+            std::variant<Absorb, BCs...>,
+            std::variant<BCs...>
+        >;
 
-        void add(const vec3& position, const vec3& velocity, double mass, ParticleType type = 0, ParticleID id = PARTICLE_ID_DONT_CARE);
-        void add(const Particle& particle);
-        void add(const std::vector<Particle>& particles);
 
-        std::vector<ParticleID> add(const ParticleCuboid& cuboid);
-        std::vector<ParticleID> add(const ParticleSphere& sphere);
+        void add(
+            const vec3& position, const vec3& velocity, double mass, ParticleType type = 0, ParticleID id = PARTICLE_ID_DONT_CARE) {
+            add(Particle{
+               .id = id,
+               .type = type,
+               .position =  position,
+               .velocity = velocity,
+               .mass = mass,
+               .state = ParticleState::ALIVE
+           });
+        }
+
+        void add(const Particle& particle) {
+            if (particle.id != PARTICLE_ID_DONT_CARE && data.usr_particle_ids.contains(particle.id)) {
+                throw std::invalid_argument("specified id is not unique");
+            }
+
+            data.particles.push_back(particle);
+
+            if (particle.id != PARTICLE_ID_DONT_CARE) {
+                data.usr_particle_ids.insert(particle.id);
+            }
+
+            data.usr_particle_types.insert(particle.type);
+        }
+
+        void add(const std::vector<Particle>& particles) {
+            this->data.particles.reserve(this->data.particles.size() + particles.size());
+
+            for (auto & p : particles) {
+                add(p);
+            }
+        }
+
+        std::vector<ParticleID> add(const ParticleCuboid& cuboid) {
+            const uint32_t particle_count = cuboid.particle_count[0] * cuboid.particle_count[1] * cuboid.particle_count[2];
+            const double width = cuboid.distance;
+
+            std::vector<ParticleID> ids;
+            ids.reserve(particle_count);
+
+            const auto it = std::ranges::max_element(
+                data.particles,
+                {},               // default `<` comparator
+                &Particle::id       // project each Particle to its `id`
+            );
+            int id = ( it == data.particles.end() ? 0 : it->id+1 );
+
+            data.particles.reserve(data.particles.size() + particle_count);
+
+            for (unsigned int x = 0; x < cuboid.particle_count[0]; ++x) {
+                for (unsigned int y = 0; y < cuboid.particle_count[1]; ++y) {
+                    for (unsigned int z = 0; z < cuboid.particle_count[2]; ++z) {
+
+                        ids.push_back(id);
+
+                        Particle p = {
+                            .id = id++,
+                            .type = cuboid.type_id,
+                            .position = cuboid.origin + vec3(x * width, y * width, z * width),
+                            .velocity = cuboid.mean_velocity,
+                            .mass = cuboid.particle_mass,
+                            .state = cuboid.particle_state,
+                        };
+                        p.velocity += cuboid.thermal_velocity(p);
+
+                        add(p);
+                    }
+                }
+            }
+            return ids;
+        }
+
+        std::vector<ParticleID> add(const ParticleSphere& sphere) {
+            const double width = sphere.distance;
+            const vec3 & r = sphere.radii;
+
+            std::vector<ParticleID> ids;
+
+            // get the maximum current id
+            const auto it = std::ranges::max_element(
+                data.particles,
+                {},                 // default `<` comparator
+                &Particle::id       // project each Particle to its `id`
+            );
+            int id = (it == data.particles.end() ? 0 : it->id+1);
+
+            for (int x = -static_cast<int>(sphere.radii.x/width); x < static_cast<int>(sphere.radii.x/width); ++x) {
+                for (int y = -static_cast<int>(sphere.radii.y/width); y < static_cast<int>(sphere.radii.y/width); ++y) {
+                    for (int z = -static_cast<int>(sphere.radii.z/width); z < static_cast<int>(sphere.radii.z/width); ++z) {
+
+                        vec3 pos = {x * width, y * width, z * width};
+                        const vec3 pos_sq = pos.mul(pos);
+
+                        // if not in ellipsoid skip
+                        if (pos_sq.x/(r.x*r.x) + pos_sq.y/(r.y*r.y) + pos_sq.z/(r.z*r.z) > 1) continue;
+
+                        ids.push_back(id);
+                        Particle p =  {
+                            .id = id++,
+                            .type = sphere.type_id,
+                            .position = sphere.center + pos,
+                            .velocity = sphere.mean_velocity,
+                            .mass = sphere.particle_mass,
+                            .state = sphere.particle_state,
+                        };
+                        p.velocity += sphere.thermal_velocity(p);
+
+                        add(p);
+                    }
+                }
+            }
+            return ids;
+        }
 
         template<IsForce F> requires same_as_any<F, Fs...>
         void add_force(F force, to_type scope) {
@@ -177,139 +284,15 @@ namespace april::env {
 
 
     private:
-        impl::EnvironmentData<force_variant_t> data;
+        impl::EnvironmentData<force_variant_t, boundary_variant_t> data;
 
-        template<class Pack> friend auto& impl::get_env_data(Environment<Pack>& env);
+        template<class FPack, class BPack> friend auto& impl::get_env_data(Environment<FPack, BPack>& env);
     };
 
 
     // Deduction guide:
-    template<IsForce... Fs>
-    Environment(ForcePack<Fs...>)
-        -> Environment<ForcePack<Fs...>>;
+    template<IsForce... Fs, IsBoundary... BCs>
+    Environment(ForcePack<Fs...>, BoundaryPack<BCs...>)
+        -> Environment<ForcePack<Fs...>, BoundaryPack<BCs...>>;
 
-
-    template <class ... Fs>
-    void Environment<ForcePack<Fs...>>::add(
-        const vec3& position, const vec3& velocity, const double mass, const ParticleType type, const ParticleID id) {
-            add(Particle{
-            .id = id,
-            .type = type,
-            .position =  position,
-            .velocity = velocity,
-            .mass = mass,
-            .state = ParticleState::ALIVE
-        });
-    }
-
-
-    template <class ... Fs>
-    void Environment<ForcePack<Fs...>>::add(const Particle& particle) {
-        if (particle.id != PARTICLE_ID_DONT_CARE && data.usr_particle_ids.contains(particle.id)) {
-            throw std::invalid_argument("specified id is not unique");
-        }
-
-        data.particles.push_back(particle);
-
-        if (particle.id != PARTICLE_ID_DONT_CARE) {
-            data.usr_particle_ids.insert(particle.id);
-        }
-
-        data.usr_particle_types.insert(particle.type);
-    }
-
-
-    template <class ... Fs>
-    void Environment<ForcePack<Fs...>>::add(const std::vector<Particle>& particles)  {
-        this->data.particles.reserve(this->data.particles.size() + particles.size());
-
-        for (auto & p : particles) {
-            add(p);
-        }
-    }
-
-
-    template <class ... Fs>
-    std::vector<ParticleID> Environment<ForcePack<Fs...>>::add(const ParticleCuboid& cuboid) {
-        const uint32_t particle_count = cuboid.particle_count[0] * cuboid.particle_count[1] * cuboid.particle_count[2];
-        const double width = cuboid.distance;
-
-        std::vector<ParticleID> ids;
-        ids.reserve(particle_count);
-
-        const auto it = std::ranges::max_element(
-            data.particles,
-            {},               // default `<` comparator
-            &Particle::id       // project each Particle to its `id`
-        );
-        int id = ( it == data.particles.end() ? 0 : it->id+1 );
-
-        data.particles.reserve(data.particles.size() + particle_count);
-
-        for (unsigned int x = 0; x < cuboid.particle_count[0]; ++x) {
-            for (unsigned int y = 0; y < cuboid.particle_count[1]; ++y) {
-                for (unsigned int z = 0; z < cuboid.particle_count[2]; ++z) {
-
-                    ids.push_back(id);
-
-                    Particle p = {
-                        .id = id++,
-                        .type = cuboid.type_id,
-                        .position = cuboid.origin + vec3(x * width, y * width, z * width),
-                        .velocity = cuboid.mean_velocity,
-                        .mass = cuboid.particle_mass,
-                        .state = cuboid.particle_state,
-                    };
-                    p.velocity += cuboid.thermal_velocity(p);
-
-                    add(p);
-                }
-            }
-        }
-        return ids;
-    }
-
-
-    template <class ... Fs>
-    std::vector<ParticleID> Environment<ForcePack<Fs...>>::add(const ParticleSphere& sphere) {
-        const double width = sphere.distance;
-        const vec3 & r = sphere.radii;
-
-        std::vector<ParticleID> ids;
-
-        // get the maximum current id
-        const auto it = std::ranges::max_element(
-            data.particles,
-            {},                 // default `<` comparator
-            &Particle::id       // project each Particle to its `id`
-        );
-        int id = (it == data.particles.end() ? 0 : it->id+1);
-
-        for (int x = -static_cast<int>(sphere.radii.x/width); x < static_cast<int>(sphere.radii.x/width); ++x) {
-            for (int y = -static_cast<int>(sphere.radii.y/width); y < static_cast<int>(sphere.radii.y/width); ++y) {
-                for (int z = -static_cast<int>(sphere.radii.z/width); z < static_cast<int>(sphere.radii.z/width); ++z) {
-
-                    vec3 pos = {x * width, y * width, z * width};
-                    const vec3 pos_sq = pos.mul(pos);
-
-                    // if not in ellipsoid skip
-                    if (pos_sq.x/(r.x*r.x) + pos_sq.y/(r.y*r.y) + pos_sq.z/(r.z*r.z) > 1) continue;
-
-                    ids.push_back(id);
-                    Particle p =  {
-                        .id = id++,
-                        .type = sphere.type_id,
-                        .position = sphere.center + pos,
-                        .velocity = sphere.mean_velocity,
-                        .mass = sphere.particle_mass,
-                        .state = sphere.particle_state,
-                    };
-                    p.velocity += sphere.thermal_velocity(p);
-
-                    add(p);
-                }
-            }
-        }
-        return ids;
-    }
 }

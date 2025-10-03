@@ -21,12 +21,12 @@ int main() {
 	auto cuboid2 = ParticleCuboid{}
 		.at({15, 15, 0})
 		.velocity({0, -10, 0})
-		.count({8, 8, 5})
+		.count({8, 8, 4})
 		.mass(1.0)
 		.spacing(1.1225)
 		.type(0);
 
-	Environment env (forces<LennardJones>);
+	Environment env (forces<LennardJones>, boundaries<>);
 	env.add(cuboid1);
 	env.add(cuboid2);
 	env.set_extent({60,50,15});

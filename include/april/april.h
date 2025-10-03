@@ -16,6 +16,8 @@
 #include "april/core/stoermer_verlet.h"
 #include "april/core/yoshida4.h"
 
+#include "april/domain/boundary.h"
+
 
 
 #define APRIL_API
@@ -33,15 +35,20 @@ namespace april {
 	using env::ParticleType;
 	using env::PARTICLE_ID_DONT_CARE;
 
+	using env::forces;
 	using env::Harmonic;
 	using env::NoForce;
 	using env::InverseSquare;
 	using env::LennardJones;
-	using env::forces;
 
 	using env::between_types;
 	using env::to_type;
 	using env::between_ids;
+
+	using env::boundaries;
+	using env::Absorb;
+	using env::Reflective;
+	using env::Periodic;
 
 	using cont::DirectSum;
 	using cont::LinkedCells;
@@ -50,11 +57,11 @@ namespace april {
 	using core::build_system;
 	using core::UserToInternalMappings;
 
+	using io::monitors;
 	using io::BinaryOutput;
 	using io::TerminalOutput;
 	using io::ProgressBar;
 	using io::Benchmark;
-	using io::monitors;
 
 	using core::StoermerVerlet;
 	using core::Yoshida4;

@@ -25,8 +25,8 @@ namespace april::env::impl {
 
     template<class Env> class InteractionManager;
 
-    template<IsForce... Fs>
-    class InteractionManager<Environment<ForcePack<Fs...>>> {
+    template<IsForce... Fs, IsBoundary... BCs>
+    class InteractionManager<Environment<ForcePack<Fs...>, BoundaryPack<BCs...>>> {
     public:
         // forbid the internal sentinel in user pack
         static_assert((!std::is_same_v<NullForce, Fs> && ...),
@@ -36,7 +36,7 @@ namespace april::env::impl {
         static constexpr bool has_no_force = (std::is_same_v<NoForce, Fs> || ...);
 
         // big variant used internally by the manager:
-        //   always include NullForce (internal), and include NoForce only if not already present
+        // always include NullForce (internal), and include NoForce only if not already present
         using force_variant_t =
             std::conditional_t<has_no_force,
                 std::variant<NullForce, Fs...>,                // NoForce already in Fs...
@@ -47,15 +47,32 @@ namespace april::env::impl {
         // using info_t = InteractionInfo<force_variant_t>;
 
 		InteractionManager() = default;
-        void build(std::vector<InteractionInfo<force_variant_info_t>> & interaction_infos,
-            const std::unordered_map<env::ParticleType, impl::ParticleType> & usr_types_to_impl_types,
-            const std::unordered_map<env::ParticleID, impl::ParticleID> & usr_ids_to_impl_ids
+
+        void build(std::vector<InteractionInfo<force_variant_info_t>>& interaction_infos,
+                   const std::unordered_map<env::ParticleType, impl::ParticleType>& usr_types_to_impl_types,
+                   const std::unordered_map<env::ParticleID, impl::ParticleID>& usr_ids_to_impl_ids
         );
 
-        [[nodiscard]] vec3 evaluate(const Particle& p1, const Particle& p2) const;
-		[[nodiscard]] vec3 evaluate(const Particle& p1, const Particle& p2, const vec3& r) const;
+        [[nodiscard]] vec3 evaluate(const Particle& p1, const Particle& p2) const {
+            return evaluate(p1, p2, p2.position - p1.position); // dist vector points from p1 to p2
+        }
 
-        [[nodiscard]] double get_max_cutoff() const;
+        [[nodiscard]] vec3 evaluate(const Particle& p1, const Particle& p2, const vec3& r) const {
+            auto & tF = get_type_force(p1.type, p2.type);
+            vec3 force = std::visit([&](auto const& f){ return f(p1,p2,r); }, tF);
+
+            // check if both particles even have any individual interactions defined for them
+            if (p1.id < n_ids && p2.id < n_ids) {
+                auto & iF = get_id_force(p1.id, p2.id);
+                force += std::visit([&](auto const& f){ return f(p1,p2,r); }, iF);
+            }
+
+            return force;
+        }
+
+        [[nodiscard]] double get_max_cutoff() const {
+            return max_cutoff;
+        }
 
     private:
         std::vector<force_variant_t> inter_type_forces; // Forces between different particle types (e.g. type A <-> type B)
@@ -91,8 +108,8 @@ namespace april::env::impl {
     };
 
 
-    template <IsForce ... Fs>
-    void InteractionManager<Environment<ForcePack<Fs...>>>::build(
+    template <IsForce ... Fs, IsBoundary... BCs>
+    void InteractionManager<Environment<ForcePack<Fs...>, BoundaryPack<BCs...>>>::build(
         std::vector<InteractionInfo<force_variant_info_t>>& interaction_infos,
         const std::unordered_map<env::ParticleType, impl::ParticleType>& usr_types_to_impl_types,
         const std::unordered_map<env::ParticleID, impl::ParticleID>& usr_ids_to_impl_ids) {
@@ -228,35 +245,6 @@ namespace april::env::impl {
             if (!std::holds_alternative<NullForce>(v))
                 max_cutoff = std::max(max_cutoff, cutoff_of(v));
     }
-
-    template <IsForce ... Fs>
-    vec3 InteractionManager<Environment<ForcePack<Fs...>>>::evaluate(
-        const Particle& p1, const Particle& p2) const {
-        return evaluate(p1, p2, p2.position - p1.position); // dist vector points from p1 to p2
-    }
-
-    template <IsForce ... Fs>
-    vec3 InteractionManager<Environment<ForcePack<Fs...>>>::evaluate(
-        const Particle& p1, const Particle& p2, const vec3& r) const {
-
-        auto & tF = get_type_force(p1.type, p2.type);
-        vec3 force = std::visit([&](auto const& f){ return f(p1,p2,r); }, tF);
-
-        // check if both particles even have any individual interactions defined for them
-        if (p1.id < n_ids && p2.id < n_ids) {
-             auto & iF = get_id_force(p1.id, p2.id);
-             force += std::visit([&](auto const& f){ return f(p1,p2,r); }, iF);
-        }
-
-        return force;
-    }
-
-    template <IsForce ... Fs>
-    double InteractionManager<Environment<ForcePack<Fs...>>>::get_max_cutoff() const {
-        return max_cutoff;
-    }
-
-
 } // namespace april::env::impl
 
 

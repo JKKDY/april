@@ -12,5 +12,7 @@ namespace april {
     using uint3 = utils::Vec3<uint32_t>;
 
 	template <typename T, typename... Ts> concept same_as_any = (... or std::same_as<T, Ts>);
+
+
 } // namespace april
 

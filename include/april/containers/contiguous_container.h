@@ -4,7 +4,7 @@
 
 namespace april::cont::impl {
 	template<typename Config, typename Env>
-	class ContiguousContainer : public Container< Config, Env> {
+	class ContiguousContainer : public Container<Config, Env> {
 	public:
 		using Base = Container<Config, Env>;
 		using typename Base::Particle;
@@ -13,6 +13,7 @@ namespace april::cont::impl {
 		using Base::Base;
 
 		void build_storage(const std::vector<Particle>& particles) {
+			AP_ASSERT(!is_built, "storage has already been built");
 			this->particles = std::vector(particles);
 			for (size_t i = 0; i < particles.size(); i++) {
 				indices.push_back(i);
@@ -21,6 +22,7 @@ namespace april::cont::impl {
 		}
 
 		[[nodiscard]] Particle& get_particle_by_id(ParticleID id) noexcept{
+			// TODO this method needs testing
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
 			AP_ASSERT(id >= id_start() && id < id_end(), "invalid id. got " + std::to_string(id));
 			return particles[indices[static_cast<size_t>(id)]];

@@ -1,4 +1,4 @@
-# APRIL -  A Particle Runtime Interaction Library
+`````# APRIL -  A Particle Runtime Interaction Library
 
 APRIL is a small, modular C++ library for particle-based simulations.
 It aims to combine high performance with a flexible, easy-to-use, and expressive API. The library emphasizes clear architecture, plug-and-play components, and modern C++ features (concepts, CRTP-style dispatch).
@@ -19,7 +19,7 @@ It aims to combine high performance with a flexible, easy-to-use, and expressive
 ## Getting Started
 
 **Requirements:**
-- C++20-capable compiler (e.g., GCC 12+, Clang 14+, MSVC 19.36+)
+- C++23-capable compiler
 - CMake ≥ 3.20
 - (Dev) GoogleTest for running the test suite
 
@@ -273,3 +273,4 @@ Additional Features:
 - [ ] C++ Modules
 - [ ] more build feedback from `build_system` (e.g. spatial partition parameters) 
 
+`````

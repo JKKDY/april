@@ -132,8 +132,7 @@ namespace april::env {
 
         vec3 operator()(impl::Particle const&, impl::Particle const&, vec3 const& r) const noexcept {
             const double dist = r.norm();
-            // F = -k * (dist - r0) * (r / dist)
-            const double magnitude = k * (dist - r0) / dist;
+            const double magnitude = k * (dist - r0) / dist; // F = -k * (dist - r0) * (r / dist)
             return -magnitude * r;
         }
 
@@ -149,8 +148,8 @@ namespace april::env {
 
 
     namespace impl {
-        template<ForceVariant FV>
-        struct InteractionInfo {
+
+        template<ForceVariant FV> struct InteractionInfo {
             bool pair_contains_types;
             std::pair<int,int> key_pair;
             FV force;
@@ -159,6 +158,7 @@ namespace april::env {
               : pair_contains_types(is_type_pair), key_pair(key), force(std::move(f))
             {}
         };
+
     }
 
 } // namespace april::env

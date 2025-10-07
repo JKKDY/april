@@ -79,8 +79,8 @@ namespace april::cont {
 				std::vector<size_t> ret;
 				ret.reserve(static_cast<size_t>(size));
 
-				const vec3 min = (region.origin - domain.origin) / cell_extent;
-				const vec3 max = (region.extent + region.extent - domain.origin) / cell_extent;
+				const vec3 min = (region.origin - domain.origin).div(cell_extent);
+				const vec3 max = (region.extent + region.extent - domain.origin).div(cell_extent);
 
 				const uint32_t min_x = std::max(0, static_cast<int>(min.x));
 				const uint32_t min_y = std::max(0, static_cast<int>(min.y));

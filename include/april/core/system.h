@@ -53,15 +53,15 @@ namespace april::core {
 	template <cont::impl::IsContDecl C, env::IsForce ... Fs, env::IsBoundary ... BCs>
 	class System <C, env::Environment<env::ForcePack<Fs...>, env::BoundaryPack<BCs...>>> {
 	public:
-		using EnvT         = env::Environment<env::ForcePack<Fs...>, env::BoundaryPack<BCs...>>;
-		using Container    = typename C::template impl<EnvT>;
+		using EnvT          = env::Environment<env::ForcePack<Fs...>, env::BoundaryPack<BCs...>>;
+		using Container     = typename C::template impl<EnvT>;
 		using BoundaryTable = env::impl::BoundaryTable<typename EnvT::boundary_variant_t>;
 
-		using Interaction  = env::impl::InteractionInfo<typename EnvT::force_variant_t>;
-		using Particle     = env::impl::Particle;
-		using ParticleRef  = env::impl::ParticleRef;
-		using ParticleView = env::impl::ParticleView;
-		using ParticleID   = env::impl::ParticleID;
+		using Interaction   = env::impl::InteractionInfo<typename EnvT::force_variant_t>;
+		using Particle      = env::impl::Particle;
+		using ParticleRef   = env::impl::ParticleRef;
+		using ParticleView  = env::impl::ParticleView;
+		using ParticleID    = env::impl::ParticleID;
 
 
 		void update_forces() {
@@ -69,7 +69,12 @@ namespace april::core {
 		}
 
 		void apply_boundary_conditions() {
+			for (env::Face _ : env::faces) {
 
+				// env::impl::CompiledBoundary<typename EnvT::boundary_variant_t> & boundary = boundary_table.get_boundary(face);
+				// std::vector<size_t> particle_ids = container.dispatch_collect_indices_in_region(boundary.region);
+
+			}
 		}
 
 		void apply_controllers() {
@@ -139,11 +144,11 @@ namespace april::core {
 			const C & container_cfg,
 			const env::Domain& domain,
 			const std::vector<Particle> & particles,
-			const BoundaryTable boundary_table,
+			const BoundaryTable boundaries,
 			const UserToInternalMappings::TypeMap & usr_types_to_impl_types,
 			const UserToInternalMappings::IdMap & usr_ids_to_impl_ids,
 			std::vector<Interaction> & interaction_infos)
-			: domain(domain), container(container_cfg), boundaries(boundary_table), time_(0)
+			: domain(domain), container(container_cfg), boundary_table(boundaries), time_(0)
 		{
 			interaction_manager.build(interaction_infos, usr_types_to_impl_types, usr_ids_to_impl_ids);
 			container.init(interaction_manager, domain);
@@ -151,7 +156,7 @@ namespace april::core {
 		}
 
 		Container container;
-		BoundaryTable boundaries;
+		BoundaryTable boundary_table;
 		env::impl::InteractionManager<EnvT> interaction_manager;
 
 		double time_;

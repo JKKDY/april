@@ -46,7 +46,7 @@ static env::impl::Particle make_particle(env::impl::ParticleType type, env::impl
 
 
 // Use an environment that supports ConstantForce
-using Env = Environment<env::ForcePack<ConstantForce>>;
+using Env = Environment<env::ForcePack<ConstantForce>, env::BoundaryPack<>>;
 using IM  = InteractionManager<Env>;
 using Info = env::impl::InteractionInfo<IM::force_variant_info_t>; // variant<ConstantForce>
 

@@ -150,6 +150,8 @@ namespace april::env {
 			const BVariant boundary_v;
 		};
 
+
+
 		template<IsBoundaryVariant BVariant>
 		CompiledBoundary<BVariant> compile_boundary(const BVariant & boundary, const Domain & env_domain, Face face) {
 
@@ -191,25 +193,28 @@ namespace april::env {
 			return impl::CompiledBoundary<BVariant>(boundary, region);
 		}
 
+
+
 		template<IsBoundaryVariant BVariant>
 		struct BoundaryTable {
 
-			BoundaryTable(const std::array<BVariant, 6> & boundaries_, const Domain & env_domain):
-				boundaries({
-					compile_boundary<BVariant>(boundaries_[to_int(Face::XMinus)], env_domain, Face::XMinus),
-					compile_boundary<BVariant>(boundaries_[to_int(Face::XPlus)], env_domain, Face::XPlus),
-					compile_boundary<BVariant>(boundaries_[to_int(Face::YMinus)], env_domain, Face::YMinus),
-					compile_boundary<BVariant>(boundaries_[to_int(Face::YPlus)], env_domain, Face::YPlus),
-					compile_boundary<BVariant>(boundaries_[to_int(Face::ZMinus)], env_domain, Face::ZMinus),
-					compile_boundary<BVariant>(boundaries_[to_int(Face::ZPlus)], env_domain, Face::ZPlus),
+			BoundaryTable(const std::array<BVariant, 6> & boundaries, const Domain & env_domain):
+				table({
+					compile_boundary<BVariant>(boundaries[to_int(Face::XMinus)], env_domain, Face::XMinus),
+					compile_boundary<BVariant>(boundaries[to_int(Face::XPlus )], env_domain, Face::XPlus ),
+					compile_boundary<BVariant>(boundaries[to_int(Face::YMinus)], env_domain, Face::YMinus),
+					compile_boundary<BVariant>(boundaries[to_int(Face::YPlus )], env_domain, Face::YPlus ),
+					compile_boundary<BVariant>(boundaries[to_int(Face::ZMinus)], env_domain, Face::ZMinus),
+					compile_boundary<BVariant>(boundaries[to_int(Face::ZPlus )], env_domain, Face::ZPlus ),
 				})
 			{}
 
-			CompiledBoundary<BVariant> & boundary(const Face face) {
-				return boundaries[to_int(face)];
+			CompiledBoundary<BVariant> & get_boundary(const Face face) {
+				return table[to_int(face)];
 			}
 
-			std::array<CompiledBoundary<BVariant>, 6> boundaries;
+		private:
+			std::array<CompiledBoundary<BVariant>, 6> table;
 		};
 
 	}

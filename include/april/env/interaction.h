@@ -77,6 +77,12 @@ namespace april::env::impl {
         std::vector<force_variant_t> inter_type_forces; // Forces between different particle types (e.g. type A <-> type B)
         std::vector<force_variant_t> intra_particle_forces; // Forces between specific particle instances (by ID e.g. id1 <-> id2)
 
+        size_t n_types{};
+        size_t n_ids{};
+
+        double max_cutoff = 0;
+
+
         [[nodiscard]] size_t type_index(const size_t a, const size_t b) const noexcept{
             return n_types * a + b;
         }
@@ -99,12 +105,9 @@ namespace april::env::impl {
         const force_variant_t& get_id_force(const size_t a, const size_t b) const noexcept {
             return intra_particle_forces[id_index(a,b)];
         }
-
-        size_t n_types{};
-        size_t n_ids{};
-
-        double max_cutoff = 0;
     };
+
+
 
 
     template <IsForce ... Fs, IsBoundary... BCs>
@@ -210,7 +213,7 @@ namespace april::env::impl {
         }
 
 
-        // check if force maps are valid
+        // check if force maps are valid (Debug build only)
         for (size_t i = 0; i < n_types; i++) {
             for (size_t j = 0; j < n_types; j++) {
                 AP_ASSERT(!std::holds_alternative<NullForce>(inter_type_forces[type_index(i, j)]),

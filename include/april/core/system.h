@@ -11,8 +11,10 @@
 namespace april::core {
 
 	struct UserToInternalMappings {
-		std::unordered_map<env::ParticleType, env::impl::ParticleType> usr_types_to_impl_types;
-		std::unordered_map<env::ParticleID, env::impl::ParticleID> usr_ids_to_impl_ids;
+		using TypeMap = std::unordered_map<env::ParticleType, env::impl::ParticleType>;
+		using IdMap = std::unordered_map<env::ParticleID, env::impl::ParticleID>;
+		TypeMap usr_types_to_impl_types;
+		IdMap usr_ids_to_impl_ids;
 	};
 
 	template <cont::impl::IsContDecl C, class Env>
@@ -53,7 +55,9 @@ namespace april::core {
 	public:
 		using EnvT         = env::Environment<env::ForcePack<Fs...>, env::BoundaryPack<BCs...>>;
 		using Container    = typename C::template impl<EnvT>;
+		using BoundaryTable = env::impl::BoundaryTable<typename EnvT::boundary_variant_t>;
 
+		using Interaction  = env::impl::InteractionInfo<typename EnvT::force_variant_t>;
 		using Particle     = env::impl::Particle;
 		using ParticleRef  = env::impl::ParticleRef;
 		using ParticleView = env::impl::ParticleView;
@@ -133,11 +137,13 @@ namespace april::core {
 	private:
 		System(
 			const C & container_cfg,
-			const env::Domain& domain, const std::vector<env::impl::Particle>& particles,
-			std::vector<env::impl::InteractionInfo<typename EnvT::force_variant_t>> & interaction_infos,
-			const std::unordered_map<env::ParticleType, env::impl::ParticleType> & usr_types_to_impl_types,
-			const std::unordered_map<env::ParticleID, env::impl::ParticleID> & usr_ids_to_impl_ids)
-			: domain(domain), container(container_cfg), time_(0)
+			const env::Domain& domain,
+			const std::vector<Particle> & particles,
+			const BoundaryTable boundary_table,
+			const UserToInternalMappings::TypeMap & usr_types_to_impl_types,
+			const UserToInternalMappings::IdMap & usr_ids_to_impl_ids,
+			std::vector<Interaction> & interaction_infos)
+			: domain(domain), container(container_cfg), boundaries(boundary_table), time_(0)
 		{
 			interaction_manager.build(interaction_infos, usr_types_to_impl_types, usr_ids_to_impl_ids);
 			container.init(interaction_manager, domain);
@@ -145,6 +151,7 @@ namespace april::core {
 		}
 
 		Container container;
+		BoundaryTable boundaries;
 		env::impl::InteractionManager<EnvT> interaction_manager;
 
 		double time_;
@@ -155,7 +162,7 @@ namespace april::core {
 			env::Environment<FPack, BPack>& environment,
 			 const Cont& container,
 			 UserToInternalMappings* particle_mappings
-			 );
+		);
 	};
 
 
@@ -199,11 +206,14 @@ namespace april::core {
 
 	template <cont::impl::IsContDecl C, class FPack, class BPack>
 	System<C, env::Environment<FPack, BPack>> build_system(
-		env::Environment<FPack, BPack>& environment,
+		env::Environment<FPack, BPack> & environment,
 		const C& container,
 		UserToInternalMappings* particle_mappings
 	) {
+		using EnvT = env::Environment<FPack, BPack>;
+		using BoundaryTable = env::impl::BoundaryTable<typename EnvT::boundary_variant_t>;
 		using namespace impl;
+
 		auto & env = env::impl::get_env_data(environment);
 		const env::Domain bbox = calculate_bounding_box(env.particles);
 
@@ -235,7 +245,16 @@ namespace april::core {
 			particle_mappings->usr_types_to_impl_types = mapping.usr_types_to_impl_types;
 		}
 
-		return System<C, env::Environment<FPack, BPack>> (container, domain, particles,
-			env.interactions, mapping.usr_types_to_impl_types, mapping.usr_ids_to_impl_ids);
+		BoundaryTable boundaries (env.boundaries, env.domain);
+
+		return System<C, env::Environment<FPack, BPack>> (
+			container,
+			domain,
+			particles,
+			boundaries,
+			mapping.usr_types_to_impl_types,
+			mapping.usr_ids_to_impl_ids,
+			env.interactions
+		);
 	}
 }

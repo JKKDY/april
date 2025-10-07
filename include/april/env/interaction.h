@@ -44,7 +44,6 @@ namespace april::env::impl {
             >;
 
         using force_variant_info_t = std::variant<Fs...>;
-        // using info_t = InteractionInfo<force_variant_t>;
 
 		InteractionManager() = default;
 

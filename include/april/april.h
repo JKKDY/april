@@ -14,7 +14,7 @@
 
 #include "april/core/integrator.h"
 #include "april/core/stoermer_verlet.h"
-#include "april/core/yoshida4.h"
+#include "april/core//yoshida4.h"
 
 #include "april/domain/boundary.h"
 

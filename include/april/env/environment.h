@@ -23,7 +23,7 @@ namespace april::env {
 
 
     namespace impl {
-        template<ForceVariant FV, BoundaryVariant BV> struct EnvironmentData {
+        template<ForceVariant FV, IsBoundaryVariant BV> struct EnvironmentData {
             using force_variant_t = FV;
             using boundary_variant_t = BV;
 
@@ -34,10 +34,16 @@ namespace april::env {
 
             std::vector<env::Particle> particles;
             std::vector<InteractionInfo<force_variant_t>> interactions {};
-            // std::array<boundary_variant_t, 6> boundary;
+            std::array<boundary_variant_t, 6> boundaries;
         };
 
         template<class FPack, class BPack> auto& get_env_data(Environment<FPack, BPack>& env) {
+            for (auto & v : env.data.boundaries) {
+                if (std::holds_alternative<std::monostate>(v)) {
+                    v.template emplace<Absorb>(); // default-construct Absorb
+                }
+            }
+
             return env.data;
         }
     }
@@ -109,7 +115,6 @@ namespace april::env {
 
         static constexpr bool has_absorb = (std::is_same_v<Absorb, BCs> || ...);
 
-
         // expose types for deduction by ForceManager/build_system
         using forces_pack_t = ForcePack<Fs...>;
         using boundary_pack_t = ForcePack<Fs...>;
@@ -117,10 +122,9 @@ namespace april::env {
         using force_variant_t = std::variant<Fs...>;
         using boundary_variant_t =
             std::conditional_t<has_absorb,
-            std::variant<Absorb, BCs...>,
-            std::variant<BCs...>
+            std::variant<std::monostate, BCs...>,   // already contains Absorb
+            std::variant<std::monostate, Absorb, BCs...>    // ensure Absorb is present
         >;
-
 
         void add(
             const vec3& position, const vec3& velocity, double mass, ParticleType type = 0, ParticleID id = PARTICLE_ID_DONT_CARE) {
@@ -249,6 +253,18 @@ namespace april::env {
         template<IsForce F> requires same_as_any<F, Fs...>
         void add_force(F force, between_ids scope) {
             data.interactions.emplace_back(false, ParticleIDPair{scope.id1, scope.id2}, force_variant_t{std::move(force)});
+        }
+
+        template<IsBoundary B> requires same_as_any<B, BCs...>
+        void add_boundary(B boundary, const Face face) {
+            data.boundaries[to_int(face)] = boundary;
+        }
+
+        template<IsBoundary B> requires same_as_any<B, BCs...>
+        void add_boundary(B boundary, const std::vector<Face> & faces) {
+            for (const Face face : faces) {
+                data.boundaries[to_int(face)] = boundary;
+            }
         }
 
         void set_origin(const vec3& origin) {

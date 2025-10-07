@@ -12,6 +12,12 @@ namespace april::env {
 		ZMinus = 4, ZPlus = 5,
 	};
 
+	constexpr std::array faces = {
+		Face::XMinus, Face::XPlus,
+		Face::YMinus, Face::YPlus,
+		Face::ZMinus, Face::ZPlus
+	};
+
 	constexpr int to_int(Face f) noexcept {
 		return static_cast<int>(f);
 	}

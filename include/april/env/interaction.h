@@ -93,10 +93,10 @@ namespace april::env::impl {
             return intra_particle_forces[id_index(a, b)];
         }
 
-        const force_variant_t& get_type_force(size_t a, size_t b) const noexcept {
+        const force_variant_t& get_type_force(const size_t a, const size_t b) const noexcept {
             return inter_type_forces[type_index(a,b)];
         }
-        const force_variant_t& get_id_force(size_t a, size_t b) const noexcept {
+        const force_variant_t& get_id_force(const size_t a, const size_t b) const noexcept {
             return intra_particle_forces[id_index(a,b)];
         }
 

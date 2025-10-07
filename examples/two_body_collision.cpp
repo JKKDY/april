@@ -26,7 +26,7 @@ int main() {
 		.spacing(1.1225)
 		.type(0);
 
-	Environment env (forces<LennardJones>, boundaries<>);
+	Environment env (forces<LennardJones>);
 	env.add(cuboid1);
 	env.add(cuboid2);
 	env.set_extent({60,50,15});

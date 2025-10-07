@@ -15,7 +15,7 @@
 #include "april/domain/domain.h"
 
 namespace april::env {
-    template<class FPack, class BPack> struct Environment;
+    template<class FPack, class BPack> class Environment;
 
     inline const auto EXTENT_AUTO = vec3(std::numeric_limits<double>::max());
     inline const auto ORIGIN_AUTO = vec3(std::numeric_limits<double>::max());
@@ -107,17 +107,19 @@ namespace april::env {
     };
 
 
-    template<class FPack, class BPack> struct Environment;
-
     template<class... Fs, class... BCs>
-    struct Environment<ForcePack<Fs...>, BoundaryPack<BCs...>>{
+    class Environment<ForcePack<Fs...>, BoundaryPack<BCs...>>{
+    public:
         explicit Environment(ForcePack<Fs...>, BoundaryPack<BCs...>) {}
+
+        explicit Environment(ForcePack<Fs...> force_types)
+            : Environment(force_types, boundaries<>) {}
 
         static constexpr bool has_absorb = (std::is_same_v<Absorb, BCs> || ...);
 
         // expose types for deduction by ForceManager/build_system
         using forces_pack_t = ForcePack<Fs...>;
-        using boundary_pack_t = ForcePack<Fs...>;
+        using boundary_pack_t = BoundaryPack<BCs...>;
 
         using force_variant_t = std::variant<Fs...>;
         using boundary_variant_t =
@@ -126,8 +128,13 @@ namespace april::env {
             std::variant<std::monostate, Absorb, BCs...>    // ensure Absorb is present
         >;
 
+    private:
+        impl::EnvironmentData<force_variant_t, boundary_variant_t> data;
+        template<class FPack, class BPack> friend auto& impl::get_env_data(Environment<FPack, BPack>& env);
+
+    public:
         void add(
-            const vec3& position, const vec3& velocity, double mass, ParticleType type = 0, ParticleID id = PARTICLE_ID_DONT_CARE) {
+            const vec3& position, const vec3& velocity, const double mass, const ParticleType type = 0, const ParticleID id = PARTICLE_ID_DONT_CARE) {
             add(Particle{
                .id = id,
                .type = type,
@@ -297,18 +304,17 @@ namespace april::env {
         void set_boundary_conditions() {
             throw std::logic_error("Not implemented yet");
         }
-
-
-    private:
-        impl::EnvironmentData<force_variant_t, boundary_variant_t> data;
-
-        template<class FPack, class BPack> friend auto& impl::get_env_data(Environment<FPack, BPack>& env);
     };
 
 
-    // Deduction guide:
+    // Deduction guide: 2 args
     template<IsForce... Fs, IsBoundary... BCs>
     Environment(ForcePack<Fs...>, BoundaryPack<BCs...>)
         -> Environment<ForcePack<Fs...>, BoundaryPack<BCs...>>;
+
+    // Deduction guide: 1 args
+    template<IsForce... Fs>
+    Environment(ForcePack<Fs...>)
+    -> Environment<ForcePack<Fs...>, BoundaryPack<>>;
 
 }

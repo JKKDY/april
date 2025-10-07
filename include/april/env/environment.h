@@ -9,10 +9,10 @@
 #include <limits>
 
 #include "april/common.h"
+#include "april/env/domain.h"
 #include "april/env/particle.h"
-#include "april/env/force.h"
-#include "april/domain/boundary.h"
-#include "april/domain/domain.h"
+#include "april/forces/force.h"
+#include "april/boundaries/boundary.h"
 
 namespace april::env {
     template<class FPack, class BPack> class Environment;

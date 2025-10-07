@@ -1,12 +1,12 @@
 #pragma once
 
 #include "april/env/particle.h"
-#include "april/env/force.h"
+#include "april/forces//force.h"
 #include "april/env/environment.h"
-#include "april/env/interaction.h"
+#include "april/forces/interaction.h"
 #include "april/containers/container.h"
-#include "april/domain/domain.h"
-#include "april/domain/boundary.h"
+#include "april/env/domain.h"
+#include "april/boundaries/boundary.h"
 
 namespace april::core {
 

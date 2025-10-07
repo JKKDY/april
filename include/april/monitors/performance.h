@@ -3,7 +3,7 @@
 #include <chrono>
 #include <numeric>
 
-#include "april/io/monitor.h"
+#include "april/monitors/monitor.h"
 
 namespace april::io {
 	class Benchmark : public Monitor {

@@ -7,7 +7,7 @@
 #include <vector>
 #include <iostream>
 
-#include "april/io/monitor.h"
+#include "april/monitors/monitor.h"
 
 namespace april::io {
 

@@ -5,7 +5,7 @@
 #include <unordered_set>
 
 #include "april/env/particle.h"
-#include "april/env/force.h"
+#include "april/forces/force.h"
 #include "april/common.h"
 #include "april/env/environment.h"
 

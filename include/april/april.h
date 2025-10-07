@@ -1,22 +1,22 @@
 #pragma once
 #include "april/env/environment.h"
 #include "april/env/particle.h"
-#include "april/env/interaction.h"
+#include "april/forces/interaction.h"
 
-#include "april/io/monitor.h"
-#include "april/io/output.h"
-#include "april/io/status.h"
-#include "april/io/performance.h"
+#include "april/monitors/monitor.h"
+#include "april/monitors/output.h"
+#include "april/monitors/status.h"
+#include "april/monitors/performance.h"
 
 #include "april/containers/container.h"
 #include "april/containers/direct_sum.h"
 #include "april/containers/linked_cells.h"
 
-#include "april/core/integrator.h"
-#include "april/core/stoermer_verlet.h"
-#include "april/core//yoshida4.h"
+#include "april/integrators/integrator.h"
+#include "april/integrators/stoermer_verlet.h"
+#include "april/integrators/yoshida4.h"
 
-#include "april/domain/boundary.h"
+#include "april/boundaries/boundary.h"
 
 
 

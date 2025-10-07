@@ -2,8 +2,8 @@
 #include <vector>
 
 #include "april/env/particle.h"
-#include "april/env/interaction.h"
-#include "april/env/environment.h"
+#include "april/forces/interaction.h"
+#include "april/env/domain.h"
 
 
 

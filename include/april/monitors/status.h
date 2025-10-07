@@ -1,7 +1,7 @@
 #pragma once
 #include <iomanip>
 
-#include "april/io/monitor.h"
+#include "april/monitors/monitor.h"
 
 namespace april::io {
 	class ProgressBar : public Monitor {

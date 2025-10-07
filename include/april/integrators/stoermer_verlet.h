@@ -1,8 +1,8 @@
 #pragma once
-#include "april/core/integrator.h"
+#include "april/integrators/integrator.h"
 #include "april/core/system.h"
 #include "april/env/particle.h"
-#include "april/io/monitor.h"
+#include "april/monitors/monitor.h"
 #include "april/defaults.h"
 
 namespace april::core {

@@ -2,7 +2,7 @@
 
 #include <limits>
 
-namespace april::env {
+namespace april::controller {
     class Environment;
 
     struct Thermostat {

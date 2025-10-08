@@ -160,7 +160,7 @@ TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 }
 
 
-class OrbitMonitor final : public io::Monitor {
+class OrbitMonitor final : public monitor::Monitor {
 public:
 	OrbitMonitor(): Monitor(1) {}
 	explicit OrbitMonitor(const double v, const double r): Monitor(1), v(v), r(r) {}
@@ -197,7 +197,7 @@ TEST(LinkedCellsTest, OrbitTest) {
 	auto sys = build_system(env, LinkedCells(v));
 	sys.update_forces();
 
-	StoermerVerlet integrator(sys, io::monitors<OrbitMonitor>);
+	StoermerVerlet integrator(sys, monitor::monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for(0.001, T);
 

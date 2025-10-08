@@ -9,7 +9,7 @@
 
 #include "april/monitors/monitor.h"
 
-namespace april::io {
+namespace april::monitor {
 
 
 	class TerminalOutput final : public Monitor {

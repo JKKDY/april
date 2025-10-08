@@ -1,6 +1,6 @@
 #pragma once
 
-namespace april::env {
+namespace april::controller::impl {
 
 	class Controller {
 	public:
@@ -9,11 +9,7 @@ namespace april::env {
 		[[nodiscard]] size_t call_frequency() const { return call_frequency_m; }
 
 		void apply(this auto&& self, size_t step) {
-			// static_assert(
-			// 	requires { self.write_output(step); },
-			// 	"OutputWriter requires a write_output(size_t, const std::vector<Particle>&) method"
-			// );
-			// self.write_output(step);
+
 		}
 
 	private:

@@ -5,16 +5,16 @@
 #include "april/monitors/monitor.h"
 #include "april/defaults.h"
 
-namespace april::core {
+namespace april::integrator {
 
-	template<IsSystem Sys, class Pack> class Yoshida4;
+	template<core::IsSystem Sys, class Pack> class Yoshida4;
 
-	template <IsSystem Sys, class ... TMonitors>
-	class Yoshida4<Sys, io::MonitorPack<TMonitors...>>
-		: public impl::Integrator<Sys, io::MonitorPack<TMonitors...>> {
+	template <core::IsSystem Sys, class ... TMonitors>
+	class Yoshida4<Sys, monitor::MonitorPack<TMonitors...>>
+		: public impl::Integrator<Sys, monitor::MonitorPack<TMonitors...>> {
 	public:
 		using State = env::ParticleState;
-		using Base = impl::Integrator<Sys, io::MonitorPack<TMonitors...>>;
+		using Base = impl::Integrator<Sys, monitor::MonitorPack<TMonitors...>>;
 		using Base::dt;
 		using Base::sys;
 		using Base::Base;
@@ -51,8 +51,8 @@ namespace april::core {
 
 	// Deduction guide so user can write StoermerVerlet(sys, MonitorPack<M1, M2, M3>)
 	template<class Sys, class... Ms>
-	Yoshida4(Sys&, io::MonitorPack<Ms...>)
-		-> Yoshida4<Sys, io::MonitorPack<Ms...>>;
+	Yoshida4(Sys&, monitor::MonitorPack<Ms...>)
+		-> Yoshida4<Sys, monitor::MonitorPack<Ms...>>;
 
 	// Deduction guide so user can write StoermerVerlet(sys)
 	template<class Sys>
@@ -62,5 +62,5 @@ namespace april::core {
 	// Deduction guide so user can write StoermerVerlet(sys, m1, m2, m3)
 	template<class Sys, class... Ms>
 	Yoshida4(Sys&, Ms...)
-		-> Yoshida4<Sys, io::MonitorPack<std::decay_t<Ms>...>>;
+		-> Yoshida4<Sys, monitor::MonitorPack<std::decay_t<Ms>...>>;
 }

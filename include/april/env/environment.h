@@ -13,6 +13,7 @@
 #include "april/env/particle.h"
 #include "april/forces/force.h"
 #include "april/boundaries/boundary.h"
+#include "april/boundaries/absorb.h"
 
 namespace april::env {
     template<class FPack, class BPack> class Environment;
@@ -23,7 +24,7 @@ namespace april::env {
 
 
     namespace impl {
-        template<ForceVariant FV, IsBoundaryVariant BV> struct EnvironmentData {
+        template<force::ForceVariant FV, boundary::IsBoundaryVariant BV> struct EnvironmentData {
             using force_variant_t = FV;
             using boundary_variant_t = BV;
 
@@ -33,14 +34,14 @@ namespace april::env {
             std::unordered_set<env::ParticleType> usr_particle_types;
 
             std::vector<env::Particle> particles;
-            std::vector<InteractionInfo<force_variant_t>> interactions {};
+            std::vector<force::impl::InteractionInfo<force_variant_t>> interactions {};
             std::array<boundary_variant_t, 6> boundaries;
         };
 
         template<class FPack, class BPack> auto& get_env_data(Environment<FPack, BPack>& env) {
             for (auto & v : env.data.boundaries) {
                 if (std::holds_alternative<std::monostate>(v)) {
-                    v.template emplace<Absorb>(); // default-construct Absorb
+                    v.template emplace<boundary::Absorb>(); // default-construct Absorb
                 }
             }
 
@@ -108,24 +109,24 @@ namespace april::env {
 
 
     template<class... Fs, class... BCs>
-    class Environment<ForcePack<Fs...>, BoundaryPack<BCs...>>{
+    class Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>{
     public:
-        explicit Environment(ForcePack<Fs...>, BoundaryPack<BCs...>) {}
+        explicit Environment(force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>) {}
 
-        explicit Environment(ForcePack<Fs...> force_types)
-            : Environment(force_types, boundaries<>) {}
+        explicit Environment(force::ForcePack<Fs...> force_types)
+            : Environment(force_types, boundary::boundaries<>) {}
 
-        static constexpr bool has_absorb = (std::is_same_v<Absorb, BCs> || ...);
+        static constexpr bool has_absorb = (std::is_same_v<boundary::Absorb, BCs> || ...);
 
         // expose types for deduction by ForceManager/build_system
-        using forces_pack_t = ForcePack<Fs...>;
-        using boundary_pack_t = BoundaryPack<BCs...>;
+        using forces_pack_t = force::ForcePack<Fs...>;
+        using boundary_pack_t = boundary::BoundaryPack<BCs...>;
 
         using force_variant_t = std::variant<Fs...>;
         using boundary_variant_t =
             std::conditional_t<has_absorb,
             std::variant<std::monostate, BCs...>,   // already contains Absorb
-            std::variant<std::monostate, Absorb, BCs...>    // ensure Absorb is present
+            std::variant<std::monostate, boundary::Absorb, BCs...>    // ensure Absorb is present
         >;
 
     private:
@@ -248,28 +249,28 @@ namespace april::env {
             return ids;
         }
 
-        template<IsForce F> requires same_as_any<F, Fs...>
+        template<force::IsForce F> requires same_as_any<F, Fs...>
         void add_force(F force, to_type scope) {
             data.interactions.emplace_back(true, std::pair{scope.type, scope.type}, force_variant_t{std::move(force)});
         }
 
-        template<IsForce F> requires same_as_any<F, Fs...>
+        template<force::IsForce F> requires same_as_any<F, Fs...>
         void add_force(F force, between_types scope) {
             data.interactions.emplace_back(true, ParticleTypePair{scope.t1, scope.t2}, force_variant_t{std::move(force)});
         }
-        template<IsForce F> requires same_as_any<F, Fs...>
+        template<force::IsForce F> requires same_as_any<F, Fs...>
         void add_force(F force, between_ids scope) {
             data.interactions.emplace_back(false, ParticleIDPair{scope.id1, scope.id2}, force_variant_t{std::move(force)});
         }
 
-        template<IsBoundary B> requires same_as_any<B, BCs...>
-        void add_boundary(B boundary, const Face face) {
+        template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
+        void add_boundary(B boundary, const boundary::Face face) {
             data.boundaries[to_int(face)] = boundary;
         }
 
-        template<IsBoundary B> requires same_as_any<B, BCs...>
-        void add_boundary(B boundary, const std::vector<Face> & faces) {
-            for (const Face face : faces) {
+        template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
+        void add_boundary(B boundary, const std::vector<boundary::Face> & faces) {
+            for (const boundary::Face face : faces) {
                 data.boundaries[to_int(face)] = boundary;
             }
         }
@@ -308,13 +309,13 @@ namespace april::env {
 
 
     // Deduction guide: 2 args
-    template<IsForce... Fs, IsBoundary... BCs>
-    Environment(ForcePack<Fs...>, BoundaryPack<BCs...>)
-        -> Environment<ForcePack<Fs...>, BoundaryPack<BCs...>>;
+    template<force::IsForce... Fs, boundary::IsBoundary... BCs>
+    Environment(force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>)
+        -> Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>;
 
     // Deduction guide: 1 args
-    template<IsForce... Fs>
-    Environment(ForcePack<Fs...>)
-    -> Environment<ForcePack<Fs...>, BoundaryPack<>>;
+    template<force::IsForce... Fs>
+    Environment(force::ForcePack<Fs...>)
+    -> Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<>>;
 
 }

@@ -5,7 +5,7 @@
 
 #include "april/monitors/monitor.h"
 
-namespace april::io {
+namespace april::monitor {
 	class Benchmark : public Monitor {
 	public:
 		Benchmark() : Monitor(1) {}

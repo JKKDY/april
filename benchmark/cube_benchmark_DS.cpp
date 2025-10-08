@@ -57,7 +57,7 @@ int main() {
 	const vec3 origin = - 0.5 * extent;
 
 	for (int i = 0; i < 5; i++) {
-		Environment env (forces<LennardJones>);
+		Environment env (force<LennardJones>);
 		env.add(grid);
 		env.set_origin(origin);
 		env.set_extent(extent);

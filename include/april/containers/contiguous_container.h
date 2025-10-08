@@ -2,7 +2,7 @@
 
 #include "april/containers/container.h"
 
-namespace april::cont::impl {
+namespace april::container::impl {
 	template<typename Config, typename Env>
 	class ContiguousContainer : public Container<Config, Env> {
 	public:

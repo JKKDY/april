@@ -3,7 +3,7 @@
 
 #include "april/monitors/monitor.h"
 
-namespace april::io {
+namespace april::monitor {
 	class ProgressBar : public Monitor {
 	public:
 		using Monitor::Monitor;

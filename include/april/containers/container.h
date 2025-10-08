@@ -7,12 +7,12 @@
 
 
 
-namespace april::cont::impl {
+namespace april::container::impl {
 
 	// container interface
 	template <class Env> class IContainer {
 	public:
-		using InteractionManager = env::impl::InteractionManager<Env>;
+		using InteractionManager = force::impl::InteractionManager<Env>;
 		using Domain = env::Domain;
 		using Particle = env::impl::Particle;
 		using ParticleID = env::impl::ParticleID;

@@ -4,7 +4,7 @@
 #include "april/containers/contiguous_container.h"
 
 
-namespace april::cont {
+namespace april::container {
 
 	namespace impl {
 		template <class Env> class DirectSum;
@@ -16,8 +16,8 @@ namespace april::cont {
 
 	namespace impl {
 		template <class Env>
-		class DirectSum final : public ContiguousContainer<cont::DirectSum, Env> {
-			using Base = ContiguousContainer<cont::DirectSum, Env>;
+		class DirectSum final : public ContiguousContainer<container::DirectSum, Env> {
+			using Base = ContiguousContainer<container::DirectSum, Env>;
 			using typename Base::Particle;
 			using typename Base::ParticleID;
 			using Base::interactions;

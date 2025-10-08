@@ -4,7 +4,7 @@
 
 
 
-namespace april::cont {
+namespace april::container {
 	namespace impl {
 		template <class Env> class LinkedCells;
 	}
@@ -18,8 +18,8 @@ namespace april::cont {
 
 	namespace impl {
 		template <class Env>
-		class LinkedCells final : public ContiguousContainer<cont::LinkedCells, Env> {
-			using Base = ContiguousContainer<cont::LinkedCells, Env>;
+		class LinkedCells final : public ContiguousContainer<container::LinkedCells, Env> {
+			using Base = ContiguousContainer<container::LinkedCells, Env>;
 			using typename Base::Particle;
 			using typename Base::ParticleID;
 			using Base::interactions;

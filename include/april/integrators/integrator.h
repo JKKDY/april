@@ -6,22 +6,22 @@
 #include "april/common.h"
 
 
-namespace april::core::impl {
+namespace april::integrator::impl {
 
 	template <typename T> concept IsIntegrator = requires(T t) {
 			{ t.integration_step() } -> std::same_as<void>;
 	};
 
-	template<IsSystem Sys, class Pack> class Integrator;  // primary template
+	template<core::IsSystem Sys, class Pack> class Integrator;  // primary template
 
-	template <IsSystem Sys, class... TMonitors>  // partial specialization
-	class Integrator<Sys, io::MonitorPack<TMonitors...>> {
+	template <core::IsSystem Sys, class... TMonitors>  // partial specialization
+	class Integrator<Sys, monitor::MonitorPack<TMonitors...>> {
 	public:
 		explicit Integrator(Sys& sys_ref)
 			: sys(sys_ref)
 		{}
 
-		explicit Integrator(Sys& s, io::MonitorPack<TMonitors...>) : sys(s) {}
+		explicit Integrator(Sys& s, monitor::MonitorPack<TMonitors...>) : sys(s) {}
 
 		explicit Integrator(Sys& s, TMonitors... mons) : sys(s) {
 			(this->add_monitor(std::move(mons)), ...);

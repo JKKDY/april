@@ -1,10 +1,12 @@
 #pragma once
 
 #include <cstdint>
+
 #include "april/common.h"
+#include "april/env/particle.h"
 #include "april/env/domain.h"
 
-namespace april::env {
+namespace april::boundary {
 
 	enum class Face : uint8_t {
 		XMinus = 0, XPlus = 1,
@@ -88,15 +90,12 @@ namespace april::env {
 	inline constexpr BoundaryPack<BCs...> boundaries {};
 
 
-
-
-
 	namespace impl {
 
 		template<class BVariant>
 		const Topology& get_topology(const BVariant& v) {
-			return std::visit([](const auto& bc) -> const Topology& {
-				using T = std::decay_t<decltype(bc)>;
+			return std::visit([]<typename BC>(const BC& bc) -> const Topology& {
+				using T = std::decay_t<BC>;
 				if constexpr (requires(const T& x) { x.topology; }) {
 					return bc.topology;
 				} else {
@@ -107,8 +106,8 @@ namespace april::env {
 
 		template<class BVariant>
 		Topology& get_topology(BVariant& v) {
-			return std::visit([](auto& bc) -> Topology& {
-				using T = std::decay_t<decltype(bc)>;
+			return std::visit([]<typename BC>(BC& bc) -> Topology& {
+				using T = std::decay_t<BC>;
 				if constexpr (requires(T& x) { x.topology; }) {
 					return bc.topology;
 				} else {
@@ -120,31 +119,31 @@ namespace april::env {
 
 		template<IsBoundaryVariant BVariant> class CompiledBoundary{
 		public:
-			CompiledBoundary(const BVariant & boundary, const Domain & boundary_region):
+			CompiledBoundary(const BVariant & boundary, const env::Domain & boundary_region):
 				region(boundary_region), boundary_v(boundary) {
 
-				std::visit([this](const auto & bc) {
-					using T = std::decay_t<decltype(bc)>; // get the type of the alternative
+				std::visit([this]<typename BC>(const BC &) {
+					using T = std::decay_t<BC>; // get the type of the alternative
 					if constexpr (requires(T& x) { x.dispatch_apply; }) {
 						apply_fn = &thunk<T>; // store the thunk in apply_fn
 					}
 				}, boundary_v);
 			}
 
-			void apply(Particle & p) const noexcept {
+			void apply(env::impl::Particle & p) const noexcept {
 				apply_fn(this, p);
 			}
 
-			const Domain region;
+			const env::Domain region;
 		private:
 			template<typename T>
-			static void thunk(const CompiledBoundary * self, Particle & p ) noexcept {
+			static void thunk(const CompiledBoundary * self, env::impl::Particle & p ) noexcept {
 				// thunk for uniform function pointer type regardless of underlying variant type
 				// get the alternative from the variant and call apply on the particle
 				std::get<T>(self->boundary_v).dispatch_apply(p);
 			}
 
-			using ApplyFn = void (*)(const CompiledBoundary*, Particle&);
+			using ApplyFn = void (*)(const CompiledBoundary*, env::impl::Particle&);
 			ApplyFn apply_fn = nullptr;
 
 			const BVariant boundary_v;
@@ -153,7 +152,7 @@ namespace april::env {
 
 
 		template<IsBoundaryVariant BVariant>
-		CompiledBoundary<BVariant> compile_boundary(const BVariant & boundary, const Domain & env_domain, Face face) {
+		CompiledBoundary<BVariant> compile_boundary(const BVariant & boundary, const env::Domain & env_domain, const Face face) {
 
 			constexpr double NEG_INF = std::numeric_limits<double>::lowest();
 			constexpr double POS_INF = std::numeric_limits<double>::max();
@@ -166,7 +165,7 @@ namespace april::env {
 				return std::min(d, L);
 			};
 
-			Domain region = env_domain;  // start with full domain, override later
+			env::Domain region = env_domain;  // start with full domain, override later
 			const int  ax  = axis_of(face); // 0:x, 1:y, 2:z (see vec3)
 			const bool plus = is_plus(face);
 
@@ -198,7 +197,7 @@ namespace april::env {
 		template<IsBoundaryVariant BVariant>
 		struct BoundaryTable {
 
-			BoundaryTable(const std::array<BVariant, 6> & boundaries, const Domain & env_domain):
+			BoundaryTable(const std::array<BVariant, 6> & boundaries, const env::Domain & env_domain):
 				table({
 					compile_boundary<BVariant>(boundaries[to_int(Face::XMinus)], env_domain, Face::XMinus),
 					compile_boundary<BVariant>(boundaries[to_int(Face::XPlus )], env_domain, Face::XPlus ),
@@ -216,38 +215,7 @@ namespace april::env {
 		private:
 			std::array<CompiledBoundary<BVariant>, 6> table;
 		};
-
 	}
-
-
-
-	struct Absorb : Boundary {
-		Absorb(): Boundary(-1, false, false) {}
-
-		void apply(impl::Particle & particle) const noexcept{
-			particle.state = ParticleState::DEAD;
-		}
-	};
-
-	struct Outflow : Boundary {
-		Outflow(): Boundary(-1, false, false) {}
-
-	};
-
-	struct Periodic : Boundary {
-		Periodic(): Boundary(-1, true, true) {}
-
-	};
-
-	struct Reflective : Boundary {
-		Reflective(): Boundary(-1, false, false) {}
-	};
-
-	template <class Force>
-	struct Repulsive : Boundary {
-		explicit Repulsive(Force & force): Boundary(force.cutoff(), false, false) {}
-
-	};
 }
 
 

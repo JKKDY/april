@@ -2,7 +2,7 @@
 
 #include "april/env/particle.h"
 
-namespace april::io {
+namespace april::monitor {
 
 	template <typename M> concept IsMonitor = requires(M m,
 		const double dt,

@@ -9,7 +9,7 @@
 using namespace april;
 
 template <class Env>
-using InteractionManager = env::impl::InteractionManager<Env>;
+using InteractionManager = force::impl::InteractionManager<Env>;
 
 // A tiny force that returns a constant vector and mixes by summing
 struct ConstantForce final {
@@ -46,9 +46,9 @@ static env::impl::Particle make_particle(env::impl::ParticleType type, env::impl
 
 
 // Use an environment that supports ConstantForce
-using Env = Environment<env::ForcePack<ConstantForce>, env::BoundaryPack<>>;
+using Env = Environment<force::ForcePack<ConstantForce>, boundary::BoundaryPack<>>;
 using IM  = InteractionManager<Env>;
-using Info = env::impl::InteractionInfo<IM::force_variant_info_t>; // variant<ConstantForce>
+using Info = force::impl::InteractionInfo<IM::force_variant_info_t>; // variant<ConstantForce>
 
 
 TEST(InteractionManagerTest, EmptyBuild) {

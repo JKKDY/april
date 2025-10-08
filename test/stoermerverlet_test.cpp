@@ -12,7 +12,7 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	env.add({}, {}, 1);
 	env.add_force(NoForce(), to_type(0));
 
-	constexpr auto algo = cont::DirectSum();
+	constexpr auto algo = container::DirectSum();
 	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
@@ -30,7 +30,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	env.add({}, {4,5,6}, 2);
 	env.add_force(NoForce(), to_type(0));
 
-	constexpr auto algo = cont::DirectSum();
+	constexpr auto algo = container::DirectSum();
 	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
@@ -63,7 +63,7 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	env.add({1,0,0}, {}, 1);
 	env.add_force(InverseSquare(1), to_type(0));
 
-	constexpr auto algo = cont::DirectSum();
+	constexpr auto algo = container::DirectSum();
 	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
@@ -118,10 +118,10 @@ TEST(StoermerVerletTest, OrbitTest) {
 	env.add({0,R,0}, {v, 0, 0}, m);
 	env.add_force(InverseSquare(G), to_type(0));
 
-	constexpr auto algo = cont::DirectSum();
+	constexpr auto algo = container::DirectSum();
 	auto system = build_system(env, algo);
 
-	StoermerVerlet integrator(system, io::monitors<OrbitMonitor>);
+	StoermerVerlet integrator(system, monitor::monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for(0.001, T);
 
@@ -170,14 +170,14 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	auto system = build_system(env, algo);
 
 	{
-		StoermerVerlet integrator(system, io::monitors<OrbitMonitor>);
+		StoermerVerlet integrator(system, monitor::monitors<OrbitMonitor>);
 		integrator.add_monitor(OrbitMonitor(v, R));
 		integrator.run_for(0.001, T/2);
 		EXPECT_NEAR(system.time(), T/2, 0.005);
 	}
 
 	{
-		StoermerVerlet integrator(system, io::monitors<OrbitMonitor>);
+		StoermerVerlet integrator(system, monitor::monitors<OrbitMonitor>);
 		integrator.add_monitor(OrbitMonitor(v, R));
 		integrator.run_for(0.001, T/2);
 		EXPECT_NEAR(system.time(), T, 0.005);

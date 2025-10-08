@@ -17,10 +17,10 @@ namespace april::core {
 		IdMap usr_ids_to_impl_ids;
 	};
 
-	template <cont::impl::IsContDecl C, class Env>
+	template <container::impl::IsContDecl C, class Env>
 	class System;
 
-	template <cont::impl::IsContDecl Cont, class FPack, class BPack>
+	template <container::impl::IsContDecl Cont, class FPack, class BPack>
 	auto build_system(
 		env::Environment<FPack, BPack>& environment,
 		const Cont& container,
@@ -50,14 +50,14 @@ namespace april::core {
 		{ s.export_particles() } -> std::same_as<std::vector<typename S::ParticleView>>;
 	};
 
-	template <cont::impl::IsContDecl C, env::IsForce ... Fs, env::IsBoundary ... BCs>
-	class System <C, env::Environment<env::ForcePack<Fs...>, env::BoundaryPack<BCs...>>> {
+	template <container::impl::IsContDecl C, force::IsForce ... Fs, boundary::IsBoundary ... BCs>
+	class System <C, env::Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>> {
 	public:
-		using EnvT          = env::Environment<env::ForcePack<Fs...>, env::BoundaryPack<BCs...>>;
+		using EnvT          = env::Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>;
 		using Container     = typename C::template impl<EnvT>;
-		using BoundaryTable = env::impl::BoundaryTable<typename EnvT::boundary_variant_t>;
+		using BoundaryTable = boundary::impl::BoundaryTable<typename EnvT::boundary_variant_t>;
 
-		using Interaction   = env::impl::InteractionInfo<typename EnvT::force_variant_t>;
+		using Interaction   = force::impl::InteractionInfo<typename EnvT::force_variant_t>;
 		using Particle      = env::impl::Particle;
 		using ParticleRef   = env::impl::ParticleRef;
 		using ParticleView  = env::impl::ParticleView;
@@ -69,7 +69,7 @@ namespace april::core {
 		}
 
 		void apply_boundary_conditions() {
-			for (env::Face _ : env::faces) {
+			for (boundary::Face _ : boundary::faces) {
 
 				// env::impl::CompiledBoundary<typename EnvT::boundary_variant_t> & boundary = boundary_table.get_boundary(face);
 				// std::vector<size_t> particle_ids = container.dispatch_collect_indices_in_region(boundary.region);
@@ -157,11 +157,11 @@ namespace april::core {
 
 		Container container;
 		BoundaryTable boundary_table;
-		env::impl::InteractionManager<EnvT> interaction_manager;
+		force::impl::InteractionManager<EnvT> interaction_manager;
 
 		double time_;
 
-		template <cont::impl::IsContDecl Cont, class FPack, class BPack>
+		template <container::impl::IsContDecl Cont, class FPack, class BPack>
 		friend System<Cont, env::Environment<FPack, BPack>>
 		build_system(
 			env::Environment<FPack, BPack>& environment,
@@ -209,14 +209,14 @@ namespace april::core {
 		);
 	}
 
-	template <cont::impl::IsContDecl C, class FPack, class BPack>
+	template <container::impl::IsContDecl C, class FPack, class BPack>
 	System<C, env::Environment<FPack, BPack>> build_system(
 		env::Environment<FPack, BPack> & environment,
 		const C& container,
 		UserToInternalMappings* particle_mappings
 	) {
 		using EnvT = env::Environment<FPack, BPack>;
-		using BoundaryTable = env::impl::BoundaryTable<typename EnvT::boundary_variant_t>;
+		using BoundaryTable = boundary::impl::BoundaryTable<typename EnvT::boundary_variant_t>;
 		using namespace impl;
 
 		auto & env = env::impl::get_env_data(environment);

@@ -9,14 +9,14 @@
 
 namespace april::container {
 
-	namespace impl {
+	namespace internal {
 
 		template <class Env> class ContainerInterface {
 		public:
-			using InteractionManager = force::impl::ForceTable<Env>;
+			using InteractionManager = force::internal::ForceTable<Env>;
 			using Domain = env::Domain;
-			using Particle = env::impl::Particle;
-			using ParticleID = env::impl::ParticleID;
+			using Particle = env::internal::Particle;
+			using ParticleID = env::internal::ParticleID;
 
 			ContainerInterface() = default;
 			void init(InteractionManager & interaction_mngr, const Domain & dom) {
@@ -116,13 +116,13 @@ namespace april::container {
 	} // namesapce impl
 
 
-	template<typename Config, typename Env> class Container : public impl::ContainerInterface<Env> {
+	template<typename Config, typename Env> class Container : public internal::ContainerInterface<Env> {
 	public:
 		using CFG = Config;
 		explicit Container(Config config): cfg(config) {}
 
-		using typename impl::ContainerInterface<Env>::Particle;
-		using typename impl::ContainerInterface<Env>::ParticleID;
+		using typename internal::ContainerInterface<Env>::Particle;
+		using typename internal::ContainerInterface<Env>::ParticleID;
 	protected:
 		Config cfg;
 	};

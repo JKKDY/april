@@ -8,7 +8,7 @@ namespace april::boundary {
 	struct Repulsive : Boundary {
 		explicit Repulsive(Force & force): Boundary(force.cutoff(), false, false) {}
 
-		void apply(env::impl::Particle &) const noexcept{
+		void apply(env::internal::Particle &) const noexcept{
 
 		}
 	};

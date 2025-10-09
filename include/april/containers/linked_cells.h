@@ -5,18 +5,18 @@
 
 
 namespace april::container {
-	namespace impl {
+	namespace internal {
 		template <class Env> class LinkedCells;
 	}
 
 
 	struct LinkedCells {
-		template<typename  Env> using impl = impl::LinkedCells<Env>;
+		template<typename  Env> using impl = internal::LinkedCells<Env>;
 		double cell_size_hint;
 	};
 
 
-	namespace impl {
+	namespace internal {
 		template <class Env>
 		class LinkedCells final : public ContiguousContainer<container::LinkedCells, Env> {
 			using Base = ContiguousContainer<container::LinkedCells, Env>;

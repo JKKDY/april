@@ -20,7 +20,7 @@ int main() {
 	auto system = build_system(env, algo);
 
 	Yoshida4 integrator(system);
-	integrator.add_monitor(BinaryOutput(50, dir_path));
+	integrator.add_monitor(BinaryOutput(10, dir_path));
 	integrator.add_monitor(ProgressBar(10));
 	integrator.add_monitor(Benchmark());
 

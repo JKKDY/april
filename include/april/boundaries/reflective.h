@@ -7,7 +7,7 @@ namespace april::boundary {
 	struct Reflective : Boundary {
 		Reflective(): Boundary(-1, false, false) {}
 
-		void apply(env::impl::Particle &) const noexcept{
+		void apply(env::internal::Particle &) const noexcept{
 
 		}
 	};

@@ -3,7 +3,7 @@
 
 
 
-namespace april::env::impl {
+namespace april::env::internal {
 	Particle::Particle(const unsigned int id, const vec3& position, const vec3& velocity,
 					   const double mass, const unsigned int type, const State state, const vec3& force,
 					   const vec3& old_force, const vec3& old_position) :
@@ -99,7 +99,7 @@ namespace april::env::impl {
 }
 
 namespace april::env {
-	ParticleView::ParticleView(const impl::Particle& p):
+	ParticleView::ParticleView(const internal::Particle& p):
 	position(p.position)
 	, old_position(p.old_position)
 	, velocity(p.velocity)
@@ -110,7 +110,7 @@ namespace april::env {
 	, type(p.type)
 	, id(p.id) {}
 
-	bool ParticleView::operator==(const impl::Particle& other) const {
+	bool ParticleView::operator==(const internal::Particle& other) const {
 		return id == other.id;
 	}
 

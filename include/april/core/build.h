@@ -7,11 +7,10 @@
 #include "april/env/environment.h"
 #include "april/containers/container.h"
 #include "april/env/domain.h"
-#include "april/boundaries/boundary.h"
 
 
 namespace april::core {
-	namespace impl {
+	namespace internal {
 		env::Domain calculate_bounding_box(const std::vector<env::Particle>& particles);
 
 		struct InteractionParams {
@@ -43,7 +42,7 @@ namespace april::core {
 			const env::Domain& usr_domain
 		);
 
-		std::vector<env::impl::Particle> build_particles(
+		std::vector<env::internal::Particle> build_particles(
 			const std::vector<env::Particle>& particle_infos,
 			const UserToInternalMappings& mapping
 		);
@@ -56,10 +55,10 @@ namespace april::core {
 		UserToInternalMappings* particle_mappings
 	) {
 		using EnvT = env::Environment<FPack, BPack>;
-		using BoundaryTable = boundary::impl::BoundaryTable<typename EnvT::boundary_variant_t>;
-		using namespace impl;
+		using BoundaryTable = boundary::internal::BoundaryTable<typename EnvT::boundary_variant_t>;
+		using namespace internal;
 
-		auto & env = env::impl::get_env_data(environment);
+		auto & env = env::internal::get_env_data(environment);
 		const env::Domain bbox = calculate_bounding_box(env.particles);
 
 		std::vector<InteractionParams> interactions(env.interactions.size());
@@ -83,7 +82,7 @@ namespace april::core {
 		);
 
 		const env::Domain domain = finalize_environment_domain(bbox, env.domain);
-		const std::vector<env::impl::Particle> particles = build_particles(env.particles, mapping);
+		const std::vector<env::internal::Particle> particles = build_particles(env.particles, mapping);
 
 		if (particle_mappings) {
 			particle_mappings->usr_ids_to_impl_ids = mapping.usr_ids_to_impl_ids;

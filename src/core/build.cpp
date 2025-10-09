@@ -1,7 +1,7 @@
 #include "april/core/build.h"
 
 
-namespace april::core::impl {
+namespace april::core::internal {
 
 	using namespace env;
 	using namespace container;
@@ -212,7 +212,7 @@ namespace april::core::impl {
 
 		// create types map
 		for (size_t  i = 0; i < type_vector.size(); i++) {
-			mapping.usr_types_to_impl_types[type_vector[i]] = static_cast<env::impl::ParticleType>(i);
+			mapping.usr_types_to_impl_types[type_vector[i]] = static_cast<env::internal::ParticleType>(i);
 		}
 
 		// generate mapping for user ids to implementation ids
@@ -237,7 +237,7 @@ namespace april::core::impl {
 
 		// create id map
 		for (size_t  i = 0; i < id_vector.size(); i++) {
-			mapping.usr_ids_to_impl_ids[id_vector[i]] = static_cast<env::impl::ParticleID>(i);
+			mapping.usr_ids_to_impl_ids[id_vector[i]] = static_cast<env::internal::ParticleID>(i);
 		}
 
 		return mapping;
@@ -293,8 +293,8 @@ namespace april::core::impl {
 		return domain;
 	}
 
-	std::vector<env::impl::Particle> build_particles(const std::vector<Particle> & particle_infos, const UserToInternalMappings& mapping) {
-		std::vector<env::impl::Particle> particles;
+	std::vector<env::internal::Particle> build_particles(const std::vector<Particle> & particle_infos, const UserToInternalMappings& mapping) {
+		std::vector<env::internal::Particle> particles;
 		particles.reserve(particle_infos.size());
 
 		for (const auto & p : particle_infos) {

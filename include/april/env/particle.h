@@ -74,7 +74,7 @@ namespace april::env {
 		ParticleState state{};					// The state of the particle.
 	};
 
-	namespace impl
+	namespace internal
 	{
 		using ParticleType = unsigned int;
 		using ParticleID = unsigned int;
@@ -136,7 +136,7 @@ namespace april::env {
 	}
 
 	struct ParticleView {
-		explicit ParticleView(const impl::Particle& p);
+		explicit ParticleView(const internal::Particle& p);
 
 		const vec3& position;
 		const vec3& old_position;
@@ -144,12 +144,12 @@ namespace april::env {
 		const vec3& force;
 		const vec3& old_force;
 
-		const impl::Particle::State&  state;
+		const internal::Particle::State&  state;
 		const double&				  mass;
-		const impl::ParticleType&     type;
-		const impl::ParticleID&       id;
+		const internal::ParticleType&     type;
+		const internal::ParticleID&       id;
 
-		bool operator==(const impl::Particle& other) const;
+		bool operator==(const internal::Particle& other) const;
 		[[nodiscard]] std::string to_string() const;
 	};
 }

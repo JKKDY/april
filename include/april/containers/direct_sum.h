@@ -5,15 +5,15 @@
 
 namespace april::container {
 
-	namespace impl {
+	namespace internal {
 		template <class Env> class DirectSum;
 	}
 
 	struct DirectSum {
-		template<typename  Env> using impl = impl::DirectSum<Env>;
+		template<typename  Env> using impl = internal::DirectSum<Env>;
 	};
 
-	namespace impl {
+	namespace internal {
 		template <class Env>
 		class DirectSum final : public ContiguousContainer<container::DirectSum, Env> {
 			using Base = ContiguousContainer<container::DirectSum, Env>;

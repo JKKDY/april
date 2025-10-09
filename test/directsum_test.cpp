@@ -14,7 +14,7 @@ struct ConstantForce final {
 	ConstantForce(double x, double y, double z, double cutoff = -1) : v{x,y,z} {
 		cutoff_radius = cutoff;
 	}
-	vec3 operator()(const env::impl::Particle&, const env::impl::Particle&, const vec3&) const noexcept {
+	vec3 operator()(const env::internal::Particle&, const env::internal::Particle&, const vec3&) const noexcept {
 		return v;
 	}
 

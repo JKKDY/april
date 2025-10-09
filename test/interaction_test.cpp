@@ -9,7 +9,7 @@
 using namespace april;
 
 template <class Env>
-using InteractionManager = force::impl::ForceTable<Env>;
+using InteractionManager = force::internal::ForceTable<Env>;
 
 // A tiny force that returns a constant vector and mixes by summing
 struct ConstantForce final {
@@ -18,7 +18,7 @@ struct ConstantForce final {
     ConstantForce(double x, double y, double z, double cutoff = -1) : v{x,y,z} {
         cutoff_radius = cutoff;
     }
-    vec3 operator()(const env::impl::Particle&, const env::impl::Particle&, const vec3&) const noexcept {
+    vec3 operator()(const env::internal::Particle&, const env::internal::Particle&, const vec3&) const noexcept {
         return v;
     }
 
@@ -33,14 +33,14 @@ struct ConstantForce final {
 };
 
 // Helper to make a dummy particle
-static env::impl::Particle make_particle(env::impl::ParticleType type, env::impl::ParticleID id, double mass=1.0, vec3 pos={0,0,0}) {
+static env::internal::Particle make_particle(env::internal::ParticleType type, env::internal::ParticleID id, double mass=1.0, vec3 pos={0,0,0}) {
     return {
     /* id          */ id,
     /* position    */ pos,
     /* velocity    */ vec3{0,0,0},
     /* mass        */ mass,
     /* type        */ type,
-    /* state       */ env::impl::Particle::State::ALIVE
+    /* state       */ env::internal::Particle::State::ALIVE
     };
 }
 
@@ -48,7 +48,7 @@ static env::impl::Particle make_particle(env::impl::ParticleType type, env::impl
 // Use an environment that supports ConstantForce
 using Env = Environment<force::ForcePack<ConstantForce>, boundary::BoundaryPack<>>;
 using IM  = InteractionManager<Env>;
-using Info = force::impl::InteractionInfo<IM::force_variant_info_t>; // variant<ConstantForce>
+using Info = force::internal::InteractionInfo<IM::force_variant_info_t>; // variant<ConstantForce>
 
 
 TEST(InteractionManagerTest, EmptyBuild) {
@@ -68,7 +68,7 @@ TEST(InteractionManagerTest, MaxCutoffCalculation) {
     info.emplace_back(true, std::pair{0, 0}, ConstantForce(1, 1, 1, 1.5));
     info.emplace_back(true, std::pair{1, 1}, ConstantForce(2, 2, 2, 2.5));
 
-    std::unordered_map<ParticleType, env::impl::ParticleType> type_map{{0, 0}, {1, 1}};
+    std::unordered_map<ParticleType, env::internal::ParticleType> type_map{{0, 0}, {1, 1}};
 
     EXPECT_NO_THROW(mgr.build(info, type_map, {}));
     EXPECT_DOUBLE_EQ(mgr.get_max_cutoff(), 2.5);
@@ -82,7 +82,7 @@ TEST(InteractionManagerTest, TypeBasedLookup) {
     info.emplace_back(true, std::pair{1, 1}, ConstantForce(1, 2, 3, -1));
     info.emplace_back(true, std::pair{0, 1}, ConstantForce(7, 8, 9, -1));
 
-    std::unordered_map<ParticleType, env::impl::ParticleType> type_map{{0, 0}, {1, 1}};
+    std::unordered_map<ParticleType, env::internal::ParticleType> type_map{{0, 0}, {1, 1}};
     mgr.build(info, type_map, {});
 
     auto p0 = make_particle(0, 10, 1.0, {0, 0, 0});
@@ -109,8 +109,8 @@ TEST(InteractionManagerTest, IdBasedLookup) {
     // one id-based entry for (42,99)
     info.emplace_back(false, std::pair{42, 99}, ConstantForce(7, 8, 9));
 
-    std::unordered_map<ParticleType, env::impl::ParticleType> type_map{{0, 0}};
-    std::unordered_map<ParticleID, env::impl::ParticleID> id_map{{42, 0}, {99, 1}};
+    std::unordered_map<ParticleType, env::internal::ParticleType> type_map{{0, 0}};
+    std::unordered_map<ParticleID, env::internal::ParticleID> id_map{{42, 0}, {99, 1}};
     mgr.build(info, type_map, id_map);
 
     auto p1 = make_particle(0, 0);
@@ -135,7 +135,7 @@ TEST(InteractionManagerTest, MixingForces) {
     info.emplace_back(true, std::pair{0, 0}, ConstantForce(4, 5, 6, -1));
     info.emplace_back(true, std::pair{1, 1}, ConstantForce(1, 2, 3, -1));
 
-    std::unordered_map<ParticleType, env::impl::ParticleType> type_map{{0, 0}, {1, 1}};
+    std::unordered_map<ParticleType, env::internal::ParticleType> type_map{{0, 0}, {1, 1}};
     mgr.build(info, type_map, {});
 
     auto p0 = make_particle(0, 10, 1.0, {0, 0, 0});

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "april/env/particle.h"
-#include "april/forces//force.h"
+#include "april/forces/force.h"
 #include "april/env/environment.h"
 #include "april/forces/force_table.h"
 #include "april/containers/container.h"
@@ -11,8 +11,8 @@
 namespace april::core {
 
 	struct UserToInternalMappings {
-		using TypeMap = std::unordered_map<env::ParticleType, env::impl::ParticleType>;
-		using IdMap = std::unordered_map<env::ParticleID, env::impl::ParticleID>;
+		using TypeMap = std::unordered_map<env::ParticleType, env::internal::ParticleType>;
+		using IdMap = std::unordered_map<env::ParticleID, env::internal::ParticleID>;
 		TypeMap usr_types_to_impl_types;
 		IdMap usr_ids_to_impl_ids;
 	};
@@ -56,13 +56,13 @@ namespace april::core {
 	public:
 		using EnvT          = env::Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>;
 		using Container     = typename C::template impl<EnvT>;
-		using BoundaryTable = boundary::impl::BoundaryTable<typename EnvT::boundary_variant_t>;
-		using ForceTable    = force::impl::ForceTable<EnvT>;
-		using Interaction   = force::impl::InteractionInfo<typename EnvT::force_variant_t>;
-		using Particle      = env::impl::Particle;
-		using ParticleRef   = env::impl::ParticleRef;
+		using BoundaryTable = boundary::internal::BoundaryTable<typename EnvT::boundary_variant_t>;
+		using ForceTable    = force::internal::ForceTable<EnvT>;
+		using Interaction   = force::internal::InteractionInfo<typename EnvT::force_variant_t>;
+		using Particle      = env::internal::Particle;
+		using ParticleRef   = env::internal::ParticleRef;
 		using ParticleView  = env::ParticleView;
-		using ParticleID    = env::impl::ParticleID;
+		using ParticleID    = env::internal::ParticleID;
 
 		const env::Domain domain;
 

@@ -7,7 +7,7 @@ namespace april::boundary {
 	struct Absorb : Boundary {
 		Absorb(): Boundary(-1, false, false) {}
 
-		void apply(env::impl::Particle & particle) const noexcept{
+		void apply(env::internal::Particle & particle) const noexcept{
 			particle.state = env::ParticleState::DEAD;
 		}
 	};

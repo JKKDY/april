@@ -46,7 +46,7 @@ namespace april::boundary {
 			topology(thickness, couples_axis, force_wrap)
 		{}
 
-		void dispatch_apply(this auto&& self, env::impl::Particle & particle) noexcept {
+		void dispatch_apply(this auto&& self, env::internal::Particle & particle) noexcept {
 			static_assert(
 			   requires { { self.apply(particle) } -> std::same_as<void>; },
 			   "BoundaryCondition subclass must implement: void dispatch_apply(particle)"
@@ -73,7 +73,7 @@ namespace april::boundary {
 	inline constexpr BoundaryPack<BCs...> boundaries {};
 
 
-	namespace impl {
+	namespace internal {
 		// define boundary variant concept
 		template<typename T>
 		struct is_boundary_variant : std::false_type {};

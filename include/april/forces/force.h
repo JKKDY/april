@@ -14,8 +14,8 @@ namespace april::force {
         std::assignable_from<F&, F const&> &&
         std::movable<F> &&
     requires(F const& f,
-             env::impl::Particle const& p1,
-             env::impl::Particle const& p2,
+             env::internal::Particle const& p1,
+             env::internal::Particle const& p2,
              vec3 const& r,
              F const& o)
     {
@@ -32,7 +32,7 @@ namespace april::force {
     inline constexpr ForcePack<Fs...> forces{};
 
 
-    namespace impl {
+    namespace internal {
 
         template<typename T>
         struct is_force_variant : std::false_type {};

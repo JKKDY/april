@@ -19,7 +19,7 @@ namespace april::force {
 			cutoff_radius = (cutoff < 0.0) ? 3.0 * sigma : cutoff;
 		}
 
-		vec3 operator()(env::impl::Particle const&, env::impl::Particle const&, vec3 const& r) const noexcept {
+		vec3 operator()(env::internal::Particle const&, env::internal::Particle const&, vec3 const& r) const noexcept {
 			const double r2 = r.norm_squared();
 			if (cutoff_radius > 0.0 && r2 > cutoff_radius * cutoff_radius)
 				return vec3{0.0, 0.0, 0.0};

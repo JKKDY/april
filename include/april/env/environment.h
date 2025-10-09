@@ -23,8 +23,8 @@ namespace april::env {
     inline const auto ZERO_THERMAL_V = [](const Particle&) {return vec3{}; };
 
 
-    namespace impl {
-        template<force::impl::ForceVariant FV, boundary::impl::BoundaryVariant BV>
+    namespace internal {
+        template<force::internal::ForceVariant FV, boundary::internal::BoundaryVariant BV>
         struct EnvironmentData {
             using force_variant_t = FV;
             using boundary_variant_t = BV;
@@ -35,7 +35,7 @@ namespace april::env {
             std::unordered_set<env::ParticleType> usr_particle_types;
 
             std::vector<env::Particle> particles;
-            std::vector<force::impl::InteractionInfo<force_variant_t>> interactions {};
+            std::vector<force::internal::InteractionInfo<force_variant_t>> interactions {};
             std::array<boundary_variant_t, 6> boundaries;
         };
 
@@ -131,8 +131,8 @@ namespace april::env {
         >;
 
     private:
-        impl::EnvironmentData<force_variant_t, boundary_variant_t> data;
-        template<class FPack, class BPack> friend auto& impl::get_env_data(Environment<FPack, BPack>& env);
+        internal::EnvironmentData<force_variant_t, boundary_variant_t> data;
+        template<class FPack, class BPack> friend auto& internal::get_env_data(Environment<FPack, BPack>& env);
 
     public:
         void add(

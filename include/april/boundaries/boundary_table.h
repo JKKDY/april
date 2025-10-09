@@ -4,7 +4,7 @@
 
 #include "april/boundaries/boundary.h"
 
-namespace april::boundary::impl {
+namespace april::boundary::internal {
 
 		template<class BVariant>
 		const Topology& get_topology(const BVariant& v) {
@@ -44,20 +44,20 @@ namespace april::boundary::impl {
 				}, boundary_v);
 			}
 
-			void apply(env::impl::Particle & p) const noexcept {
+			void apply(env::internal::Particle & p) const noexcept {
 				apply_fn(this, p);
 			}
 
 			const env::Domain region;
 		private:
 			template<typename T>
-			static void thunk(const CompiledBoundary * self, env::impl::Particle & p ) noexcept {
+			static void thunk(const CompiledBoundary * self, env::internal::Particle & p ) noexcept {
 				// thunk for uniform function pointer type regardless of underlying variant type
 				// get the alternative from the variant and call apply on the particle
 				std::get<T>(self->boundary_v).dispatch_apply(p);
 			}
 
-			using ApplyFn = void (*)(const CompiledBoundary*, env::impl::Particle&);
+			using ApplyFn = void (*)(const CompiledBoundary*, env::internal::Particle&);
 			ApplyFn apply_fn = nullptr;
 
 			const BVariant boundary_v;
@@ -103,7 +103,7 @@ namespace april::boundary::impl {
 				}
 			}
 
-			return impl::CompiledBoundary<BVariant>(boundary, region);
+			return internal::CompiledBoundary<BVariant>(boundary, region);
 		}
 
 

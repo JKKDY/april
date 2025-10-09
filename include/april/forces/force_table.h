@@ -12,12 +12,12 @@
 #include "april/env/environment.h"
 
 
-namespace april::force::impl {
+namespace april::force::internal {
 
     // internal placeholder only
     struct ForceSentinel {
         double cutoff_radius = -1.0;
-        vec3 operator()(const env::impl::Particle&, const env::impl::Particle&, const vec3&) const noexcept {
+        vec3 operator()(const env::internal::Particle&, const env::internal::Particle&, const vec3&) const noexcept {
             assert(false && "NullForce should never be executed");
              return {};
         }
@@ -60,8 +60,8 @@ namespace april::force::impl {
 
     public:
         void build(std::vector<InteractionInfo<force_variant_info_t>>& interaction_infos,
-                   const std::unordered_map<env::ParticleType, env::impl::ParticleType>& usr_types_to_impl_types,
-                   const std::unordered_map<env::ParticleID, env::impl::ParticleID>& usr_ids_to_impl_ids
+                   const std::unordered_map<env::ParticleType, env::internal::ParticleType>& usr_types_to_impl_types,
+                   const std::unordered_map<env::ParticleID, env::internal::ParticleID>& usr_ids_to_impl_ids
         ) {
             // partition type vs id
             const auto it = std::partition(interaction_infos.begin(), interaction_infos.end(),
@@ -196,12 +196,12 @@ namespace april::force::impl {
         }
 
 
-        [[nodiscard]] vec3 evaluate(const env::impl::Particle& p1, const env::impl::Particle& p2) const {
+        [[nodiscard]] vec3 evaluate(const env::internal::Particle& p1, const env::internal::Particle& p2) const {
             return evaluate(p1, p2, p2.position - p1.position); // dist vector points from p1 to p2
         }
 
 
-        [[nodiscard]] vec3 evaluate(const env::impl::Particle& p1, const env::impl::Particle& p2, const vec3& r) const {
+        [[nodiscard]] vec3 evaluate(const env::internal::Particle& p1, const env::internal::Particle& p2, const vec3& r) const {
             auto & tF = get_type_force(p1.type, p2.type);
             vec3 force = std::visit([&](auto const& f){ return f(p1,p2,r); }, tF);
 

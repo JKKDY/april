@@ -16,7 +16,7 @@ namespace april::force {
 		Harmonic(const double k_, const double r0_)
 		: k(k_), r0(r0_), cutoff_radius(-1.0) {}
 
-		vec3 operator()(env::impl::Particle const&, env::impl::Particle const&, vec3 const& r) const noexcept {
+		vec3 operator()(env::internal::Particle const&, env::internal::Particle const&, vec3 const& r) const noexcept {
 			const double dist = r.norm();
 			const double magnitude = k * (dist - r0) / dist; // F = -k * (dist - r0) * (r / dist)
 			return -magnitude * r;

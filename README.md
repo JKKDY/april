@@ -106,7 +106,7 @@ int main() {
 ```
 Further examples can be found in `examples/`:
 - Halley’s Comet - small N-body system with gravitational InverseSquare forces.
-- Two-Body Collision -  MD-style collision with LennardJones interactions and explicit domain extents.
+- Two-Body Collision - MD-style collision with LennardJones interactions and explicit domain extents.
 
 ## Design Notes
 - The entire public API is collected in april/april.h, so users normally only need a single include.
@@ -163,7 +163,7 @@ env.add_force(MyForce{...}, to_type(...));
 
 ### Custom container
 
-Inherit from `impl::Container<Config, Env>`and provide 
+Inherit from `Container<Config, Env>`and provide 
 
 - `build(const std::vector<Particle>&)`
 - `calculate_forces()`
@@ -205,19 +205,19 @@ Usage:
 auto system = build_system(env, MyContainer());
 ```
 
-You can derive from `april::cont::impl::ContiguousContainer<Config, Env>` to reuse storage and id/index utilities. ContiguousContainer stores particles in a single contiguous vector.
+You can derive from `container::ContiguousContainer<Config, Env>` to reuse storage and id/index utilities. ContiguousContainer stores particles in a single contiguous vector.
 
 ### Custom integrator
 
-Inherit from `core::impl::Integrator<System, MonitorPack<...>>` and provide `integration_step()`.
+Inherit from `integrator::Integrator<System, MonitorPack<...>>` and provide `integration_step()`.
 
 ````c++
 template<core::IsSystem Sys, class Pack>
 class MyIntegrator;
 
 template<core::IsSystem Sys, class... Ms>
-class MyIntegrator<Sys, io::MonitorPack<Ms...>>
-  : public impl::Integrator<Sys, MonitorPack<Ms...>> {
+class MyIntegrator<Sys, MonitorPack<Ms...>>
+  : public Integrator<Sys, MonitorPack<Ms...>> {
     using Base = impl::Integrator<Sys, MonitorPack<Ms...>>;
     using Base::sys; using Base::dt;
 
@@ -228,10 +228,10 @@ public:
 
 ### Custom monitor
 
-Inherit from `io::Monitor` and implement `record(...)`. Optionally implement `before_step(...)` and `finalize()`.
+Inherit from `monitor::Monitor` and implement `record(...)`. Optionally implement `before_step(...)` and `finalize()`.
 
 ```c++
-class MyMonitor : public io::Monitor {
+class MyMonitor : public monitor::Monitor {
 public:
     explicit MyMonitor(std::size_t every = 1) : Monitor(every) {}
 
@@ -248,7 +248,7 @@ public:
 
 Usage: 
 ````c++
-StoermerVerlet integrator(system, io::monitors<MyMonitor>);
+StoermerVerlet integrator(system, monitors<MyMonitor>);
 integrator.add_monitor(MyMonitor{10});  // call every 10 steps
 ````
 

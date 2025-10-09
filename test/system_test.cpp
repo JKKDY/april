@@ -30,7 +30,7 @@ TEST(EnvTest, one_particle_test) {
 
     EXPECT_EQ(particles.size(), 1);
 
-    const env::impl::ParticleView p = particles[0];
+    const env::ParticleView p = particles[0];
     EXPECT_TRUE(p.type == 0);
     EXPECT_TRUE(p.id == 0);
     EXPECT_TRUE(p.mass == 10);
@@ -114,8 +114,8 @@ TEST(EnvTest, two_particle_force_test) {
     auto particles = sys.export_particles();
     EXPECT_EQ(particles.size(), 2);
 
-    const env::impl::ParticleView & p1 = particles[0].id == 0? particles[0] : particles[1];
-    const env::impl::ParticleView & p2 = particles[0].id == 0? particles[1] : particles[0];
+    const ParticleView & p1 = particles[0].id == 0? particles[0] : particles[1];
+    const ParticleView & p2 = particles[0].id == 0? particles[1] : particles[0];
 
     EXPECT_TRUE(p1.type == 0);
     EXPECT_TRUE(p1.id == 0);

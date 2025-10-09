@@ -6,7 +6,7 @@
 #include "april/common.h"
 
 
-namespace april::integrator::impl {
+namespace april::integrator {
 
 	template <typename T> concept IsIntegrator = requires(T t) {
 			{ t.integration_step() } -> std::same_as<void>;

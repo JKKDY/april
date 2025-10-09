@@ -28,8 +28,8 @@
 #include "april/integrators/stoermer_verlet.h"
 #include "april/integrators/yoshida4.h"
 
-#include "april/boundaries/boundary.h"
-
+#include "april/core/build.h"
+#include "april/core/system.h"
 
 
 #define APRIL_API
@@ -44,6 +44,7 @@ namespace april {
 	using env::ParticleCuboid;
 	using env::ParticleSphere;
 	using env::ParticleState;
+	using env::ParticleView;
 	using env::Particle;
 	using env::ParticleID;
 	using env::ParticleType;
@@ -55,6 +56,7 @@ namespace april {
 
 	// Boundary
 	using boundary::boundaries;
+	using boundary::Boundary;
 	using boundary::Absorb;
 	using boundary::Outflow;
 	using boundary::Periodic;
@@ -69,10 +71,10 @@ namespace april {
 	using force::LennardJones;
 
 	// Containers
+	using container::Container;
 	using container::DirectSum;
 	using container::LinkedCells;
 
-	
 	// System
 	using core::System;
 	using core::build_system;
@@ -80,23 +82,15 @@ namespace april {
 
 	// Monitors
 	using monitor::monitors;
+	using monitor::Monitor;
 	using monitor::BinaryOutput;
 	using monitor::TerminalOutput;
 	using monitor::ProgressBar;
 	using monitor::Benchmark;
 
 	// Integrators
+	using integrator::Integrator;
 	using integrator::StoermerVerlet;
 	using integrator::Yoshida4;
 
-	using env::impl::ParticleView; // move to non impl
-
-
-	namespace ext {
-		using monitor::Monitor;
-		using boundary::Boundary;
-		using container::impl::Container;
-		using integrator::impl::Integrator;
-		using env::impl::Particle;
-	}
 }

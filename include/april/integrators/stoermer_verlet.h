@@ -11,10 +11,10 @@ namespace april::integrator {
 
 	template <core::IsSystem Sys, class ... TMonitors>
 	class StoermerVerlet<Sys, monitor::MonitorPack<TMonitors...>>
-		: public impl::Integrator<Sys, monitor::MonitorPack<TMonitors...>> {
+		: public Integrator<Sys, monitor::MonitorPack<TMonitors...>> {
 	public:
 		using State = env::ParticleState;
-		using Base = impl::Integrator<Sys, monitor::MonitorPack<TMonitors...>>;
+		using Base = Integrator<Sys, monitor::MonitorPack<TMonitors...>>;
 		using Base::dt;
 		using Base::sys;
 		using Base::Base;

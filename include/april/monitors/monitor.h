@@ -9,7 +9,7 @@ namespace april::monitor {
 		const double start_t,
 		const double end_t,
 		const size_t step,
-		const std::vector<env::impl::ParticleView>& particles) {
+		const std::vector<env::ParticleView>& particles) {
 			{ m.dispatch_before_step(step, end_t, particles) } -> std::same_as<void>;
 			{ m.dispatch_record(step, end_t, particles) } -> std::same_as<void>;
 	        { m.call_frequency() } -> std::convertible_to<std::size_t>;
@@ -19,7 +19,7 @@ namespace april::monitor {
 
 	class Monitor {
 	public:
-		using Particles = std::vector<env::impl::ParticleView>;
+		using Particles = std::vector<env::ParticleView>;
 		explicit Monitor(const size_t call_frequency) : call_frequency_m(call_frequency) {}
 
 		[[nodiscard]] size_t call_frequency() const { return call_frequency_m; }

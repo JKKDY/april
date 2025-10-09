@@ -8,8 +8,6 @@
 #include "april/common.h"
 
 namespace april::env {
-	class ParticleGrid;
-
 	enum class ParticleState : uint8_t {
 		ALIVE      = 0b00000001, // Moves, exerts and experiences forces
 		DEAD       = 0b00000010, // Inactive; no movement or interaction
@@ -135,24 +133,24 @@ namespace april::env {
 			bool operator==(const Particle& other) const;
 			[[nodiscard]] std::string to_string() const;
 		};
-
-		struct ParticleView {
-			explicit ParticleView(const Particle& p);
-
-			const vec3& position;
-			const vec3& old_position;
-			const vec3& velocity;
-			const vec3& force;
-			const vec3& old_force;
-
-			const Particle::State& state;
-			const double&           mass;
-			const ParticleType&     type;
-			const ParticleID&       id;
-
-			bool operator==(const Particle& other) const;
-			[[nodiscard]] std::string to_string() const;
-		};
 	}
+
+	struct ParticleView {
+		explicit ParticleView(const impl::Particle& p);
+
+		const vec3& position;
+		const vec3& old_position;
+		const vec3& velocity;
+		const vec3& force;
+		const vec3& old_force;
+
+		const impl::Particle::State&  state;
+		const double&				  mass;
+		const impl::ParticleType&     type;
+		const impl::ParticleID&       id;
+
+		bool operator==(const impl::Particle& other) const;
+		[[nodiscard]] std::string to_string() const;
+	};
 }
 

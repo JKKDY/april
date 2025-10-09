@@ -24,11 +24,11 @@ namespace april::force::impl {
         [[nodiscard]] ForceSentinel mix(ForceSentinel const&) const { return {}; }
     };
 
-
-    template<class Env> class InteractionManager;
+    // TODO maybe prefer to template just on IsForce... Fs
+    template<class Env> class ForceTable;
 
     template<IsForce... Fs, boundary::IsBoundary... BCs>
-    class InteractionManager<env::Environment<ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>> {
+    class ForceTable<env::Environment<ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>> {
     public:
         // forbid the internal sentinel in user pack
         static_assert((!std::is_same_v<ForceSentinel, Fs> && ...),
@@ -47,7 +47,7 @@ namespace april::force::impl {
 
         using force_variant_info_t = std::variant<Fs...>;
 
-		InteractionManager() = default;
+		ForceTable() = default;
 
     private:
         std::vector<force_variant_t> inter_type_forces; // Forces between different particle types (e.g. type A <-> type B)

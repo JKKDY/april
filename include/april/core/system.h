@@ -3,10 +3,10 @@
 #include "april/env/particle.h"
 #include "april/forces//force.h"
 #include "april/env/environment.h"
-#include "april/forces/interaction.h"
+#include "april/forces/force_table.h"
 #include "april/containers/container.h"
 #include "april/env/domain.h"
-#include "april/boundaries/boundary.h"
+#include "april/boundaries/boundary_table.h"
 
 namespace april::core {
 
@@ -17,10 +17,10 @@ namespace april::core {
 		IdMap usr_ids_to_impl_ids;
 	};
 
-	template <container::impl::IsContDecl C, class Env>
+	template <container::IsContDecl C, class Env>
 	class System;
 
-	template <container::impl::IsContDecl Cont, class FPack, class BPack>
+	template <container::IsContDecl Cont, class FPack, class BPack>
 	auto build_system(
 		env::Environment<FPack, BPack>& environment,
 		const Cont& container,
@@ -50,20 +50,53 @@ namespace april::core {
 		{ s.export_particles() } -> std::same_as<std::vector<typename S::ParticleView>>;
 	};
 
-	template <container::impl::IsContDecl C, force::IsForce ... Fs, boundary::IsBoundary ... BCs>
+
+	template <container::IsContDecl C, force::IsForce ... Fs, boundary::IsBoundary ... BCs>
 	class System <C, env::Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>> {
 	public:
 		using EnvT          = env::Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>;
 		using Container     = typename C::template impl<EnvT>;
 		using BoundaryTable = boundary::impl::BoundaryTable<typename EnvT::boundary_variant_t>;
-
+		using ForceTable    = force::impl::ForceTable<EnvT>;
 		using Interaction   = force::impl::InteractionInfo<typename EnvT::force_variant_t>;
 		using Particle      = env::impl::Particle;
 		using ParticleRef   = env::impl::ParticleRef;
-		using ParticleView  = env::impl::ParticleView;
+		using ParticleView  = env::ParticleView;
 		using ParticleID    = env::impl::ParticleID;
 
+		const env::Domain domain;
 
+	private:
+		System(
+			const C & container_cfg,
+			const env::Domain& domain,
+			const std::vector<Particle> & particles,
+			const BoundaryTable boundaries,
+			const UserToInternalMappings::TypeMap & usr_types_to_impl_types,
+			const UserToInternalMappings::IdMap & usr_ids_to_impl_ids,
+			std::vector<Interaction> & interaction_infos)
+			: domain(domain), container(container_cfg), boundary_table(boundaries), time_(0)
+		{
+			force_table.build(interaction_infos, usr_types_to_impl_types, usr_ids_to_impl_ids);
+			container.init(force_table, domain);
+			container.dispatch_build(particles);
+		}
+
+		Container container;
+		BoundaryTable boundary_table;
+		ForceTable force_table;
+
+		double time_;
+
+		template <container::IsContDecl Cont, class FPack, class BPack>
+		friend System<Cont, env::Environment<FPack, BPack>>
+		build_system(
+			env::Environment<FPack, BPack>& environment,
+			 const Cont& container,
+			 UserToInternalMappings* particle_mappings
+		);
+
+	public:
 		void update_forces() {
 			container.dispatch_calculate_forces();
 		}
@@ -136,130 +169,5 @@ namespace april::core {
 			}
 			return particles;
 		}
-
-		const env::Domain domain;
-
-	private:
-		System(
-			const C & container_cfg,
-			const env::Domain& domain,
-			const std::vector<Particle> & particles,
-			const BoundaryTable boundaries,
-			const UserToInternalMappings::TypeMap & usr_types_to_impl_types,
-			const UserToInternalMappings::IdMap & usr_ids_to_impl_ids,
-			std::vector<Interaction> & interaction_infos)
-			: domain(domain), container(container_cfg), boundary_table(boundaries), time_(0)
-		{
-			interaction_manager.build(interaction_infos, usr_types_to_impl_types, usr_ids_to_impl_ids);
-			container.init(interaction_manager, domain);
-			container.dispatch_build(particles);
-		}
-
-		Container container;
-		BoundaryTable boundary_table;
-		force::impl::InteractionManager<EnvT> interaction_manager;
-
-		double time_;
-
-		template <container::impl::IsContDecl Cont, class FPack, class BPack>
-		friend System<Cont, env::Environment<FPack, BPack>>
-		build_system(
-			env::Environment<FPack, BPack>& environment,
-			 const Cont& container,
-			 UserToInternalMappings* particle_mappings
-		);
 	};
-
-
-	namespace impl {
-		env::Domain calculate_bounding_box(const std::vector<env::Particle>& particles);
-
-		struct InteractionParams {
-			bool pair_contains_types;
-			std::pair<int,int> key_pair;
-		};
-
-		void validate_domain_params(
-			const env::Domain& domain,
-			const env::Domain& bbox
-		);
-
-		void validate_particle_params(
-			const std::vector<env::Particle> & particles,
-			std::vector<InteractionParams> interactions,
-			const std::unordered_set<env::ParticleID>& usr_particle_ids,
-			const std::unordered_set<env::ParticleType>& usr_particle_types
-		);
-
-		UserToInternalMappings map_ids_and_types_to_internal(
-			std::vector<env::Particle>& particles,
-			std::vector<InteractionParams> interactions,
-			std::unordered_set<env::ParticleID>& usr_particle_ids,
-			std::unordered_set<env::ParticleType>& usr_particle_types
-		);
-
-		env::Domain finalize_environment_domain(
-			const env::Domain& bbox,
-			const env::Domain& usr_domain
-		);
-
-		std::vector<env::impl::Particle> build_particles(
-			const std::vector<env::Particle>& particle_infos,
-			const UserToInternalMappings& mapping
-		);
-	}
-
-	template <container::impl::IsContDecl C, class FPack, class BPack>
-	System<C, env::Environment<FPack, BPack>> build_system(
-		env::Environment<FPack, BPack> & environment,
-		const C& container,
-		UserToInternalMappings* particle_mappings
-	) {
-		using EnvT = env::Environment<FPack, BPack>;
-		using BoundaryTable = boundary::impl::BoundaryTable<typename EnvT::boundary_variant_t>;
-		using namespace impl;
-
-		auto & env = env::impl::get_env_data(environment);
-		const env::Domain bbox = calculate_bounding_box(env.particles);
-
-		std::vector<InteractionParams> interactions(env.interactions.size());
-		for (size_t i = 0; i < interactions.size(); i++) {
-			interactions[i].key_pair = env.interactions[i].key_pair;
-			interactions[i].pair_contains_types = env.interactions[i].pair_contains_types;
-		}
-
-		validate_domain_params(env.domain, bbox);
-		validate_particle_params(
-			env.particles,
-			interactions,
-			env.usr_particle_ids,
-			env.usr_particle_types);
-
-		const UserToInternalMappings mapping = map_ids_and_types_to_internal(
-			env.particles,
-			interactions,
-			env.usr_particle_ids,
-			env.usr_particle_types
-		);
-
-		const env::Domain domain = finalize_environment_domain(bbox, env.domain);
-		const std::vector<env::impl::Particle> particles = build_particles(env.particles, mapping);
-
-		if (particle_mappings) {
-			particle_mappings->usr_ids_to_impl_ids = mapping.usr_ids_to_impl_ids;
-			particle_mappings->usr_types_to_impl_types = mapping.usr_types_to_impl_types;
-		}
-
-		BoundaryTable boundaries (env.boundaries, env.domain);
-
-		return System<C, env::Environment<FPack, BPack>> (
-			container,
-			domain,
-			particles,
-			boundaries,
-			mapping.usr_types_to_impl_types,
-			mapping.usr_ids_to_impl_ids,
-			env.interactions
-		);
-	}
 }

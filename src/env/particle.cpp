@@ -5,8 +5,8 @@
 
 namespace april::env::impl {
 	Particle::Particle(const unsigned int id, const vec3& position, const vec3& velocity,
-	                   const double mass, const unsigned int type, const State state, const vec3& force,
-	                   const vec3& old_force, const vec3& old_position) :
+					   const double mass, const unsigned int type, const State state, const vec3& force,
+					   const vec3& old_force, const vec3& old_position) :
 		position(position)
 		, old_position(old_position)
 		, velocity(velocity)
@@ -96,21 +96,24 @@ namespace april::env::impl {
 			<< "State: " << static_cast<int>(state) << "\n";
 		return oss.str();
 	}
+}
 
-	ParticleView::ParticleView(const Particle& p):
-		position(p.position)
-		, old_position(p.old_position)
-		, velocity(p.velocity)
-		, force(p.force)
-		, old_force(p.old_force)
-		, state(p.state)
-		, mass(p.mass)
-		, type(p.type)
-		, id(p.id) {}
+namespace april::env {
+	ParticleView::ParticleView(const impl::Particle& p):
+	position(p.position)
+	, old_position(p.old_position)
+	, velocity(p.velocity)
+	, force(p.force)
+	, old_force(p.old_force)
+	, state(p.state)
+	, mass(p.mass)
+	, type(p.type)
+	, id(p.id) {}
 
-	bool ParticleView::operator==(const Particle& other) const {
+	bool ParticleView::operator==(const impl::Particle& other) const {
 		return id == other.id;
 	}
+
 	std::string ParticleView::to_string() const {
 		std::ostringstream oss;
 		oss << "Particle ID: " << id << "\n"

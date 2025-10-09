@@ -9,7 +9,7 @@
 using namespace april;
 
 template <class Env>
-using InteractionManager = force::impl::InteractionManager<Env>;
+using InteractionManager = force::impl::ForceTable<Env>;
 
 // A tiny force that returns a constant vector and mixes by summing
 struct ConstantForce final {

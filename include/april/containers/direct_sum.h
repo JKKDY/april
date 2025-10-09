@@ -1,6 +1,5 @@
 #pragma once
 
-#include "april/env/particle.h"
 #include "april/containers/contiguous_container.h"
 
 

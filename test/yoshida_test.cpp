@@ -30,13 +30,13 @@ TEST(Yoshida4Test, SingleStepNoForceTest) {
 	env.add({}, {4,5,6}, 2);
 	env.add_force(NoForce(), to_type(0));
 
-	constexpr auto algo = container::DirectSum();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	Yoshida4 integrator(system);
 	integrator.run_steps(1, 1);
 
-	std::vector<env::impl::ParticleView> particles;
+	std::vector<ParticleView> particles;
 	for (auto & p : system.export_particles()) {
 		particles.push_back(p);
 	}
@@ -63,13 +63,13 @@ TEST(Yoshida4Test, SingleStepWithForceTest) {
 	env.add({1,0,0}, {}, 1);
 	env.add_force(InverseSquare(1), to_type(0));
 
-	constexpr auto algo = container::DirectSum();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	Yoshida4 integrator(system);
 	integrator.run_steps(0.1, 1);
 
-	std::vector<env::impl::ParticleView> particles;
+	std::vector<ParticleView> particles;
 	for (auto & p : system.export_particles()) {
 		particles.push_back(p);
 	}
@@ -99,7 +99,7 @@ TEST(Yoshida4Test, SingleStepWithForceTest) {
 }
 
 
-class OrbitMonitor final : public ext::Monitor {
+class OrbitMonitor final : public Monitor {
 public:
 	OrbitMonitor(): Monitor(1) {}
 	explicit OrbitMonitor(const double v, const double r): Monitor(1), v(v), r(r) {}
@@ -128,14 +128,14 @@ TEST(Yoshida4Test, OrbitTest) {
 	env.add({0,R,0}, {v, 0, 0}, m);
 	env.add_force(InverseSquare(G), to_type(0));
 
-	constexpr auto algo = container::DirectSum();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
-	Yoshida4 integrator(system, monitor::monitors<OrbitMonitor>);
+	Yoshida4 integrator(system, monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for(0.001, T);
 
-	std::vector<env::impl::ParticleView> particles;
+	std::vector<ParticleView> particles;
 	for (auto & p : system.export_particles()) {
 		particles.push_back(p);
 	}

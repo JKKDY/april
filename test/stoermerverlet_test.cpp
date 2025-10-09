@@ -12,7 +12,7 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	env.add({}, {}, 1);
 	env.add_force(NoForce(), to_type(0));
 
-	constexpr auto algo = container::DirectSum();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
@@ -36,7 +36,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	StoermerVerlet integrator(system);
 	integrator.run_steps(1, 1);
 
-	std::vector<env::impl::ParticleView> particles;
+	std::vector<ParticleView> particles;
 	for (auto & p : system.export_particles()) {
 		particles.push_back(p);
 	}
@@ -69,7 +69,7 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	StoermerVerlet integrator(system);
 	integrator.run_steps(0.1, 1);
 
-	std::vector<env::impl::ParticleView> particles;
+	std::vector<ParticleView> particles;
 	for (auto & p : system.export_particles()) {
 		particles.push_back(p);
 	}
@@ -89,7 +89,7 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 }
 
 
-class OrbitMonitor final : public ext::Monitor {
+class OrbitMonitor final : public Monitor {
 public:
 	OrbitMonitor(): Monitor(1) {}
 	explicit OrbitMonitor(const double v, const double r): Monitor(1), v(v), r(r) {}
@@ -118,14 +118,14 @@ TEST(StoermerVerletTest, OrbitTest) {
 	env.add({0,R,0}, {v, 0, 0}, m);
 	env.add_force(InverseSquare(G), to_type(0));
 
-	constexpr auto algo = container::DirectSum();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system, monitor::monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for(0.001, T);
 
-	std::vector<env::impl::ParticleView> particles;
+	std::vector<ParticleView> particles;
 	for (auto & p : system.export_particles()) {
 		particles.push_back(p);
 	}

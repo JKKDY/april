@@ -5,7 +5,7 @@
 using testing::AnyOf;
 using testing::Eq;
 
-# include "april/april.h"
+#include "april/april.h"
 using namespace april;
 
 // A tiny force that returns a constant vector and mixes by summing
@@ -201,7 +201,7 @@ TEST(LinkedCellsTest, OrbitTest) {
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for(0.001, T);
 
-	std::vector<env::impl::ParticleView> particles;
+	std::vector<ParticleView> particles;
 	for (auto & p : sys.export_particles()) {
 		particles.push_back(p);
 	}

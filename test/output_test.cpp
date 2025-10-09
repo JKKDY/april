@@ -20,7 +20,7 @@ template<typename T> static T read_binary(std::ifstream& in) {
 }
 
 // helper to create dummy particle
-static ext::Particle make_particle(env::impl::ParticleType type, env::impl::ParticleID id, vec3 pos={0,0,0}, ParticleState state= ParticleState::ALIVE) {
+static env::impl::Particle make_particle(env::impl::ParticleType type, env::impl::ParticleID id, vec3 pos={0,0,0}, ParticleState state= ParticleState::ALIVE) {
 	return {
 		/* id          */ id,
 		/* position    */ pos,

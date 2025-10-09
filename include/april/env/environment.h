@@ -24,7 +24,8 @@ namespace april::env {
 
 
     namespace impl {
-        template<force::ForceVariant FV, boundary::IsBoundaryVariant BV> struct EnvironmentData {
+        template<force::impl::ForceVariant FV, boundary::impl::BoundaryVariant BV>
+        struct EnvironmentData {
             using force_variant_t = FV;
             using boundary_variant_t = BV;
 

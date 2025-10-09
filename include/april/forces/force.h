@@ -24,15 +24,6 @@ namespace april::force {
         { f.cutoff_radius } -> std::convertible_to<double>;
     };
 
-    template<typename T>
-    struct is_force_variant : std::false_type {};
-
-    template<IsForce... Fs>
-    struct is_force_variant<std::variant<Fs...>> : std::true_type {};
-
-    template<typename T>
-    concept ForceVariant = is_force_variant<T>::value;
-
 
     template<IsForce... Fs>
     struct ForcePack { /* empty */ };
@@ -42,6 +33,16 @@ namespace april::force {
 
 
     namespace impl {
+
+        template<typename T>
+        struct is_force_variant : std::false_type {};
+
+        template<IsForce... Fs>
+        struct is_force_variant<std::variant<Fs...>> : std::true_type {};
+
+        template<typename T>
+        concept ForceVariant = is_force_variant<T>::value;
+
 
         template<ForceVariant FV> struct InteractionInfo {
             bool pair_contains_types;

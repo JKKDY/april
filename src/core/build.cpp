@@ -1,4 +1,4 @@
-#include "april/core/system.h"
+#include "april/core/build.h"
 
 
 namespace april::core::impl {
@@ -187,7 +187,7 @@ namespace april::core::impl {
 
 	UserToInternalMappings map_ids_and_types_to_internal(
 		 std::vector<Particle> & particles,
-		 std::vector<InteractionParams> interactions,
+		 const std::vector<InteractionParams>& interactions,
 		 std::unordered_set<ParticleID> & usr_particle_ids,
 		 std::unordered_set<ParticleType> & usr_particle_types
 		 ) {
@@ -195,7 +195,7 @@ namespace april::core::impl {
 
 		// give particles with undefined id a valid id
 		ParticleID id = 0;
-		for (auto & p: particles) {
+		for (Particle & p: particles) {
 			if (p.id != PARTICLE_ID_DONT_CARE) continue;
 
 			while (usr_particle_ids.contains(id)) id++;

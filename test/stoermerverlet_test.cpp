@@ -11,6 +11,8 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	env.add({}, {}, 1);
 	env.add({}, {}, 1);
 	env.add_force(NoForce(), to_type(0));
+	env.set_extent({4,4,4});
+	env.set_origin({-2,-2,-2});
 
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
@@ -29,8 +31,10 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	env.add({}, {1,2,3}, 1);
 	env.add({}, {4,5,6}, 2);
 	env.add_force(NoForce(), to_type(0));
+	env.set_extent({4,4,4});
+	env.set_origin({-2,-2,-2});
 
-	constexpr auto algo = container::DirectSum();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
@@ -62,8 +66,10 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	env.add({-1,0,0}, {}, 1 );
 	env.add({1,0,0}, {}, 1);
 	env.add_force(InverseSquare(1), to_type(0));
+	env.set_extent({4,4,4});
+	env.set_origin({-2,-2,-2});
 
-	constexpr auto algo = container::DirectSum();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
@@ -117,6 +123,8 @@ TEST(StoermerVerletTest, OrbitTest) {
 	env.add({0,0,0}, {0, 0, 0}, M);
 	env.add({0,R,0}, {v, 0, 0}, m);
 	env.add_force(InverseSquare(G), to_type(0));
+	env.set_extent(vec3{R,R,R}*4);
+	env.set_origin(vec3{-R,-R,-R} * 2);
 
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
@@ -165,6 +173,8 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	env.add({0,0,0}, {0, 0, 0}, M);
 	env.add({0,R,0}, {v, 0, 0}, m);
 	env.add_force(InverseSquare(G), to_type(0));
+	env.set_extent(vec3{R,R,R}*4);
+	env.set_origin(vec3{-R,-R,-R} * 2);
 
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);

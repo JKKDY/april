@@ -36,7 +36,7 @@ int main() {
 	auto container = LinkedCells();
 	auto system = build_system(env, container);
 
-	auto integrator = StoermerVerlet(system, monitor::monitors<Benchmark, ProgressBar, BinaryOutput>);
+	auto integrator = StoermerVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
 	integrator.add_monitor(BinaryOutput(50, dir_path));
 	integrator.add_monitor(Benchmark());
 	integrator.add_monitor(ProgressBar(100));

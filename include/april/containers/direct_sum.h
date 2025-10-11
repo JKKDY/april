@@ -10,7 +10,7 @@ namespace april::container {
 	}
 
 	struct DirectSum {
-		template<typename  Env> using impl = internal::DirectSum<Env>;
+		template<typename Env> using impl = internal::DirectSum<Env>;
 	};
 
 	namespace internal {
@@ -51,13 +51,13 @@ namespace april::container {
 			}
 
 			std::vector<size_t> collect_indices_in_region(const env::Domain & region) {
-				const double size = std::min(region.volume() / domain.volume(), domain.volume());
+				const auto box = env::Box(region);
 
 				std::vector<size_t> ret;
-				ret.reserve(static_cast<size_t>(size));
+				// ret.reserve(static_cast<size_t>(size));
 
 				for (size_t i = 0; i < particles.size(); i++) {
-					if (region.contains(particles[i].position)) {
+					if (box.contains(particles[i].position) && particles[i].state != Particle::State::DEAD) {
 						ret.push_back(i);
 					}
 				}

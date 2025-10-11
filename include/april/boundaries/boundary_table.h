@@ -34,12 +34,16 @@ namespace april::boundary::internal {
 		template<BoundaryVariant BVariant> class CompiledBoundary{
 		public:
 			CompiledBoundary(const BVariant & boundary, const env::Domain & boundary_region):
-				region(boundary_region), boundary_v(boundary) {
+				region(boundary_region), topology(get_topology(boundary)), boundary_v(boundary) {
 
-				std::visit([this]<typename BC>(const BC &) {
-					using T = std::decay_t<BC>; // get the type of the alternative
-					if constexpr (requires(T& x) { x.dispatch_apply; }) {
-						apply_fn = &thunk<T>; // store the thunk in apply_fn
+				std::visit([&](auto const& bc) {
+					using T = std::decay_t<decltype(bc)>; // get the type of the alternative
+
+					if constexpr (std::same_as<T, std::monostate>) {
+						throw std::logic_error("Trying to set the boundary thunk on a monostate should never happen!");
+					} else {
+						static_assert(IsBoundary<T>, "Variant alternative must satisfy IsBoundary");
+						apply_fn =&thunk<T>; // store the thunk in apply_fn
 					}
 				}, boundary_v);
 			}
@@ -49,6 +53,7 @@ namespace april::boundary::internal {
 			}
 
 			const env::Domain region;
+			const Topology topology;
 		private:
 			template<typename T>
 			static void thunk(const CompiledBoundary * self, env::internal::Particle & p ) noexcept {
@@ -64,42 +69,40 @@ namespace april::boundary::internal {
 		};
 
 
-
 		template<BoundaryVariant BVariant>
 		CompiledBoundary<BVariant> compile_boundary(const BVariant & boundary, const env::Domain & env_domain, const Face face) {
+			// TODO we expect env_domain.extent to be positive on all axis -> assert this
 
-			constexpr double NEG_INF = std::numeric_limits<double>::lowest();
-			constexpr double POS_INF = std::numeric_limits<double>::max();
+			constexpr double NEG_INF = std::numeric_limits<double>::lowest() / 2; // divide by half to avoid overflow
+			constexpr double POS_INF = std::numeric_limits<double>::max() / 2;
 
-			const auto axis_of  = [](Face f) noexcept -> int  { return static_cast<int>(f) / 2; };
-			const auto is_plus  = [](Face f) noexcept -> bool { return (static_cast<int>(f) & 1) != 0; };
-			const auto in_width = [](const double t, const double L) noexcept -> double {
-				// clamp to [0, L]
-				const double d = std::max(0.0, t);
-				return std::min(d, L);
-			};
+			const vec3 POS_INF_VEC = {POS_INF, POS_INF, POS_INF};
+			const vec3 NEG_INF_VEC = {NEG_INF, NEG_INF, NEG_INF};
 
-			env::Domain region = env_domain;  // start with full domain, override later
-			const int  ax  = axis_of(face); // 0:x, 1:y, 2:z (see vec3)
-			const bool plus = is_plus(face);
+			const int  ax   = axis_of_face(face); // 0:x, 1:y, 2:z (see vec3)
+			const bool plus = face_sign_pos(face);
 
 			const Topology& topo = get_topology(boundary);
-			const double t = topo.boundary_thickness;
+			const double thickness = topo.boundary_thickness;
 
-			if (t >= 0.0) {
-				const double d = in_width(t, env_domain.extent[ax]);
+			env::Domain region = {};
+
+			if (thickness >= 0.0) { // inside the simulation domain
+				region.extent = env_domain.extent;
+				region.origin = env_domain.origin;
+
+				const double d =  std::clamp(thickness, 0.0, env_domain.extent[ax]);
+				if (plus) region.origin[ax] += env_domain.extent[ax] - d;
 				region.extent[ax] = d;
-				region.origin[ax] = plus
-					? (env_domain.origin[ax] + (env_domain.extent[ax] - d))   // [max-d, max]
-					:  env_domain.origin[ax];                                 // [min, min+d]
-			} else {
+			} else { // outside
 				if (plus) {
-					const double edge = env_domain.origin[ax] + env_domain.extent[ax];
-					region.origin[ax] = edge;                 // [edge, +MAX]
-					region.extent[ax] = POS_INF - edge;       // so origin+extent == +MAX
+					region.extent = POS_INF_VEC;
+					region.origin = NEG_INF_VEC / 2;
+					region.origin[ax] = env_domain.origin[ax] + env_domain.extent[ax];
 				} else {
-					region.origin[ax] = NEG_INF;              // [LOWEST, edge]
-					region.extent[ax] = env_domain.origin[ax] - NEG_INF; // so sum == edge
+					region.extent = NEG_INF_VEC;
+					region.origin = POS_INF_VEC / 2;
+					region.origin[ax] = env_domain.origin[ax];
 				}
 			}
 
@@ -113,17 +116,17 @@ namespace april::boundary::internal {
 
 			BoundaryTable(const std::array<BVariant, 6> & boundaries, const env::Domain & env_domain):
 				table({
-					compile_boundary<BVariant>(boundaries[to_int(Face::XMinus)], env_domain, Face::XMinus),
-					compile_boundary<BVariant>(boundaries[to_int(Face::XPlus )], env_domain, Face::XPlus ),
-					compile_boundary<BVariant>(boundaries[to_int(Face::YMinus)], env_domain, Face::YMinus),
-					compile_boundary<BVariant>(boundaries[to_int(Face::YPlus )], env_domain, Face::YPlus ),
-					compile_boundary<BVariant>(boundaries[to_int(Face::ZMinus)], env_domain, Face::ZMinus),
-					compile_boundary<BVariant>(boundaries[to_int(Face::ZPlus )], env_domain, Face::ZPlus ),
+					compile_boundary<BVariant>(boundaries[face_to_int(Face::XMinus)], env_domain, Face::XMinus),
+					compile_boundary<BVariant>(boundaries[face_to_int(Face::XPlus )], env_domain, Face::XPlus ),
+					compile_boundary<BVariant>(boundaries[face_to_int(Face::YMinus)], env_domain, Face::YMinus),
+					compile_boundary<BVariant>(boundaries[face_to_int(Face::YPlus )], env_domain, Face::YPlus ),
+					compile_boundary<BVariant>(boundaries[face_to_int(Face::ZMinus)], env_domain, Face::ZMinus),
+					compile_boundary<BVariant>(boundaries[face_to_int(Face::ZPlus )], env_domain, Face::ZPlus ),
 				})
 			{}
 
 			CompiledBoundary<BVariant> & get_boundary(const Face face) {
-				return table[to_int(face)];
+				return table[face_to_int(face)];
 			}
 
 		private:

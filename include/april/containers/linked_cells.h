@@ -74,40 +74,55 @@ namespace april::container {
 				}
 			}
 
-			std::vector<size_t> collect_indices_in_region(const env::Domain & region) {
-				const double size = std::min(region.volume() / domain.volume(), domain.volume());
-				std::vector<size_t> ret;
-				ret.reserve(static_cast<size_t>(size));
+			std::vector<uint32_t> cells_in_box(const env::Box & box) {
 
-				const vec3 min = (region.origin - domain.origin).div(cell_extent);
-				const vec3 max = (region.extent + region.extent - domain.origin).div(cell_extent);
+				const vec3 min = box.min / cell_extent;
+				const vec3 max = box.max / cell_extent;
 
-				const uint32_t min_x = std::max(0, static_cast<int>(min.x));
-				const uint32_t min_y = std::max(0, static_cast<int>(min.y));
-				const uint32_t min_z = std::max(0, static_cast<int>(min.z));
+				const uint3 min_cell = {
+					static_cast<uint32_t>(std::max(0.0, min.x)),
+					static_cast<uint32_t>(std::max(0.0, min.y)),
+					static_cast<uint32_t>(std::max(0.0, min.z))
+				};
 
-				const uint32_t max_x = std::max(num_cells.x, static_cast<uint32_t>(std::ceil(max.x)));
-				const uint32_t max_y = std::max(num_cells.y, static_cast<uint32_t>(std::ceil(max.y)));
-				const uint32_t max_z = std::max(num_cells.z, static_cast<uint32_t>(std::ceil(max.z)));
+				const uint3 max_cell = {
+					static_cast<uint32_t>(std::min(num_cells.x, static_cast<uint32_t>(std::ceil(max.x)))),
+					static_cast<uint32_t>(std::min(num_cells.y, static_cast<uint32_t>(std::ceil(max.y)))),
+					static_cast<uint32_t>(std::min(num_cells.z, static_cast<uint32_t>(std::ceil(max.z))))
+				};
 
-				for (uint32_t x = min_x; x < max_x; ++x) {
-					for (uint32_t y = min_y; y < max_y; ++y) {
-						for (uint32_t z = min_z; z < max_z; ++z) {
-							const uint32_t cid = cell_pos_to_idx(x,y,z);
-							const uint32_t start = cell_start[cid];
-							for (size_t i = 0; i < cell_count[cid]; i++) {
-								if (region.contains(particles[start + i].position)) {
-									ret.push_back(start + i);
-								}
-							}
+				std::vector<uint32_t> cells;
+				for (uint32_t x = min_cell.x; x < max_cell.x; ++x) {
+					for (uint32_t y = min_cell.y; y < max_cell.y; ++y) {
+						for (uint32_t z = min_cell.z; z < max_cell.z; ++z) {
+							cells.push_back(cell_pos_to_idx(x,y,z));
 						}
 					}
 				}
 
-				if (!(min > vec3(0)) or !(max < vec3(0))) {
-					for (size_t i = 0; i < cell_count[outside_cell]; i++) {
-						if (region.contains(particles[outside_cell + i].position)) {
-							ret.push_back(outside_cell + i);
+				if (!(box.min>= domain.min_corner() && box.max <= domain.max_corner())) {
+					cells.push_back(outside_cell);
+				}
+
+				return cells;
+			}
+
+			std::vector<size_t> collect_indices_in_region(const env::Domain & region) {
+				const auto box = env::Box(region);
+
+				std::vector<uint32_t> cells = cells_in_box(box);
+
+				std::vector<size_t> ret;
+
+				// Reserve space for the expected average number of particles per cell
+				// assuming particles are uniformly distributed
+				ret.reserve(particles.size()/cells.size());
+
+				for (const uint32_t cid : cells) {
+					const uint32_t start = cell_start[cid];
+					for (size_t i = 0; i < cell_count[cid]; i++) {
+						if (box.contains(particles[start + i].position) && particles[start + i].state != Particle::State::DEAD) {
+							ret.push_back(start + i);
 						}
 					}
 				}

@@ -11,8 +11,10 @@ TEST(Yoshida4Test,ConstructionTest) {
 	env.add({}, {}, 1);
 	env.add({}, {}, 1);
 	env.add_force(NoForce(), to_type(0));
+	env.set_extent({2,2,2});
+	env.set_origin({-1,-1,-1});
 
-	constexpr auto algo = container::DirectSum();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	Yoshida4 integrator(system);
@@ -29,6 +31,8 @@ TEST(Yoshida4Test, SingleStepNoForceTest) {
 	env.add({}, {1,2,3}, 1);
 	env.add({}, {4,5,6}, 2);
 	env.add_force(NoForce(), to_type(0));
+	env.set_extent(20 * vec3(1));
+	env.set_origin(10*vec3{-1});
 
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
@@ -62,6 +66,8 @@ TEST(Yoshida4Test, SingleStepWithForceTest) {
 	env.add({-1,0,0}, {}, 1 );
 	env.add({1,0,0}, {}, 1);
 	env.add_force(InverseSquare(1), to_type(0));
+	env.set_extent({4,4,4});
+	env.set_origin({-2,-2,-2});
 
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
@@ -127,6 +133,8 @@ TEST(Yoshida4Test, OrbitTest) {
 	env.add({0,0,0}, {0, 0, 0}, M);
 	env.add({0,R,0}, {v, 0, 0}, m);
 	env.add_force(InverseSquare(G), to_type(0));
+	env.set_extent(vec3{R,R,R}*4);
+	env.set_origin(vec3{-R,-R,-R} * 2);
 
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
@@ -175,6 +183,8 @@ TEST(Yoshida4Test, OrbitTestSplitRuns) {
 	env.add({0,0,0}, {0, 0, 0}, M);
 	env.add({0,R,0}, {v, 0, 0}, m);
 	env.add_force(InverseSquare(G), to_type(0));
+	env.set_extent(vec3{R,R,R}*4);
+	env.set_origin(vec3{-R,-R,-R} * 2);
 
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);

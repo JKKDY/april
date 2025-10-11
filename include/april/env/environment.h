@@ -227,7 +227,7 @@ namespace april::env {
                     for (int z = -static_cast<int>(sphere.radii.z/width); z < static_cast<int>(sphere.radii.z/width); ++z) {
 
                         vec3 pos = {x * width, y * width, z * width};
-                        const vec3 pos_sq = pos.mul(pos);
+                        const vec3 pos_sq = pos * pos;
 
                         // if not in ellipsoid skip
                         if (pos_sq.x/(r.x*r.x) + pos_sq.y/(r.y*r.y) + pos_sq.z/(r.z*r.z) > 1) continue;
@@ -266,13 +266,13 @@ namespace april::env {
 
         template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
         void add_boundary(B boundary, const boundary::Face face) {
-            data.boundaries[to_int(face)] = boundary;
+            data.boundaries[face_to_int(face)] = boundary;
         }
 
         template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
         void add_boundary(B boundary, const std::vector<boundary::Face> & faces) {
             for (const boundary::Face face : faces) {
-                data.boundaries[to_int(face)] = boundary;
+                data.boundaries[face_to_int(face)] = boundary;
             }
         }
 

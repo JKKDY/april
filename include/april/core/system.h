@@ -102,11 +102,41 @@ namespace april::core {
 		}
 
 		void apply_boundary_conditions() {
-			for (boundary::Face _ : boundary::faces) {
+			using Boundary = boundary::internal::CompiledBoundary<typename EnvT::boundary_variant_t>;
 
-				// env::impl::CompiledBoundary<typename EnvT::boundary_variant_t> & boundary = boundary_table.get_boundary(face);
-				// std::vector<size_t> particle_ids = container.dispatch_collect_indices_in_region(boundary.region);
+			auto box = env::Box(domain);
 
+			for (boundary::Face face : boundary::faces) {
+
+				Boundary & boundary = boundary_table.get_boundary(face);
+				std::vector<size_t> particle_ids = container.dispatch_collect_indices_in_region(boundary.region);
+
+				if (boundary.topology.boundary_thickness >= 0) {
+					for (auto p_idx : particle_ids) {
+						boundary.apply(container.dispatch_get_particle_by_index(p_idx));
+					}
+				} else {
+					for (auto p_idx : particle_ids) {
+						env::internal::Particle & p =  container.dispatch_get_particle_by_index(p_idx);
+
+						// make sure the particle exited through the current boundary face
+						// solve for intersection of the particles path with the boundary face
+						// with the equation y = t * diff + p where diff is the path traveled, p is the particles starting position and y is the face
+						const int ax = axis_of_face(face);
+						const vec3 diff = p.position - p.old_position;
+						const double y = diff[ax] < 0 ? box.min[ax] : box.max[ax];
+						const double t = (y - p.old_position[ax]) / diff[ax];
+
+						const vec3 intersection = t * diff + p.old_position;
+
+						// and check if that point is on the domains surface
+						auto [ax1, ax2] = non_face_axis(face);
+						if (box.max[ax1] >= intersection[ax1] && box.min[ax1] <= intersection[ax1] &&
+							box.max[ax2] >= intersection[ax2] && box.min[ax2] <= intersection[ax2]) {
+							boundary.apply(container.dispatch_get_particle_by_index(p_idx));
+						}
+					}
+				}
 			}
 		}
 

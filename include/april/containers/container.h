@@ -13,14 +13,14 @@ namespace april::container {
 
 		template <class Env> class ContainerInterface {
 		public:
-			using InteractionManager = force::internal::ForceTable<Env>;
+			using ForceTable = force::internal::ForceTable<Env>;
 			using Domain = env::Domain;
 			using Particle = env::internal::Particle;
 			using ParticleID = env::internal::ParticleID;
 
 			ContainerInterface() = default;
-			void init(InteractionManager & interaction_mngr, const Domain & dom) {
-				interactions = &interaction_mngr;
+			void init(ForceTable & force_table, const Domain & dom) {
+				interactions = &force_table;
 				domain = dom;
 			}
 			virtual ~ContainerInterface() = default;
@@ -110,7 +110,7 @@ namespace april::container {
 				return self.collect_indices_in_region(region);
 			}
 		protected:
-			InteractionManager * interactions{};
+			ForceTable * interactions{};
 			Domain domain;
 		};
 	} // namesapce impl

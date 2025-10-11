@@ -3,6 +3,7 @@
 #include <string>
 #include <format>
 #include <concepts>
+#include <functional>
 
 #include "april/utils/debug.h"
 
@@ -13,8 +14,8 @@ namespace april::utils {
         T x, y, z;
 
         Vec3() : x(static_cast<T>(0.0)), y(static_cast<T>(0.0)), z(static_cast<T>(0.0)) {}
-        explicit Vec3(const T v): x(v), y(v), z(v) {}
         Vec3(const T x, const T y, const T z) : x(x), y(y), z(z) {}
+        explicit Vec3(const T v): x(v), y(v), z(v) {}
 
         // unary minus
         Vec3 operator-() const noexcept {
@@ -34,6 +35,11 @@ namespace april::utils {
         // Scalar multiplication operator: returns a new vector scaled by a constant
         Vec3 operator*(const T scalar) const noexcept {
             return {x * scalar, y * scalar, z * scalar};
+        }
+
+        // Scalar division: returns a new vector inversely scaled
+        Vec3 operator/(const T scalar) const noexcept {
+            return {x / scalar, y / scalar, z / scalar};
         }
 
         // Friend function for scalar multiplication with the scalar on the left
@@ -58,23 +64,32 @@ namespace april::utils {
         }
 
         // point-wise multiplication
-        Vec3& mul(const Vec3 & other) noexcept {
+        Vec3& operator*(const Vec3 & other) noexcept {
             x *= other.x;
             y *= other.y;
             z *= other.z;
             return *this;
         }
 
+        Vec3 operator*(const Vec3 & other) const noexcept {
+            return {x * other.x, y * other.y, z * other.z};
+        }
+
         // point wise division
-        Vec3& div(const Vec3 & other) noexcept {
+        Vec3& operator/(const Vec3 & other) noexcept {
             x /= other.x;
             y /= other.y;
             z /= other.z;
             return *this;
         }
 
+        Vec3 operator/(const Vec3 & other) const noexcept {
+            return {x / other.x, y / other.y, z / other.z};
+        }
+
+
         // scalar product
-        T operator*=(const Vec3 & other) const noexcept {
+        T dot(const Vec3 & other) const noexcept {
             return x * other.x + y * other.y + z * other.z;
         }
 
@@ -151,6 +166,14 @@ namespace april::utils {
 
         T min() {
             return std::min(x, std::min(y, z));
+        }
+
+        static bool any(Vec3 v, std::function<bool(T)> c) {
+            return c(v.x) || c(v.y) || c(v.z);
+        }
+
+        static bool all(Vec3 v, std::function<bool(T)> c) {
+            return c(v.x) && c(v.y) && c(v.z);
         }
     };
 } // namespace april::utils

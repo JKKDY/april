@@ -19,8 +19,25 @@ namespace april::boundary {
 		Face::ZMinus, Face::ZPlus
 	};
 
-	constexpr int to_int(Face f) noexcept {
+	inline int face_to_int(Face f) noexcept {
 		return static_cast<int>(f);
+	}
+
+	inline uint8_t axis_of_face(const Face f) {
+		return face_to_int(f) / 2;
+	}
+
+	inline bool face_sign_pos(const Face f) {
+		return (face_to_int(f) & 1) != 0;
+	}
+
+	inline std::pair<uint8_t, uint8_t> non_face_axis(const Face f) {
+		switch (axis_of_face(f)) {
+		case 0: return {1,2};
+		case 1: return {0,2};
+		case 2: return {1,0};
+		default: throw std::logic_error("got a different axis than {0,1,2}. This should never happen!?");
+		}
 	}
 
 	struct Topology {

@@ -89,7 +89,7 @@ namespace april::core {
 			particle_mappings->usr_types_to_impl_types = mapping.usr_types_to_impl_types;
 		}
 
-		BoundaryTable boundaries (env.boundaries, env.domain);
+		BoundaryTable boundaries (env.boundaries, domain);
 
 		return System<C, env::Environment<FPack, BPack>> (
 			container,

@@ -5,10 +5,8 @@
 
 namespace april::boundary {
 	struct Outflow : Boundary {
-		Outflow(): Boundary(-1, false, false) {}
+		Outflow(): Boundary(-1, false, false, false) {}
 
-		void apply(env::internal::Particle &) const noexcept{
-
-		}
+		void apply(env::internal::Particle &, const env::Box &, const Face) const noexcept {}
 	};
 }

@@ -48,21 +48,21 @@ namespace april::boundary::internal {
 				}, boundary_v);
 			}
 
-			void apply(env::internal::Particle & p) const noexcept {
-				apply_fn(this, p);
+			void apply(env::internal::Particle & p, const env::Box & domain_box, Face face) const noexcept {
+				apply_fn(this, p, domain_box, face);
 			}
 
 			const env::Domain region;
 			const Topology topology;
 		private:
 			template<typename T>
-			static void thunk(const CompiledBoundary * self, env::internal::Particle & p ) noexcept {
+			static void thunk(const CompiledBoundary * self, env::internal::Particle & p, const env::Box & domain_box, Face face) noexcept {
 				// thunk for uniform function pointer type regardless of underlying variant type
 				// get the alternative from the variant and call apply on the particle
-				std::get<T>(self->boundary_v).dispatch_apply(p);
+				std::get<T>(self->boundary_v).dispatch_apply(p, domain_box, face);
 			}
 
-			using ApplyFn = void (*)(const CompiledBoundary*, env::internal::Particle&);
+			using ApplyFn = void (*)(const CompiledBoundary*, env::internal::Particle&, const env::Box&, Face);
 			ApplyFn apply_fn = nullptr;
 
 			const BVariant boundary_v;

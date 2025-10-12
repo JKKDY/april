@@ -40,6 +40,17 @@ namespace april::boundary {
 	}
 
 	struct Topology {
+		explicit Topology(
+			const double thickness,
+			const bool coupled_axis,
+			const bool has_force_wrap,
+			const bool change_particle_pos)
+		:
+			boundary_thickness(thickness),
+			couples_axis(coupled_axis),
+			force_wrap(has_force_wrap),
+			may_change_particle_position(change_particle_pos) {}
+
 		// Thickness of the boundary region adjacent to this face.
 		//  > 0 : region lies inside the domain (e.g. reflective, repulsive)
 		//  < 0 : region lies outside the domain (e.g. absorbing, teleporting)
@@ -52,23 +63,27 @@ namespace april::boundary {
 		// If true, this boundary changes iteration behaviour in the container
 		// (e.g. periodic: requires min-image / ghost cells).
 		// Otherwise, only particle dynamics are affected.
-		bool force_wrap = false;
+		bool force_wrap;
+
+		// If true, the boundary the containers register_particle_movement routine
+		// will be called after each invocation of the boundary condition
+		bool may_change_particle_position;
 	};
 
 
 	class Boundary {
 	public:
-		Boundary(const double thickness, const bool couples_axis, const bool force_wrap):
-			topology(thickness, couples_axis, force_wrap)
+		Boundary(const double thickness, const bool couples_axis, const bool force_wrap, const bool may_change_particle_pos):
+			topology(thickness, couples_axis, force_wrap, may_change_particle_pos)
 		{}
 
-		void dispatch_apply(this auto&& self, env::internal::Particle & particle) noexcept {
+		void dispatch_apply(this auto&& self, env::internal::Particle & particle, const env::Box & domain_box, Face face) noexcept {
 			static_assert(
-			   requires { { self.apply(particle) } -> std::same_as<void>; },
+			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },
 			   "BoundaryCondition subclass must implement: void dispatch_apply(particle)"
 			);
 
-			self.apply(particle);
+			self.apply(particle, domain_box, face);
 		}
 
 		const Topology topology;

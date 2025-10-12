@@ -122,15 +122,17 @@ namespace april::core {
 
 				if (boundary.topology.boundary_thickness >= 0) {
 					for (auto p_idx : particle_ids) {
-						boundary.apply(container.dispatch_get_particle_by_index(p_idx));
+						env::internal::Particle & p = container.dispatch_get_particle_by_index(p_idx);
+						boundary.apply(p, box, face);
 					}
 				} else {
 					for (auto p_idx : particle_ids) {
-						env::internal::Particle & p =  container.dispatch_get_particle_by_index(p_idx);
+						env::internal::Particle & p = container.dispatch_get_particle_by_index(p_idx);
 
 						// make sure the particle exited through the current boundary face
 						// solve for intersection of the particles path with the boundary face
-						// with the equation y = t * diff + p where diff is the path traveled, p is the particles starting position and y is the face
+						// with the equation y = t * diff + p where:
+						// diff is the path traveled, p is the particles starting position and y is the face
 						const int ax = axis_of_face(face);
 						const vec3 diff = p.position - p.old_position;
 						const double y = diff[ax] < 0 ? box.min[ax] : box.max[ax];
@@ -142,10 +144,19 @@ namespace april::core {
 						auto [ax1, ax2] = non_face_axis(face);
 						if (box.max[ax1] >= intersection[ax1] && box.min[ax1] <= intersection[ax1] &&
 							box.max[ax2] >= intersection[ax2] && box.min[ax2] <= intersection[ax2]) {
-							boundary.apply(container.dispatch_get_particle_by_index(p_idx));
+							boundary.apply(p, box, face);
 						}
 					}
 				}
+
+				// TODO:
+				// actually we would need to update the container for every application of the boundary condition as
+				// the positions can change. The easiest method would be to call another register_particle_movements()
+				// after apply_boundary_conditions but this is expensive if only a few particles positions are updated.
+				// So instead provide a function on the container to just update a single particles position.
+				// this means we have both:
+				//	1. register_particle_movements() for all particles
+				//	2. register_particle_movement(particle) for a single particle
 			}
 		}
 

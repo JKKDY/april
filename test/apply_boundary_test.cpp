@@ -8,13 +8,10 @@ struct TouchSpy final : Boundary {
 	using PID = env::internal::ParticleID;
 
 	// thickness >= 0 → inside slab; < 0 → outside half-space
-	explicit TouchSpy(double thickness,
-					  std::vector<PID>* sink,
-					  bool couples_axis=false,
-					  bool force_wrap=false)
-	: Boundary(thickness, couples_axis, force_wrap), sink(sink) {}
+	explicit TouchSpy(double thickness, std::vector<PID>* sink)
+	: Boundary(thickness, false, false, false), sink(sink) {}
 
-	void apply(env::internal::Particle& p) const noexcept {
+	void apply(env::internal::Particle& p, const env::Box &, boundary::Face) const noexcept {
 		if (sink) sink->push_back(p.id);
 	}
 

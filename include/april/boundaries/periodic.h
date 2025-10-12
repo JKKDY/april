@@ -5,10 +5,13 @@
 
 namespace april::boundary {
 	struct Periodic : Boundary {
-		Periodic(): Boundary(-1, true, true) {}
+		Periodic(): Boundary(-1, true, true, true) {}
 
-		void apply(env::internal::Particle &) const noexcept{
+		void apply(env::internal::Particle & particle, const env::Box & domain_box, const Face face) const noexcept{
+			const int sign = face_sign_pos(face) ? -1 : +1;
+			const int ax = axis_of_face(face);
 
+			particle.position[ax] = particle.position[ax] + sign * domain_box.extent[ax];
 		}
 	};
 }

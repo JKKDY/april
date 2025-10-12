@@ -1,11 +1,10 @@
 #include <gtest/gtest.h>
-
 #include <gmock/gmock.h>
 
 using testing::AnyOf;
 using testing::Eq;
 
-#include "april/april.h"
+#include "../../include/april/april.h"
 using namespace april;
 
 // A tiny force that returns a constant vector and mixes by summing

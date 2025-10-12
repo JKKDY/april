@@ -14,12 +14,16 @@ add_executable(test_april
         test_april.cpp
         system_test.cpp
         interaction_test.cpp
-        directsum_test.cpp
+        containers/directsum_test.cpp
         output_test.cpp
-        stoermerverlet_test.cpp
-        linkedcells_test.cpp
-        yoshida_test.cpp
-        apply_boundary_test.cpp
+        integrators/stoermerverlet_test.cpp
+        containers/linkedcells_test.cpp
+        integrators/yoshida_test.cpp
+        boundaries/apply_boundary_test.cpp
+        boundaries/absorb_test.cpp
+        boundaries/periodic_test.cpp
+        boundaries/repulsive_test.cpp
+        boundaries/reflective_test.cpp
 )
 
 target_link_libraries(test_april PRIVATE

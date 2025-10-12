@@ -36,7 +36,7 @@ namespace april::env {
 
 	struct Box {
 		explicit Box(const Domain & domain):
-		min(domain.min_corner()), max(domain.max_corner()), extent(max-min){
+		Box(domain.min_corner(), domain.max_corner()){
 			AP_ASSERT(vec3::all(domain.origin,
 				[=](auto x) {return x <= std::numeric_limits<double>::max() / 2 &&  x >= std::numeric_limits<double>::lowest() / 2;}),
 				"all modulus components in origin must be within range [min/2, max/2] to avoid overflow");
@@ -44,6 +44,10 @@ namespace april::env {
 				[=](auto x) {return x <= std::numeric_limits<double>::max() / 2 &&  x >= std::numeric_limits<double>::lowest() / 2;}),
 				"all modulus components in origin must be within range [min/2, max/2] to avoid overflow");
 		}
+
+		Box(const vec3& min_corner, const vec3& max_corner):
+		min(min_corner), max(max_corner), extent(max-min){}
+
 
 		[[nodiscard]] bool contains(const vec3 & p) const noexcept{
 			return (p.x >= min.x && p.x <= max.x) &&

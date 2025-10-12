@@ -55,6 +55,9 @@ namespace april {
 	using env::between_ids;
 
 	// Boundary
+	using boundary::Face;
+	using boundary::faces;
+
 	using boundary::boundaries;
 	using boundary::Boundary;
 	using boundary::Absorb;
@@ -62,6 +65,7 @@ namespace april {
 	using boundary::Periodic;
 	using boundary::Reflective;
 	using boundary::Repulsive;
+
 
 	// Forces
 	using force::forces;

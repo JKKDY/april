@@ -12,11 +12,12 @@ namespace april::boundary {
 		ZMinus = 4, ZPlus = 5,
 	};
 
-	constexpr std::array faces = {
+	const std::vector faces = {
 		Face::XMinus, Face::XPlus,
 		Face::YMinus, Face::YPlus,
 		Face::ZMinus, Face::ZPlus
 	};
+
 
 	inline int face_to_int(Face f) noexcept {
 		return static_cast<int>(f);

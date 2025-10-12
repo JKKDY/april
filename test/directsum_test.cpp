@@ -34,7 +34,7 @@ TEST(DirectSumTest, SingleParticle_NoForce) {
     e.add(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
 	e.add_force(NoForce(), to_type(0));
 
-	auto sys = core::build_system(e, DirectSum());
+	auto sys = build_system(e, DirectSum());
     sys.update_forces();
 
     auto const& out = sys.export_particles();
@@ -48,7 +48,7 @@ TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
     e.add(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = core::build_system(e, DirectSum());
+	auto sys = build_system(e, DirectSum());
     sys.update_forces();
     auto const& out = sys.export_particles();
 
@@ -70,7 +70,7 @@ TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
 
-	auto sys = core::build_system(e, DirectSum());
+	auto sys = build_system(e, DirectSum());
 	sys.update_forces();
 
     auto const& out = sys.export_particles();
@@ -95,7 +95,7 @@ TEST(DirectSumTest, TwoParticles_InverseSquare) {
 	e.add_force(NoForce(), to_type(1));
 	e.add_force(InverseSquare(5.0), between_types(0, 1));
 
-	auto sys = core::build_system(e, DirectSum());
+	auto sys = build_system(e, DirectSum());
     sys.update_forces();
 
     auto const& out = sys.export_particles();

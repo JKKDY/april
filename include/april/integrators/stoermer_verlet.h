@@ -26,6 +26,7 @@ namespace april::integrator {
 					p.update_position(dt * p.velocity + (dt*dt) / (2 * p.mass) * p.force);
 			}
 
+			sys.register_particle_movements();
 			sys.apply_boundary_conditions();
 			sys.update_forces();
 			sys.apply_force_fields();

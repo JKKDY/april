@@ -265,14 +265,21 @@ namespace april::env {
         }
 
         template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
-        void add_boundary(B boundary, const boundary::Face face) {
-            data.boundaries[face_to_int(face)] = boundary;
+        void set_boundary(B boundary, const boundary::Face face) {
+            data.boundaries[face_to_int(face)].template emplace<B>(std::move(boundary));
         }
 
         template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
-        void add_boundary(B boundary, const std::vector<boundary::Face> & faces) {
+        void set_boundaries(B boundary, const std::vector<boundary::Face> & faces) {
             for (const boundary::Face face : faces) {
-                data.boundaries[face_to_int(face)] = boundary;
+                data.boundaries[face_to_int(face)].template emplace<B>(boundary);
+            }
+        }
+
+        template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
+        void set_boundaries(const std::array<B, 6> & boundaries) {
+            for (const boundary::Face face : boundary::faces) {
+                data.boundaries[face_to_int(face)].template emplace<B>(boundaries[face_to_int(face)]);
             }
         }
 

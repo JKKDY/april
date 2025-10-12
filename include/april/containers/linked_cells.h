@@ -38,10 +38,13 @@ namespace april::container {
 				build_neighbour_pairs();
 			}
 
-			void calculate_forces() {
+			void register_particle_movements() {
 				// reset & sort particles
 				build_cells();
+			}
 
+
+			void calculate_forces() {
 				// for every cell
 				for (uint32_t cid = 0; cid < cell_start.size() - 1; cid++) {
 					const uint32_t start = cell_start[cid];
@@ -116,7 +119,7 @@ namespace april::container {
 
 				// Reserve space for the expected average number of particles per cell
 				// assuming particles are uniformly distributed
-				ret.reserve(particles.size()/cells.size());
+				ret.reserve(particles.size()/(cells.size()+1)); // +1 accounts for outside cell
 
 				for (const uint32_t cid : cells) {
 					const uint32_t start = cell_start[cid];

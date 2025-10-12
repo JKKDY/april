@@ -3,7 +3,6 @@
 #include <cstdint>
 
 #include "april/env/particle.h"
-#include "april/env/domain.h"
 
 namespace april::boundary {
 

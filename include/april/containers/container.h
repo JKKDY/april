@@ -25,6 +25,7 @@ namespace april::container {
 			}
 			virtual ~ContainerInterface() = default;
 
+			//
 			void dispatch_build(this auto&& self, const std::vector<Particle>& particles) {
 		        static_assert(
 		            requires { self.build(particles); },
@@ -32,6 +33,14 @@ namespace april::container {
 		        );
 		        self.build(particles);
 		    }
+
+			void dispatch_register_particle_movements(this auto&& self) {
+				static_assert(
+					requires { self.register_particle_movements(); },
+					"Container subclass must implement: void register_particle_movements()"
+				);
+				self.register_particle_movements();
+			}
 
 			void dispatch_calculate_forces(this auto&& self) {
 		        static_assert(

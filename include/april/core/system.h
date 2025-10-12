@@ -67,6 +67,7 @@ namespace april::core {
 		const env::Domain domain;
 
 	private:
+		// private constructor since System should only be creatable through build_system(...)
 		System(
 			const C & container_cfg,
 			const env::Domain& domain,
@@ -88,6 +89,7 @@ namespace april::core {
 
 		double time_;
 
+		// System factory. Only valid way to create a System.
 		template <container::IsContDecl Cont, class FPack, class BPack>
 		friend System<Cont, env::Environment<FPack, BPack>>
 		build_system(
@@ -97,10 +99,17 @@ namespace april::core {
 		);
 
 	public:
+		// call to update all pairwise forces between particles
 		void update_forces() {
 			container.dispatch_calculate_forces();
 		}
 
+		// call to register particle movements. This may cause container internals to change/be rebuilt
+		void register_particle_movements() {
+			container.dispatch_register_particle_movements();
+		}
+
+		// call to apply boundary conditions to all particles. should not be called before register_particle_movements
 		void apply_boundary_conditions() {
 			using Boundary = boundary::internal::CompiledBoundary<typename EnvT::boundary_variant_t>;
 
@@ -148,44 +157,53 @@ namespace april::core {
 
 		}
 
+		// get a particle reference by its id. Usually slower than getting it by its index.
+		// Useful for stable iterations and accessing a specific particle
 		[[nodiscard]] Particle & get_particle_by_id(const ParticleID id) noexcept {
 			return container.dispatch_get_particle_by_id(id);
 		}
 
+		// get the first particle id (usually 0)
 		[[nodiscard]] ParticleID id_start() const noexcept{
 			return container.dispatch_id_start();
 		}
 
-		// inclusive bound
+		// get the last particle id (usually n-1 with n = #particles)
 		[[nodiscard]] ParticleID id_end() const noexcept {
 			return container.dispatch_id_end();
 		}
 
+		// get a particle by its container specific id. useful for non-stable (but fast) iteration over particles
 		[[nodiscard]] Particle & get_particle_by_index(const size_t index) noexcept {
 			return container.dispatch_get_particle_by_index(index);
 		}
 
+		// get the first particle index (usually 0)
 		[[nodiscard]] size_t index_start() const noexcept {
 			return container.dispatch_index_start();
 		}
 
-		// inclusive bound
+		// get the last particle index (usually n-1 with n = #particles)
 		[[nodiscard]] size_t index_end() const noexcept {
 			return container.dispatch_index_end();
 		}
 
+		// returns the systems time
 		[[nodiscard]] double time() const noexcept {
 			return time_;
 		}
 
+		// propagate the systems time by a time step dt
 		void update_time(const double dt) noexcept {
 			time_ += dt;
 		}
 
+		// reset the systems time to 0
 		void reset_time() noexcept {
 			time_ = 0;
 		}
 
+		// get read access to all internal particles based on their state. Useful for snapshots and analysis.
 		[[nodiscard]] std::vector<ParticleView> export_particles(const env::ParticleState state = env::ParticleState::ALL) {
 			std::vector<ParticleView> particles;
 			if (container.dispatch_particle_count() == 0) {
@@ -201,3 +219,5 @@ namespace april::core {
 		}
 	};
 }
+
+

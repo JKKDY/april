@@ -64,6 +64,8 @@ namespace april::container {
 
 				return ret;
 			}
+
+			void register_particle_movements() {}
 		};
 
 	}

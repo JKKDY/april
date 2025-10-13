@@ -115,7 +115,7 @@ TYPED_TEST(RepulsiveBoundarySystemTestT, EachFace_AppliesInwardForce) {
 	auto sys = build_system(env, TypeParam(), &mappings);
 
 	// Apply boundaries
-	sys.register_particle_movements();
+	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
 	// Expected inward forces per face

@@ -105,8 +105,8 @@ namespace april::core {
 		}
 
 		// call to register particle movements. This may cause container internals to change/be rebuilt
-		void register_particle_movements() {
-			container.dispatch_register_particle_movements();
+		void register_all_particle_movements() {
+			container.dispatch_register_all_particle_movements();
 		}
 
 		// call to apply boundary conditions to all particles. should not be called before register_particle_movements
@@ -124,6 +124,10 @@ namespace april::core {
 					for (auto p_idx : particle_ids) {
 						env::internal::Particle & p = container.dispatch_get_particle_by_index(p_idx);
 						boundary.apply(p, box, face);
+
+						if (boundary.topology.may_change_particle_position) {
+							container.register_particle_movement(p, p_idx);
+						}
 					}
 				} else {
 					for (auto p_idx : particle_ids) {
@@ -145,6 +149,10 @@ namespace april::core {
 						if (box.max[ax1] >= intersection[ax1] && box.min[ax1] <= intersection[ax1] &&
 							box.max[ax2] >= intersection[ax2] && box.min[ax2] <= intersection[ax2]) {
 							boundary.apply(p, box, face);
+
+							if (boundary.topology.may_change_particle_position) {
+								container.register_particle_movement(p, p_idx);
+							}
 						}
 					}
 				}

@@ -108,7 +108,7 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
         p.position = p.old_position + p.velocity;
     }
 
-    sys.register_particle_movements();
+    sys.register_all_particle_movements();
     sys.apply_boundary_conditions();
 
 	// expected positions

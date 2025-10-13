@@ -38,10 +38,13 @@ namespace april::container {
 				build_neighbour_pairs();
 			}
 
-			void register_particle_movements() {
+			void register_all_particle_movements() {
 				// reset & sort particles
 				build_cells();
 			}
+
+			void register_particle_movement(const Particle &, size_t) {}
+
 
 
 			void calculate_forces() {

@@ -65,8 +65,8 @@ namespace april::container {
 				return ret;
 			}
 
-			void register_particle_movements() {}
+			void register_all_particle_movements() {}
+			void register_particle_movement(const Particle &, size_t) {}
 		};
-
 	}
 }

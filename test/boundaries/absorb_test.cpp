@@ -82,7 +82,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, InsideDomain_RemainsAlive) {
 	UserToInternalMappings mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
-	sys.register_particle_movements();
+	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
 	auto id0 = mappings.usr_ids_to_impl_ids.at(0);
@@ -120,7 +120,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 		p.position = p.old_position + p.velocity; // crosses boundary
 	}
 
-	sys.register_particle_movements();
+	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
 	// Verify all particles are DEAD

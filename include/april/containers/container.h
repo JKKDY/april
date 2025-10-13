@@ -11,6 +11,18 @@ namespace april::container {
 
 	namespace internal {
 
+		// Containers must implement the following functions:
+		//   void build();
+		//   void register_all_particle_movements()
+		//   void register_particle_movement()
+		//   void calculate_forces()
+		//   get_particle_by_id, id_start, id_end
+		//   get_particle_by_index, index_start, index_end
+		//   size_t particle_count()
+		//   collect_indices_in_region()
+		// in the future:
+		//   remove_particle
+		//   add_particle
 		template <class Env> class ContainerInterface {
 		public:
 			using ForceTable = force::internal::ForceTable<Env>;
@@ -25,7 +37,7 @@ namespace april::container {
 			}
 			virtual ~ContainerInterface() = default;
 
-			//
+			// user hook to initialize the container
 			void dispatch_build(this auto&& self, const std::vector<Particle>& particles) {
 		        static_assert(
 		            requires { self.build(particles); },
@@ -34,14 +46,25 @@ namespace april::container {
 		        self.build(particles);
 		    }
 
-			void dispatch_register_particle_movements(this auto&& self) {
+			// update container internals by scanning for all particle movements
+			void dispatch_register_all_particle_movements(this auto&& self) {
 				static_assert(
-					requires { self.register_particle_movements(); },
+					requires { self.register_all_particle_movements(); },
 					"Container subclass must implement: void register_particle_movements()"
 				);
-				self.register_particle_movements();
+				self.register_all_particle_movements();
 			}
 
+			// update container internals by scanning one particle for its movement
+			void dispatch_register_particle_movement(this auto&& self, const Particle & particle, size_t idx) {
+				static_assert(
+					requires { self.register_particle_movement(particle, idx); },
+					"Container subclass must implement: void register_particle_movements()"
+				);
+				self.register_particle_movement(particle, idx);
+			}
+
+			// calculate inter-particle forces
 			void dispatch_calculate_forces(this auto&& self) {
 		        static_assert(
 		            requires { self.calculate_forces(); },
@@ -109,7 +132,7 @@ namespace april::container {
 		        return self.particle_count();
 		    }
 
-			// returns a list of indices
+			// returns a list of indices to the particles container in region
 			std::vector<size_t> dispatch_collect_indices_in_region(this auto&& self, const env::Domain & region) {
 				static_assert(
 				   requires { { self.collect_indices_in_region(region) } -> std::same_as<std::vector<size_t>>; },
@@ -118,11 +141,20 @@ namespace april::container {
 
 				return self.collect_indices_in_region(region);
 			}
+
+			void dispatch_add_particle(this auto&&, const Particle &) {
+				throw std::logic_error("dispatch_add_particle not implemented yet");
+			}
+
+			void dispatch_remove_particle(this auto&&, ParticleID) {
+				throw std::logic_error("dispatch_remove_particle not implemented yet");
+			}
+
 		protected:
 			ForceTable * interactions{};
 			Domain domain;
 		};
-	} // namesapce impl
+	} // namespace internal
 
 
 	template<typename Config, typename Env> class Container : public internal::ContainerInterface<Env> {
@@ -150,4 +182,4 @@ namespace april::container {
 	// 	typename A::impl;
 	// }  && IsContainer<typename A::impl>;
 
-} // namespace april::container::impl
+} // namespace april::container

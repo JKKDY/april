@@ -54,7 +54,7 @@ TYPED_TEST(BoundaryTestT, InsideSlab_XMinus_AppliesOnlyToSlabParticles) {
 	UserToInternalMappings mappings;
 
 	auto sys = build_system(env, TypeParam(), &mappings);
-	sys.register_particle_movements();
+	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
 	auto id0 = mappings.usr_ids_to_impl_ids.at(0);
@@ -102,7 +102,7 @@ TYPED_TEST(BoundaryTestT, OutsideHalfspace_XPlus_TouchesOnlyActualExiters) {
 		p.position = p.old_position + p.velocity; // simulate one step
 	}
 
-	sys.register_particle_movements();
+	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
 	auto id0 = mappings.usr_ids_to_impl_ids.at(0);
@@ -151,7 +151,7 @@ TYPED_TEST(BoundaryTestT, CornerExit_TriggersRelevantFaces) {
 		p.position = p.old_position + p.velocity; // simulate one step
 	}
 
-	sys.register_particle_movements();
+	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
 	auto id42 = mappings.usr_ids_to_impl_ids.at(42);
@@ -195,7 +195,7 @@ TYPED_TEST(BoundaryTestT, InsideCorner_TouchesAllOverlappingFaces) {
 
 	UserToInternalMappings mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
-	sys.register_particle_movements();
+	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
 	auto id = mappings.usr_ids_to_impl_ids.at(0);
@@ -244,7 +244,7 @@ TYPED_TEST(BoundaryTestT, NearCornerExit_TriggersCorrectFace) {
 		p.position = p.old_position + p.velocity; // simulate one step
 	}
 
-	sys.register_particle_movements();
+	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
 	auto id = mappings.usr_ids_to_impl_ids.at(42);
@@ -289,7 +289,7 @@ TYPED_TEST(BoundaryTestT, InsideSlab_AllFaces_OneParticleEach) {
 
 	UserToInternalMappings mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
-	sys.register_particle_movements();
+	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
 	// Map user IDs → internal IDs for verification

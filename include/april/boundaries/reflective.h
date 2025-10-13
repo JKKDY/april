@@ -17,8 +17,8 @@ namespace april::boundary {
 
 			const double y = (is_plus? domain_box.max : domain_box.min)[ax];
 
-			const double t = (y - particle.position[ax]) / diff[ax];
-			AP_ASSERT(t >= 0 && t < 1, "t should be between 0 and 1");
+			const double t = (y - particle.old_position[ax]) / diff[ax];
+			AP_ASSERT(t >= 0 && t < 1, "t should be between 0 and 1, got" + std::to_string(t));
 
 			particle.position = particle.old_position + t * diff + (1-t) * diff_reflected;
 			particle.velocity[ax] = - particle.velocity[ax];

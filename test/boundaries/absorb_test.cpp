@@ -6,20 +6,20 @@ using namespace april;
 using PID = env::internal::ParticleID;
 
 // simple helper to make a dummy particle
-static env::internal::Particle make_alive_particle(PID id = 0) {
+static env::internal::Particle make_alive_particle() {
 	env::internal::Particle p;
-	p.id = id;
+	p.id = 0;
 	p.position = {5.0, 5.0, 5.0};
 	p.velocity = {0,0,0};
 	p.mass = 1.0;
-	p.state = env::ParticleState::ALIVE;
+	p.state = ParticleState::ALIVE;
 	return p;
 }
 
 // Direct application should mark particle DEAD
 TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
-	Absorb absorb;
-	env::Box box {{0,0,0}, {10,10,10}};
+	const Absorb absorb;
+	const env::Box box {{0,0,0}, {10,10,10}};
 
 	auto p = make_alive_particle();
 	absorb.apply(p, box, Face::XPlus);
@@ -30,7 +30,7 @@ TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 
 // Topology sanity: outside region, not coupled, no force wrap, no position change
 TEST(AbsorbBoundaryTest, Topology_IsOutsideAndPassive) {
-	Absorb absorb;
+	const Absorb absorb;
 	const boundary::Topology& topo = absorb.topology;
 
 	EXPECT_LT(topo.boundary_thickness, 0.0)

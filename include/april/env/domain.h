@@ -4,8 +4,11 @@
 
 namespace april::env {
 	struct Domain {
-		vec3 extent = {};
+		Domain() = default;
+		Domain(const vec3 & origin_, const vec3 & extent_): origin(origin_), extent(extent_) {}
+
 		vec3 origin = {};
+		vec3 extent = {};
 
 		[[nodiscard]] double volume() const noexcept {
 			return extent.x * extent.y * extent.z;

@@ -29,7 +29,7 @@ namespace april::env {
             using force_variant_t = FV;
             using boundary_variant_t = BV;
 
-            Domain domain = {EXTENT_AUTO, ORIGIN_AUTO};
+            Domain domain = {ORIGIN_AUTO, EXTENT_AUTO};
 
             std::unordered_set<env::ParticleID> usr_particle_ids;
             std::unordered_set<env::ParticleType> usr_particle_types;

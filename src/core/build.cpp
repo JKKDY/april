@@ -248,7 +248,7 @@ namespace april::core::internal {
 		const Domain & usr_domain
 		)
 	{
-		Domain domain = {usr_domain.extent, usr_domain.origin};
+		Domain domain = {usr_domain.origin, usr_domain.extent};
 		const vec3& extent = usr_domain.extent;
 		const vec3& origin = usr_domain.origin;
 

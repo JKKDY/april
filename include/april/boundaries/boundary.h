@@ -12,7 +12,7 @@ namespace april::boundary {
 		ZMinus = 4, ZPlus = 5,
 	};
 
-	const std::vector faces = {
+	const std::vector all_faces = {
 		Face::XMinus, Face::XPlus,
 		Face::YMinus, Face::YPlus,
 		Face::ZMinus, Face::ZPlus

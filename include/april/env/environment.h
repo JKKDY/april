@@ -278,7 +278,7 @@ namespace april::env {
 
         template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
         void set_boundaries(const std::array<B, 6> & boundaries) {
-            for (const boundary::Face face : boundary::faces) {
+            for (const boundary::Face face : boundary::all_faces) {
                 data.boundaries[face_to_int(face)].template emplace<B>(boundaries[face_to_int(face)]);
             }
         }

@@ -76,7 +76,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, InsideDomain_RemainsAlive) {
 	env.add({.id=0, .type=0, .position={5,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
 
 	// Set Absorb on all faces
-	env.set_boundaries(Absorb(), faces);
+	env.set_boundaries(Absorb(), all_faces);
 
 
 	UserToInternalMappings mappings;
@@ -108,7 +108,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 	env.add({.id=5, .type=0, .position={5,5,9.6},  .velocity={0,0,+1}, .mass=1, .state=ParticleState::ALIVE}); // Z+
 
 	// Set Absorb on all faces
-	env.set_boundaries(Absorb(), faces);
+	env.set_boundaries(Absorb(), all_faces);
 
 	UserToInternalMappings mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);

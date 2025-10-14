@@ -31,27 +31,74 @@ namespace april::container {
 		public:
 			using Base::Base;
 
-			void build(const std::vector<Particle>& particles_) {
-				this->build_storage(particles_);
+			void build(const std::vector<Particle>& input_particles) {
+				this->build_storage(input_particles);
 				set_cell_size();
-				build_cells();
-				build_neighbour_pairs();
+				rebuild_cell_structure();
+				compute_neighbor_pairs();
 			}
 
 			void register_all_particle_movements() {
-				// reset & sort particles
-				build_cells();
+				rebuild_cell_structure();
 			}
 
-			void register_particle_movement(const Particle &, size_t) {}
+			void register_particle_movement(size_t p_idx) {
+				Particle & particle = Base::get_particle_by_index(p_idx);
 
+				const uint32_t dst_cell = cell_index_of(particle.position);
+				// const uint32_t src_cell = cell_index_of(particle.old_position);
+
+				// binary search to find the current cell of particle with index p_idx
+				const auto it = std::ranges::upper_bound(cell_begin, p_idx);
+				// Subtract one to get the cell whose range contains the index
+				// std::upper_bound returns an iterator to the first element greater than value.
+				const uint32_t src_cell = static_cast<uint32_t>(std::distance(cell_begin.begin(), it)) - 1;
+
+
+				if (src_cell == dst_cell) return;
+
+				std::cout << "IOOOOOOOO" << std::endl;
+
+				++particles_per_cell[dst_cell]; // particle enters dst_cell
+				--particles_per_cell[src_cell]; // particle leaves src_cell
+
+
+				// destination is to the left
+				if (dst_cell < src_cell) {
+					for (uint32_t cell_id = src_cell; cell_id > dst_cell; --cell_id) {
+						// select destination as the first (most left) position within the cell
+						const size_t dst_idx = cell_begin[cell_id];
+
+						// move particle down
+						swap_particles(p_idx, dst_idx);
+						++cell_begin[cell_id];
+
+						p_idx = dst_idx;
+					}
+				}
+				// destination is to the right
+				else if (dst_cell > src_cell) {
+					for (uint32_t cell_id = src_cell; cell_id < dst_cell; ++cell_id) {
+						// select destination as the last (most right) position within the cell
+						const size_t dst_idx = cell_begin[cell_id + 1] - 1;
+
+						// move particle up
+						swap_particles(p_idx, dst_idx);
+						--cell_begin[cell_id + 1];
+
+						p_idx = dst_idx;
+					}
+				}
+
+				std::cout << "done" << std::endl;
+			}
 
 
 			void calculate_forces() {
 				// for every cell
-				for (uint32_t cid = 0; cid < cell_start.size() - 1; cid++) {
-					const uint32_t start = cell_start[cid];
-					const uint32_t end = cell_start[cid+1];
+				for (uint32_t cid = 0; cid < cell_begin.size() - 1; cid++) {
+					const uint32_t start = cell_begin[cid];
+					const uint32_t end = cell_begin[cid+1];
 
 					for (uint32_t i = start; i < end; i++) {
 						for (uint32_t j = i+1; j < end; j++) {
@@ -66,9 +113,9 @@ namespace april::container {
 				}
 
 				// for every cell pair
-				for (auto & [c1, c2] : cell_pairs) {
-					for (uint32_t i = cell_start[c1]; i < cell_start[c1+1]; i++) {
-						for (uint32_t j = cell_start[c2]; j < cell_start[c2+1]; j++) {
+				for (auto & [c1, c2] : neighbor_cell_pairs) {
+					for (uint32_t i = cell_begin[c1]; i < cell_begin[c1+1]; i++) {
+						for (uint32_t j = cell_begin[c2]; j < cell_begin[c2+1]; j++) {
 							auto & p1 = particles[i];
 							auto & p2 = particles[j];
 
@@ -78,39 +125,6 @@ namespace april::container {
 						}
 					}
 				}
-			}
-
-			std::vector<uint32_t> cells_in_box(const env::Box & box) {
-
-				const vec3 min = box.min / cell_extent;
-				const vec3 max = box.max / cell_extent;
-
-				const uint3 min_cell = {
-					static_cast<uint32_t>(std::max(0.0, min.x)),
-					static_cast<uint32_t>(std::max(0.0, min.y)),
-					static_cast<uint32_t>(std::max(0.0, min.z))
-				};
-
-				const uint3 max_cell = {
-					static_cast<uint32_t>(std::min(num_cells.x, static_cast<uint32_t>(std::ceil(max.x)))),
-					static_cast<uint32_t>(std::min(num_cells.y, static_cast<uint32_t>(std::ceil(max.y)))),
-					static_cast<uint32_t>(std::min(num_cells.z, static_cast<uint32_t>(std::ceil(max.z))))
-				};
-
-				std::vector<uint32_t> cells;
-				for (uint32_t x = min_cell.x; x < max_cell.x; ++x) {
-					for (uint32_t y = min_cell.y; y < max_cell.y; ++y) {
-						for (uint32_t z = min_cell.z; z < max_cell.z; ++z) {
-							cells.push_back(cell_pos_to_idx(x,y,z));
-						}
-					}
-				}
-
-				if (!(box.min>= domain.min_corner() && box.max <= domain.max_corner())) {
-					cells.push_back(outside_cell);
-				}
-
-				return cells;
 			}
 
 			std::vector<size_t> collect_indices_in_region(const env::Domain & region) {
@@ -125,8 +139,8 @@ namespace april::container {
 				ret.reserve(particles.size()/(cells.size()+1)); // +1 accounts for outside cell
 
 				for (const uint32_t cid : cells) {
-					const uint32_t start = cell_start[cid];
-					for (size_t i = 0; i < cell_count[cid]; i++) {
+					const uint32_t start = cell_begin[cid];
+					for (size_t i = 0; i < particles_per_cell[cid]; i++) {
 						if (box.contains(particles[start + i].position) && particles[start + i].state != Particle::State::DEAD) {
 							ret.push_back(start + i);
 						}
@@ -148,41 +162,88 @@ namespace april::container {
 				const auto num_y = static_cast<unsigned int>(std::max(1.0, floor(domain.extent.y / cfg.cell_size_hint)));
 				const auto num_z = static_cast<unsigned int>(std::max(1.0, floor(domain.extent.z / cfg.cell_size_hint)));
 
-				cell_extent = {domain.extent.x / num_x, domain.extent.y / num_y, domain.extent.z / num_z};
-				inv_cell_extent = {
-					cell_extent.x > 0 ? 1.0/cell_extent.x : 0.0,
-					cell_extent.y > 0 ? 1.0/cell_extent.y : 0.0,
-					cell_extent.z > 0 ? 1.0/cell_extent.z : 0.0
+				cell_size = {domain.extent.x / num_x, domain.extent.y / num_y, domain.extent.z / num_z};
+				inv_cell_size = {
+					cell_size.x > 0 ? 1.0/cell_size.x : 0.0,
+					cell_size.y > 0 ? 1.0/cell_size.y : 0.0,
+					cell_size.z > 0 ? 1.0/cell_size.z : 0.0
 				  };
 
-				num_cells = uint3{num_x, num_y, num_z};
+				cells_per_axis = uint3{num_x, num_y, num_z};
 			}
 
-			void build_cells() {
-				outside_cell = num_cells.x * num_cells.y * num_cells.z;
-				cell_start = std::vector<uint32_t>(num_cells.x * num_cells.y * num_cells.z + 1);
+			std::vector<uint32_t> cells_in_box(const env::Box & box) {
 
-				// how many particles in each cell
-				cell_count = std::vector<uint32_t>(cell_start.size());
-				for (auto & p : particles) {
-					p.reset_force();
-					const size_t cid = cell_of(p.position);
-					++cell_count[cid];
+				//  Convert world coords to cell coords (relative to domain origin)
+				const vec3 min = (box.min - domain.origin) * inv_cell_size;
+				const vec3 max = (box.max - domain.origin) * inv_cell_size;
+
+				// clamp cell coordinates to valid ranges
+				const vec3 min_clamped = {
+					std::clamp(std::floor(min.x), 0.0, static_cast<double>(cells_per_axis.x - 1)),
+					std::clamp(std::floor(min.y), 0.0, static_cast<double>(cells_per_axis.y - 1)),
+					std::clamp(std::floor(min.z), 0.0, static_cast<double>(cells_per_axis.z - 1))
+				};
+
+				const vec3 max_clamped = {
+					std::clamp(std::ceil(max.x), 0.0, static_cast<double>(cells_per_axis.x - 1)),
+					std::clamp(std::ceil(max.y), 0.0, static_cast<double>(cells_per_axis.y - 1)),
+					std::clamp(std::ceil(max.z), 0.0, static_cast<double>(cells_per_axis.z - 1))
+				};
+
+				const uint3 min_cell = {
+					static_cast<uint32_t>(min_clamped.x),
+					static_cast<uint32_t>(min_clamped.y),
+					static_cast<uint32_t>(min_clamped.z)
+				};
+
+				const uint3 max_cell = {
+					static_cast<uint32_t>(max_clamped.x),
+					static_cast<uint32_t>(max_clamped.y),
+					static_cast<uint32_t>(max_clamped.z)
+				};
+
+				std::vector<uint32_t> cells;
+				for (uint32_t x = min_cell.x; x <= max_cell.x; ++x) {
+					for (uint32_t y = min_cell.y; y <= max_cell.y; ++y) {
+						for (uint32_t z = min_cell.z; z <= max_cell.z; ++z) {
+							cells.push_back(cell_pos_to_idx(x,y,z));
+						}
+					}
 				}
 
-				cell_start.assign(cell_start.size(), 0);
-				for (uint32_t c = 1; c < cell_start.size(); ++c) {
-					cell_start[c] = cell_start[c-1] + cell_count[c-1];
+				if (!(box.min>= domain.min_corner() && box.max <= domain.max_corner())) {
+					cells.push_back(outside_cell_id);
+				}
+
+				return cells;
+			}
+
+			void rebuild_cell_structure() {
+				outside_cell_id = cells_per_axis.x * cells_per_axis.y * cells_per_axis.z;
+				cell_begin = std::vector<uint32_t>(cells_per_axis.x * cells_per_axis.y * cells_per_axis.z + 1);
+
+				// how many particles in each cell
+				particles_per_cell = std::vector<uint32_t>(cell_begin.size());
+				for (auto & p : particles) {
+					p.reset_force();
+					const size_t cid = cell_index_of(p.position);
+					++particles_per_cell[cid];
+				}
+
+				cell_begin.assign(cell_begin.size(), 0);
+				for (uint32_t c = 1; c < cell_begin.size(); ++c) {
+					cell_begin[c] = cell_begin[c-1] + particles_per_cell[c-1];
 				}
 
 				// scatter particles into bins
 				const size_t N = particles.size();
 				std::vector<Particle> tmp_p(N);
 				std::vector<uint32_t> tmp_i(N);
-				std::vector<uint32_t> write_ptr = cell_start; // copy
+				std::vector<uint32_t> write_ptr = cell_begin; // copy
 
 				for (size_t i = 0; i < N; ++i) {
-					const uint32_t cid = cell_of(particles[i].position);
+					const uint32_t cid = cell_index_of(particles[i].position);
 					const uint32_t dst = write_ptr[cid]++;
 					tmp_p[dst] = particles[i];
 					tmp_i[dst] = indices[i];
@@ -191,7 +252,7 @@ namespace april::container {
 				indices.swap(tmp_i);
 			}
 
-			void build_neighbour_pairs() {
+			void compute_neighbor_pairs() {
 				static const int3 displacements[13] = {
 					{ 1, 0, 0}, { 0, 1, 0}, { 0, 0, 1},
 					{ 1, 1, 0}, { 1,-1, 0}, { 1, 0, 1},
@@ -201,20 +262,20 @@ namespace april::container {
 				};
 
 				for (const auto d : displacements) {
-					for (unsigned int z = 0; z < num_cells.z; z++) {
-						for (unsigned int y = 0; y < num_cells.y; y++) {
-							for (unsigned int x = 0; x < num_cells.x; x++) {
+					for (unsigned int z = 0; z < cells_per_axis.z; z++) {
+						for (unsigned int y = 0; y < cells_per_axis.y; y++) {
+							for (unsigned int x = 0; x < cells_per_axis.x; x++) {
 								const int3 base{static_cast<int>(x), static_cast<int>(y), static_cast<int>(z)};
 								const int3 n = base + d;
 
 								if (n.x < 0 || n.y < 0 || n.z < 0)
 									continue;
-								if (n.x >= static_cast<int>(num_cells.x) ||
-									n.y >= static_cast<int>(num_cells.y) ||
-									n.z >= static_cast<int>(num_cells.z))
+								if (n.x >= static_cast<int>(cells_per_axis.x) ||
+									n.y >= static_cast<int>(cells_per_axis.y) ||
+									n.z >= static_cast<int>(cells_per_axis.z))
 									continue;
 
-								cell_pairs.emplace_back(cell_pos_to_idx(x,y,z), cell_pos_to_idx(n.x, n.y, n.z));
+								neighbor_cell_pairs.emplace_back(cell_pos_to_idx(x,y,z), cell_pos_to_idx(n.x, n.y, n.z));
 							}
 						}
 					}
@@ -222,33 +283,33 @@ namespace april::container {
 			}
 
 			[[nodiscard]] uint32_t cell_pos_to_idx(const uint32_t x, const uint32_t y, const uint32_t z) const noexcept{
-				return  z * num_cells.x * num_cells.y + y * num_cells.x + x;
+				return  z * cells_per_axis.x * cells_per_axis.y + y * cells_per_axis.x + x;
 			}
 
-			uint32_t cell_of(const vec3 & position) {
+			uint32_t cell_index_of(const vec3 & position) {
 				const vec3 pos = position - domain.origin;
 				if (pos[0] < 0 || pos[1] < 0 || pos[2] < 0) {
-					return outside_cell;
+					return outside_cell_id;
 				}
 
-				const auto x = static_cast<uint32_t>(pos.x * inv_cell_extent.x);
-				const auto y = static_cast<uint32_t>(pos.y * inv_cell_extent.y);
-				const auto z = static_cast<uint32_t>(pos.z * inv_cell_extent.z);
+				const auto x = static_cast<uint32_t>(pos.x * inv_cell_size.x);
+				const auto y = static_cast<uint32_t>(pos.y * inv_cell_size.y);
+				const auto z = static_cast<uint32_t>(pos.z * inv_cell_size.z);
 
-				if (x >= num_cells.x || y >= num_cells.y || z >= num_cells.z) {
-					return outside_cell;
+				if (x >= cells_per_axis.x || y >= cells_per_axis.y || z >= cells_per_axis.z) {
+					return outside_cell_id;
 				}
 
 				return cell_pos_to_idx(x, y, z);
 			}
 
-			uint32_t outside_cell {};
-			std::vector<uint32_t> cell_start;
-			std::vector<uint32_t> cell_count;
-			std::vector<std::pair<uint32_t, uint32_t>> cell_pairs;
-			vec3 cell_extent;
-			vec3 inv_cell_extent;
-			uint3 num_cells{};
+			uint32_t outside_cell_id {};  // index of outside cell
+			std::vector<uint32_t> cell_begin; // maps cell id to the index of the first particle within that cell
+			std::vector<uint32_t> particles_per_cell; // maps cell id to the number of particles in the cell
+			std::vector<std::pair<uint32_t, uint32_t>> neighbor_cell_pairs;
+			vec3 cell_size; // size of each cell
+			vec3 inv_cell_size; // the inverse of each size component
+			uint3 cells_per_axis{}; // number of cells along each axis
 		};
 	}
 }

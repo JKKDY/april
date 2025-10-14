@@ -20,8 +20,9 @@ namespace april::integrator {
 		using Base::Base;
 
 		void integration_step() const {
+			// position update
 			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
-				auto & p = sys.get_particle_by_index(i);
+				env::internal::Particle & p = sys.get_particle_by_index(i);
 				if (static_cast<int>(p.state & State::MOVABLE))
 					p.update_position(dt * p.velocity + (dt*dt) / (2 * p.mass) * p.force);
 			}
@@ -31,6 +32,7 @@ namespace april::integrator {
 			sys.update_forces();
 			sys.apply_force_fields();
 
+			// velocity update
 			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
 				auto & p = sys.get_particle_by_index(i);
 				if (static_cast<int>(p.state & State::MOVABLE))

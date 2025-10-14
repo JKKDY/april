@@ -17,7 +17,8 @@ namespace april::container {
 		//   void register_particle_movement()
 		//   void calculate_forces()
 		//   get_particle_by_id, id_start, id_end
-		//   get_particle_by_index, index_start, index_end
+		//   id_to_index
+		//   get_particle_by_index (optional), index_start, index_end
 		//   size_t particle_count()
 		//   collect_indices_in_region()
 		// in the future:
@@ -56,12 +57,12 @@ namespace april::container {
 			}
 
 			// update container internals by scanning one particle for its movement
-			void dispatch_register_particle_movement(this auto&& self, const Particle & particle, size_t idx) {
+			void dispatch_register_particle_movement(this auto&& self, size_t idx) {
 				static_assert(
-					requires { self.register_particle_movement(particle, idx); },
+					requires { self.register_particle_movement(idx); },
 					"Container subclass must implement: void register_particle_movements()"
 				);
-				self.register_particle_movement(particle, idx);
+				self.register_particle_movement(idx);
 			}
 
 			// calculate inter-particle forces
@@ -73,14 +74,26 @@ namespace april::container {
 		        self.calculate_forces();
 		    }
 
+
+			size_t dispatch_id_to_index(this auto&& self, ParticleID id) {
+				static_assert(
+				   requires { { self.id_to_index(id) } -> std::same_as<size_t>; },
+				   "Container subclass must implement: void id_to_index(id)"
+			   );
+				return self.id_to_index();
+			}
+
 			// ids are always dense in [0, N-1]
 			// use ids for stable iteration
 		    Particle& dispatch_get_particle_by_id(this auto&& self, ParticleID id) {
-		        static_assert(
-		            requires { { self.get_particle_by_id(id) } -> std::same_as<Particle&>; },
-		            "Container subclass must implement: Particle& get_particle_by_id(ParticleID)"
-		        );
-		        return self.get_particle_by_id(id);
+				if constexpr (
+					requires { { self.get_particle_by_id(id) } -> std::same_as<Particle&>; }
+					) {
+					return self.get_particle_by_id(id);
+				} else {
+					size_t idx = self.dispatch_id_to_index(id);
+					return self.dispatch_get_particle_by_index(idx);
+				}
 		    }
 
 		    ParticleID dispatch_id_start(this auto&& self) {

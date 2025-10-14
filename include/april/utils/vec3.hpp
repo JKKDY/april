@@ -87,6 +87,9 @@ namespace april::utils {
             return {x / other.x, y / other.y, z / other.z};
         }
 
+        Vec3 hadamard(const Vec3& other) { return *this * other; }
+        Vec3 elementwise_div(const Vec3& other) { return *this / other; }
+
 
         // scalar product
         T dot(const Vec3 & other) const noexcept {

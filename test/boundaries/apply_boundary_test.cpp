@@ -34,7 +34,7 @@ TYPED_TEST(BoundaryTestT, InsideSlab_XMinus_AppliesOnlyToSlabParticles) {
 
 	// Particles: one in the X- slab [0,1], one outside it
 	env.add({.id=0, .type=0, .position={0.4,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
-	env.add({.id=1, .type=0, .position={2.0,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	env.add({.id=1, .type=0, .position={1.1,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
 
 	env.add_force(NoForce{}, to_type(0));
 

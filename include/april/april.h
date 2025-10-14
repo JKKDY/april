@@ -56,7 +56,7 @@ namespace april {
 
 	// Boundary
 	using boundary::Face;
-	using boundary::faces;
+	using boundary::all_faces;
 
 	using boundary::boundaries;
 	using boundary::Boundary;

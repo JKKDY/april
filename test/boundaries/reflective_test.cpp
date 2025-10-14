@@ -95,7 +95,7 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
     env.add({.id=4, .type=0, .position={5,5,0.4},  .velocity={0,0,-1}, .mass=1, .state=ParticleState::ALIVE}); // Z−
     env.add({.id=5, .type=0, .position={5,5,9.6},  .velocity={0,0,+1}, .mass=1, .state=ParticleState::ALIVE}); // Z+
 
-	env.set_boundaries(Reflective(), faces);
+	env.set_boundaries(Reflective(), all_faces);
 
 
     UserToInternalMappings mappings;

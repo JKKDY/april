@@ -38,6 +38,11 @@ namespace april::container {
 			return particles.size();
 		}
 
+		[[nodiscard]] size_t id_to_index(ParticleID id) const {
+			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
+			return indices[static_cast<size_t>(id)];
+		}
+
 		// index for non-stable iteration
 		[[nodiscard]] Particle& get_particle_by_index(size_t index) noexcept {
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");

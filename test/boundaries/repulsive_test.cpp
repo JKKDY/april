@@ -50,8 +50,8 @@ TEST(RepulsiveBoundaryTest, Apply_AddsInwardForce) {
 	EXPECT_NEAR(p.force.x, +5.0, 1e-12);
 }
 
-// Topology sanity: inside region, not coupled, no force wrap, position change
-TEST(RepulsiveBoundaryTest, Topology_IsInsideAndChangesPosition) {
+// Topology sanity: inside region, not coupled, no force wrap, np position change
+TEST(RepulsiveBoundaryTest, Topology_IsInsideAndNoChangesPosition) {
 	ConstantForce f{1.0, 3.0};
 	const Repulsive rep(f);
 
@@ -60,7 +60,7 @@ TEST(RepulsiveBoundaryTest, Topology_IsInsideAndChangesPosition) {
 		<< "Repulsive boundaries operate inside the domain (positive thickness).";
 	EXPECT_FALSE(topology.couples_axis);
 	EXPECT_FALSE(topology.force_wrap);
-	EXPECT_TRUE(topology.may_change_particle_position);
+	EXPECT_FALSE(topology.may_change_particle_position);
 }
 
 // CompiledBoundary apply test

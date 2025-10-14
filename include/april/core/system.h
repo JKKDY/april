@@ -109,13 +109,18 @@ namespace april::core {
 			container.dispatch_register_all_particle_movements();
 		}
 
+		void register_particle_movement(ParticleID id) {
+			size_t idx = container.id_to_index(id);
+			container.dispatch_register_particle_movement(idx);
+		}
+
 		// call to apply boundary conditions to all particles. should not be called before register_particle_movements
 		void apply_boundary_conditions() {
 			using Boundary = boundary::internal::CompiledBoundary<typename EnvT::boundary_variant_t>;
 
 			auto box = env::Box(domain);
 
-			for (boundary::Face face : boundary::faces) {
+			for (boundary::Face face : boundary::all_faces) {
 
 				Boundary & boundary = boundary_table.get_boundary(face);
 				std::vector<size_t> particle_ids = container.dispatch_collect_indices_in_region(boundary.region);
@@ -126,7 +131,7 @@ namespace april::core {
 						boundary.apply(p, box, face);
 
 						if (boundary.topology.may_change_particle_position) {
-							container.register_particle_movement(p, p_idx);
+							container.register_particle_movement(p_idx);
 						}
 					}
 				} else {
@@ -151,20 +156,11 @@ namespace april::core {
 							boundary.apply(p, box, face);
 
 							if (boundary.topology.may_change_particle_position) {
-								container.register_particle_movement(p, p_idx);
+								container.register_particle_movement(p_idx);
 							}
 						}
 					}
 				}
-
-				// TODO:
-				// actually we would need to update the container for every application of the boundary condition as
-				// the positions can change. The easiest method would be to call another register_particle_movements()
-				// after apply_boundary_conditions but this is expensive if only a few particles positions are updated.
-				// So instead provide a function on the container to just update a single particles position.
-				// this means we have both:
-				//	1. register_particle_movements() for all particles
-				//	2. register_particle_movement(particle) for a single particle
 			}
 		}
 

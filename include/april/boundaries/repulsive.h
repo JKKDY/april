@@ -16,12 +16,16 @@ namespace april::boundary {
 	template <IsBoundaryForce Force>
 	struct Repulsive : Boundary {
 		explicit Repulsive(Force & force, const bool simulate_halo=false):
-		Boundary(force.cutoff(), false, false, true),
+		Boundary(force.cutoff(), false, false, false),
 		boundary_force(force), simulate_halo(simulate_halo) {}
 
 		void apply(env::internal::Particle & particle, const env::Box & domain_box, const Face face) const noexcept{
 			const int is_plus = face_sign_pos(face);
 			const int ax = axis_of_face(face);
+
+			AP_ASSERT(particle.position[ax] >= domain_box.min[ax] && particle.position[ax] <= domain_box.max[ax],
+			"particle should be inside domain on specified axis! \n\tface:"  + std::to_string(face_to_int(face)) +
+			"\n\t" + particle.position.to_string() + "  old pos: " + particle.old_position.to_string() );
 
 			const double wall_position  = (is_plus? domain_box.max : domain_box.min)[ax];
 			double distance = std::abs(wall_position  - particle.position[ax]);

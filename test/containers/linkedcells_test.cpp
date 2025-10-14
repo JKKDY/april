@@ -228,3 +228,74 @@ TEST(LinkedCellsTest, OrbitTest) {
 }
 
 
+TEST(LinkedCellsTest, CollectIndicesInRegion) {
+	// Create a simple 3x3x3 grid of particles (27 total)
+	auto cuboid = ParticleCuboid{}
+		.at(vec3(0.25))
+		.velocity({0, 0, 0})
+		.count({3, 3, 3})
+		.mass(1.0)
+		.spacing(1)
+		.type(0);
+
+    // Loop through different cell size hints to verify consistency
+    for (double cell_size : {0.5, 1.0, 2.0, 5.0}) {
+
+        Environment e(forces<NoForce>);
+        e.set_origin({0, 0, 0});
+        e.set_extent({5, 5, 5});
+		e.add(cuboid);
+        e.add_force(NoForce(), to_type(0));
+
+        auto sys = build_system(e, LinkedCells(cell_size));
+
+        // Case 1: small inner region (should include one particle)
+        {
+            env::Domain region({0.1, 0.1, 0.1}, {0.9, 0.9, 0.9});
+            auto indices = sys.collect_indices_in_region(region);
+            ASSERT_EQ(indices.size(), 1u);
+            auto p = sys.export_particles()[indices[0]];
+            EXPECT_EQ(p.position.x, 0.25);
+            EXPECT_EQ(p.position.y, 0.25);
+            EXPECT_EQ(p.position.z, 0.25);
+        }
+
+        // Case 2: mid region (should include all 27)
+        {
+            env::Domain region({0, 0, 0}, {5, 5, 5});
+            auto indices = sys.collect_indices_in_region(region);
+            EXPECT_EQ(indices.size(), 27u);
+        }
+
+        // Case 3: partially overlapping region
+        {
+            env::Domain region({1.5, 1.5, 1.5}, {4.5, 4.5, 4.5});
+            std::vector indices = sys.collect_indices_in_region(region);
+            EXPECT_GT(indices.size(), 0u);
+            EXPECT_LT(indices.size(), 27u);
+
+        	std::unordered_set inside (indices.begin(), indices.end());
+
+        	for (size_t idx = sys.index_start(); idx < sys.index_end(); idx++) {
+				env::internal::Particle & p = sys.get_particle_by_index(idx);
+        		bool in_region = (p.position.x >= 1.5 && p.position.x <= 4.5) &&
+					(p.position.y >= 1.5 && p.position.y <= 4.5) &&
+					(p.position.z >= 1.5 && p.position.z <= 4.5);
+
+        		if (inside.contains(idx)) {
+        			EXPECT_TRUE(in_region);
+        		} else {
+        			EXPECT_FALSE(in_region);
+        		}
+        	}
+        }
+
+        // Case 4: region completely outside
+        {
+            env::Domain region({10, 10, 10}, {12, 12, 12});
+            auto indices = sys.collect_indices_in_region(region);
+            EXPECT_TRUE(indices.empty());
+        }
+    }
+}
+

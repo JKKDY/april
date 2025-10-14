@@ -203,6 +203,10 @@ namespace april::core {
 			return container.dispatch_index_end();
 		}
 
+		[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Domain & region) {
+			return container.dispatch_collect_indices_in_region(region);
+		}
+
 		// returns the systems time
 		[[nodiscard]] double time() const noexcept {
 			return time_;

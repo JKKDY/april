@@ -13,11 +13,12 @@ namespace april::force {
 		double r0; // Equilibrium distance
 		double cutoff_radius; // Negative: no cutoff
 
-		Harmonic(const double k_, const double r0_)
-		: k(k_), r0(r0_), cutoff_radius(-1.0) {}
+		Harmonic(const double strength, const double equilibrium, const double cutoff = -1)
+		: k(strength), r0(equilibrium), cutoff_radius(cutoff) {}
 
 		vec3 operator()(env::internal::Particle const&, env::internal::Particle const&, vec3 const& r) const noexcept {
 			const double dist = r.norm();
+			if (dist > cutoff_radius) return {};
 			const double magnitude = k * (dist - r0) / dist; // F = -k * (dist - r0) * (r / dist)
 			return -magnitude * r;
 		}

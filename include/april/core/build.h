@@ -99,7 +99,7 @@ namespace april::core {
 			topologies.push_back(boundaries.get_boundary(face).topology);
 		}
 
-		// TODO validate topologies
+		// TODO validate topologiess
 
 		container::internal::ContainerFlags container_flags = {};
 		for (const boundary::Face face : boundary::all_faces) {

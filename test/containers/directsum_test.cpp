@@ -179,3 +179,90 @@ TEST(DirectSumTest, CollectIndicesInRegion) {
 }
 
 
+// does nothing except signaling the container to be periodic
+struct DummyPeriodicBoundary final : Boundary {
+	DummyPeriodicBoundary()
+	: Boundary(0.0, false, true, false ) {}
+
+	void apply(env::internal::Particle&, const env::Box&, Face) const noexcept {}
+};
+
+TEST(DirectSumTest, PeriodicForceWrap_X) {
+	Environment e(forces<Harmonic>, boundaries<DummyPeriodicBoundary>);
+
+	e.set_origin({0,0,0});
+	e.set_extent({10,10,10}); // domain box 10x10x10
+
+	// Two particles, near opposite faces along x
+	e.add(Particle{.id=0, .type=0, .position={0.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+	e.add(Particle{.id=1, .type=0, .position={9.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+
+	e.add_force(Harmonic(1, 0, 2), to_type(0)); // simple directional force
+	e.set_boundaries(DummyPeriodicBoundary(), {Face::XMinus, Face::XPlus});
+
+	UserToInternalMappings mapping;
+	auto sys = build_system(e, DirectSum(),&mapping); // DirectSum container
+	sys.update_forces();
+
+	auto const& out = sys.export_particles();
+	ASSERT_EQ(out.size(), 2u);
+
+	auto p1 = sys.get_particle_by_id(mapping.usr_ids_to_impl_ids[0]);
+	auto p2 = sys.get_particle_by_id(mapping.usr_ids_to_impl_ids[1]);
+
+	// They should feel equal and opposite forces due to wrapping
+	EXPECT_EQ(p1.force, -p2.force);
+	EXPECT_EQ(p1.force.x, -1.0);
+	EXPECT_EQ(p2.force.x, 1.0);
+}
+
+
+TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
+	// Enable force wrapping in all 6 directions
+	Environment e(forces<Harmonic>, boundaries<DummyPeriodicBoundary>);
+	e.set_origin({0, 0, 0});
+	e.set_extent({10, 10, 10});
+
+	// Particles placed in diagonally opposite corners
+	e.add(Particle{.id=0, .type=0, .position={0.5, 0.5, 0.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+	e.add(Particle{.id=1, .type=0, .position={9.5, 9.5, 9.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+
+	// Hooke-like spring with k=1, r0=0, cutoff=2
+	e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));
+
+	// Activate periodic wrapping on all faces
+	e.set_boundaries(DummyPeriodicBoundary(), {
+		Face::XMinus, Face::XPlus,
+		Face::YMinus, Face::YPlus,
+		Face::ZMinus, Face::ZPlus
+	});
+
+	UserToInternalMappings mapping;
+	auto sys = build_system(e, DirectSum(), &mapping);
+	sys.update_forces();
+
+	auto const& out = sys.export_particles();
+	ASSERT_EQ(out.size(), 2u);
+
+	auto p1 = sys.get_particle_by_id(mapping.usr_ids_to_impl_ids[0]);
+	auto p2 = sys.get_particle_by_id(mapping.usr_ids_to_impl_ids[1]);
+
+	// In a 10x10x10 domain with full wrapping,
+	// the wrapped displacement should be (-1, -1, -1) for p1->p2.
+	// The harmonic force acts along that direction, magnitude proportional to distance.
+
+	// Check that forces are opposite
+	EXPECT_EQ(p1.force, -p2.force);
+
+	// Check that the direction is consistent with wrapped displacement
+	EXPECT_EQ(p1.force.x, -1.0);
+	EXPECT_EQ(p1.force.y, -1.0);
+	EXPECT_EQ(p1.force.z, -1.0);
+
+	EXPECT_EQ(p2.force.x,  1.0);
+	EXPECT_EQ(p2.force.y,  1.0);
+	EXPECT_EQ(p2.force.z,  1.0);
+}
+
+
+

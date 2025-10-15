@@ -299,3 +299,91 @@ TEST(LinkedCellsTest, CollectIndicesInRegion) {
     }
 }
 
+// does nothing except signaling the container to be periodic
+struct DummyPeriodicBoundary final : Boundary {
+	DummyPeriodicBoundary()
+	: Boundary(0.0, false, true, false ) {}
+
+	void apply(env::internal::Particle&, const env::Box&, Face) const noexcept {}
+};
+
+TEST(LinkedCellsTest, PeriodicForceWrap_X) {
+	// Iterate over several cell sizes (smaller, medium, larger than extent/2)
+	for (double cell_size_hint : {1.0, 3.3, 9.9}) {
+		Environment e(forces<Harmonic>, boundaries<DummyPeriodicBoundary>);
+
+		e.set_origin({0,0,0});
+		e.set_extent({10,10,10}); // domain box 10x10x10
+
+		// Two particles, near opposite faces along x
+		e.add(Particle{.id=0, .type=0, .position={0.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+		e.add(Particle{.id=1, .type=0, .position={9.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+
+		// Simple harmonic force
+		e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));
+
+		// Enable periodic boundaries on both x faces
+		e.set_boundaries(DummyPeriodicBoundary(), {Face::XMinus, Face::XPlus});
+
+		UserToInternalMappings mapping;
+		auto sys = build_system(e, LinkedCells(cell_size_hint), &mapping);
+		sys.update_forces();
+
+		auto const& out = sys.export_particles();
+		ASSERT_EQ(out.size(), 2u);
+
+		auto p1 = sys.get_particle_by_id(mapping.usr_ids_to_impl_ids[0]);
+		auto p2 = sys.get_particle_by_id(mapping.usr_ids_to_impl_ids[1]);
+
+		// They should feel equal and opposite forces due to wrapping
+		EXPECT_EQ(p1.force, -p2.force);
+
+		EXPECT_NEAR(p1.force.x, -1.0, 1e-12);
+		EXPECT_NEAR(p2.force.x,  1.0, 1e-12);
+	}
+}
+
+
+TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
+	for (double cell_size_hint : {1.0, 3.3, 9.9}) {
+
+		Environment e(forces<Harmonic>, boundaries<DummyPeriodicBoundary>);
+		e.set_origin({0,0,0});
+		e.set_extent({10,10,10});
+
+		// Particles at opposite corners
+		e.add(Particle{.id=0, .type=0, .position={0.5, 0.5, 0.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+		e.add(Particle{.id=1, .type=0, .position={9.5, 9.5, 9.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+
+		e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));
+
+		// Enable full periodicity on all faces
+		e.set_boundaries(DummyPeriodicBoundary(), {
+			Face::XMinus, Face::XPlus,
+			Face::YMinus, Face::YPlus,
+			Face::ZMinus, Face::ZPlus
+		});
+
+		UserToInternalMappings mapping;
+		auto sys = build_system(e, LinkedCells(cell_size_hint), &mapping);
+		sys.update_forces();
+
+		auto const& out = sys.export_particles();
+		ASSERT_EQ(out.size(), 2u);
+
+		auto p1 = sys.get_particle_by_id(mapping.usr_ids_to_impl_ids[0]);
+		auto p2 = sys.get_particle_by_id(mapping.usr_ids_to_impl_ids[1]);
+
+		// Forces must be equal and opposite
+		EXPECT_EQ(p1.force, -p2.force);
+
+		EXPECT_NEAR(p1.force.x, -1.0, 1e-12);
+		EXPECT_NEAR(p1.force.y, -1.0, 1e-12);
+		EXPECT_NEAR(p1.force.z, -1.0, 1e-12);
+
+		EXPECT_NEAR(p2.force.x,  1.0, 1e-12);
+		EXPECT_NEAR(p2.force.y,  1.0, 1e-12);
+		EXPECT_NEAR(p2.force.z,  1.0, 1e-12);
+	}
+}
+

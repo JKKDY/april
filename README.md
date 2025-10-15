@@ -7,12 +7,13 @@ It aims to combine high performance with a flexible, easy-to-use, and expressive
 
 ## Core Features
 
-- **Modular design**: swap or extend **forces**, **containers** (force calculators), **integrators**, and **monitors**.
+- **Modular design**: seamlessly swap or extend **forces**, **containers** (force calculators), **boundary conditions**, **integrators**, and **monitors**.
 - **Modern C++**: concepts for compile-time interface checking; a simple, readable public API via `april/april.h`.
-- **Ergonomic setup**: clear setup path. Special care was taken to minimize template verbosity with CTAD.
+- **Ergonomic setup**: clear setup path. Special care was taken to minimize template verbosity with automatic template deduction (CTAD).
 - **Built-in monitors**: binary snapshots, terminal diagnostics, progress bar, and a simple benchmark.
 - **Built-in containers**: `DirectSum` (all-pairs) and `LinkedCells` (cell lists).
-- **Tested core**: GoogleTest suite covering interactions, containers, integrator steps, binary I/O, and utilities.
+- **Built-in boundary conditions**: Periodic, Repulsive (uses a force), Reflective, Absorbing and Open boundary conditions
+- **Tested core**: GoogleTest suite covering interactions, containers, boundary conditions, integrator steps, binary I/O, and utilities.
 - **Small animation script**: a Python helper to quickly preview simulation output.
 
 
@@ -39,35 +40,35 @@ ctest --test-dir build --output-on-failure
 
 The following diagram shows the typical flow of a program using APRIL:
 ```
-[Particles]   [Forces]          
-     \          /                          
-      v        v                           
-   +-------------+            +-----------+ 
-   | Environment |            | Container | 
-   +-------------+            +-----------+ 
-           \                       /         
-            \                     /          
-             v                   v           
-            +---------------------+     transforms user-provided data (particles, 
-            |   build_system(...) |  <- types/IDs, forces, domain) into dense internal
-            +---------------------+     representations and wires the components together.
-                       |
-                       v
-                  +---------+
-                  | System  |   <— uses Container to compute forces
-                  +---------+
-                       ^
-                       |  (each step: system.update_forces)
-                       |
-                +-------------+
-                | Integrator  |
-                +-------------+
-                       |
-                       |  emits records every N steps
-                       v
-                 +-----------+
-                 | Monitors  |
-                 +-----------+
+[Forces] [boundaries] [Particles]          
+     \        |        /                          
+      v       v       v                           
+       +-------------+        +-----------+ 
+       | Environment |        | Container | 
+       +-------------+        +-----------+ 
+              \                    /         
+               \                  /          
+                v                v           
+             +---------------------+     transforms user-provided data (particles, 
+             |   build_system(...) |  <- types/IDs, forces, domain) into dense internal
+             +---------------------+     representations and wires the components together.
+                        |
+                        v
+                   +---------+
+                   | System  |   <— uses Container to compute forces
+                   +---------+
+                        ^
+                        |  (each step: system.update_forces)
+                        |
+                 +-------------+
+                 | Integrator  |
+                 +-------------+
+                        |
+                        |  emits records every N steps
+                        v
+                  +-----------+
+                  | Monitors  |
+                  +-----------+
 ```
 
 - **Environment** \
@@ -88,11 +89,12 @@ using namespace april;
 
 // Simulation of a simple sun-planet system
 int main() {
-    // 1) Define an environment: particles + forces
-    Environment env (forces<InverseSquare>);
+    // 1) Define an environment: particles + force types + boundary types
+    Environment env (forces<InverseSquare>, boundaries<Reflective>);
     env.add({0,0,0}, {0,0,0}, 1.0, /*type*/0);         // Sun
     env.add({1,0,0}, {0,1,0}, 1e-3, /*type*/0);        // Planet
     env.add_force(InverseSquare(), to_type(0));        // gravity for type 0
+    env.add_boundaries(Reflective(), all_faces);       // all 6 boundary faces are reflective
 
     // 2) Choose a container (force calculator) and build a system
     auto system = build_system(env, DirectSum());
@@ -111,7 +113,7 @@ Further examples can be found in `examples/`:
 ## Design Notes
 - The entire public API is collected in april/april.h, so users normally only need a single include.
 - Clear separation of user-facing vs. internal API: users work with declarative structs (e.g., `Environment`, `Particle`, container config structs) which are then consumed to build the internal representations (`impl::Particle`, container internals). This keeps the public API ergonomic and stable while allowing optimized internal implementations.
-- Concepts enforce component interfaces at compile time (IsForce, IsMonitor, IsSystem), making extension points explicit.
+- Concepts enforce component interfaces at compile time (IsForce, IsMonitor, IsBoundary, IsSystem), making extension points explicit.
 - Environment → System → Integrator is the central workflow. Systems always delegate force evaluation to a chosen Container.
 - Interactions can be specified by type pair or by particle id pair; missing cross-type entries are derived via a mix function.
 - BinaryOutput writes a compact, versioned binary format (positions as float, plus type/id/state) suitable for lightweight analysis or visualization.
@@ -140,6 +142,7 @@ APRIL’s linked-cell implementation achieves higher performance than HOOMD in p
 
 APRIL’s components are designed to be easy to implement and drop in. In the following all nested namespaces inside april - aside from ::impl:: - are omitted for clarity. 
 
+
 ### Custom force
 
 Implement the call operator and a `mix` rule (used to derive cross-type interactions) and provide a `cutoff_radius`:
@@ -161,13 +164,38 @@ Environment env (forces<MyForce>);
 env.add_force(MyForce{...}, to_type(...));
 ```
 
+### Custom boundary 
+
+To implement custom boundary logic, inherit from Boundary and set the topology parameters by initializing the base class. provide a const apply function: 
+
+```C++
+struct MyBoundary final : Boundary {
+    MyBoundary() : Boundary(/*thickness*/ +1.0,
+                 /*couples_axis*/ false,
+                 /*force_wrap*/  false,
+                 /*may_change_particle_position*/ true) {}
+                 
+    void apply(env::internal::Particle& p, const env::Box& box,
+               boundary::Face face) const noexcept {
+        // your boundary logic           
+    }
+}
+```
+
 ### Custom container
 
-Inherit from `Container<Config, Env>`and provide 
+Containers are the most complex classes to implement as they are the backbone of the simulation. 
+To create a custom container inherit from `Container<Config, Env>`and provide the following functions: 
 
-- `build(const std::vector<Particle>&)`
-- `calculate_forces()`
-- accessors for particle/id/index ranges
+- build
+- register_all_particle_movements
+- register_particle_movement
+- calculate_forces
+- get_particle_by_id, id_start, id_end
+- id_to_index
+- get_particle_by_index (optional), index_start, index_end
+- particle_count
+- collect_indices_in_region
 
 Additionally provide a struct pointing to the containers type. This is passed into the `Config` template parameter as well as into  `build_system(...).`
 
@@ -258,7 +286,7 @@ integrator.add_monitor(MyMonitor{10});  // call every 10 steps
 Planned additions (subject to change)
 
 Foundational: 
-- [ ] Boundaries & boundary conditions
+- [x] Boundaries & boundary conditions
 - [ ] Controllers: particle sources/sinks, thermostats
 - [ ] Force fields, including time-dependent fields
 - [ ] Parallelism
@@ -272,5 +300,5 @@ Additional Features:
 - [ ] Extendable particles via template parameter (e.g. add charge property)
 - [ ] C++ Modules
 - [ ] more build feedback from `build_system` (e.g. spatial partition parameters) 
-
+- [ ] python binding
 `````

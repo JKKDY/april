@@ -48,6 +48,7 @@ namespace april::env {
 
             return env.data;
         }
+
     }
 
 
@@ -301,20 +302,13 @@ namespace april::env {
         }
 
         // --- Set Domain ---
-        void set_origin(const vec3& origin) {
-            this->data.domain.origin = origin;
-        }
+        void set_origin(const vec3& origin) { this->data.domain.origin = origin; }
+        void set_origin(const double x, const double y, const double z) { set_origin({x,y,z}); }
 
-        void set_extent(const vec3& extent) {
-            if (extent.x < 0 || extent.y < 0 || extent.z < 0) {
-                throw std::invalid_argument("Extent cannot be negative. Got: " + extent.to_string());
-            }
-            this->data.domain.extent = extent;
-        }
+        void set_extent(const vec3& extent) { this->data.domain.extent = extent; }
+        void set_extent(const double x, const double y, const double z) { set_extent({x,y,z}); }
 
-        void set_domain(const Domain& domain) {
-            data.domain = domain;
-        }
+        void set_domain(const Domain& domain) { data.domain = domain; }
 
 
         // --- DSL-style chaining helpers ---
@@ -381,6 +375,16 @@ namespace april::env {
 
         Environment& with_extent(const vec3& e) {
             set_extent(e);
+            return *this;
+        }
+
+        Environment& with_origin(const double x,const double y, const double z) {
+            set_origin(x,y,z);
+            return *this;
+        }
+
+        Environment& with_extent(const double x, const double y, const double z) {
+            set_extent(x,y,z);
             return *this;
         }
 

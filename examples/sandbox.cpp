@@ -13,14 +13,14 @@ int main() {
 	create_directory(dir_path); // recreate the empty directory
 
 	Environment env (forces<NoForce, LennardJones, InverseSquare>, boundaries<Reflective, Absorb, Outflow, Periodic>);
-	env.add({0.0, 0.5, 0.5},     {2, 0.0, 0.0},     1.0);
-	env.add({0.5, 0.0, 0.0},     {-1, 0.0, 0.0},     1.0);
+	env.add_particle({0.0, 0.5, 0.5},     {2, 0.0, 0.0},     1.0);
+	env.add_particle({0.5, 0.0, 0.0},     {-1, 0.0, 0.0},     1.0);
 
-	env.add({0.0, 0.0, 0.5},     {0, 1.0, 0.0},     1.0);
-	env.add({0.5, 0.5, 0.0},     {0, -2.0, 0.0},     1.0);
+	env.add_particle({0.0, 0.0, 0.5},     {0, 1.0, 0.0},     1.0);
+	env.add_particle({0.5, 0.5, 0.0},     {0, -2.0, 0.0},     1.0);
 
-	env.add({0.0, 0.0, 0.0},     {0, 0.0, 2.0},     1.0);
-	env.add({0.5, 0.5, 0.5},     {0, 0.0, -3.0},     1.0);
+	env.add_particle({0.0, 0.0, 0.0},     {0, 0.0, 2.0},     1.0);
+	env.add_particle({0.5, 0.5, 0.5},     {0, 0.0, -3.0},     1.0);
 
 	env.set_extent({2,2,2});
 	env.set_origin({-1,-1,-1});

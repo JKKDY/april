@@ -27,8 +27,8 @@ int main() {
 		.type(0);
 
 	Environment env (forces<LennardJones>, boundaries<Reflective, Absorb, Outflow>);
-	env.add(cuboid1);
-	env.add(cuboid2);
+	env.add_particles(cuboid1);
+	env.add_particles(cuboid2);
 	env.set_extent({100,80,40});
 	env.set_origin({-20,-20,-20});
 	env.add_force(LennardJones(5, 1), to_type(0));

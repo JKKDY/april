@@ -31,7 +31,7 @@ struct ConstantForce final {
 
 TEST(DirectSumTest, SingleParticle_NoForce) {
     Environment e (forces<NoForce>);
-    e.add(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
+    e.add_particle(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
 	e.add_force(NoForce(), to_type(0));
 
 	auto sys = build_system(e, DirectSum());
@@ -44,8 +44,8 @@ TEST(DirectSumTest, SingleParticle_NoForce) {
 
 TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
     Environment e (forces<ConstantForce>);
-	e.add(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+    e.add_particle(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
 	auto sys = build_system(e, DirectSum());
@@ -65,8 +65,8 @@ TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
 
 TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
     Environment e (forces<ConstantForce, NoForce>);
-    e.add(Particle{.id = 42, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add(Particle{.id = 99, .type = 0, .position={0,1,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+    e.add_particle(Particle{.id = 42, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+    e.add_particle(Particle{.id = 99, .type = 0, .position={0,1,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
 
@@ -88,8 +88,8 @@ TEST(DirectSumTest, TwoParticles_InverseSquare) {
 	Environment e (forces<InverseSquare, NoForce>);
 
 	e.set_extent({10,10,10});
-	e.add(Particle{.id = 0, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add(Particle{.id = 1, .type = 1, .position={2,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
+	e.add_particle(Particle{.id = 0, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+    e.add_particle(Particle{.id = 1, .type = 1, .position={2,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(NoForce(), to_type(1));
@@ -124,7 +124,7 @@ TEST(DirectSumTest, CollectIndicesInRegion) {
     Environment e(forces<NoForce>);
     e.set_origin({0, 0, 0});
     e.set_extent({5, 5, 5});
-	e.add(cuboid);
+	e.add_particles(cuboid);
     e.add_force(NoForce(), to_type(0));
 
     auto sys = build_system(e, DirectSum());
@@ -194,8 +194,8 @@ TEST(DirectSumTest, PeriodicForceWrap_X) {
 	e.set_extent({10,10,10}); // domain box 10x10x10
 
 	// Two particles, near opposite faces along x
-	e.add(Particle{.id=0, .type=0, .position={0.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
-	e.add(Particle{.id=1, .type=0, .position={9.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+	e.add_particle(Particle{.id=0, .type=0, .position={0.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+	e.add_particle(Particle{.id=1, .type=0, .position={9.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
 
 	e.add_force(Harmonic(1, 0, 2), to_type(0)); // simple directional force
 	e.set_boundaries(DummyPeriodicBoundary(), {Face::XMinus, Face::XPlus});
@@ -224,8 +224,8 @@ TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 	e.set_extent({10, 10, 10});
 
 	// Particles placed in diagonally opposite corners
-	e.add(Particle{.id=0, .type=0, .position={0.5, 0.5, 0.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
-	e.add(Particle{.id=1, .type=0, .position={9.5, 9.5, 9.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+	e.add_particle(Particle{.id=0, .type=0, .position={0.5, 0.5, 0.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+	e.add_particle(Particle{.id=1, .type=0, .position={9.5, 9.5, 9.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
 
 	// Hooke-like spring with k=1, r0=0, cutoff=2
 	e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));

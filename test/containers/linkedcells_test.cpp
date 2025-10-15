@@ -31,7 +31,7 @@ struct ConstantForce final {
 
 TEST(LinkedCellsTest, SingleParticle_NoForce) {
     Environment e (forces<NoForce>);
-    e.add(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
+    e.add_particle(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
 	e.add_force(NoForce(), to_type(0));
 
 	e.set_extent({4,4,4});
@@ -48,8 +48,8 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
     Environment e(forces<ConstantForce>);
 	e.set_extent({2,2,2});
 	e.set_origin({0,0,0});
-	e.add(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
+	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+    e.add_particle(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
 	auto sys = build_system(e, LinkedCells(2));
@@ -70,8 +70,8 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 	Environment e(forces<ConstantForce>);
 	e.set_extent({2,1,1});
 	e.set_origin({0,0,0});
-	e.add(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-	e.add(Particle{.id = 1, .type = 7, .position={1.5,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
+	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	e.add_particle(Particle{.id = 1, .type = 7, .position={1.5,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
 	auto sys = build_system(e, LinkedCells(1));
@@ -92,8 +92,8 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 	Environment e(forces<ConstantForce>);
 	e.set_extent({2,1,0.5});
 	e.set_origin({0,0,0});
-	e.add(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-	e.add(Particle{.id = 1, .type = 7, .position={1.5,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
+	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	e.add_particle(Particle{.id = 1, .type = 7, .position={1.5,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
 	auto sys = build_system(e, LinkedCells(0.5));
@@ -110,8 +110,8 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 
 TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
     Environment e(forces<NoForce, ConstantForce>);
-    e.add(Particle{.id = 42, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add(Particle{.id = 99, .type = 0, .position={0,1,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+    e.add_particle(Particle{.id = 42, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+    e.add_particle(Particle{.id = 99, .type = 0, .position={0,1,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
 
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
@@ -135,8 +135,8 @@ TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 
     e.set_extent({10,10,10});
 
-	e.add(Particle{.id = 0, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add(Particle{.id = 1, .type = 1, .position={2,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
+	e.add_particle(Particle{.id = 0, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+    e.add_particle(Particle{.id = 1, .type = 1, .position={2,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
 
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(NoForce(), to_type(1));
@@ -186,8 +186,8 @@ TEST(LinkedCellsTest, OrbitTest) {
 	constexpr double T = 2 * 3.14159265359 * v / R;
 
 	Environment env (forces<InverseSquare>);
-	env.add({0,R,0}, {v, 0, 0}, m);
-	env.add({0,0,0}, {0, 0, 0}, M);
+	env.add_particle({0,R,0}, {v, 0, 0}, m);
+	env.add_particle({0,0,0}, {0, 0, 0}, M);
 	env.add_force(InverseSquare(G), to_type(0));
 
 	env.set_origin({-1.5*v,-1.5*v,0});
@@ -244,7 +244,7 @@ TEST(LinkedCellsTest, CollectIndicesInRegion) {
         Environment e(forces<NoForce>);
         e.set_origin({0, 0, 0});
         e.set_extent({5, 5, 5});
-		e.add(cuboid);
+		e.add_particles(cuboid);
         e.add_force(NoForce(), to_type(0));
 
         auto sys = build_system(e, LinkedCells(cell_size));
@@ -316,8 +316,8 @@ TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 		e.set_extent({10,10,10}); // domain box 10x10x10
 
 		// Two particles, near opposite faces along x
-		e.add(Particle{.id=0, .type=0, .position={0.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
-		e.add(Particle{.id=1, .type=0, .position={9.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+		e.add_particle(Particle{.id=0, .type=0, .position={0.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+		e.add_particle(Particle{.id=1, .type=0, .position={9.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
 
 		// Simple harmonic force
 		e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));
@@ -352,8 +352,8 @@ TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
 		e.set_extent({10,10,10});
 
 		// Particles at opposite corners
-		e.add(Particle{.id=0, .type=0, .position={0.5, 0.5, 0.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
-		e.add(Particle{.id=1, .type=0, .position={9.5, 9.5, 9.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+		e.add_particle(Particle{.id=0, .type=0, .position={0.5, 0.5, 0.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+		e.add_particle(Particle{.id=1, .type=0, .position={9.5, 9.5, 9.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
 
 		e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));
 

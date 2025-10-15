@@ -98,12 +98,12 @@ TYPED_TEST(RepulsiveBoundarySystemTestT, EachFace_AppliesInwardForce) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// Particles near each face
-	env.add({.id=0, .type=0, .position={0.5,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // X-
-	env.add({.id=1, .type=0, .position={9.5,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // X+
-	env.add({.id=2, .type=0, .position={5,0.5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Y-
-	env.add({.id=3, .type=0, .position={5,9.5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Y+
-	env.add({.id=4, .type=0, .position={5,5,0.5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Z-
-	env.add({.id=5, .type=0, .position={5,5,9.5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Z+
+	env.add_particle({.id=0, .type=0, .position={0.5,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // X-
+	env.add_particle({.id=1, .type=0, .position={9.5,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // X+
+	env.add_particle({.id=2, .type=0, .position={5,0.5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Y-
+	env.add_particle({.id=3, .type=0, .position={5,9.5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Y+
+	env.add_particle({.id=4, .type=0, .position={5,5,0.5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Z-
+	env.add_particle({.id=5, .type=0, .position={5,5,9.5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Z+
 
 	env.set_boundaries(std::array{
 		Repulsive(f), Repulsive(f),

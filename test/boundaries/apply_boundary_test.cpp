@@ -33,8 +33,8 @@ TYPED_TEST(BoundaryTestT, InsideSlab_XMinus_AppliesOnlyToSlabParticles) {
 	env.set_extent({10,10,10});
 
 	// Particles: one in the X- slab [0,1], one outside it
-	env.add({.id=0, .type=0, .position={0.4,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
-	env.add({.id=1, .type=0, .position={1.1,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle({.id=0, .type=0, .position={0.4,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle({.id=1, .type=0, .position={1.1,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
 
 	env.add_force(NoForce{}, to_type(0));
 
@@ -75,9 +75,9 @@ TYPED_TEST(BoundaryTestT, OutsideHalfspace_XPlus_TouchesOnlyActualExiters) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// p0: crosses X+ this step
-	env.add({.id=0, .type=0, .position={9.5,5,5}, .velocity={+2,0,0}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle({.id=0, .type=0, .position={9.5,5,5}, .velocity={+2,0,0}, .mass=1, .state=ParticleState::ALIVE});
 	// p1: exits via Y+ instead
-	env.add({.id=1, .type=0, .position={5.0,9.5,5}, .velocity={0,+2,0}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle({.id=1, .type=0, .position={5.0,9.5,5}, .velocity={0,+2,0}, .mass=1, .state=ParticleState::ALIVE});
 
 	// external sinks
 	std::vector<env::internal::ParticleID> sxm, sxp, sym, syp, szm, szp;
@@ -126,7 +126,7 @@ TYPED_TEST(BoundaryTestT, CornerExit_TriggersRelevantFaces) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// One particle moving diagonally out through the X+Y+ edge
-	env.add({.id=42, .type=0, .position={9.7,9.7,5}, .velocity={+1,+1,0}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle({.id=42, .type=0, .position={9.7,9.7,5}, .velocity={+1,+1,0}, .mass=1, .state=ParticleState::ALIVE});
 
 	// sinks
 	std::vector<env::internal::ParticleID> sxm, sxp, sym, syp, szm, szp;
@@ -177,7 +177,7 @@ TYPED_TEST(BoundaryTestT, InsideCorner_TouchesAllOverlappingFaces) {
 
 	// Place a particle inside the corner region (X−, Y−, Z−)
 	// so it's within all three inside slabs of thickness=1.
-	env.add({.id=0, .type=0, .position={0.5,0.5,0.5},
+	env.add_particle({.id=0, .type=0, .position={0.5,0.5,0.5},
 			 .velocity={}, .mass=1, .state=ParticleState::ALIVE});
 
 	// External sinks for each face
@@ -219,7 +219,7 @@ TYPED_TEST(BoundaryTestT, NearCornerExit_TriggersCorrectFace) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// One particle moving diagonally through the +z face but ending up in the overlap region of the +x,+y,+z boundaries
-	env.add({.id=42, .type=0, .position={9.7,9.7,9.8}, .velocity={1,1,1}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle({.id=42, .type=0, .position={9.7,9.7,9.8}, .velocity={1,1,1}, .mass=1, .state=ParticleState::ALIVE});
 
 	// sinks
 	std::vector<env::internal::ParticleID> sxm, sxp, sym, syp, szm, szp;
@@ -267,12 +267,12 @@ TYPED_TEST(BoundaryTestT, InsideSlab_AllFaces_OneParticleEach) {
 
 	// Six particles, one for each face region.
 	// Positions are clearly inside their slabs (thickness = 1)
-	env.add({.id=0, .type=0, .position={0.5, 5, 5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // X−
-	env.add({.id=1, .type=0, .position={9.5, 5, 5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // X+
-	env.add({.id=2, .type=0, .position={5, 0.5, 5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Y−
-	env.add({.id=3, .type=0, .position={5, 9.5, 5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Y+
-	env.add({.id=4, .type=0, .position={5, 5, 0.5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Z−
-	env.add({.id=5, .type=0, .position={5, 5, 9.5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Z+
+	env.add_particle({.id=0, .type=0, .position={0.5, 5, 5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // X−
+	env.add_particle({.id=1, .type=0, .position={9.5, 5, 5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // X+
+	env.add_particle({.id=2, .type=0, .position={5, 0.5, 5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Y−
+	env.add_particle({.id=3, .type=0, .position={5, 9.5, 5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Y+
+	env.add_particle({.id=4, .type=0, .position={5, 5, 0.5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Z−
+	env.add_particle({.id=5, .type=0, .position={5, 5, 9.5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Z+
 
 	// External sinks for each face
 	std::vector<env::internal::ParticleID> sxm, sxp, sym, syp, szm, szp;

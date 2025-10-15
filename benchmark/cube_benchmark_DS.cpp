@@ -58,7 +58,7 @@ int main() {
 
 	for (int i = 0; i < 5; i++) {
 		Environment env (force<LennardJones>);
-		env.add(grid);
+		env.add_particles(grid);
 		env.set_origin(origin);
 		env.set_extent(extent);
 		env.add_force(LennardJones(epsilon, sigma, -1), to_type(0));

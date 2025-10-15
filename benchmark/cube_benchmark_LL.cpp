@@ -58,7 +58,7 @@ int main() {
 	const vec3 origin = - 0.5 * extent;
 
 	Environment env (force<LennardJones>);
-	env.add(grid);
+	env.add_particles(grid);
 	env.set_origin(origin);
 	env.set_extent(extent);
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));

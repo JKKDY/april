@@ -15,7 +15,7 @@ TEST(EnvTest, empty_env) {
 
 TEST(EnvTest, one_particle_test) {
     Environment e (forces<LennardJones>);
-    e.add(Particle{
+    e.add_particle(Particle{
         .id = PARTICLE_ID_DONT_CARE,
         .type = 0,
         .position = {3,4,5},
@@ -42,7 +42,7 @@ TEST(EnvTest, one_particle_test) {
 
 TEST(EnvTest, negative_mass_throws) {
     Environment e (forces<NoForce>);
-    e.add(Particle{
+    e.add_particle(Particle{
         .id = PARTICLE_ID_DONT_CARE,
         .type = 0,
         .position = {0,0,0},
@@ -59,7 +59,7 @@ TEST(EnvTest, negative_mass_throws) {
 TEST(EnvTest, type_force_missing) {
     Environment e (forces<InverseSquare>);
 
-    e.add(Particle{
+    e.add_particle(Particle{
         .id = -1,
         .type = 0,
         .position = {1,2,3},
@@ -68,7 +68,7 @@ TEST(EnvTest, type_force_missing) {
         .state = ParticleState::DEAD,
     });
 
-    e.add(Particle{
+    e.add_particle(Particle{
         .id = PARTICLE_ID_DONT_CARE,
         .type = 0,
         .position = {3,4,5},
@@ -87,7 +87,7 @@ TEST(EnvTest, type_force_missing) {
 TEST(EnvTest, two_particle_force_test) {
     Environment e (forces<InverseSquare>);
 
-    e.add(Particle{
+    e.add_particle(Particle{
         .id = -1,
         .type = 0,
         .position = {1,2,3},
@@ -96,7 +96,7 @@ TEST(EnvTest, two_particle_force_test) {
         .state = ParticleState::DEAD,
     });
 
-    e.add(Particle{
+    e.add_particle(Particle{
         .id = 0,
         .type = 0,
         .position = {3,4,5},
@@ -127,7 +127,7 @@ TEST(EnvTest, two_particle_force_test) {
 TEST(EnvTest, particle_iterator_test) {
     Environment e (forces<NoForce>);
 
-    e.add(Particle{
+    e.add_particle(Particle{
         .id = 0,
         .type = 0,
         .position = {1,2,3},
@@ -136,7 +136,7 @@ TEST(EnvTest, particle_iterator_test) {
         .state = ParticleState::DEAD,
     });
 
-    e.add(Particle{
+    e.add_particle(Particle{
         .id = 1,
         .type = 0,
         .position = {3,4,5},
@@ -145,7 +145,7 @@ TEST(EnvTest, particle_iterator_test) {
         .state = ParticleState::ALIVE,
     });
 
-    e.add(Particle{
+    e.add_particle(Particle{
         .id = 2,
         .type = 0,
         .position = {1,2,3},
@@ -195,8 +195,8 @@ TEST(EnvTest, particle_iterator_test) {
 TEST(EnvTest, ExtentTooSmallThrows) {
     Environment e (forces<NoForce>);
     // Two particles 0 and 2 apart in x
-    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {0,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
-    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {2,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {0,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {2,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     // Set extent too small to cover span=2
     e.set_origin({0,0,0});
     e.set_extent({1,1,1});
@@ -207,8 +207,8 @@ TEST(EnvTest, ExtentTooSmallThrows) {
 TEST(EnvTest, OriginOutsideThrows) {
     Environment e (forces<NoForce>);
     // Particles inside [0,1] in each dim
-    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {0,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
-    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {1,1,1}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {0,0,0}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {1,1,1}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     // Set origin outside that box
     e.set_origin({2,2,2});
     e.set_extent({2,2,2});
@@ -219,7 +219,7 @@ TEST(EnvTest, OriginOutsideThrows) {
 TEST(EnvTest, OnlyExtentCentersOrigin) {
     Environment e (forces<NoForce>);
     // Single particle at (3,4,5)
-    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     // Only extent given
     e.set_extent({4,4,4});
     e.add_force(NoForce(), to_type(0));
@@ -235,7 +235,7 @@ TEST(EnvTest, OnlyExtentCentersOrigin) {
 TEST(EnvTest, OnlyOriginSymmetricExtent) {
     Environment e (forces<NoForce>);
     // Single particle at (3,4,5)
-    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     // Only origin given
     e.set_origin({0,0,0});
     e.add_force(NoForce(), to_type(0));
@@ -252,8 +252,8 @@ TEST(EnvTest, OnlyOriginSymmetricExtent) {
 TEST(EnvTest, AutoOriginExtentDoublesBBox) {
     Environment e (forces<NoForce>);
     // Two particles at (1,2,3) and (3,4,5)
-    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {1,2,3}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
-    e.add({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {1,2,3}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
+    e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     e.add_force(NoForce(), to_type(0));
     // neither origin nor extent set
     auto sys = build_system(e, DirectSum());

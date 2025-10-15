@@ -135,19 +135,11 @@ namespace april::env {
         template<class FPack, class BPack> friend auto& internal::get_env_data(Environment<FPack, BPack>& env);
 
     public:
-        void add(
-            const vec3& position, const vec3& velocity, const double mass, const ParticleType type = 0, const ParticleID id = PARTICLE_ID_DONT_CARE) {
-            add(Particle{
-               .id = id,
-               .type = type,
-               .position =  position,
-               .velocity = velocity,
-               .mass = mass,
-               .state = ParticleState::ALIVE
-           });
-        }
 
-        void add(const Particle& particle) {
+        // --- Add particles ---
+
+        // Single particle
+        void add_particle(const Particle& particle) {
             if (particle.id != PARTICLE_ID_DONT_CARE && data.usr_particle_ids.contains(particle.id)) {
                 throw std::invalid_argument("specified id is not unique");
             }
@@ -161,15 +153,30 @@ namespace april::env {
             data.usr_particle_types.insert(particle.type);
         }
 
-        void add(const std::vector<Particle>& particles) {
+        // Single particle
+        void add_particle(
+         const vec3& position, const vec3& velocity, const double mass, const ParticleType type = 0, const ParticleID id = PARTICLE_ID_DONT_CARE) {
+            add_particle(Particle{
+               .id = id,
+               .type = type,
+               .position =  position,
+               .velocity = velocity,
+               .mass = mass,
+               .state = ParticleState::ALIVE
+           });
+        }
+
+        // Multiple particles
+        void add_particles(const std::vector<Particle>& particles) {
             this->data.particles.reserve(this->data.particles.size() + particles.size());
 
             for (auto & p : particles) {
-                add(p);
+                add_particle(p);
             }
         }
 
-        std::vector<ParticleID> add(const ParticleCuboid& cuboid) {
+        // Cuboid
+        std::vector<ParticleID> add_particles(const ParticleCuboid& cuboid) {
             const uint32_t particle_count = cuboid.particle_count[0] * cuboid.particle_count[1] * cuboid.particle_count[2];
             const double width = cuboid.distance;
 
@@ -201,14 +208,15 @@ namespace april::env {
                         };
                         p.velocity += cuboid.thermal_velocity(p);
 
-                        add(p);
+                        add_particle(p);
                     }
                 }
             }
             return ids;
         }
 
-        std::vector<ParticleID> add(const ParticleSphere& sphere) {
+        // Sphere
+        std::vector<ParticleID> add_particles(const ParticleSphere& sphere) {
             const double width = sphere.distance;
             const vec3 & r = sphere.radii;
 
@@ -243,32 +251,40 @@ namespace april::env {
                         };
                         p.velocity += sphere.thermal_velocity(p);
 
-                        add(p);
+                        add_particle(p);
                     }
                 }
             }
             return ids;
         }
 
+        // --- Add Forces ---
+        // Force applied to all particles of a given type
         template<force::IsForce F> requires same_as_any<F, Fs...>
         void add_force(F force, to_type scope) {
             data.interactions.emplace_back(true, std::pair{scope.type, scope.type}, force_variant_t{std::move(force)});
         }
 
+        // Force applied between two particle types
         template<force::IsForce F> requires same_as_any<F, Fs...>
         void add_force(F force, between_types scope) {
             data.interactions.emplace_back(true, ParticleTypePair{scope.t1, scope.t2}, force_variant_t{std::move(force)});
         }
+
+        // Force applied between two specific particle IDs
         template<force::IsForce F> requires same_as_any<F, Fs...>
         void add_force(F force, between_ids scope) {
             data.interactions.emplace_back(false, ParticleIDPair{scope.id1, scope.id2}, force_variant_t{std::move(force)});
         }
 
+        // --- Add Boundaries ---
+        // Single boundary on one face
         template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
         void set_boundary(B boundary, const boundary::Face face) {
             data.boundaries[face_to_int(face)].template emplace<B>(std::move(boundary));
         }
 
+        // Same boundary applied to multiple faces
         template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
         void set_boundaries(B boundary, const std::vector<boundary::Face> & faces) {
             for (const boundary::Face face : faces) {
@@ -276,6 +292,7 @@ namespace april::env {
             }
         }
 
+        // Boundaries provided as array (per-face)
         template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
         void set_boundaries(const std::array<B, 6> & boundaries) {
             for (const boundary::Face face : boundary::all_faces) {
@@ -283,6 +300,7 @@ namespace april::env {
             }
         }
 
+        // --- Set Domain ---
         void set_origin(const vec3& origin) {
             this->data.domain.origin = origin;
         }
@@ -298,20 +316,77 @@ namespace april::env {
             data.domain = domain;
         }
 
-        void auto_extent(double) {
-            throw std::logic_error("Not implemented yet");
+
+        // --- DSL-style chaining helpers ---
+        Environment& with_particle(const Particle& p) {
+            add_particle(p);
+            return *this;
         }
 
-        void add_force_field() {
-            throw std::logic_error("Not implemented yet");
+        Environment& with_particles(const std::vector<Particle>& ps) {
+            add_particles(ps);
+            return *this;
         }
 
-        void add_barrier() {
-            throw std::logic_error("Not implemented yet");
+        Environment& with_particles(const ParticleCuboid& cuboid) {
+            add_particles(cuboid);
+            return *this;
         }
 
-        void set_boundary_conditions() {
-            throw std::logic_error("Not implemented yet");
+        Environment& with_particles(const ParticleSphere& sphere) {
+            add_particles(sphere);
+            return *this;
+        }
+
+        template<force::IsForce F> requires same_as_any<F, Fs...>
+        Environment& with_force(F&& force, to_type scope) {
+            add_force(std::forward<F>(force), scope);
+            return *this;
+        }
+
+        template<force::IsForce F> requires same_as_any<F, Fs...>
+        Environment& with_force(F&& force, between_types scope) {
+            add_force(std::forward<F>(force), scope);
+            return *this;
+        }
+
+        template<force::IsForce F> requires same_as_any<F, Fs...>
+        Environment& with_force(F&& force, between_ids scope) {
+            add_force(std::forward<F>(force), scope);
+            return *this;
+        }
+
+        template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
+        Environment& with_boundary(B&& boundary, boundary::Face face) {
+            set_boundary(std::forward<B>(boundary), face);
+            return *this;
+        }
+
+        template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
+        Environment& with_boundaries(B&& boundary, const std::vector<boundary::Face>& faces) {
+            set_boundaries(std::forward<B>(boundary), faces);
+            return *this;
+        }
+
+        template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
+        Environment& with_boundaries(const std::array<B, 6>& boundaries) {
+            set_boundaries(boundaries);
+            return *this;
+        }
+
+        Environment& with_origin(const vec3& o) noexcept {
+            set_origin(o);
+            return *this;
+        }
+
+        Environment& with_extent(const vec3& e) {
+            set_extent(e);
+            return *this;
+        }
+
+        Environment& with_domain(const Domain& domain) {
+            set_domain(domain);
+            return *this;
         }
     };
 

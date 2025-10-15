@@ -123,12 +123,12 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// One particle near each face moving outward
-	env.add({.id=0, .type=0, .position={0.4,5,5},  .velocity={-1,0,0}, .mass=1, .state=ParticleState::ALIVE}); // X−
-	env.add({.id=1, .type=0, .position={9.6,5,5},  .velocity={+1,0,0}, .mass=1, .state=ParticleState::ALIVE}); // X+
-	env.add({.id=2, .type=0, .position={5,0.4,5},  .velocity={0,-1,0}, .mass=1, .state=ParticleState::ALIVE}); // Y−
-	env.add({.id=3, .type=0, .position={5,9.6,5},  .velocity={0,+1,0}, .mass=1, .state=ParticleState::ALIVE}); // Y+
-	env.add({.id=4, .type=0, .position={5,5,0.4},  .velocity={0,0,-1}, .mass=1, .state=ParticleState::ALIVE}); // Z−
-	env.add({.id=5, .type=0, .position={5,5,9.6},  .velocity={0,0,+1}, .mass=1, .state=ParticleState::ALIVE}); // Z+
+	env.add_particle({.id=0, .type=0, .position={0.4,5,5},  .velocity={-1,0,0}, .mass=1, .state=ParticleState::ALIVE}); // X−
+	env.add_particle({.id=1, .type=0, .position={9.6,5,5},  .velocity={+1,0,0}, .mass=1, .state=ParticleState::ALIVE}); // X+
+	env.add_particle({.id=2, .type=0, .position={5,0.4,5},  .velocity={0,-1,0}, .mass=1, .state=ParticleState::ALIVE}); // Y−
+	env.add_particle({.id=3, .type=0, .position={5,9.6,5},  .velocity={0,+1,0}, .mass=1, .state=ParticleState::ALIVE}); // Y+
+	env.add_particle({.id=4, .type=0, .position={5,5,0.4},  .velocity={0,0,-1}, .mass=1, .state=ParticleState::ALIVE}); // Z−
+	env.add_particle({.id=5, .type=0, .position={5,5,9.6},  .velocity={0,0,+1}, .mass=1, .state=ParticleState::ALIVE}); // Z+
 
 	// Enable periodic boundaries on all faces
 	env.set_boundaries(Periodic(), all_faces);
@@ -173,7 +173,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinu
 	env.add_force(NoForce{}, to_type(0));
 
 	// Single particle heading out +X
-	env.add({.id=0, .type=0, .position={9.8,5,5}, .velocity={+1,0,0}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle({.id=0, .type=0, .position={9.8,5,5}, .velocity={+1,0,0}, .mass=1, .state=ParticleState::ALIVE});
 	env.set_boundaries(Periodic(), all_faces);
 
 	UserToInternalMappings mappings;

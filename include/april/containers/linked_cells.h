@@ -30,6 +30,24 @@ namespace april::container {
 			using Base::indices;
 			using Base::flags;
 
+			enum CellWrapFlag : uint8_t {
+				NO_WRAP = 0,
+				WRAP_X=1,
+				WRAP_Y=2,
+				WRAP_Z=4,
+			};
+
+			struct CellPair {
+				const uint32_t c1 = {};
+				const uint32_t c2 = {};
+			};
+
+			struct WrappedCellPair {
+				const uint32_t c1 = {};
+				const uint32_t c2 = {};
+				const CellWrapFlag force_wrap = {};
+				const vec3 shift = {};
+			};
 		public:
 			using Base::Base;
 
@@ -37,14 +55,12 @@ namespace april::container {
 				this->build_storage(input_particles);
 				set_cell_size();
 				rebuild_cell_structure();
-				compute_neighbor_pairs();
+				compute_cell_pairs();
 			}
-
 
 			void register_all_particle_movements() {
 				rebuild_cell_structure();
 			}
-
 
 			void register_particle_movement(size_t p_idx) {
 				Particle & particle = Base::get_particle_by_index(p_idx);
@@ -91,7 +107,6 @@ namespace april::container {
 				}
 			}
 
-
 			void calculate_forces() {
 				// for every cell
 				for (uint32_t cid = 0; cid < cell_begin.size() - 1; cid++) {
@@ -110,14 +125,30 @@ namespace april::container {
 					}
 				}
 
-				// for every cell pair
-				for (auto & [c1, c2] : neighbor_cell_pairs) {
-					for (uint32_t i = cell_begin[c1]; i < cell_begin[c1+1]; i++) {
-						for (uint32_t j = cell_begin[c2]; j < cell_begin[c2+1]; j++) {
+				// for every neighbouring cell pair
+				for (const auto & pair : neighbor_cell_pairs) {
+					for (uint32_t i = cell_begin[pair.c1]; i < cell_begin[pair.c1+1]; ++i) {
+						for (uint32_t j = cell_begin[pair.c2]; j < cell_begin[pair.c2+1]; ++j) {
 							auto & p1 = particles[i];
 							auto & p2 = particles[j];
 
 							const vec3 force = interactions->evaluate(p1, p2);
+							p1.force += force;
+							p2.force -= force;
+						}
+					}
+				}
+
+				// for every wrapped cell pair
+				for (const auto & pair : wrapped_cell_pairs) {
+					for (uint32_t i = cell_begin[pair.c1]; i < cell_begin[pair.c1+1]; ++i) {
+						for (uint32_t j = cell_begin[pair.c2]; j < cell_begin[pair.c2+1]; ++j) {
+							auto & p1 = particles[i];
+							auto & p2 = particles[j];
+
+							const vec3 diff = p2.position - p1.position + pair.shift;
+							const vec3 force = interactions->evaluate(p1, p2, diff);
+
 							p1.force += force;
 							p2.force -= force;
 						}
@@ -250,7 +281,9 @@ namespace april::container {
 				indices.swap(tmp_i);
 			}
 
-			void compute_neighbor_pairs() {
+			void compute_cell_pairs() {
+				neighbor_cell_pairs.reserve(cells_per_axis.x * cells_per_axis.y * cells_per_axis.z * 13); // rough estimate
+
 				static const int3 displacements[13] = {
 					{ 1, 0, 0}, { 0, 1, 0}, { 0, 0, 1},
 					{ 1, 1, 0}, { 1,-1, 0}, { 1, 0, 1},
@@ -259,12 +292,32 @@ namespace april::container {
 					{-1,-1, 1}
 				};
 
-				for (const auto d : displacements) {
+				auto try_wrap_cell = [&](int3 & n, vec3 & shift, int ax) -> CellWrapFlag {
+					if (n[ax] == -1) {
+						n[ax] = cells_per_axis[ax] - 1;
+						shift[ax] = - domain.extent[ax];
+					} else if (n[ax] == static_cast<int>(cells_per_axis[ax])) {
+						n[ax] = 0;
+						shift[ax] = domain.extent[ax];
+					} else {
+						return NO_WRAP;
+					}
+					return static_cast<CellWrapFlag>(1 << ax); // maps axis to appropriate CellWrap flag
+				};
+
+				for (const auto displacement : displacements) {
 					for (unsigned int z = 0; z < cells_per_axis.z; z++) {
 						for (unsigned int y = 0; y < cells_per_axis.y; y++) {
 							for (unsigned int x = 0; x < cells_per_axis.x; x++) {
 								const int3 base{static_cast<int>(x), static_cast<int>(y), static_cast<int>(z)};
-								const int3 n = base + d;
+
+								int3 n = base + displacement;
+								vec3 shift = {};
+								int8_t wrap_flags = {};
+
+								if (flags.periodic_x) wrap_flags |= try_wrap_cell(n, shift, 0);
+								if (flags.periodic_y) wrap_flags |= try_wrap_cell(n, shift, 1);
+								if (flags.periodic_z) wrap_flags |= try_wrap_cell(n, shift, 2);
 
 								if (n.x < 0 || n.y < 0 || n.z < 0)
 									continue;
@@ -273,13 +326,23 @@ namespace april::container {
 									n.z >= static_cast<int>(cells_per_axis.z))
 									continue;
 
-								neighbor_cell_pairs.emplace_back(cell_pos_to_idx(x,y,z), cell_pos_to_idx(n.x, n.y, n.z));
+								if (shift == vec3{}) {
+									neighbor_cell_pairs.emplace_back(
+										cell_pos_to_idx(x,y,z),
+										cell_pos_to_idx(n.x, n.y, n.z)
+									);
+								} else {
+									wrapped_cell_pairs.emplace_back(
+										cell_pos_to_idx(x,y,z),
+										cell_pos_to_idx(n.x, n.y, n.z),
+										static_cast<CellWrapFlag>(wrap_flags),
+										shift
+									);
+								}
 							}
 						}
 					}
 				}
-
-
 			}
 
 			[[nodiscard]] uint32_t cell_pos_to_idx(const uint32_t x, const uint32_t y, const uint32_t z) const noexcept{
@@ -306,7 +369,8 @@ namespace april::container {
 			uint32_t outside_cell_id {};  // index of outside cell
 			std::vector<uint32_t> cell_begin; // maps cell id to the index of the first particle within that cell
 			std::vector<uint32_t> particles_per_cell; // maps cell id to the number of particles in the cell
-			std::vector<std::pair<uint32_t, uint32_t>> neighbor_cell_pairs;
+			std::vector<CellPair> neighbor_cell_pairs;
+			std::vector<WrappedCellPair> wrapped_cell_pairs;
 			vec3 cell_size; // size of each cell
 			vec3 inv_cell_size; // the inverse of each size component
 			uint3 cells_per_axis{}; // number of cells along each axis

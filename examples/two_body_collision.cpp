@@ -34,14 +34,14 @@ int main() {
 	env.add_force(LennardJones(5, 1), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	auto container = DirectSum();
+	auto container = LinkedCells(3);
 	auto system = build_system(env, container);
 
 	auto integrator = StoermerVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
 	integrator.add_monitor(BinaryOutput(50, dir_path));
 	integrator.add_monitor(Benchmark());
 	integrator.add_monitor(ProgressBar(100));
-	integrator.run_for(0.0002, 0.1);
+	integrator.run_for(0.0002, 5);
 }
 
 

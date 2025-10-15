@@ -111,8 +111,9 @@ if __name__ == "__main__":
     two_body_collision = "two_body_collision"
     halley_comet = "halleys_comet"
     bench = "bench"
+    sandbox = "sandbox"
 
-    vis = ParticleVisualizer(f"../output/{halley_comet}")
+    vis = ParticleVisualizer(f"../output/{sandbox}")
     app.run()
 
     # for f in list_bin_files("../output/two_body_collision"):

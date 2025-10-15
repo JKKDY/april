@@ -17,6 +17,7 @@ endfunction()
 add_example(halleys_comet halleys_comet.cpp halleys_comet)
 add_example(two_body_collision two_body_collision.cpp two_body_collision)
 add_example(falling_water_drop falling_water_drop.cpp falling_water_drop)
+add_example(sandbox sandbox.cpp sandbox)
 
 
 

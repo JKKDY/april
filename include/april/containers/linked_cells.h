@@ -28,6 +28,8 @@ namespace april::container {
 			using Base::particles;
 			using Base::swap_particles;
 			using Base::indices;
+			using Base::flags;
+
 		public:
 			using Base::Base;
 
@@ -38,9 +40,11 @@ namespace april::container {
 				compute_neighbor_pairs();
 			}
 
+
 			void register_all_particle_movements() {
 				rebuild_cell_structure();
 			}
+
 
 			void register_particle_movement(size_t p_idx) {
 				Particle & particle = Base::get_particle_by_index(p_idx);
@@ -54,14 +58,10 @@ namespace april::container {
 				// std::upper_bound returns an iterator to the first element greater than value.
 				const uint32_t src_cell = static_cast<uint32_t>(std::distance(cell_begin.begin(), it)) - 1;
 
-
 				if (src_cell == dst_cell) return;
-
-				std::cout << "IOOOOOOOO" << std::endl;
 
 				++particles_per_cell[dst_cell]; // particle enters dst_cell
 				--particles_per_cell[src_cell]; // particle leaves src_cell
-
 
 				// destination is to the left
 				if (dst_cell < src_cell) {
@@ -89,8 +89,6 @@ namespace april::container {
 						p_idx = dst_idx;
 					}
 				}
-
-				std::cout << "done" << std::endl;
 			}
 
 
@@ -280,6 +278,8 @@ namespace april::container {
 						}
 					}
 				}
+
+
 			}
 
 			[[nodiscard]] uint32_t cell_pos_to_idx(const uint32_t x, const uint32_t y, const uint32_t z) const noexcept{

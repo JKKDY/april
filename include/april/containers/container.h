@@ -11,15 +11,24 @@ namespace april::container {
 
 	namespace internal {
 
+		struct ContainerFlags {
+			bool periodic_x;			// domain is periodic along x-axis
+			bool periodic_y;			// domain is periodic along y-axis
+			bool periodic_z;			// domain is periodic along z-axis
+			bool infinite_domain;		// particles outside of domain still interact normally (time complexity may go to O(n^2)
+			bool particle_addable;		// particles can be added during run time
+			bool particle_deletable;	// particles can be deleted during run time
+		};
+
 		// Containers must implement the following functions:
-		//   void build();
-		//   void register_all_particle_movements()
-		//   void register_particle_movement()
-		//   void calculate_forces()
+		//   build();
+		//   register_all_particle_movements()
+		//   register_particle_movement()
+		//   calculate_forces()
 		//   get_particle_by_id, id_start, id_end
 		//   id_to_index
 		//   get_particle_by_index (optional), index_start, index_end
-		//   size_t particle_count()
+		//   particle_count()
 		//   collect_indices_in_region()
 		// in the future:
 		//   remove_particle
@@ -173,12 +182,13 @@ namespace april::container {
 	template<typename Config, typename Env> class Container : public internal::ContainerInterface<Env> {
 	public:
 		using CFG = Config;
-		explicit Container(Config config): cfg(config) {}
+		explicit Container(Config config, const internal::ContainerFlags & flags): cfg(config), flags(flags) {}
 
 		using typename internal::ContainerInterface<Env>::Particle;
 		using typename internal::ContainerInterface<Env>::ParticleID;
 	protected:
 		Config cfg;
+		const internal::ContainerFlags flags;
 	};
 
 

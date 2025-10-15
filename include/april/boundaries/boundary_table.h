@@ -48,7 +48,7 @@ namespace april::boundary::internal {
 				}, boundary_v);
 			}
 
-			void apply(env::internal::Particle & p, const env::Box & domain_box, Face face) const noexcept {
+			void apply(env::internal::Particle & p, const env::Box & domain_box, const Face face) const noexcept {
 				apply_fn(this, p, domain_box, face);
 			}
 
@@ -125,7 +125,7 @@ namespace april::boundary::internal {
 				})
 			{}
 
-			CompiledBoundary<BVariant> & get_boundary(const Face face) {
+			const CompiledBoundary<BVariant> & get_boundary(const Face face) {
 				return table[face_to_int(face)];
 			}
 

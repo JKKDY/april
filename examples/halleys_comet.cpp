@@ -15,13 +15,14 @@ int main() {
 	env.add({0.0, 5.36, 0.0},    {-0.425, 0.0, 0.0},  9.55e-4);
 	env.add({34.75, 0.0, 0.0},   {0.0, 0.0296, 0.0},  1.0e-14);
 	env.add_force(InverseSquare(), to_type(0));
+	env.set_extent({50,50, 0});
 
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	Yoshida4 integrator(system);
-	integrator.add_monitor(BinaryOutput(10, dir_path));
-	integrator.add_monitor(ProgressBar(10));
+	integrator.add_monitor(BinaryOutput(50, dir_path));
+	integrator.add_monitor(ProgressBar(40));
 	integrator.add_monitor(Benchmark());
 
 	integrator.run_for(0.014, 1000);

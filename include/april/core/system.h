@@ -56,6 +56,7 @@ namespace april::core {
 	public:
 		using EnvT          = env::Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>;
 		using Container     = typename C::template impl<EnvT>;
+		using ContainerFlags= container::internal::ContainerFlags;
 		using BoundaryTable = boundary::internal::BoundaryTable<typename EnvT::boundary_variant_t>;
 		using ForceTable    = force::internal::ForceTable<EnvT>;
 		using Interaction   = force::internal::InteractionInfo<typename EnvT::force_variant_t>;
@@ -70,13 +71,14 @@ namespace april::core {
 		// private constructor since System should only be creatable through build_system(...)
 		System(
 			const C & container_cfg,
+			const ContainerFlags & container_flags,
 			const env::Domain& domain,
 			const std::vector<Particle> & particles,
 			const BoundaryTable boundaries,
 			const UserToInternalMappings::TypeMap & usr_types_to_impl_types,
 			const UserToInternalMappings::IdMap & usr_ids_to_impl_ids,
 			std::vector<Interaction> & interaction_infos)
-			: domain(domain), container(container_cfg), boundary_table(boundaries), time_(0)
+			: domain(domain), container(container_cfg, container_flags), boundary_table(boundaries), time_(0)
 		{
 			force_table.build(interaction_infos, usr_types_to_impl_types, usr_ids_to_impl_ids);
 			container.init(force_table, domain);
@@ -122,7 +124,7 @@ namespace april::core {
 
 			for (boundary::Face face : boundary::all_faces) {
 
-				Boundary & boundary = boundary_table.get_boundary(face);
+				const Boundary & boundary = boundary_table.get_boundary(face);
 				std::vector<size_t> particle_ids = container.dispatch_collect_indices_in_region(boundary.region);
 
 				if (boundary.topology.boundary_thickness >= 0) {

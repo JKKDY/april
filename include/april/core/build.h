@@ -67,7 +67,10 @@ namespace april::core {
 			interactions[i].pair_contains_types = env.interactions[i].pair_contains_types;
 		}
 
-		validate_domain_params(env.domain, bbox);
+		validate_domain_params(
+			env.domain,
+			bbox);
+
 		validate_particle_params(
 			env.particles,
 			interactions,
@@ -91,8 +94,28 @@ namespace april::core {
 
 		BoundaryTable boundaries (env.boundaries, domain);
 
+		std::vector<boundary::Topology> topologies;
+		for (boundary::Face face : boundary::all_faces) {
+			topologies.push_back(boundaries.get_boundary(face).topology);
+		}
+
+		// TODO validate topologies
+
+		container::internal::ContainerFlags container_flags = {};
+		for (const boundary::Face face : boundary::all_faces) {
+			if (topologies[face_to_int(face)].force_wrap) {
+				switch (axis_of_face(face)) {
+				case 0: container_flags.periodic_x = true; break;
+				case 1: container_flags.periodic_y = true; break;
+				case 2: container_flags.periodic_z = true; break;
+				default: std::unreachable();
+				}
+			}
+		}
+
 		return System<C, env::Environment<FPack, BPack>> (
 			container,
+			container_flags,
 			domain,
 			particles,
 			boundaries,

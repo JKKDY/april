@@ -2,7 +2,7 @@
 
 APRIL is a small, modular C++ library for particle-based simulations.
 It aims to combine high performance with a flexible, easy-to-use, and expressive API. The library emphasizes clear architecture, plug-and-play components, and modern C++ features (concepts, CRTP-style dispatch).
-> Status: Most of the foundation in place (environment, interactions, containers, integrator, monitors). Additional foundational features are in development (controllers, force fields, boundary conditions)
+> Status: Most of the foundation in place (environment, interactions, containers, integrator, monitors, boundary conditions). Some Additional foundational features are in development (controllers, force fields, parallelism)
 
 
 ## Core Features

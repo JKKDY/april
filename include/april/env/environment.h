@@ -326,6 +326,12 @@ namespace april::env {
             return *this;
         }
 
+        Environment& with_particle(
+        const vec3& position, const vec3& velocity, const double mass, const ParticleType type = 0, const ParticleID id = PARTICLE_ID_DONT_CARE) {
+            add_particle(position, velocity, mass, type, id);
+            return *this;
+        }
+
         Environment& with_particles(const std::vector<Particle>& ps) {
             add_particles(ps);
             return *this;

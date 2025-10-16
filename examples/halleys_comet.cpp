@@ -6,25 +6,24 @@ namespace fs = std::filesystem;
 
 int main() {
 	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/halleys_comet";
-	fs::remove_all(dir_path);   // delete the directory and all contents
-	fs::create_directory(dir_path); // recreate the empty directory
+	remove_all(dir_path);   // delete the directory and all contents
+	create_directory(dir_path); // recreate the empty directory
 
-	Environment env (forces<InverseSquare>);
-	env.add_particle({0.0, 0.0, 0.0},     {0.0, 0.0, 0.0},     1.0);
-	env.add_particle({0.0, 1.0, 0.0},     {-1.0, 0.0, 0.0},    3.0e-6);
-	env.add_particle({0.0, 5.36, 0.0},    {-0.425, 0.0, 0.0},  9.55e-4);
-	env.add_particle({34.75, 0.0, 0.0},   {0.0, 0.0296, 0.0},  1.0e-14);
-	env.add_force(InverseSquare(), to_type(0));
-	env.set_extent({50,50, 0});
+	auto env = Environment (forces<InverseSquare>)
+		.with_particle({0.0, 0.0, 0.0},     {0.0, 0.0, 0.0},     1.0)
+		.with_particle({0.0, 1.0, 0.0},     {-1.0, 0.0, 0.0},    3.0e-6)
+		.with_particle({0.0, 5.36, 0.0},    {-0.425, 0.0, 0.0},  9.55e-4)
+		.with_particle({34.75, 0.0, 0.0},   {0.0, 0.0296, 0.0},  1.0e-14)
+		.with_force(InverseSquare(), to_type(0))
+		.with_extent({50,50, 0});
 
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
-	Yoshida4 integrator(system);
-	integrator.add_monitor(BinaryOutput(50, dir_path));
-	integrator.add_monitor(ProgressBar(40));
-	integrator.add_monitor(Benchmark());
-
-	integrator.run_for(0.014, 1000);
+	auto integrator = Yoshida4(system)
+		.with_monitor(BinaryOutput(50, dir_path))
+		.with_monitor(ProgressBar(40))
+		.with_monitor(Benchmark())
+		.run_for(0.014, 1000);
 }
 

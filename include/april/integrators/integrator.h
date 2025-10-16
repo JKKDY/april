@@ -32,15 +32,36 @@ namespace april::integrator {
 			std::get<std::vector<T>>(monitors).push_back(std::move(monitor));
 		}
 
-		// Call with total duration
-		void run_for(this auto&& self, double dt, const double duration) {
-			self.run_steps(dt, static_cast<std::size_t>(duration / dt));
+		template<typename... Ts>
+		void add_monitors(Ts&&... ms) {
+			(add_monitor(std::forward<Ts>(ms)), ...);
 		}
 
-		// Call with explicit number of steps
-		void run_steps(this auto&& self, const double delta_t, const std::size_t num_steps) {
+		// DSL-style chaining
+		template<typename T>
+		requires same_as_any<T, TMonitors...>
+		auto&& with_monitor(this auto&& self, T monitor) {
+			self.add_monitor(std::move(monitor));
+			return std::forward<decltype(self)>(self);
+		}
+
+		template<typename... Ts>
+		auto&& with_monitors(this auto&& self, Ts&&... ms) {
+			(self.add_monitor(std::forward<Ts>(ms)), ...);
+			return std::forward<decltype(self)>(self);
+		}
+
+		auto&& run_for(this auto&& self, double dt, double duration) {
+			self.run_steps(dt, static_cast<std::size_t>(duration / dt));
+			return std::forward<decltype(self)>(self);
+		}
+
+		// Integrate for explicit number of steps
+		auto&& run_steps(this auto&& self, double delta_t, std::size_t num_steps) {
 			if (delta_t <= 0) {
-				throw std::invalid_argument("time step cannot be negative. Got delta_t=" + std::to_string(delta_t));
+				throw std::invalid_argument(
+					"time step cannot be negative. Got delta_t=" + std::to_string(delta_t)
+				);
 			}
 
 			self.duration = static_cast<double>(num_steps) * delta_t;
@@ -52,14 +73,17 @@ namespace april::integrator {
 
 			for (self.step = 0; self.step < num_steps; ++self.step, self.sys.update_time(self.dt)) {
 				self.dispatch_monitor_preparation();
-
 				self.integration_step();
-
 				self.dispatch_monitor_recording();
 			}
 
 			self.finalize_monitors();
+
+			return std::forward<decltype(self)>(self);
 		}
+
+
+
 
 	protected:
 		Sys & sys;

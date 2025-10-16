@@ -113,7 +113,7 @@ if __name__ == "__main__":
     bench = "bench"
     sandbox = "sandbox"
 
-    vis = ParticleVisualizer(f"../output/{sandbox}")
+    vis = ParticleVisualizer(f"../output/{two_body_collision}")
     app.run()
 
     # for f in list_bin_files("../output/two_body_collision"):

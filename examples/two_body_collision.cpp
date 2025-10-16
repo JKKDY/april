@@ -26,22 +26,22 @@ int main() {
 		.spacing(1.1225)
 		.type(0);
 
-	Environment env (forces<LennardJones>, boundaries<Reflective, Absorb, Outflow>);
-	env.add_particles(cuboid1);
-	env.add_particles(cuboid2);
-	env.set_extent({100,80,40});
-	env.set_origin({-20,-20,-20});
-	env.add_force(LennardJones(5, 1), to_type(0));
-	env.set_boundaries(Reflective(), all_faces);
+	auto env = Environment (forces<LennardJones>, boundaries<Reflective, Absorb, Outflow>)
+	   .with_particles(cuboid1)
+	   .with_particles(cuboid2)
+	   .with_extent({100,80,40})
+	   .with_origin({-20,-20,-20})
+	   .with_force(LennardJones(5, 1), to_type(0))
+	   .with_boundaries(Reflective(), all_faces);
 
 	auto container = LinkedCells(3);
 	auto system = build_system(env, container);
 
-	auto integrator = StoermerVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
-	integrator.add_monitor(BinaryOutput(50, dir_path));
-	integrator.add_monitor(Benchmark());
-	integrator.add_monitor(ProgressBar(100));
-	integrator.run_for(0.0002, 5);
+	auto integrator = StoermerVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
+		.with_monitor(BinaryOutput(50, dir_path))
+		.with_monitor(Benchmark())
+		.with_monitor(ProgressBar(100))
+		.run_for(0.0002, 5);
 }
 
 

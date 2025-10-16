@@ -45,14 +45,12 @@ namespace april::container {
 				kernel(this);
 			}
 
-			std::vector<size_t> collect_indices_in_region(const env::Domain & region) {
-				const auto box = env::Box(region);
-
+			std::vector<size_t> collect_indices_in_region(const env::Box & region) {
 				std::vector<size_t> ret;
 				// ret.reserve(static_cast<size_t>(size));
 
 				for (size_t i = 0; i < particles.size(); i++) {
-					if (box.contains(particles[i].position) && particles[i].state != Particle::State::DEAD) {
+					if (region.contains(particles[i].position) && particles[i].state != Particle::State::DEAD) {
 						ret.push_back(i);
 					}
 				}

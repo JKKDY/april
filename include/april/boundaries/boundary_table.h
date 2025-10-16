@@ -33,7 +33,7 @@ namespace april::boundary::internal {
 
 		template<BoundaryVariant BVariant> class CompiledBoundary{
 		public:
-			CompiledBoundary(const BVariant & boundary, const env::Domain & boundary_region):
+			CompiledBoundary(const BVariant & boundary, const env::Box & boundary_region):
 				region(boundary_region), topology(get_topology(boundary)), boundary_v(boundary) {
 
 				std::visit([&](auto const& bc) {
@@ -52,7 +52,7 @@ namespace april::boundary::internal {
 				apply_fn(this, p, domain_box, face);
 			}
 
-			const env::Domain region;
+			const env::Box region;
 			const Topology topology;
 		private:
 			template<typename T>
@@ -106,7 +106,7 @@ namespace april::boundary::internal {
 				}
 			}
 
-			return internal::CompiledBoundary<BVariant>(boundary, region);
+			return internal::CompiledBoundary<BVariant>(boundary, env::Box(region));
 		}
 
 

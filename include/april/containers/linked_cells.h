@@ -156,10 +156,9 @@ namespace april::container {
 				}
 			}
 
-			std::vector<size_t> collect_indices_in_region(const env::Domain & region) {
-				const auto box = env::Box(region);
+			std::vector<size_t> collect_indices_in_region(const env::Box & region) {
 
-				std::vector<uint32_t> cells = cells_in_box(box);
+				std::vector<uint32_t> cells = cells_in_box(region);
 
 				std::vector<size_t> ret;
 
@@ -170,7 +169,7 @@ namespace april::container {
 				for (const uint32_t cid : cells) {
 					const uint32_t start = cell_begin[cid];
 					for (size_t i = 0; i < particles_per_cell[cid]; i++) {
-						if (box.contains(particles[start + i].position) && particles[start + i].state != Particle::State::DEAD) {
+						if (region.contains(particles[start + i].position) && particles[start + i].state != Particle::State::DEAD) {
 							ret.push_back(start + i);
 						}
 					}

@@ -155,7 +155,7 @@ namespace april::container {
 		    }
 
 			// returns a list of indices to the particles container in region
-			std::vector<size_t> dispatch_collect_indices_in_region(this auto&& self, const env::Domain & region) {
+			std::vector<size_t> dispatch_collect_indices_in_region(this auto&& self, const env::Box & region) {
 				static_assert(
 				   requires { { self.collect_indices_in_region(region) } -> std::same_as<std::vector<size_t>>; },
 				   "Container subclass must implement: size_t particles_in_domain()"

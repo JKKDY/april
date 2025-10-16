@@ -132,7 +132,7 @@ TEST(DirectSumTest, CollectIndicesInRegion) {
     // Case 1: small inner region (should include one particle)
     {
         env::Domain region({0.1, 0.1, 0.1}, {0.9, 0.9, 0.9});
-        auto indices = sys.collect_indices_in_region(region);
+        auto indices = sys.collect_indices_in_region(env::Box(region));
         ASSERT_EQ(indices.size(), 1u);
         auto p = sys.export_particles()[indices[0]];
         EXPECT_EQ(p.position.x, 0.25);
@@ -143,14 +143,14 @@ TEST(DirectSumTest, CollectIndicesInRegion) {
     // Case 2: mid region (should include all 27)
     {
         env::Domain region({0, 0, 0}, {5, 5, 5});
-        auto indices = sys.collect_indices_in_region(region);
+        auto indices = sys.collect_indices_in_region(env::Box(region));
         EXPECT_EQ(indices.size(), 27u);
     }
 
     // Case 3: partially overlapping region
     {
         env::Domain region({1.5, 1.5, 1.5}, {4.5, 4.5, 4.5});
-        std::vector indices = sys.collect_indices_in_region(region);
+        std::vector indices = sys.collect_indices_in_region(env::Box(region));
         EXPECT_GT(indices.size(), 0u);
         EXPECT_LT(indices.size(), 27u);
 
@@ -173,7 +173,7 @@ TEST(DirectSumTest, CollectIndicesInRegion) {
     // Case 4: region completely outside
     {
         env::Domain region({10, 10, 10}, {12, 12, 12});
-        auto indices = sys.collect_indices_in_region(region);
+        auto indices = sys.collect_indices_in_region(env::Box(region));
         EXPECT_TRUE(indices.empty());
     }
 }

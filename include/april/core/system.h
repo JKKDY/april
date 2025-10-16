@@ -205,8 +205,12 @@ namespace april::core {
 			return container.dispatch_index_end();
 		}
 
-		[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Domain & region) {
+		[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Box & region) {
 			return container.dispatch_collect_indices_in_region(region);
+		}
+
+		[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Domain & region) {
+			return collect_indices_in_region(env::Box(region));
 		}
 
 		// returns the systems time

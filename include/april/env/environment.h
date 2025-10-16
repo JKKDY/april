@@ -413,7 +413,7 @@ namespace april::env {
             return *this;
         }
 
-        Environment& with_domain(const vec3& margin) {
+        Environment& with_auto_domain(const vec3& margin) {
             auto_domain(margin);
             return *this;
         }

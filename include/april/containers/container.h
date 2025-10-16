@@ -89,7 +89,7 @@ namespace april::container {
 				   requires { { self.id_to_index(id) } -> std::same_as<size_t>; },
 				   "Container subclass must implement: void id_to_index(id)"
 			   );
-				return self.id_to_index();
+				return self.id_to_index(id);
 			}
 
 			// ids are always dense in [0, N-1]

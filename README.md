@@ -10,6 +10,7 @@ It aims to combine high performance with a flexible, easy-to-use, and expressive
 - **Modular design**: seamlessly swap or extend **forces**, **containers** (force calculators), **boundary conditions**, **integrators**, and **monitors**.
 - **Modern C++**: concepts for compile-time interface checking; a simple, readable public API via `april/april.h`.
 - **Ergonomic setup**: clear setup path. Special care was taken to minimize template verbosity with automatic template deduction (CTAD).
+- **Declarative and imperative APIs**: supports both a **fluent, declarative style** (`.with_*()`) for concise setup and a **traditional imperative style** (`add_*()`, `set_*()`) for explicit configuration.
 - **Built-in monitors**: binary snapshots, terminal diagnostics, progress bar, and a simple benchmark.
 - **Built-in containers**: `DirectSum` (all-pairs) and `LinkedCells` (cell lists).
 - **Built-in boundary conditions**: Periodic, Repulsive (uses a force), Reflective, Absorbing and Open boundary conditions
@@ -90,20 +91,21 @@ using namespace april;
 // Simulation of a simple sun-planet system
 int main() {
     // 1) Define an environment: particles + force types + boundary types
-    Environment env (forces<InverseSquare>, boundaries<Reflective>);
-    env.add({0,0,0}, {0,0,0}, 1.0, /*type*/0);         // Sun
-    env.add({1,0,0}, {0,1,0}, 1e-3, /*type*/0);        // Planet
-    env.add_force(InverseSquare(), to_type(0));        // gravity for type 0
-    env.add_boundaries(Reflective(), all_faces);       // all 6 boundary faces are reflective
+    auto env = Environment (forces<InverseSquare>, boundaries<Reflective>)
+        .with_particle(/*pos*/ {0,0,0}, /*vel*/ {0,0,0}, /*mass*/ 1.0, /*type*/0)   // Sun
+        .with_particle(/*pos*/ {1,0,0}, /*vel*/ {0,1,0},/*mass*/ 1e-5, /*type*/0)   // Planet
+        .with_force(InverseSquare(), to_type(0));                                   // gravity for type 0
+        .with_boundaries(Reflective(), all_faces);                                  // all faces reflective
 
     // 2) Choose a container (force calculator) and build a system
-    auto system = build_system(env, DirectSum());
+    auto container = DirectSum();
+    auto system = build_system(env, container);
 
     // 3) Integrate with Stoermer–Verlet and attach monitors
-    StoermerVerlet integrator(system, monitors<ProgressBar, Benchmark>);
-    integrator.add_monitor(ProgressBar(50));           // updated every 50 steps            
-    integrator.add_monitor(Benchmark());               // simple timing
-    integrator.run_for(0.01, 10.0);                    // dt=0.01, T=10
+    auto integrator = StoermerVerlet (system, monitors<ProgressBar, Benchmark>)
+        .with_monitor(ProgressBar(50))          // updated every 50 steps            
+        .with_monitor(Benchmark())              // simple timing
+        .run_for(0.01, 10.0);                   // dt=0.01, T=10
 }
 ```
 Further examples can be found in `examples/`:

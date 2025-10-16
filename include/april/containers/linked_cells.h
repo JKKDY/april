@@ -108,6 +108,10 @@ namespace april::container {
 			}
 
 			void calculate_forces() {
+				for (auto & p : particles) {
+					p.reset_force();
+				}
+
 				// for every cell
 				for (uint32_t cid = 0; cid < cell_begin.size() - 1; cid++) {
 					const uint32_t start = cell_begin[cid];
@@ -254,7 +258,6 @@ namespace april::container {
 				// how many particles in each cell
 				particles_per_cell = std::vector<uint32_t>(cell_begin.size());
 				for (auto & p : particles) {
-					p.reset_force();
 					const size_t cid = cell_index_of(p.position);
 					++particles_per_cell[cid];
 				}

@@ -16,6 +16,7 @@
 #include "april/forces/no_force.h"
 
 #include "april/monitors/monitor.h"
+#include "april/monitors/terminal_output.h"
 #include "april/monitors/binary_output.h"
 #include "april/monitors/progressbar.h"
 #include "april/monitors/benchmark.h"

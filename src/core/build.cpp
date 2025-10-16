@@ -38,7 +38,7 @@ namespace april::core::internal {
 		const vec3 max_corner {
 			std::max(origin_corner.x, opposite_corner.x),
 			std::max(origin_corner.y, opposite_corner.y),
-			std::max(origin_corner.x, opposite_corner.z)
+			std::max(origin_corner.z, opposite_corner.z)
 		};
 
 		return { min_corner, max_corner - min_corner };

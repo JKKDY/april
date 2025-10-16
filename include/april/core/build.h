@@ -73,7 +73,7 @@ namespace april::core {
 		using BoundaryTable = boundary::internal::BoundaryTable<typename EnvT::boundary_variant_t>;
 		using namespace internal;
 
-		auto & env = env::internal::get_env_data(environment);
+		auto env = env::internal::get_env_data(environment);
 		const env::Box bbox = calculate_bounding_box(env.particles);
 		const env::Domain domain_cleaned = clean_domain(env.domain);
 

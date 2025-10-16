@@ -42,7 +42,7 @@ namespace april::env {
             std::array<boundary_variant_t, 6> boundaries;
         };
 
-        template<class FPack, class BPack> auto& get_env_data(Environment<FPack, BPack>& env) {
+        template<class FPack, class BPack> auto get_env_data(Environment<FPack, BPack>& env) {
             for (auto & v : env.data.boundaries) {
                 if (std::holds_alternative<std::monostate>(v)) {
                     v.template emplace<boundary::Absorb>(); // default-construct Absorb
@@ -136,7 +136,7 @@ namespace april::env {
 
     private:
         internal::EnvironmentData<force_variant_t, boundary_variant_t> data;
-        template<class FPack, class BPack> friend auto& internal::get_env_data(Environment<FPack, BPack>& env);
+        template<class FPack, class BPack> friend auto internal::get_env_data(Environment<FPack, BPack>& env);
 
     public:
 

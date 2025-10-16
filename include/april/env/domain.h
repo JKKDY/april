@@ -38,6 +38,8 @@ namespace april::env {
 	};
 
 	struct Box {
+		Box() = default;
+
 		explicit Box(const Domain & domain):
 		Box(domain.min_corner(), domain.max_corner()){
 			AP_ASSERT(vec3::all(domain.origin,

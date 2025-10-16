@@ -6,41 +6,74 @@ namespace april::core::internal {
 	using namespace env;
 	using namespace container;
 
-	Domain calculate_bounding_box(const std::vector<Particle> & particles) {
-		Domain bbox;
-		if (particles.empty()) return bbox;
 
-		bbox.origin = particles[0].position;
-		for (const auto & particle  : particles) {
-			const vec3 &p = particle.position;
-			const vec3 old_min = bbox.origin;
-			const vec3 old_max = bbox.origin + bbox.extent;
+	// ---- Domain Validation & Setting ----
 
-			const vec3 new_min {
-				std::min(old_min.x, p.x),
-				std::min(old_min.y, p.y),
-				std::min(old_min.z, p.z)
+	Domain clean_domain(const Domain& domain) {
+		// if extent is set to auto then theres nothing to clean
+		if (domain.extent == EXTENT_NOT_SET) {
+			return domain;
+		}
+		// if only origin is set to auto then we flip all extent components to positive
+		if (domain.origin == ORIGIN_NOT_SET && domain.extent != EXTENT_NOT_SET) {
+			const vec3 extent = {
+				std::abs(domain.extent.x),
+				std::abs(domain.extent.y),
+				std::abs(domain.extent.z)
 			};
 
-			const vec3 new_max {
-				std::max(old_max.x, p.x),
-				std::max(old_max.y, p.y),
-				std::max(old_max.z, p.z)
-			};
-
-			bbox.origin = new_min;
-			bbox.extent = new_max - new_min;
+			return {domain.origin, extent };
 		}
 
-		return  bbox;
+		// neither ORIGIN_AUTO nor EXTENT_AUTO are set
+		const vec3 origin_corner  = domain.origin;
+		const vec3 opposite_corner = domain.origin + domain.extent;
+
+		const vec3 min_corner {
+			std::min(origin_corner.x, opposite_corner.x),
+			std::min(origin_corner.y, opposite_corner.y),
+			std::min(origin_corner.x, opposite_corner.z)
+		};
+
+		const vec3 max_corner {
+			std::max(origin_corner.x, opposite_corner.x),
+			std::max(origin_corner.y, opposite_corner.y),
+			std::max(origin_corner.x, opposite_corner.z)
+		};
+
+		return { min_corner, max_corner - min_corner };
 	}
 
-	void validate_domain_params(const Domain & domain, const Domain & bbox) {
+
+	Box calculate_bounding_box(const std::vector<Particle>& particles) {
+		Box bbox;
+		if (particles.empty()) return bbox;
+
+		bbox.min = bbox.max = particles[0].position;
+
+		for (const auto& p : particles) {
+			bbox.min.x = std::min(bbox.min.x, p.position.x);
+			bbox.min.y = std::min(bbox.min.y, p.position.y);
+			bbox.min.z = std::min(bbox.min.z, p.position.z);
+
+			bbox.max.x = std::max(bbox.max.x, p.position.x);
+			bbox.max.y = std::max(bbox.max.y, p.position.y);
+			bbox.max.z = std::max(bbox.max.z, p.position.z);
+		}
+
+		bbox.extent = bbox.max - bbox.min;
+		return bbox;
+	}
+
+
+	void validate_domain_params(const Domain & domain, const Box & bbox) {
 		const vec3& extent = domain.extent;
 		const vec3& origin = domain.origin;
 		// check that all particles are contained in the box specified by extent and origin
-        // first check that extent is larger or equal than particle_bbox_extent
-        if (extent != EXTENT_AUTO and (
+
+		// 1. sanity: extent large enough
+        // check that extent is larger or equal than particle_bbox_extent
+        if (extent != EXTENT_NOT_SET and (
                 std::abs(extent.x) < bbox.extent.x ||
                 std::abs(extent.y) < bbox.extent.y ||
                 std::abs(extent.z) < bbox.extent.z
@@ -52,24 +85,23 @@ namespace april::core::internal {
             );
         }
 
-        const vec3 bbox_min = bbox.origin;
-        const vec3 bbox_max = bbox.origin + bbox.extent;
-
+		// 2. sanity: origin not inside particle box
         // check that origin is not inside the box specified by (particle_bbox_origin, particle_bbox_extent)
-        if (origin != ORIGIN_AUTO and (
-            (origin.x > bbox_min.x && origin.x < bbox_max.x) and
-            (origin.y > bbox_min.y && origin.y < bbox_max.y) and
-            (origin.z > bbox_min.z && origin.z < bbox_max.z))
+        if (origin != ORIGIN_NOT_SET and (
+            (origin.x > bbox.min.x && origin.x < bbox.max.x) and
+            (origin.y > bbox.min.y && origin.y < bbox.max.y) and
+            (origin.z > bbox.min.z && origin.z < bbox.max.z))
            ) {
             throw std::invalid_argument(
                 "Environment origin is not compatible with particle bounding box: \n"
                 "\tSet Origin: " + origin.to_string() + "\n"
-                "\tParticle bounding box: [" + bbox_min.to_string() + " — " + bbox_max.to_string() + "]"
+                "\tParticle bounding box: [" + bbox.min.to_string() + " — " + bbox.max.to_string() + "]"
             );
         }
 
-        //check that (particle_bbox_origin, particle_bbox_extent) is contained in (origin extent)
-        if (origin != ORIGIN_AUTO and extent != EXTENT_AUTO) {
+		// 3. containment: ensure all particles fit in environment box
+        // check that (particle_bbox_origin, particle_bbox_extent) is contained in (origin extent)
+        if (origin != ORIGIN_NOT_SET and extent != EXTENT_NOT_SET) {
 	        const vec3 env_min {
 	        	std::min(origin.x, origin.x + extent.x),
 				std::min(origin.y, origin.y + extent.y),
@@ -81,17 +113,72 @@ namespace april::core::internal {
 				std::max(origin.z, origin.z + extent.z)
 			};
 
-        	if (bbox_min.x < env_min.x || bbox_min.y < env_min.y || bbox_min.z < env_min.z ||
-				bbox_max.x > env_max.x || bbox_max.y > env_max.y || bbox_max.z > env_max.z)
+        	if (bbox.min.x < env_min.x || bbox.min.y < env_min.y || bbox.min.z < env_min.z ||
+				bbox.max.x > env_max.x || bbox.max.y > env_max.y || bbox.max.z > env_max.z)
         	{
         		throw std::invalid_argument(
 					"Particle cloud lies outside the user‐specified Environment box:\n"
 					"  Env box: [" + env_min.to_string() + " — " + env_max.to_string() + "]\n"
-					"  Particle box: [" + bbox_min .to_string() + " — " + bbox_max .to_string() + "]"
+					"  Particle box: [" + bbox.min.to_string() + " — " + bbox.max.to_string() + "]"
 				);
         	}
         }
 	}
+
+
+	Box finalize_environment_domain( const Box & bbox, const Domain & usr_domain, const vec3 & margin_abs, const vec3 & margin_fac)
+	{
+		const bool origin_auto = (usr_domain.origin == ORIGIN_NOT_SET);
+		const bool extent_auto = (usr_domain.extent == EXTENT_NOT_SET);
+
+		if (margin_abs.x < 0 || margin_abs.y < 0 || margin_abs.z < 0) {
+			throw std::logic_error("Absolute margin was set to negative on atleast one axis. Got: " + margin_abs.to_string());
+		}
+
+		if (margin_fac.x < 0 || margin_fac.y < 0 || margin_fac.z < 0) {
+			throw std::logic_error("Margin factor was set to negative on atleast one axis. Got: " + margin_fac.to_string());
+		}
+
+		const vec3 effective_margin = {
+			std::max( bbox.extent.x * margin_fac.x, margin_abs.x),
+			std::max( bbox.extent.y * margin_fac.y, margin_abs.y),
+			std::max( bbox.extent.z * margin_fac.z, margin_abs.z)
+		};
+
+		const Box required_box (bbox.min-effective_margin, bbox.max+effective_margin);
+
+		// Case 1: fully manual: both user origin & extent are specified. overrides any margin set
+		if (!origin_auto && !extent_auto) {
+			return Box(usr_domain);
+		}
+
+		// Case 2: fully automatic: both user origin & extent not set
+		if (origin_auto && extent_auto) {
+			return required_box;
+		}
+
+		// Case 3: user origin set, user extent not set
+		if (!origin_auto && extent_auto) {
+			// we know from validation that origin < bbox.min on all axis so we use that as min corner
+			// max corner is chosen such that it satisfies margin requirements
+			return {usr_domain.origin, required_box.max};
+		}
+
+		// Case 4: user origin not set, user extent set
+		if (origin_auto && !extent_auto) {
+			// center the particle bounding box inside the simulation domain
+			const vec3 bbox_center = (bbox.min + bbox.max) * 0.5;
+			const vec3 origin = bbox_center - usr_domain.extent / 2;
+			return {origin, origin + usr_domain.extent};
+		}
+
+		std::unreachable();
+	}
+
+
+
+
+	// ---- Particle Validation & Setting ----
 
 	void validate_particle_params(
 		const std::vector<Particle> & particles,
@@ -241,56 +328,6 @@ namespace april::core::internal {
 		}
 
 		return mapping;
-	}
-
-	Domain finalize_environment_domain(
-		const Domain & bbox,
-		const Domain & usr_domain
-		)
-	{
-		Domain domain = {usr_domain.origin, usr_domain.extent};
-		const vec3& extent = usr_domain.extent;
-		const vec3& origin = usr_domain.origin;
-
-		const vec3 bbox_min    = bbox.origin;
-		const vec3 bbox_max    = bbox.origin + bbox.extent;
-		const vec3 bbox_center = (bbox_min + bbox_max) * 0.5;
-
-		if (extent == EXTENT_AUTO && origin != ORIGIN_AUTO) {
-			// User gave origin but no extent:
-			// make the box symmetric around `origin` so that bbox_center stays in the middle
-			const vec3 opposite_corner = origin + 2 * (bbox_center - origin);
-			domain.extent = vec3{
-				std::abs(opposite_corner.x - origin.x),
-				std::abs(opposite_corner.y - origin.y),
-				std::abs(opposite_corner.z - origin.z)
-			};
-			domain.origin = vec3{
-				std::min(origin.x, opposite_corner.x),
-				std::min(origin.y, opposite_corner.y),
-				std::min(origin.z, opposite_corner.z)
-			};
-
-		} else if (origin == ORIGIN_AUTO && extent != EXTENT_AUTO) {
-			// User gave extent but no origin:
-			// center the user‐box on the particle bbox center
-			domain.extent = vec3{
-				std::abs(extent.x),
-				std::abs(extent.y),
-				std::abs(extent.z)
-			};
-			domain.origin = bbox_center - 0.5 * extent;
-
-		} else if (origin == ORIGIN_AUTO && extent == EXTENT_AUTO) {
-			// Neither origin nor extent given -> default to particle bbox + padding
-			domain.extent = bbox.extent * 2.0;					// twice as large as bounding box
-			domain.origin = bbox_center - 0.5 * domain.extent;  // domain is centered
-		}
-
-		AP_ASSERT(domain.extent.x >= bbox.extent.x &&
-			domain.extent.y >= bbox.extent.y &&
-			domain.extent.z >= bbox.extent.z, "Domain extent must be larger than bounding box");
-		return domain;
 	}
 
 	std::vector<env::internal::Particle> build_particles(const std::vector<Particle> & particle_infos, const UserToInternalMappings& mapping) {

@@ -239,14 +239,15 @@ TEST(EnvTest, OnlyOriginSymmetricExtent) {
     // Only origin given
     e.set_origin({0,0,0});
     e.add_force(NoForce(), to_type(0));
+    e.auto_domain(1);
+
     auto sys = build_system(e, DirectSum());
 
     const vec3 origin = sys.domain.origin;
     const vec3 extent = sys.domain.extent;
-    // bbox_center = (3,4,5), opposite = origin + 2*(center-origin) = 2*center = (6,8,10)
-    // extent = abs(opposite-origin) = (6,8,10)
+
     EXPECT_EQ(origin, vec3(0,0,0));
-    EXPECT_EQ(extent, vec3(6,8,10));
+    EXPECT_EQ(extent, vec3(4,5,6));
 }
 
 TEST(EnvTest, AutoOriginExtentDoublesBBox) {
@@ -255,6 +256,8 @@ TEST(EnvTest, AutoOriginExtentDoublesBBox) {
     e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {1,2,3}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     e.add_particle({.id = PARTICLE_ID_DONT_CARE, .type = 0, .position = {3,4,5}, .velocity = {0,0,0}, .mass = 1, .state = ParticleState::ALIVE});
     e.add_force(NoForce(), to_type(0));
+    e.auto_domain_factor(1);
+
     // neither origin nor extent set
     auto sys = build_system(e, DirectSum());
 

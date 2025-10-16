@@ -18,8 +18,9 @@
 namespace april::env {
     template<class FPack, class BPack> class Environment;
 
-    inline const auto EXTENT_AUTO = vec3(std::numeric_limits<double>::max());
-    inline const auto ORIGIN_AUTO = vec3(std::numeric_limits<double>::max());
+    inline const auto EXTENT_NOT_SET = vec3(std::numeric_limits<double>::max());
+    inline const auto ORIGIN_NOT_SET = vec3(std::numeric_limits<double>::max());
+    inline const auto MARGIN_DONT_CARE = vec3(std::numeric_limits<double>::max());
     inline const auto ZERO_THERMAL_V = [](const Particle&) {return vec3{}; };
 
 
@@ -29,7 +30,9 @@ namespace april::env {
             using force_variant_t = FV;
             using boundary_variant_t = BV;
 
-            Domain domain = {ORIGIN_AUTO, EXTENT_AUTO};
+            Domain domain = {ORIGIN_NOT_SET, EXTENT_NOT_SET};
+            vec3 margin_abs = {0, 0, 0};
+            vec3 margin_fac = {0.5, 0.5, 0.5}; // 50 % margin on each side by default
 
             std::unordered_set<env::ParticleID> usr_particle_ids;
             std::unordered_set<env::ParticleType> usr_particle_types;
@@ -310,6 +313,12 @@ namespace april::env {
 
         void set_domain(const Domain& domain) { data.domain = domain; }
 
+        void auto_domain(const vec3& margin_abs) { data.margin_abs = margin_abs; }
+        void auto_domain(const double margin_abs) {auto_domain(vec3{margin_abs}); }
+
+        void auto_domain_factor(const vec3& margin_fac) { data.margin_fac = margin_fac; }
+        void auto_domain_factor(const double margin_fac) {auto_domain(vec3{margin_fac}); }
+
 
         // --- DSL-style chaining helpers ---
         Environment& with_particle(const Particle& p) {
@@ -368,7 +377,7 @@ namespace april::env {
             return *this;
         }
 
-        Environment& with_origin(const vec3& o) noexcept {
+        Environment& with_origin(const vec3& o) {
             set_origin(o);
             return *this;
         }
@@ -392,7 +401,19 @@ namespace april::env {
             set_domain(domain);
             return *this;
         }
+
+        Environment& with_auto_domain(const double margin) {
+            auto_domain(margin);
+            return *this;
+        }
+
+        Environment& with_domain(const vec3& margin) {
+            auto_domain(margin);
+            return *this;
+        }
     };
+
+
 
 
     // Deduction guide: 2 args

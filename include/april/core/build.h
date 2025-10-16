@@ -11,18 +11,28 @@
 
 namespace april::core {
 	namespace internal {
-		env::Domain calculate_bounding_box(const std::vector<env::Particle>& particles);
-
 		struct InteractionParams {
 			bool pair_contains_types;
 			std::pair<int,int> key_pair;
 		};
 
-		void validate_domain_params(
-			const env::Domain& domain,
-			const env::Domain& bbox
+		// swap origin and extent components such that for all axis i: origin[i] < extent[i]
+		env::Domain clean_domain(
+			const env::Domain & domain
 		);
 
+		// calculate the minimal bounding box that contains all particles
+		env::Box calculate_bounding_box(
+			const std::vector<env::Particle>& particles
+		);
+
+		// check if user set domain parameters are ok (e.g. if it contains all particles)
+		void validate_domain_params(
+			const env::Domain& domain,
+			const env::Box& bbox
+		);
+
+		// check if particle parameters are ok (e.g. no duplicate ids, every particle type has a force specified)
 		void validate_particle_params(
 			const std::vector<env::Particle> & particles,
 			std::vector<InteractionParams> interactions,
@@ -30,6 +40,7 @@ namespace april::core {
 			const std::unordered_set<env::ParticleType>& usr_particle_types
 		);
 
+		// map user set particle ids & types to dense internal ids & types and return mappings
 		UserToInternalMappings map_ids_and_types_to_internal(
 			std::vector<env::Particle>& particles,
 			const std::vector<InteractionParams>& interactions,
@@ -37,11 +48,15 @@ namespace april::core {
 			std::unordered_set<env::ParticleType>& usr_particle_types
 		);
 
-		env::Domain finalize_environment_domain(
-			const env::Domain& bbox,
-			const env::Domain& usr_domain
+		// given particle bounding box and user set parameters, calculate the final simulation domain
+		env::Box finalize_environment_domain(
+			const env::Box& bbox,
+			const env::Domain& usr_domain,
+			const vec3 & margin_abs,
+			const vec3 & margin_fac
 		);
 
+		// build internal particle representation from user data
 		std::vector<env::internal::Particle> build_particles(
 			const std::vector<env::Particle>& particle_infos,
 			const UserToInternalMappings& mapping
@@ -59,7 +74,8 @@ namespace april::core {
 		using namespace internal;
 
 		auto & env = env::internal::get_env_data(environment);
-		const env::Domain bbox = calculate_bounding_box(env.particles);
+		const env::Box bbox = calculate_bounding_box(env.particles);
+		const env::Domain domain_cleaned = clean_domain(env.domain);
 
 		std::vector<InteractionParams> interactions(env.interactions.size());
 		for (size_t i = 0; i < interactions.size(); i++) {
@@ -68,7 +84,7 @@ namespace april::core {
 		}
 
 		validate_domain_params(
-			env.domain,
+			domain_cleaned,
 			bbox);
 
 		validate_particle_params(
@@ -84,7 +100,8 @@ namespace april::core {
 			env.usr_particle_types
 		);
 
-		const env::Domain domain = finalize_environment_domain(bbox, env.domain);
+		const env::Box box = finalize_environment_domain(bbox, domain_cleaned, env.margin_abs, env.margin_fac);
+		const env::Domain domain = {box.min, box.extent};
 		const std::vector<env::internal::Particle> particles = build_particles(env.particles, mapping);
 
 		if (particle_mappings) {
@@ -99,7 +116,7 @@ namespace april::core {
 			topologies.push_back(boundaries.get_boundary(face).topology);
 		}
 
-		// TODO validate topologiess
+		// TODO validate topologies
 
 		container::internal::ContainerFlags container_flags = {};
 		for (const boundary::Face face : boundary::all_faces) {

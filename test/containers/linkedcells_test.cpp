@@ -115,6 +115,7 @@ TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
 
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
+	e.auto_domain(2);
 
 	auto sys = build_system(e, LinkedCells());
 	sys.update_forces();

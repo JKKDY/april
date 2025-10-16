@@ -29,8 +29,8 @@ int main() {
 	auto env = Environment (forces<LennardJones>, boundaries<Reflective, Absorb, Outflow>)
 	   .with_particles(cuboid1)
 	   .with_particles(cuboid2)
-	   .with_extent({100,80,40})
-	   .with_origin({-20,-20,-20})
+	   .with_extent(100,80,40)
+	   .with_origin(-20,-20,-20)
 	   .with_force(LennardJones(5, 1), to_type(0))
 	   .with_boundaries(Reflective(), all_faces);
 

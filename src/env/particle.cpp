@@ -51,8 +51,11 @@ namespace april::env::internal {
 			<< "State: " << static_cast<int>(state) << "\n";
 		return oss.str();
 	}
+}
 
-	ParticleRef::ParticleRef(Particle& p)
+namespace april::env {
+
+	ParticleRef::ParticleRef(internal::Particle& p)
 		: position(p.position)
 		, old_position(p.old_position)
 		, velocity(p.velocity)
@@ -81,7 +84,7 @@ namespace april::env::internal {
 		force = vec3(0, 0, 0);
 	}
 
-	bool ParticleRef::operator==(const Particle& other) const {
+	bool ParticleRef::operator==(const internal::Particle& other) const {
 		return id == other.id;
 	}
 
@@ -96,9 +99,8 @@ namespace april::env::internal {
 			<< "State: " << static_cast<int>(state) << "\n";
 		return oss.str();
 	}
-}
 
-namespace april::env {
+
 	ParticleView::ParticleView(const internal::Particle& p):
 	position(p.position)
 	, old_position(p.old_position)

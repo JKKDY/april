@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include "april/env/particle.h"
 #include "april/forces/force.h"
 #include "april/env/environment.h"
@@ -7,6 +8,7 @@
 #include "april/containers/container.h"
 #include "april/env/domain.h"
 #include "april/boundaries/boundary_table.h"
+#include "april/core/context.h"
 
 namespace april::core {
 
@@ -28,27 +30,17 @@ namespace april::core {
 	) -> System<Cont, env::Environment<FPack, BPack>>;
 
 
-	template<class S>
-	concept IsSystem = requires(S s, size_t i, typename S::ParticleID pid) {
-		// force update
-		{ s.update_forces() } -> std::same_as<void>;
+	// Default: assume any type is not a System
+	template<typename>
+	inline constexpr bool is_system_v = false;
 
-		// particle access
-		{ s.get_particle_by_id(pid) } -> std::same_as<typename S::Particle&>;
-		{ s.get_particle_by_index(i) } -> std::same_as<typename S::Particle&>;
+	// Specialization: mark all System<C, Env> instantiations as true
+	template<container::IsContDecl C, class Env>
+	inline constexpr bool is_system_v<System<C, Env>> = true;
 
-		{ s.id_start() } -> std::same_as<typename S::ParticleID>;
-		{ s.id_end()   } -> std::same_as<typename S::ParticleID>;
-
-		{ s.index_start() } -> std::same_as<size_t>;
-		{ s.index_end()   } -> std::same_as<size_t>;
-
-		// time query
-		{ s.time() } -> std::convertible_to<double>;
-
-		// export
-		{ s.export_particles() } -> std::same_as<std::vector<typename S::ParticleView>>;
-	};
+	// Concept: true if T (after removing cv/ref) is a System specialization
+	template<typename T>
+	concept IsSystem = is_system_v<std::remove_cvref_t<T>>;
 
 
 	template <container::IsContDecl C, force::IsForce ... Fs, boundary::IsBoundary ... BCs>
@@ -61,9 +53,10 @@ namespace april::core {
 		using ForceTable    = force::internal::ForceTable<EnvT>;
 		using Interaction   = force::internal::InteractionInfo<typename EnvT::force_variant_t>;
 		using Particle      = env::internal::Particle;
-		using ParticleRef   = env::internal::ParticleRef;
+		using ParticleRef   = env::ParticleRef;
 		using ParticleView  = env::ParticleView;
 		using ParticleID    = env::internal::ParticleID;
+
 
 		const env::Domain domain;
 
@@ -77,19 +70,27 @@ namespace april::core {
 			const BoundaryTable boundaries,
 			const UserToInternalMappings::TypeMap & usr_types_to_impl_types,
 			const UserToInternalMappings::IdMap & usr_ids_to_impl_ids,
-			std::vector<Interaction> & interaction_infos)
-			: domain(domain), container(container_cfg, container_flags), boundary_table(boundaries), time_(0)
+			std::vector<Interaction> & interaction_infos):
+		domain(domain),
+		container(container_cfg, container_flags),
+		boundary_table(boundaries)
 		{
 			force_table.build(interaction_infos, usr_types_to_impl_types, usr_ids_to_impl_ids);
 			container.init(force_table, domain);
 			container.dispatch_build(particles);
+
+			using SystemType = std::remove_cvref_t<decltype(*this)>;
+			simulation_context = std::make_unique<internal::SimulationContextImpl<SystemType>>(*this);
 		}
 
 		Container container;
 		BoundaryTable boundary_table;
 		ForceTable force_table;
 
-		double time_;
+		double time_ = 0;
+		double step_ = 0;
+
+		std::unique_ptr<SimulationContext> simulation_context;
 
 		// System factory. Only valid way to create a System.
 		template <container::IsContDecl Cont, class FPack, class BPack>
@@ -101,6 +102,11 @@ namespace april::core {
 		);
 
 	public:
+		[[nodiscard]] SimulationContext * context() const {
+			return simulation_context.get();
+		}
+
+
 		// call to update all pairwise forces between particles
 		void update_forces() {
 			container.dispatch_calculate_forces();
@@ -214,19 +220,9 @@ namespace april::core {
 		}
 
 		// returns the systems time
-		[[nodiscard]] double time() const noexcept {
-			return time_;
-		}
-
-		// propagate the systems time by a time step dt
-		void update_time(const double dt) noexcept {
-			time_ += dt;
-		}
-
-		// reset the systems time to 0
-		void reset_time() noexcept {
-			time_ = 0;
-		}
+		[[nodiscard]] double time() const noexcept { return time_; }
+		void update_time(const double dt) noexcept { time_ += dt; }
+		void reset_time() noexcept { time_ = 0; }
 
 		// get read access to all internal particles based on their state. Useful for snapshots and analysis.
 		[[nodiscard]] std::vector<ParticleView> export_particles(const env::ParticleState state = env::ParticleState::ALL) {

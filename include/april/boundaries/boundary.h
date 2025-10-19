@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <concepts>
 
 #include "april/env/particle.h"
 
@@ -100,6 +101,7 @@ namespace april::boundary {
 	template<IsBoundary... BCs>
 	struct BoundaryPack {};
 
+	// constrained variable template
 	template<class... BCs>
 	requires (IsBoundary<BCs> && ...)
 	inline constexpr BoundaryPack<BCs...> boundaries {};

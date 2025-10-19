@@ -85,7 +85,7 @@ namespace april::env {
 		struct Particle {
 			using State = ParticleState;
 
-			Particle() {}
+			Particle() = default;
 			Particle(ParticleID id, const vec3& position, const vec3& velocity, double mass, ParticleType type,
 				State state = State::ALIVE, const vec3& force = {}, const vec3& old_force = {}, const vec3& old_position = {});
 
@@ -109,31 +109,32 @@ namespace april::env {
 
 			[[nodiscard]] std::string to_string() const;
 		};
-
-		struct ParticleRef {
-			explicit ParticleRef(Particle & p);
-
-			void update_position(const vec3& dx) const noexcept;
-			void update_velocity(const vec3& dv) const noexcept;
-			void update_force(const vec3& df) const noexcept;
-			void reset_force() const noexcept;
-
-			vec3 & position;
-			vec3 & old_position;
-			vec3 & velocity;
-			vec3 & force;
-			vec3 & old_force;
-
-			Particle::State & state;
-
-			double & mass;
-			ParticleType & type;
-			const ParticleID & id;
-
-			bool operator==(const Particle& other) const;
-			[[nodiscard]] std::string to_string() const;
-		};
 	}
+
+
+	struct ParticleRef {
+		explicit ParticleRef(internal::Particle & p);
+
+		void update_position(const vec3& dx) const noexcept;
+		void update_velocity(const vec3& dv) const noexcept;
+		void update_force(const vec3& df) const noexcept;
+		void reset_force() const noexcept;
+
+		vec3 & position;
+		vec3 & old_position;
+		vec3 & velocity;
+		vec3 & force;
+		vec3 & old_force;
+
+		ParticleState & state;
+
+		double & mass;
+		const internal::ParticleType & type;
+		const internal::ParticleID & id;
+
+		bool operator==(const internal::Particle& other) const;
+		[[nodiscard]] std::string to_string() const;
+	};
 
 	struct ParticleView {
 		explicit ParticleView(const internal::Particle& p);

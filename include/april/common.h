@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "april/utils/vec3.hpp"
+#include "april/shared/vec3.hpp"
 
 
 

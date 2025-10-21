@@ -1,16 +1,17 @@
 #pragma once
 
 #include "april/monitors/monitor.h"
-#include "april/env/particle.h"
 
 namespace april::monitor {
 	class TerminalOutput final : public Monitor {
 	public:
 		explicit TerminalOutput(const size_t write_frequency = 1): Monitor(write_frequency) {}
 
-		void record(const size_t step, double, const Particles& particles) {
-			std::cerr << "step: " << step <<  "\n";
-			for (const auto & p : particles) {
+		void record(const core::SimulationContext & sys) {
+			std::cerr << "step: " << sys.step() <<  "\n";
+
+			for (size_t i = sys.index_start(); i < sys.index_end(); i++) {
+				env::ParticleView p = sys.get_particle_by_index(i);
 				std::cerr << p.to_string() << "\n";
 			}
 		}

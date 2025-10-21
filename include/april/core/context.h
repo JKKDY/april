@@ -8,12 +8,13 @@
 
 namespace april::core {
 
-	/// A type erased facade to access the systems functionality
-	/// This is used by monitors, (force) fields, controllers
+	/// A type erased facade to access the systems functionality.
+	/// This is used by monitors, (force) fields & controllers
 	/// this allows objects to access the system API without needing
 	/// to be templated on it.
 	/// While of course slower, than having classes directly templated
-	/// on System<...>, it is worth it for the sake of ergonomics.
+	/// on System<...>, it is worth it for the sake of ergonomics, since
+	/// these functions should only be called a few times per iteration step
 	class SimulationContext {
 	public:
 		using ParticleView = env::ParticleView;
@@ -24,23 +25,27 @@ namespace april::core {
 
 		virtual ~SimulationContext() = default;
 
+		// TODO add size(ParticleState) query
+
 		// ---- Core information ----
-		[[nodiscard]] virtual std::vector<ParticleView> export_particles( env::ParticleState) const = 0;
 		[[nodiscard]] virtual const env::Domain& domain() const noexcept = 0;
 		[[nodiscard]] virtual double time() const noexcept = 0;
 		[[nodiscard]] virtual size_t step() const noexcept = 0;
 
 		// ---- Particle access / modification ----
 		[[nodiscard]] virtual std::vector<size_t> collect_indices_in_region(const env::Box& region) const = 0;
-		virtual void register_particle_movement(ParticleID id) const = 0;
-		virtual void register_all_particle_movements() const = 0;
+		[[nodiscard]] virtual std::vector<size_t> collect_indices_in_region(const env::Domain & region) const = 0;
+
+		virtual void register_particle_movement(ParticleID id) = 0;
+		virtual void register_all_particle_movements() = 0;
 
 		[[nodiscard]] virtual ParticleRef get_particle_by_id(ParticleID id) noexcept = 0;
+		[[nodiscard]] virtual ParticleView get_particle_by_id(ParticleID id) const noexcept = 0;
 		[[nodiscard]] virtual ParticleID id_start() const noexcept = 0;
 		[[nodiscard]] virtual ParticleID id_end() const noexcept = 0;
 
 		[[nodiscard]] virtual ParticleRef get_particle_by_index(size_t index) noexcept = 0;
-
+		[[nodiscard]] virtual ParticleView get_particle_by_index(size_t index) const noexcept = 0;
 		[[nodiscard]] virtual size_t index_start() const noexcept = 0;
 		[[nodiscard]] virtual size_t index_end() const noexcept = 0;
 	};
@@ -53,11 +58,6 @@ namespace april::core {
 			explicit SimulationContextImpl(System& sys) : system(sys) {}
 
 			// ---- Core information ----
-			[[nodiscard]] std::vector<ParticleView>
-			export_particles(env::ParticleState state) const override {
-				return system.export_particles(state);
-			}
-
 			[[nodiscard]] const env::Domain& domain() const noexcept override {
 				return system.domain;
 			}
@@ -67,27 +67,37 @@ namespace april::core {
 			}
 
 			[[nodiscard]] size_t step() const noexcept override {
-				if constexpr (requires(System s) { s.step(); })
-					return system.step();
-				return 0;
+				return system.step();
 			}
 
-			// ---- Particle access / modification ----
-			[[nodiscard]] std::vector<size_t>
-			collect_indices_in_region(const env::Box& region) const override {
-				return system.collect_indices_in_region(region);
-			}
 
-			void register_particle_movement(ParticleID id) const override {
+			// ---- Particle modification ----
+			void register_particle_movement(ParticleID id) override {
 				system.register_particle_movement(id);
 			}
 
-			void register_all_particle_movements() const override {
+			void register_all_particle_movements() override {
 				system.register_all_particle_movements();
 			}
 
+
+			// ---- Region Query ----
+			[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Box& region) const override {
+				return system.collect_indices_in_region(region);
+			}
+
+			[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Domain & region) const override {
+				return collect_indices_in_region(env::Box(region));
+			}
+
+
+			// ---- Particle access by ID ----
 			[[nodiscard]] ParticleRef get_particle_by_id(ParticleID id) noexcept override {
 				return ParticleRef(system.get_particle_by_id(id));
+			}
+
+			[[nodiscard]] ParticleView get_particle_by_id(ParticleID id) const noexcept override {
+				return ParticleView(system.get_particle_by_id(id));
 			}
 
 			[[nodiscard]] ParticleID id_start() const noexcept override {
@@ -98,8 +108,14 @@ namespace april::core {
 				return system.id_end();
 			}
 
+
+			// ---- Particle access by index ----
 			[[nodiscard]] ParticleRef get_particle_by_index(size_t index) noexcept override {
 				return ParticleRef(system.get_particle_by_index(index));
+			}
+
+			[[nodiscard]] ParticleView get_particle_by_index(size_t index) const noexcept override {
+				return ParticleView(system.get_particle_by_index(index));
 			}
 
 			[[nodiscard]] size_t index_start() const noexcept override {

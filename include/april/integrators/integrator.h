@@ -8,15 +8,12 @@
 
 namespace april::integrator {
 
-	template <typename T> concept IsIntegrator = requires(T t) {
-			{ t.integration_step() } -> std::same_as<void>;
-	};
-
 	template<core::IsSystem Sys, class Pack> class Integrator;  // primary template
 
 	template <core::IsSystem Sys, class... TMonitors>  // partial specialization
 	class Integrator<Sys, monitor::MonitorPack<TMonitors...>> {
 	public:
+
 		explicit Integrator(Sys& sys_ref)
 			: sys(sys_ref)
 		{}
@@ -71,10 +68,12 @@ namespace april::integrator {
 			self.init_monitors();
 			self.dispatch_initialize_monitors();
 
-			for (self.step = 0; self.step < num_steps; ++self.step, self.sys.update_time(self.dt)) {
+			for (self.step = 0; self.step < num_steps; ++self.step) {
 				self.dispatch_monitor_preparation();
 				self.integration_step();
 				self.dispatch_monitor_recording();
+				self.sys.update_time(self.dt);
+				self.sys.increment_step();
 			}
 
 			self.finalize_monitors();
@@ -124,7 +123,7 @@ namespace april::integrator {
 			for_each_monitor([&](auto& list) {
 				for (auto& monitor : list) {
 					if (step % monitor.call_frequency() == 0) {
-						monitor.dispatch_before_step(step, sys.time(), sys.export_particles());
+						monitor.dispatch_before_step(sys.context());
 					}
 				}
 			});
@@ -134,7 +133,7 @@ namespace april::integrator {
 			for_each_monitor([&](auto& list) {
 				for (auto& monitor : list) {
 					if (step % monitor.call_frequency() == 0) {
-						monitor.dispatch_record(step, sys.time(), sys.export_particles());
+						monitor.dispatch_record(sys.context());
 					}
 				}
 			});
@@ -148,4 +147,10 @@ namespace april::integrator {
 			});
 		}
 	};
+
+
+	template <typename T> concept IsIntegrator = requires(T t) {
+		{ t.integration_step() } -> std::same_as<void>;
+	};
+
 } // namespace april::core

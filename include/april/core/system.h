@@ -88,7 +88,7 @@ namespace april::core {
 		ForceTable force_table;
 
 		double time_ = 0;
-		double step_ = 0;
+		size_t step_ = 0;
 
 		std::unique_ptr<SimulationContext> simulation_context;
 
@@ -102,10 +102,9 @@ namespace april::core {
 		);
 
 	public:
-		[[nodiscard]] SimulationContext * context() const {
-			return simulation_context.get();
+		[[nodiscard]] SimulationContext & context() const {
+			return *simulation_context;
 		}
-
 
 		// call to update all pairwise forces between particles
 		void update_forces() {
@@ -220,9 +219,26 @@ namespace april::core {
 		}
 
 		// returns the systems time
-		[[nodiscard]] double time() const noexcept { return time_; }
-		void update_time(const double dt) noexcept { time_ += dt; }
-		void reset_time() noexcept { time_ = 0; }
+		[[nodiscard]] double time() const noexcept {
+			return time_;
+		}
+
+		void update_time(const double dt) noexcept {
+			time_ += dt;
+		}
+
+		[[nodiscard]] size_t step() const noexcept {
+			return step_;
+		}
+
+		void increment_step() noexcept {
+			++step_;
+		}
+
+		void reset_time() noexcept {
+			time_ = 0;
+			step_ = 0;
+		}
 
 		// get read access to all internal particles based on their state. Useful for snapshots and analysis.
 		[[nodiscard]] std::vector<ParticleView> export_particles(const env::ParticleState state = env::ParticleState::ALL) {

@@ -14,12 +14,12 @@ namespace april::monitor {
 			glob_start_time = std::chrono::high_resolution_clock::now();
 		}
 
-		void before_step(const size_t, double, const Particles&particles) {
-			updates+= particles.size();
+		void before_step(const core::SimulationContext & sys) {
+			updates+= sys.index_start() - sys.index_end();
 			start_time = std::chrono::high_resolution_clock::now();
 		}
 
-		void record(const size_t, double, const Particles&) {
+		void record(const core::SimulationContext &) {
 			end_time = std::chrono::high_resolution_clock::now();
 			const auto elapsed = std::chrono::duration<double>(end_time - start_time).count();
 			timings.push_back(elapsed);

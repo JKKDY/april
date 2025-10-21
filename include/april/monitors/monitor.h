@@ -1,25 +1,12 @@
 #pragma once
 
-#include "april/env/particle.h"
+#include "april/core/context.h"
 
 namespace april::monitor {
-
-	template <typename M> concept IsMonitor = requires(M m,
-		const double dt,
-		const double start_t,
-		const double end_t,
-		const size_t step,
-		const std::vector<env::ParticleView>& particles) {
-			{ m.dispatch_before_step(step, end_t, particles) } -> std::same_as<void>;
-			{ m.dispatch_record(step, end_t, particles) } -> std::same_as<void>;
-	        { m.call_frequency() } -> std::convertible_to<std::size_t>;
-			{ m.init(dt, start_t, end_t, step) } -> std::same_as<void>;
-		};
 
 
 	class Monitor {
 	public:
-		using Particles = std::vector<env::ParticleView>;
 		explicit Monitor(const size_t call_frequency) : call_frequency_m(call_frequency) {}
 
 		[[nodiscard]] size_t call_frequency() const { return call_frequency_m; }
@@ -39,19 +26,19 @@ namespace april::monitor {
 		}
 
 		// Optional: Called before a step
-		void dispatch_before_step(this auto&& self, size_t step, double time, const Particles& particles) {
-			if constexpr (requires { self.before_step(step, time, particles); }) {
-				self.before_step(step, time, particles);
+		void dispatch_before_step(this auto&& self, const core::SimulationContext & context) {
+			if constexpr (requires { self.before_step(context); }) {
+				self.before_step(context);
 			}
 		}
 
 		// Required: Called after a step
-		void dispatch_record(this auto&& self, size_t step, double time, const Particles& particles) {
+		void dispatch_record(this auto&& self, const core::SimulationContext & context) {
 			static_assert(
-				requires { self.record(step, time, particles); },
+				requires { self.record(context); },
 				"Monitor subclass must implement: void dispatch_record(size_t, double, const Particles&)"
 			);
-			self.record(step, time, particles);
+			self.record(context);
 		}
 
 		// Optional: Called once at the end
@@ -69,7 +56,11 @@ namespace april::monitor {
 		size_t call_frequency_m;
 	};
 
-	template<IsMonitor... Ts> struct MonitorPack {};
+
+	template <class M> concept IsMonitor = std::derived_from<M, Monitor>;
+
+
+	template<IsMonitor... Ms> struct MonitorPack {};
 	template<class... Ms> inline constexpr MonitorPack<Ms...> monitors{};
 
 }

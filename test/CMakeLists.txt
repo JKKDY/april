@@ -26,6 +26,10 @@ add_executable(test_april
         boundaries/reflective_test.cpp
 )
 
+target_include_directories(test_april PRIVATE
+        ${PROJECT_SOURCE_DIR}/test/common
+)
+
 target_link_libraries(test_april PRIVATE
         April
         GTest::gtest
@@ -36,6 +40,8 @@ target_link_libraries(test_april PRIVATE
 
 set_target_build_flags(test_april)
 enable_sanitizer_if_dbg(test_april)
+
+
 
 # Discover GTest tests
 include(GoogleTest)

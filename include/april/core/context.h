@@ -31,6 +31,9 @@ namespace april::core {
 		[[nodiscard]] virtual const env::Domain& domain() const noexcept = 0;
 		[[nodiscard]] virtual double time() const noexcept = 0;
 		[[nodiscard]] virtual size_t step() const noexcept = 0;
+		[[nodiscard]] virtual size_t size() const noexcept = 0;
+		[[nodiscard]] virtual size_t size(env::ParticleState state) const noexcept = 0;
+
 
 		// ---- Particle access / modification ----
 		[[nodiscard]] virtual std::vector<size_t> collect_indices_in_region(const env::Box& region) const = 0;
@@ -69,6 +72,15 @@ namespace april::core {
 			[[nodiscard]] size_t step() const noexcept override {
 				return system.step();
 			}
+
+			[[nodiscard]] size_t size() const noexcept override {
+				return system.size();
+			}
+
+			[[nodiscard]] size_t size(env::ParticleState) const noexcept override {
+				return system.size();
+			}
+
 
 
 			// ---- Particle modification ----

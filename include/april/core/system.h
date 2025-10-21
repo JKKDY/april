@@ -240,6 +240,13 @@ namespace april::core {
 			step_ = 0;
 		}
 
+		[[nodiscard]] size_t size(const env::ParticleState = env::ParticleState::ALL) const noexcept {
+			// return container.size(state);
+			// TODO implement this method properly
+			return index_end() - index_start();
+		}
+
+
 		// get read access to all internal particles based on their state. Useful for snapshots and analysis.
 		[[nodiscard]] std::vector<ParticleView> export_particles(const env::ParticleState state = env::ParticleState::ALL) {
 			std::vector<ParticleView> particles;

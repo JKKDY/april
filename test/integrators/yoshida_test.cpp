@@ -2,7 +2,9 @@
 #include <gmock/gmock.h>
 
 
-# include "april/april.h"
+#include "april/april.h"
+#include "OrbitMonitor.h"
+
 using namespace april;
 
 TEST(Yoshida4Test,ConstructionTest) {
@@ -104,22 +106,6 @@ TEST(Yoshida4Test, SingleStepWithForceTest) {
 	EXPECT_NEAR(p2.velocity.z,  0.0, 1e-2);
 }
 
-
-class OrbitMonitor final : public Monitor {
-public:
-	OrbitMonitor(): Monitor(1) {}
-	explicit OrbitMonitor(const double v, const double r): Monitor(1), v(v), r(r) {}
-
-	void record(size_t , double, const Particles& particles) const {
-		const auto p = particles[0].mass < 1 ?  particles[0]: particles[1];
-
-		EXPECT_NEAR(p.velocity.norm(), v, 1e-3);
-		EXPECT_NEAR(p.position.norm(), r, 1e-3);
-	}
-
-	double v{};
-	double r{};
-};
 
 TEST(Yoshida4Test, OrbitTest) {
 	constexpr double G = 1;

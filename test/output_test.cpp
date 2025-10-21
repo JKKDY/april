@@ -32,6 +32,62 @@ static env::internal::Particle make_particle(env::internal::ParticleType type, e
 }
 
 
+
+class DummyContext final : public SimulationContext {
+public:
+    using ParticleView = env::ParticleView;
+    using ParticleRef  = env::ParticleRef;
+    using ParticleID   = env::internal::ParticleID;
+
+    explicit DummyContext(const size_t step = 0, const double time = 0.0,
+                          std::vector<ParticleView> particles = {})
+        : step_(step), time_(time), particles_(std::move(particles)) {}
+	env::Domain dummy_domain = {{0, 0, 0}, {1, 1, 1}};
+    // ---- Core information ----
+    [[nodiscard]] const env::Domain& domain() const noexcept override {
+        return dummy_domain;
+    }
+
+    [[nodiscard]] double time() const noexcept override { return time_; }
+    [[nodiscard]] size_t step() const noexcept override { return step_; }
+
+    // ---- Particle access / modification ----
+    [[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Box&) const override { return {}; }
+    [[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Domain&) const override { return {}; }
+    void register_particle_movement(ParticleID) override {}
+    void register_all_particle_movements() override {}
+
+    // ---- ID and index access ----
+
+    [[nodiscard]] ParticleID id_start() const noexcept override { return 0; }
+    [[nodiscard]] ParticleID id_end() const noexcept override { return 0; }
+
+
+    [[nodiscard]] size_t index_start() const noexcept override { return 0; }
+    [[nodiscard]] size_t index_end() const noexcept override { return particles_.size(); }
+
+    // helper for test data
+    [[nodiscard]] const std::vector<ParticleView>& particles() const noexcept { return particles_; }
+
+	[[nodiscard]] ParticleView get_particle_by_index(const size_t idx) const noexcept override {
+    	return particles_[idx];
+    }
+
+	[[nodiscard]] size_t size() const noexcept override {return particles_.size();}
+	[[nodiscard]] size_t size(ParticleState ) const noexcept override {return particles_.size();}
+
+private:
+	[[nodiscard]] ParticleRef get_particle_by_id(ParticleID) noexcept override { std::unreachable(); }
+	[[nodiscard]] ParticleView get_particle_by_id(ParticleID) const noexcept override { std::unreachable(); }
+	[[nodiscard]] ParticleRef get_particle_by_index(size_t) noexcept override { std::unreachable();}
+
+    size_t step_;
+    double time_;
+    std::vector<ParticleView> particles_;
+};
+
+
+
 class BinaryOutputTest : public testing::Test {
 protected:
 	fs::path dir;
@@ -53,7 +109,8 @@ TEST_F(BinaryOutputTest, EmptyFileContainsOnlyHeader) {
 	std::vector<ParticleView> empty;
 	BinaryOutput out(1, dir.string(), base);
 
-	out.record(0, 0, empty);
+	DummyContext ctx(0, 0.0, empty);
+	out.record(ctx);
 
 	auto path = dir / (base + "_00000.bin");
 	ASSERT_TRUE(fs::exists(path));
@@ -89,7 +146,8 @@ TEST_F(BinaryOutputTest, SingleParticle) {
 	std::vector v {ParticleView(p)};
 	BinaryOutput out(1, dir.string(), base);
 
-	out.record(1, 0, v);
+	DummyContext ctx(1, 0.0, v);
+	out.record(ctx);
 
 	auto path = dir / (base + "_00001.bin");
 	std::ifstream in{path, std::ios::binary};
@@ -119,7 +177,8 @@ TEST_F(BinaryOutputTest, MultipleParticles) {
 	std::vector v {ParticleView(p1),ParticleView(p2),ParticleView(p3)};
 	BinaryOutput out(1, dir.string(), base);
 
-	out.record(2, 0, v);
+	DummyContext ctx(2, 0.0, v);
+	out.record(ctx);
 
 	auto path = dir / (base + "_00002.bin");
 	std::ifstream in{path, std::ios::binary};

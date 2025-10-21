@@ -31,6 +31,7 @@
 
 #include "april/core/build.h"
 #include "april/core/system.h"
+#include "april/core/context.h"
 
 
 #define APRIL_API
@@ -84,6 +85,7 @@ namespace april {
 	using core::System;
 	using core::build_system;
 	using core::UserToInternalMappings;
+	using core::SimulationContext;
 
 	// Monitors
 	using monitor::monitors;

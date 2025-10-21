@@ -6,31 +6,13 @@
 #include <memory>
 
 # include "april/april.h"
+#include "ConstantForce.h"
+
 using namespace april;
 
 template <class Env>
 using InteractionManager = force::internal::ForceTable<Env>;
 
-// A tiny force that returns a constant vector and mixes by summing
-struct ConstantForce final {
-    vec3 v;
-    double cutoff_radius;
-    ConstantForce(double x, double y, double z, double cutoff = -1) : v{x,y,z} {
-        cutoff_radius = cutoff;
-    }
-    vec3 operator()(const env::internal::Particle&, const env::internal::Particle&, const vec3&) const noexcept {
-        return v;
-    }
-
-     [[nodiscard]] ConstantForce mix(const ConstantForce& other) const noexcept {
-        return {
-            v.x + other.v.x,
-            v.y + other.v.y,
-            v.z + other.v.z,
-            std::max(cutoff_radius, other.cutoff_radius)
-        };
-    }
-};
 
 // Helper to make a dummy particle
 static env::internal::Particle make_particle(env::internal::ParticleType type, env::internal::ParticleID id, double mass=1.0, vec3 pos={0,0,0}) {

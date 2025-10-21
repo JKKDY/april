@@ -1,32 +1,18 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+
 using testing::AnyOf;
 using testing::Eq;
 
-#include "../../include/april/april.h"
+#include "april/april.h"
+#include "OrbitMonitor.h"
+#include "ConstantForce.h"
+
+// TODO tests for get_particle_by_id
+
 using namespace april;
 
-// A tiny force that returns a constant vector and mixes by summing
-struct ConstantForce final {
-	vec3 v;
-	double cutoff_radius;
-	ConstantForce(double x, double y, double z, double cutoff = -1) : v{x,y,z} {
-		cutoff_radius = cutoff;
-	}
-	vec3 operator()(const env::internal::Particle&, const env::internal::Particle&, const vec3&) const noexcept {
-		return v;
-	}
-
-	[[nodiscard]] ConstantForce mix(const ConstantForce& other) const noexcept {
-		return {
-			v.x + other.v.x,
-			v.y + other.v.y,
-			v.z + other.v.z,
-			std::max(cutoff_radius, other.cutoff_radius)
-		};
-	}
-};
 
 
 TEST(LinkedCellsTest, SingleParticle_NoForce) {
@@ -159,24 +145,6 @@ TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
     EXPECT_EQ(pb.force.y, 0.0);
 }
 
-
-class OrbitMonitor final : public monitor::Monitor {
-public:
-	OrbitMonitor(): Monitor(1) {}
-	explicit OrbitMonitor(const double v, const double r): Monitor(1), v(v), r(r) {}
-
-	void record(const size_t i, double, const Particles& particles) const {
-		const auto p = particles[0].mass < 1 ?  particles[0]: particles[1];
-
-		EXPECT_NEAR(p.velocity.norm(), v, 1e-3) << "Velocity mismatch at step " << i;
-		EXPECT_NEAR(p.position.norm(), r, 1e-3) << "Position mismatch at step " << i;
-
-		std::cerr << "step " << i << std::endl;
-	}
-
-	double v{};
-	double r{};
-};
 
 TEST(LinkedCellsTest, OrbitTest) {
 	constexpr double G = 1;

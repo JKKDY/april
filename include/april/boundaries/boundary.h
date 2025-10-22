@@ -99,7 +99,9 @@ namespace april::boundary {
 
 	// define boundary pack
 	template<IsBoundary... BCs>
-	struct BoundaryPack {};
+	struct BoundaryPack {
+		using Types = BCs;
+	};
 
 	// constrained variable template
 	template<class... BCs>
@@ -112,6 +114,7 @@ namespace april::boundary {
 		template<typename T>
 		struct is_boundary_variant : std::false_type {};
 
+		// TODO use NullBoundary instead of monostate
 		// Accepts: std::variant<std::monostate, BCs...>
 		template<typename... BCs>
 		struct is_boundary_variant<std::variant<std::monostate, BCs...>>

@@ -13,11 +13,11 @@ namespace april::monitor {
 	class BinaryOutput final : public Monitor {
 	public:
 		explicit BinaryOutput(
-			const size_t write_frequency,
+			shared::Trigger trigger,
 			std::string dir = "output",
 			std::string base_name = "output")
 		:
-			Monitor(write_frequency), base_name(std::move(base_name)), dir(std::move(dir)) {}
+			Monitor(std::move(trigger)), base_name(std::move(base_name)), dir(std::move(dir)) {}
 
 		void record(const core::SimulationContext & sys) const {
 			namespace fs = std::filesystem;

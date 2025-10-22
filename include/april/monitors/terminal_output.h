@@ -5,7 +5,7 @@
 namespace april::monitor {
 	class TerminalOutput final : public Monitor {
 	public:
-		explicit TerminalOutput(const size_t write_frequency = 1): Monitor(write_frequency) {}
+		using Monitor::Monitor;
 
 		void record(const core::SimulationContext & sys) {
 			std::cerr << "step: " << sys.step() <<  "\n";

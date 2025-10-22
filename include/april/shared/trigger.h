@@ -5,7 +5,7 @@
 
 #include "april/core/context.h"
 
-namespace april {
+namespace april::shared {
 	struct Trigger {
 		using TriggerFn = std::move_only_function<bool(const core::SimulationContext&)>;
 
@@ -15,7 +15,7 @@ namespace april {
 
 		// ---- convenience constructors ----
 
-		// step based triggers
+		// step based triggers:
 		// trigger every N steps
 		static Trigger every(const size_t N, const size_t offset = 0) {
 			return Trigger{[=](const core::SimulationContext&sys) { return (sys.step() + offset) % N == 0; }};
@@ -34,7 +34,16 @@ namespace april {
 			}};
 		}
 
-		// time based triggers
+		/// Fires exactly at a single step
+		static Trigger at_step(const std::size_t step) {
+			return Trigger{[=](const core::SimulationContext& ctx) {
+				return ctx.step() == step;
+			}};
+		}
+
+
+
+		// time based triggers:
 		// trigger after given time period
 		static Trigger periodically(const double period, const double offset = 0.0) {
 			return Trigger{[=, last = offset - period](const core::SimulationContext& sys) mutable {
@@ -61,7 +70,7 @@ namespace april {
 			}};
 		}
 
-		// generic triggers
+		// generic triggers:
 		// trigger every step
 		static Trigger always() {
 			return Trigger{[](const core::SimulationContext&) { return true; }};
@@ -74,7 +83,6 @@ namespace april {
 
 
 		// ---- Chaining operators ----
-
 		// Logical AND
 		friend Trigger operator&&(Trigger lhs, Trigger rhs) {
 			return Trigger{[lhs = std::move(lhs), rhs = std::move(rhs)]
@@ -97,10 +105,10 @@ namespace april {
 				return !t(sys);
 			}};
 		}
+
 	private:
 		explicit Trigger(TriggerFn fn) : fn_(std::move(fn)) {}
 
 		 TriggerFn fn_;
 	};
-
 }

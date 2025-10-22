@@ -1,15 +1,18 @@
 #pragma once
 
 #include "april/core/context.h"
+#include "april/shared/trigger.h"
 
 namespace april::monitor {
 
 
 	class Monitor {
 	public:
-		explicit Monitor(const size_t call_frequency) : call_frequency_m(call_frequency) {}
+		explicit Monitor(shared::Trigger trig) : trigger(std::move(trig)) {}
 
-		[[nodiscard]] size_t call_frequency() const { return call_frequency_m; }
+		[[nodiscard]] bool should_trigger(const core::SimulationContext & sys) {
+			return trigger(sys);
+		}
 
 		// Called once at the start
 		void init(const double delta_t, const double start_t, const double end_t, const size_t steps) {
@@ -53,7 +56,7 @@ namespace april::monitor {
 		double start_time{};
 		double end_time{};
 		size_t num_steps{};
-		size_t call_frequency_m;
+		shared::Trigger trigger;
 	};
 
 

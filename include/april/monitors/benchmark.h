@@ -8,7 +8,7 @@
 namespace april::monitor {
 	class Benchmark : public Monitor {
 	public:
-		Benchmark() : Monitor(1) {}
+		Benchmark() : Monitor(shared::Trigger::always()) {}
 
 		void initialize() {
 			glob_start_time = std::chrono::high_resolution_clock::now();

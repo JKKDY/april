@@ -68,7 +68,6 @@ namespace april {
 	using boundary::Reflective;
 	using boundary::Repulsive;
 
-
 	// Forces
 	using force::forces;
 	using force::Harmonic;
@@ -100,4 +99,6 @@ namespace april {
 	using integrator::StoermerVerlet;
 	using integrator::Yoshida4;
 
+	// shared
+	using shared::Trigger;
 }

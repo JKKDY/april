@@ -38,9 +38,9 @@ int main() {
 	auto system = build_system(env, container);
 
 	auto integrator = StoermerVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
-		.with_monitor(BinaryOutput(50, dir_path))
 		.with_monitor(Benchmark())
-		.with_monitor(ProgressBar(100))
+		.with_monitor(BinaryOutput(Trigger::every(100), dir_path))
+		.with_monitor(ProgressBar(Trigger::every(100)))
 		.run_for(0.0002, 5);
 }
 

@@ -122,7 +122,7 @@ namespace april::integrator {
 		void dispatch_monitor_preparation() {
 			for_each_monitor([&](auto& list) {
 				for (auto& monitor : list) {
-					if (step % monitor.call_frequency() == 0) {
+					if (monitor.should_trigger(sys.context())) {
 						monitor.dispatch_before_step(sys.context());
 					}
 				}
@@ -132,7 +132,7 @@ namespace april::integrator {
 		void dispatch_monitor_recording() {
 			for_each_monitor([&](auto& list) {
 				for (auto& monitor : list) {
-					if (step % monitor.call_frequency() == 0) {
+					if (monitor.should_trigger(sys.context())) {
 						monitor.dispatch_record(sys.context());
 					}
 				}

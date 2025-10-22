@@ -107,7 +107,7 @@ protected:
 // TEST 1: Header only, zero particles
 TEST_F(BinaryOutputTest, EmptyFileContainsOnlyHeader) {
 	std::vector<ParticleView> empty;
-	BinaryOutput out(1, dir.string(), base);
+	BinaryOutput out(Trigger::always(), dir.string(), base);
 
 	DummyContext ctx(0, 0.0, empty);
 	out.record(ctx);
@@ -144,7 +144,7 @@ TEST_F(BinaryOutputTest, EmptyFileContainsOnlyHeader) {
 TEST_F(BinaryOutputTest, SingleParticle) {
 	auto p = make_particle(5, 2, vec3{1,2,3}, ParticleState::ALIVE);
 	std::vector v {ParticleView(p)};
-	BinaryOutput out(1, dir.string(), base);
+	BinaryOutput out(Trigger::always(), dir.string(), base);
 
 	DummyContext ctx(1, 0.0, v);
 	out.record(ctx);
@@ -175,7 +175,7 @@ TEST_F(BinaryOutputTest, MultipleParticles) {
 	auto p2 = make_particle(2, 1, vec3{4,5,6}, ParticleState::ALIVE);
 	auto p3 = make_particle(3, 2, vec3{7,8,9}, ParticleState::PASSIVE);
 	std::vector v {ParticleView(p1),ParticleView(p2),ParticleView(p3)};
-	BinaryOutput out(1, dir.string(), base);
+	BinaryOutput out(Trigger::always(), dir.string(), base);
 
 	DummyContext ctx(2, 0.0, v);
 	out.record(ctx);

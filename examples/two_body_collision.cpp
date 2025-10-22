@@ -7,8 +7,8 @@ namespace fs = std::filesystem;
 
 int main() {
 	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/two_body_collision";
-	fs::remove_all(dir_path);   // delete the directory and all contents
-	fs::create_directory(dir_path); // recreate the empty directory
+	remove_all(dir_path);   // delete the directory and all contents
+	create_directory(dir_path); // recreate the empty directory
 
 	auto cuboid1 = ParticleCuboid{}
 		.at({0, 0, 0})

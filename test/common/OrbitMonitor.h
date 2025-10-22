@@ -8,8 +8,8 @@ using namespace april;
 
 class OrbitMonitor final : public Monitor {
 public:
-	OrbitMonitor(): Monitor(1) {}
-	explicit OrbitMonitor(const double v, const double r): Monitor(1), v(v), r(r) {}
+	OrbitMonitor(): Monitor(Trigger::always()) {}
+	explicit OrbitMonitor(const double v, const double r): Monitor(Trigger::always()), v(v), r(r) {}
 
 	void record(const SimulationContext & sys) const {
 		EXPECT_EQ(sys.size(), 2u);

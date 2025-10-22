@@ -103,9 +103,9 @@ int main() {
 
     // 3) Integrate with Stoermer–Verlet and attach monitors
     auto integrator = StoermerVerlet (system, monitors<ProgressBar, Benchmark>)
-        .with_monitor(ProgressBar(50))          // updated every 50 steps            
-        .with_monitor(Benchmark())              // simple timing
-        .run_for(0.01, 10.0);                   // dt=0.01, T=10
+        .with_monitor(ProgressBar(Trigger::every(50)))    // updated every 50 steps            
+        .with_monitor(Benchmark())                        // simple timing utility
+        .run_for(0.01, 10.0);                             // dt=0.01, T=10
 }
 ```
 Further examples can be found in `examples/`:
@@ -263,14 +263,15 @@ Inherit from `monitor::Monitor` and implement `record(...)`. Optionally implemen
 ```c++
 class MyMonitor : public monitor::Monitor {
 public:
-    explicit MyMonitor(std::size_t every = 1) : Monitor(every) {}
+    explicit MyMonitor(shared::Trigger trigger) : Monitor(std::move(trigger)) {}
 
-    void record(std::size_t step, double time,
-                const std::vector<impl::ParticleView>& particles) {
+    void record(const SimulationContext & sys) {
         // emit logs, write files, aggregate stats, etc.
+        // use the SimulationContext to query state, particles, etc. 
     }
 
     // optional
+    // void init(...)
     // void before_step(...);
     // void finalize();
 };

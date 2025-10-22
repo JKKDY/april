@@ -63,13 +63,13 @@ namespace april::core {
 		);
 	}
 
-	template <container::IsContDecl C, class FPack, class BPack>
-	System<C, env::Environment<FPack, BPack>> build_system(
-		env::Environment<FPack, BPack> & environment,
+	template <container::IsContDecl C, class FPack, class BPack, class CPack, class FFPack>
+	System<C, env::Environment<FPack, BPack, CPack, FFPack>> build_system(
+		env::Environment<FPack, BPack, CPack, FFPack> & environment,
 		const C& container,
 		UserToInternalMappings* particle_mappings
 	) {
-		using EnvT = env::Environment<FPack, BPack>;
+		using EnvT = env::Environment<FPack, BPack, CPack, FFPack>;
 		using BoundaryTable = boundary::internal::BoundaryTable<typename EnvT::boundary_variant_t>;
 		using namespace internal;
 
@@ -130,7 +130,7 @@ namespace april::core {
 			}
 		}
 
-		return System<C, env::Environment<FPack, BPack>> (
+		return System<C, env::Environment<FPack, BPack, CPack, FFPack>> (
 			container,
 			container_flags,
 			domain,

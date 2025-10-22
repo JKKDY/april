@@ -14,9 +14,11 @@
 #include "april/forces/force.h"
 #include "april/boundaries/boundary.h"
 #include "april/boundaries/absorb.h"
+#include "april/controllers/controller.h"
+#include "april/fields/field.h"
 
 namespace april::env {
-    template<class FPack, class BPack> class Environment;
+    template<class FPack, class BPack, class CPack, class FFPack> class Environment;
 
     inline const auto EXTENT_NOT_SET = vec3(std::numeric_limits<double>::max());
     inline const auto ORIGIN_NOT_SET = vec3(std::numeric_limits<double>::max());
@@ -25,7 +27,10 @@ namespace april::env {
 
 
     namespace internal {
-        template<force::internal::ForceVariant FV, boundary::internal::BoundaryVariant BV>
+        template<
+            force::internal::ForceVariant FV,
+            boundary::internal::BoundaryVariant BV
+        >
         struct EnvironmentData {
             using force_variant_t = FV;
             using boundary_variant_t = BV;
@@ -42,7 +47,8 @@ namespace april::env {
             std::array<boundary_variant_t, 6> boundaries;
         };
 
-        template<class FPack, class BPack> auto get_env_data(Environment<FPack, BPack>& env) {
+        template<class FPack, class BPack, class CPack, class FFPack>
+        auto get_env_data(Environment<FPack, BPack, CPack, FFPack>& env) {
             for (auto & v : env.data.boundaries) {
                 if (std::holds_alternative<std::monostate>(v)) {
                     v.template emplace<boundary::Absorb>(); // default-construct Absorb
@@ -113,15 +119,27 @@ namespace april::env {
     };
 
 
-    template<class... Fs, class... BCs>
-    class Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>{
+    template<class... Fs, class... BCs, class... Cs, class... FFs>
+    class Environment<
+        force::ForcePack<Fs...>,
+        boundary::BoundaryPack<BCs...>,
+        controller::ControllerPack<Cs...>,
+        field::FieldPack<FFs...>
+    >{
+        static constexpr bool has_absorb = (std::is_same_v<boundary::Absorb, BCs> || ...);
     public:
-        explicit Environment(force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>) {}
+        explicit Environment(
+            force::ForcePack<Fs...>,
+            boundary::BoundaryPack<BCs...>,
+            controller::ControllerPack<Cs...>,
+            field::FieldPack<FFs...>) {}
 
         explicit Environment(force::ForcePack<Fs...> force_types)
-            : Environment(force_types, boundary::boundaries<>) {}
+            : Environment(force_types, boundary::boundaries<>, controller::controllers<>, field::fields<>) {}
 
-        static constexpr bool has_absorb = (std::is_same_v<boundary::Absorb, BCs> || ...);
+        explicit Environment(force::ForcePack<Fs...> force_types, boundary::BoundaryPack<BCs...> boundary_types)
+           : Environment(force_types, boundary_types, controller::controllers<>, field::fields<>) {}
+
 
         // expose types for deduction by ForceManager/build_system
         using forces_pack_t = force::ForcePack<Fs...>;
@@ -136,7 +154,8 @@ namespace april::env {
 
     private:
         internal::EnvironmentData<force_variant_t, boundary_variant_t> data;
-        template<class FPack, class BPack> friend auto internal::get_env_data(Environment<FPack, BPack>& env);
+        template<class FPack, class BPack, class CPack, class FFPack>
+        friend auto internal::get_env_data(Environment<FPack, BPack, CPack, FFPack>& env);
 
     public:
 
@@ -422,14 +441,19 @@ namespace april::env {
 
 
 
-    // Deduction guide: 2 args
-    template<force::IsForce... Fs, boundary::IsBoundary... BCs>
-    Environment(force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>)
-        -> Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>;
+    // Deduction guide: 4 args
+    template<force::IsForce... Fs, boundary::IsBoundary... BCs, controller::IsController... Cs, field::IsField... FFs>
+    Environment(force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>)
+        -> Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>>;
 
     // Deduction guide: 1 args
     template<force::IsForce... Fs>
     Environment(force::ForcePack<Fs...>)
-    -> Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<>>;
+    -> Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<>, controller::ControllerPack<>, field::FieldPack<>>;
+
+    // Deduction guide: 2 args
+    template<force::IsForce... Fs, boundary::IsBoundary... BCs>
+    Environment(force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>)
+    -> Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<>, field::FieldPack<>>;
 
 }

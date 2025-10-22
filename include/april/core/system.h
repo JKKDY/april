@@ -22,12 +22,12 @@ namespace april::core {
 	template <container::IsContDecl C, class Env>
 	class System;
 
-	template <container::IsContDecl Cont, class FPack, class BPack>
+	template <container::IsContDecl Cont, class FPack, class BPack, class CPack, class FFPack>
 	auto build_system(
-		env::Environment<FPack, BPack>& environment,
+		env::Environment<FPack, BPack, CPack, FFPack>& environment,
 		const Cont& container,
 		UserToInternalMappings* particle_mappings = nullptr
-	) -> System<Cont, env::Environment<FPack, BPack>>;
+	) -> System<Cont, env::Environment<FPack, BPack, CPack, FFPack>>;
 
 
 	// Default: assume any type is not a System
@@ -43,10 +43,23 @@ namespace april::core {
 	concept IsSystem = is_system_v<std::remove_cvref_t<T>>;
 
 
-	template <container::IsContDecl C, force::IsForce ... Fs, boundary::IsBoundary ... BCs>
-	class System <C, env::Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>> {
+	template <
+		container::IsContDecl C,
+		force::IsForce ... Fs,
+		boundary::IsBoundary ... BCs,
+		controller::IsController ... Cs,
+		field::IsField ... FFs
+	>
+	class System <C,
+		env::Environment<
+			force::ForcePack<Fs...>,
+			boundary::BoundaryPack<BCs...>,
+			controller::ControllerPack<Cs...>,
+			field::FieldPack<FFs...>
+		>
+	> {
 	public:
-		using EnvT          = env::Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>;
+		using EnvT          = env::Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>>;
 		using Container     = typename C::template impl<EnvT>;
 		using ContainerFlags= container::internal::ContainerFlags;
 		using BoundaryTable = boundary::internal::BoundaryTable<typename EnvT::boundary_variant_t>;
@@ -93,10 +106,10 @@ namespace april::core {
 		std::unique_ptr<SimulationContext> simulation_context;
 
 		// System factory. Only valid way to create a System.
-		template <container::IsContDecl Cont, class FPack, class BPack>
-		friend System<Cont, env::Environment<FPack, BPack>>
+		template <container::IsContDecl Cont, class FPack, class BPack, class CPack, class FFPack>
+		friend System<Cont, env::Environment<FPack, BPack, CPack, FFPack>>
 		build_system(
-			env::Environment<FPack, BPack>& environment,
+			env::Environment<FPack, BPack, CPack, FFPack>& environment,
 			 const Cont& container,
 			 UserToInternalMappings* particle_mappings
 		);

@@ -39,7 +39,7 @@ namespace april::monitor {
 		void dispatch_record(this auto&& self, const core::SimulationContext & context) {
 			static_assert(
 				requires { self.record(context); },
-				"Monitor subclass must implement: void dispatch_record(size_t, double, const Particles&)"
+				"Monitor subclass must implement: void dispatch_record(const core::SimulationContext &)"
 			);
 			self.record(context);
 		}

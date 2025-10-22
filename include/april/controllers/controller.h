@@ -2,21 +2,29 @@
 
 #include <concepts>
 
+#include "april/shared/trigger.h"
+#include "april/core/context.h"
+
 namespace april::controller  {
 
 	class Controller {
 	public:
+		explicit Controller(shared::Trigger trig) : trigger(std::move(trig)) {}
 
-		explicit Controller(const size_t call_frequency) : call_frequency_m(call_frequency) {}
+		[[nodiscard]] bool should_trigger(const core::SimulationContext & sys) {
+			return trigger(sys);
+		}
 
-		[[nodiscard]] size_t call_frequency() const { return call_frequency_m; }
-
-		void apply(this auto&& self, size_t step) {
-
+		void apply(this auto&& self, core::SimulationContext & sys) {
+			static_assert(
+				requires { self.apply(sys); },
+				"Controller subclass must implement: void apply(core::SimulationContext &)"
+			);
+			self.apply(sys);
 		}
 
 	private:
-		size_t call_frequency_m{};
+		shared::Trigger trigger;
 	};
 
 
@@ -33,4 +41,6 @@ namespace april::controller  {
 	template<class... Cs>
 	requires (IsController<Cs> && ...)
 	inline constexpr ControllerPack<Cs...> controllers {};
+
+
 }

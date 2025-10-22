@@ -24,11 +24,11 @@ namespace april::force::internal {
         [[nodiscard]] ForceSentinel mix(ForceSentinel const&) const { return {}; }
     };
 
-    // TODO maybe prefer to template just on IsForce... Fs
+    // TODO template just on IsForce... Fs instead of the entire environment
     template<class Env> class ForceTable;
 
-    template<IsForce... Fs, boundary::IsBoundary... BCs>
-    class ForceTable<env::Environment<ForcePack<Fs...>, boundary::BoundaryPack<BCs...>>> {
+    template<IsForce... Fs, boundary::IsBoundary... BCs, controller::IsController...Cs, field::IsField...FFs>
+    class ForceTable<env::Environment<ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>>> {
     public:
         // forbid the internal sentinel in user pack
         static_assert((!std::is_same_v<ForceSentinel, Fs> && ...),

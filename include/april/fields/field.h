@@ -1,12 +1,30 @@
 #pragma once
 
 #include <concepts>
-
+#include "april/env/particle.h"
 
 namespace april::field {
 
 	class Field {
+		void dispatch_init(this auto&& self, const core::SimulationContext & sys) {
+			if constexpr ( requires { self.init(sys); }) {
+				self.init(sys);
+			}
+		}
 
+		void dispatch_update(this auto&& self, const core::SimulationContext & sys) {
+			if constexpr ( requires { self.init(sys); }) {
+				self.init(sys);
+			}
+		}
+
+		void dispatch_apply(this const auto& self, env::ParticleRef particle) {
+			static_assert(
+				requires { self.apply(particle); },
+				"Field must implement: void apply(env::ParticleRef particle) const"
+			);
+			self.apply(particle);
+		}
 	};
 
 	// define controller concept

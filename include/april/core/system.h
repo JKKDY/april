@@ -9,6 +9,7 @@
 #include "april/env/domain.h"
 #include "april/boundaries/boundary_table.h"
 #include "april/core/context.h"
+#include "april/shared/pack_storage.h"
 
 namespace april::core {
 
@@ -58,17 +59,19 @@ namespace april::core {
 			field::FieldPack<FFs...>
 		>
 	> {
+		using Controllers    = shared::internal::PackStorage<Cs...>;
+		using Fields	     = shared::internal::PackStorage<FFs...>;
 	public:
-		using EnvT          = env::Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>>;
-		using Container     = typename C::template impl<EnvT>;
-		using ContainerFlags= container::internal::ContainerFlags;
-		using BoundaryTable = boundary::internal::BoundaryTable<typename EnvT::boundary_variant_t>;
-		using ForceTable    = force::internal::ForceTable<EnvT>;
-		using Interaction   = force::internal::InteractionInfo<typename EnvT::force_variant_t>;
-		using Particle      = env::internal::Particle;
-		using ParticleRef   = env::ParticleRef;
-		using ParticleView  = env::ParticleView;
-		using ParticleID    = env::internal::ParticleID;
+		using EnvT           = env::Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>>;
+		using Container      = typename C::template impl<EnvT>;
+		using ContainerFlags = container::internal::ContainerFlags;
+		using BoundaryTable  = boundary::internal::BoundaryTable<typename EnvT::boundary_variant_t>;
+		using ForceTable     = force::internal::ForceTable<EnvT>;
+		using Interaction    = force::internal::InteractionInfo<typename EnvT::force_variant_t>;
+		using Particle       = env::internal::Particle;
+		using ParticleRef    = env::ParticleRef;
+		using ParticleView   = env::ParticleView;
+		using ParticleID     = env::internal::ParticleID;
 
 
 		const env::Domain domain;
@@ -81,12 +84,14 @@ namespace april::core {
 			const env::Domain& domain,
 			const std::vector<Particle> & particles,
 			const BoundaryTable boundaries,
+			const Controllers & controllersIn,
 			const UserToInternalMappings::TypeMap & usr_types_to_impl_types,
 			const UserToInternalMappings::IdMap & usr_ids_to_impl_ids,
 			std::vector<Interaction> & interaction_infos):
 		domain(domain),
 		container(container_cfg, container_flags),
-		boundary_table(boundaries)
+		boundary_table(boundaries),
+		controllers(controllersIn)
 		{
 			force_table.build(interaction_infos, usr_types_to_impl_types, usr_ids_to_impl_ids);
 			container.init(force_table, domain);
@@ -94,11 +99,15 @@ namespace april::core {
 
 			using SystemType = std::remove_cvref_t<decltype(*this)>;
 			simulation_context = std::make_unique<internal::SimulationContextImpl<SystemType>>(*this);
+
+			controllers.for_each_item([&](auto & controller) {controller.dispatch_init(context()); });
 		}
 
 		Container container;
 		BoundaryTable boundary_table;
 		ForceTable force_table;
+		Controllers controllers;
+		Fields fields;
 
 		double time_ = 0;
 		size_t step_ = 0;
@@ -185,11 +194,18 @@ namespace april::core {
 		}
 
 		void apply_controllers() {
-
+			controllers.for_each_item([&](auto & controller) {
+				if (controller.should_trigger(context())) {
+					controller.dispatch_apply(context());
+				}
+			});
 		}
 
 		void apply_force_fields() {
-
+			// fields.for_each_item([&](auto & field) {
+			// 	for ()
+			// 	field.dispatch_apply(context());
+			// });
 		}
 
 		// get a particle reference by its id. Usually slower than getting it by its index.

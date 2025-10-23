@@ -136,6 +136,22 @@ namespace april::env {
 		[[nodiscard]] std::string to_string() const;
 	};
 
+	struct RestrictedParticleRef {
+		explicit RestrictedParticleRef(internal::Particle & p);
+
+		const vec3 & position;
+		const vec3 & velocity;
+		vec3 & force;
+
+		const ParticleState state;
+
+		const double mass;
+		const internal::ParticleType type;
+		const internal::ParticleID id;
+
+		[[nodiscard]] std::string to_string() const;
+	};
+
 	struct ParticleView {
 		explicit ParticleView(const internal::Particle& p);
 

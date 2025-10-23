@@ -16,6 +16,8 @@
 #include "april/boundaries/absorb.h"
 #include "april/controllers/controller.h"
 #include "april/fields/field.h"
+#include "april/shared/pack_storage.h"
+
 
 namespace april::env {
     template<class FPack, class BPack, class CPack, class FFPack> class Environment;
@@ -27,11 +29,15 @@ namespace april::env {
 
 
     namespace internal {
-        template<
-            force::internal::ForceVariant FV,
-            boundary::internal::BoundaryVariant BV
-        >
-        struct EnvironmentData {
+        template<force::internal::ForceVariant FV,  boundary::internal::BoundaryVariant BV, class CPack, class FFPack> struct EnvironmentData;
+
+        template<force::internal::ForceVariant FV,  boundary::internal::BoundaryVariant BV, class...Cs, class...FFs>
+        struct EnvironmentData <
+            FV,
+            BV,
+            controller::ControllerPack<Cs ...>,
+            field::FieldPack<FFs...>
+        > {
             using force_variant_t = FV;
             using boundary_variant_t = BV;
 
@@ -45,6 +51,10 @@ namespace april::env {
             std::vector<env::Particle> particles;
             std::vector<force::internal::InteractionInfo<force_variant_t>> interactions {};
             std::array<boundary_variant_t, 6> boundaries;
+
+            shared::internal::PackStorage<Cs...> controllers;
+            shared::internal::PackStorage<FFs...> fields;
+
         };
 
         template<class FPack, class BPack, class CPack, class FFPack>
@@ -153,7 +163,7 @@ namespace april::env {
         >;
 
     private:
-        internal::EnvironmentData<force_variant_t, boundary_variant_t> data;
+        internal::EnvironmentData<force_variant_t, boundary_variant_t, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>> data;
         template<class FPack, class BPack, class CPack, class FFPack>
         friend auto internal::get_env_data(Environment<FPack, BPack, CPack, FFPack>& env);
 
@@ -323,6 +333,17 @@ namespace april::env {
             }
         }
 
+        // --- Add Controllers ---
+        template<controller::IsController C> requires same_as_any<C, Cs...>
+        void add_controller(C controller) {
+            data.controllers.add(controller);
+        }
+
+        template<controller::IsController... C>
+        void add_controllers(C&&... controllers) {
+            (data.controllers.add(std::forward<C>(controllers)), ...);
+        }
+
         // --- Set Domain ---
         void set_origin(const vec3& origin) { this->data.domain.origin = origin; }
         void set_origin(const double x, const double y, const double z) { set_origin({x,y,z}); }
@@ -399,6 +420,18 @@ namespace april::env {
         template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
         Environment& with_boundaries(const std::array<B, 6>& boundaries) {
             set_boundaries(boundaries);
+            return *this;
+        }
+
+        template<controller::IsController C> requires same_as_any<C, Cs...>
+        Environment& with_controller(C controller) {
+            add_controller(controller);
+            return *this;
+        }
+
+        template<controller::IsController... C>
+        Environment& with_controllers(C&&... controllers) {
+            add_controllers(std::forward<C>(controllers)...);
             return *this;
         }
 

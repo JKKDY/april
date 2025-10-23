@@ -15,7 +15,13 @@ namespace april::controller  {
 			return trigger(sys);
 		}
 
-		void apply(this auto&& self, core::SimulationContext & sys) {
+		void dispatch_init(this auto && self, const core::SimulationContext & sys) {
+			if constexpr (requires { self.apply(sys); }) {
+				self.apply(sys);
+			}
+		}
+
+		void dispatch_apply(this auto&& self, core::SimulationContext & sys) {
 			static_assert(
 				requires { self.apply(sys); },
 				"Controller subclass must implement: void apply(core::SimulationContext &)"

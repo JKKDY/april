@@ -18,10 +18,10 @@ namespace april::field {
 			}
 		}
 
-		void dispatch_apply(this const auto& self, env::ParticleRef particle) {
+		void dispatch_apply(this const auto& self, env::RestrictedParticleRef particle) {
 			static_assert(
 				requires { self.apply(particle); },
-				"Field must implement: void apply(env::ParticleRef particle) const"
+				"Field must implement: void apply(env::RestrictedParticleRef particle) const"
 			);
 			self.apply(particle);
 		}

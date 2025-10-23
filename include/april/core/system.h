@@ -81,17 +81,19 @@ namespace april::core {
 		System(
 			const C & container_cfg,
 			const ContainerFlags & container_flags,
-			const env::Domain& domain,
+			const env::Domain& domainIn,
 			const std::vector<Particle> & particles,
 			const BoundaryTable boundaries,
 			const Controllers & controllersIn,
+			const Fields & fieldsIn,
 			const UserToInternalMappings::TypeMap & usr_types_to_impl_types,
 			const UserToInternalMappings::IdMap & usr_ids_to_impl_ids,
 			std::vector<Interaction> & interaction_infos):
-		domain(domain),
+		domain(domainIn),
 		container(container_cfg, container_flags),
 		boundary_table(boundaries),
-		controllers(controllersIn)
+		controllers(controllersIn),
+		fields(fieldsIn)
 		{
 			force_table.build(interaction_infos, usr_types_to_impl_types, usr_ids_to_impl_ids);
 			container.init(force_table, domain);
@@ -101,6 +103,7 @@ namespace april::core {
 			simulation_context = std::make_unique<internal::SimulationContextImpl<SystemType>>(*this);
 
 			controllers.for_each_item([&](auto & controller) {controller.dispatch_init(context()); });
+			fields.for_each_item([&](auto & field) {field.dispatch_init(context()); });
 		}
 
 		Container container;
@@ -194,7 +197,7 @@ namespace april::core {
 		}
 
 		void apply_controllers() {
-			controllers.for_each_item([&](auto & controller) {
+			controllers.for_each_item([this](auto & controller) {
 				if (controller.should_trigger(context())) {
 					controller.dispatch_apply(context());
 				}
@@ -202,10 +205,15 @@ namespace april::core {
 		}
 
 		void apply_force_fields() {
-			// fields.for_each_item([&](auto & field) {
-			// 	for ()
-			// 	field.dispatch_apply(context());
-			// });
+			fields.for_each_item([this](auto & field) {
+				for (size_t i = index_start(); i < index_end(); ++i) {
+					field.dispatch_apply(get_particle_by_index(i));
+				}
+			});
+
+			fields.for_each_item([this](auto & field) {
+				field.dispatch_update(context());
+			});
 		}
 
 		// get a particle reference by its id. Usually slower than getting it by its index.

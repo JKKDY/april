@@ -137,6 +137,7 @@ namespace april::core {
 			particles,
 			boundaries,
 			env.controllers,
+			env.fields,
 			mapping.usr_types_to_impl_types,
 			mapping.usr_ids_to_impl_ids,
 			env.interactions

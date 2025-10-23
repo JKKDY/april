@@ -344,6 +344,17 @@ namespace april::env {
             (data.controllers.add(std::forward<C>(controllers)), ...);
         }
 
+        // --- Add Fields ---
+        template<field::IsField F> requires same_as_any<F, FFs...>
+        void add_field(F field) {
+            data.fields.add(field);
+        }
+
+        template<field::IsField... F>
+        void add_fields(F&&... fields) {
+            (data.fields.add(std::forward<F>(fields)), ...);
+        }
+
         // --- Set Domain ---
         void set_origin(const vec3& origin) { this->data.domain.origin = origin; }
         void set_origin(const double x, const double y, const double z) { set_origin({x,y,z}); }
@@ -432,6 +443,18 @@ namespace april::env {
         template<controller::IsController... C>
         Environment& with_controllers(C&&... controllers) {
             add_controllers(std::forward<C>(controllers)...);
+            return *this;
+        }
+
+        template<field::IsField F> requires same_as_any<F, FFs...>
+        Environment& with_field(F field) {
+            add_field(field);
+            return *this;
+        }
+
+        template<field::IsField... F>
+        Environment& with_controllers(F&&... fields) {
+            add_fields(std::forward<F>(fields)...);
             return *this;
         }
 

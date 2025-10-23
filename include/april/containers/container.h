@@ -48,6 +48,7 @@ namespace april::container {
 			virtual ~ContainerInterface() = default;
 
 			// user hook to initialize the container
+			// TODO add regions that will be queried in the future so the container can keep track of particles better
 			void dispatch_build(this auto&& self, const std::vector<Particle>& particles) {
 		        static_assert(
 		            requires { self.build(particles); },

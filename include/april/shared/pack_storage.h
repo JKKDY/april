@@ -9,12 +9,12 @@ namespace april::shared::internal {
 
 	template<typename P>
 	concept IsPack = requires {
-		typename P::Types;
+		typename P::is_pack_tag;
+		typename std::tuple_element_t<0, typename P::types>;
 	};
 
-	template<IsPack Pack>
+	template<class... Ts>
 	class PackStorage {
-		using Ts = typename Pack::Types;
 	public:
 		PackStorage() = default;
 

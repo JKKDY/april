@@ -5,6 +5,7 @@
 #include "april/monitors/monitor.h"
 #include "april/common.h"
 
+#include "april/shared/pack_storage.h"
 
 namespace april::integrator {
 
@@ -26,7 +27,8 @@ namespace april::integrator {
 
 		template<typename T> requires same_as_any<T, TMonitors...>
 		void add_monitor(T monitor) {
-			std::get<std::vector<T>>(monitors).push_back(std::move(monitor));
+			// std::get<std::vector<T>>(monitors).push_back(std::move(monitor));
+			m.add(std::move(monitor));
 		}
 
 		template<typename... Ts>
@@ -82,8 +84,6 @@ namespace april::integrator {
 		}
 
 
-
-
 	protected:
 		Sys & sys;
 		size_t num_steps{};
@@ -92,59 +92,36 @@ namespace april::integrator {
 		size_t step = 0;
 
 	private:
-		std::tuple<std::vector<TMonitors>...> monitors{};
-
-		template<typename Func> void for_each_monitor(Func&& f) {
-			std::apply(
-				[&](auto&... lst) {
-					(f(lst), ...);
-				},
-				monitors
-			);
-		}
+		// std::tuple<std::vector<TMonitors>...> monitors{};
+		using Monitors = shared::internal::PackStorage<TMonitors...>;
+		Monitors m;
 
 		void init_monitors() {
-			for_each_monitor([&](auto& list) {
-				for (auto& monitor : list) {
-					monitor.init(dt, 0, duration, num_steps);
-				}
-			});
+			m.for_each_item([&](auto& mon){mon.init(dt, 0, duration, num_steps); } );
 		}
 
 		void dispatch_initialize_monitors() {
-			for_each_monitor([&](auto& list) {
-				for (auto& monitor : list) {
-					monitor.dispatch_initialize();
-				}
-			});
+			m.for_each_item([&](auto& mon){mon.dispatch_initialize(); } );
 		}
 
 		void dispatch_monitor_preparation() {
-			for_each_monitor([&](auto& list) {
-				for (auto& monitor : list) {
-					if (monitor.should_trigger(sys.context())) {
-						monitor.dispatch_before_step(sys.context());
-					}
+			m.for_each_item([&](auto & mon) {
+				if (mon.should_trigger(sys.context())) {
+					mon.dispatch_before_step(sys.context());
 				}
 			});
 		}
 
 		void dispatch_monitor_recording() {
-			for_each_monitor([&](auto& list) {
-				for (auto& monitor : list) {
-					if (monitor.should_trigger(sys.context())) {
-						monitor.dispatch_record(sys.context());
-					}
+			m.for_each_item([&](auto & mon) {
+				if (mon.should_trigger(sys.context())) {
+					mon.dispatch_record(sys.context());
 				}
 			});
 		}
 
 		void finalize_monitors() {
-			for_each_monitor([&](auto& list) {
-				for (auto& monitor : list) {
-					monitor.dispatch_finalize();
-				}
-			});
+			m.for_each_item([&](auto& mon) {mon.dispatch_finalize(); } );
 		}
 	};
 

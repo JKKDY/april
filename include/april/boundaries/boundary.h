@@ -100,7 +100,6 @@ namespace april::boundary {
 	// define boundary pack
 	template<IsBoundary... BCs>
 	struct BoundaryPack {
-		using Types = BCs;
 	};
 
 	// constrained variable template

@@ -14,7 +14,7 @@ namespace april::monitor {
 			return trigger(sys);
 		}
 
-		// Called once at the start
+		// Called once at the start to set integration parameters
 		void init(const double delta_t, const double start_t, const double end_t, const size_t steps) {
 			dt = delta_t;
 			start_time = start_t;
@@ -22,6 +22,7 @@ namespace april::monitor {
 			num_steps = steps;
 		}
 
+		// Optional: overridable initialization for custom setup. Is called right after init()
 		void dispatch_initialize(this auto&& self) {
 			if constexpr (requires { self.initialize(); }) {
 				self.initialize();
@@ -64,6 +65,7 @@ namespace april::monitor {
 
 
 	template<IsMonitor... Ms> struct MonitorPack {};
+
 	template<class... Ms> inline constexpr MonitorPack<Ms...> monitors{};
 
 }

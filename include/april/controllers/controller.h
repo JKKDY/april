@@ -15,7 +15,7 @@ namespace april::controller  {
 			return trigger(sys);
 		}
 
-		void dispatch_init(this auto && self, const core::SimulationContext & sys) {
+		void dispatch_init(this auto && self, core::SimulationContext & sys) {
 			if constexpr (requires { self.apply(sys); }) {
 				self.apply(sys);
 			}

@@ -208,6 +208,7 @@ namespace april::force::internal {
             // check if both particles even have any individual interactions defined for them
             if (p1.id < n_ids && p2.id < n_ids) {
                 auto & iF = get_id_force(p1.id, p2.id);
+                // TODO replace std::visit with a thunk
                 force += std::visit([&](auto const& f){ return f(p1,p2,r); }, iF);
             }
 
@@ -238,6 +239,7 @@ namespace april::force::internal {
         const force_variant_t& get_type_force(const size_t a, const size_t b) const noexcept {
             return inter_type_forces[type_index(a,b)];
         }
+
         const force_variant_t& get_id_force(const size_t a, const size_t b) const noexcept {
             return intra_particle_forces[id_index(a,b)];
         }

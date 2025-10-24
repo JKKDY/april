@@ -15,6 +15,9 @@
 #include "april/forces/lennard_jones.h"
 #include "april/forces/no_force.h"
 
+#include "april/controllers/controller.h"
+#include "april/controllers/thermostat.h"
+
 #include "april/monitors/monitor.h"
 #include "april/monitors/terminal_output.h"
 #include "april/monitors/binary_output.h"
@@ -74,6 +77,11 @@ namespace april {
 	using force::NoForce;
 	using force::InverseSquare;
 	using force::LennardJones;
+
+	// Controllers
+	using controller::controllers;
+	using controller::Controller;
+	using controller::VelocityScalingThermostat;
 
 	// Containers
 	using container::Container;

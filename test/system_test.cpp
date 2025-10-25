@@ -57,7 +57,7 @@ TEST(EnvTest, negative_mass_throws) {
 
 
 TEST(EnvTest, type_force_missing) {
-    Environment e (forces<InverseSquare>);
+    Environment e (forces<PowerLaw>);
 
     e.add_particle(Particle{
         .id = -1,
@@ -77,7 +77,7 @@ TEST(EnvTest, type_force_missing) {
         .state = ParticleState::ALIVE,
     });
 
-    e.add_force(InverseSquare(), between_ids(-1, 0));
+    e.add_force(PowerLaw(2), between_ids(-1, 0));
 
     EXPECT_THROW(build_system(e, DirectSum()), std::invalid_argument);
 }
@@ -85,7 +85,7 @@ TEST(EnvTest, type_force_missing) {
 
 
 TEST(EnvTest, two_particle_force_test) {
-    Environment e (forces<InverseSquare>);
+    Environment e (forces<PowerLaw>);
 
     e.add_particle(Particle{
         .id = -1,
@@ -105,8 +105,8 @@ TEST(EnvTest, two_particle_force_test) {
         .state = ParticleState::ALIVE,
     });
 
-    e.add_force(InverseSquare(), between_ids(-1, 0));
-    e.add_force(InverseSquare(), to_type(0));
+    e.add_force(PowerLaw(2), between_ids(-1, 0));
+    e.add_force(PowerLaw(2), to_type(0));
 
 
     auto sys = build_system(e, DirectSum());

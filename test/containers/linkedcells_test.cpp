@@ -10,7 +10,6 @@ using testing::Eq;
 #include "ConstantForce.h"
 
 // TODO tests for get_particle_by_id
-
 using namespace april;
 
 
@@ -118,7 +117,7 @@ TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
 }
 
 TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
-    Environment e(forces<NoForce, InverseSquare>);
+    Environment e(forces<NoForce, PowerLaw>);
 
     e.set_extent({10,10,10});
 
@@ -128,7 +127,7 @@ TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(NoForce(), to_type(1));
 
-	e.add_force(InverseSquare(5.0), between_types(0, 1));
+	e.add_force(PowerLaw(2, 5.0), between_types(0, 1));
 
 	auto sys = build_system(e, LinkedCells());
 	sys.update_forces();
@@ -154,10 +153,10 @@ TEST(LinkedCellsTest, OrbitTest) {
 	constexpr double v = G * M / R;
 	constexpr double T = 2 * 3.14159265359 * v / R;
 
-	Environment env (forces<InverseSquare>);
+	Environment env (forces<PowerLaw>);
 	env.add_particle({0,R,0}, {v, 0, 0}, m);
 	env.add_particle({0,0,0}, {0, 0, 0}, M);
-	env.add_force(InverseSquare(G), to_type(0));
+	env.add_force(PowerLaw(G), to_type(0));
 
 	env.set_origin({-1.5*v,-1.5*v,0});
 	env.set_extent({3*v,3*v,1});

@@ -11,7 +11,7 @@
 
 #include "april/forces/force.h"
 #include "april/forces/harmonic.h"
-#include "april/forces/inverse_square.h"
+#include "april/forces/power_law.h"
 #include "april/forces/lennard_jones.h"
 #include "april/forces/no_force.h"
 
@@ -79,7 +79,7 @@ namespace april {
 	using force::forces;
 	using force::Harmonic;
 	using force::NoForce;
-	using force::InverseSquare;
+	using force::PowerLaw;
 	using force::LennardJones;
 
 	// Controllers

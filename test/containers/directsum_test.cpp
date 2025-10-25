@@ -85,7 +85,7 @@ TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
 }
 
 TEST(DirectSumTest, TwoParticles_InverseSquare) {
-	Environment e (forces<InverseSquare, NoForce>);
+	Environment e (forces<PowerLaw, NoForce>);
 
 	e.set_extent({10,10,10});
 	e.add_particle(Particle{.id = 0, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
@@ -93,7 +93,7 @@ TEST(DirectSumTest, TwoParticles_InverseSquare) {
 
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(NoForce(), to_type(1));
-	e.add_force(InverseSquare(5.0), between_types(0, 1));
+	e.add_force(PowerLaw(2, 5.0), between_types(0, 1));
 
 	auto sys = build_system(e, DirectSum());
     sys.update_forces();

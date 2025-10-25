@@ -2,21 +2,26 @@
 
 APRIL is a small, modular C++ library for particle-based simulations.
 It aims to combine high performance with a flexible, easy-to-use, and expressive API. The library emphasizes clear architecture, plug-and-play components, and modern C++ features (concepts, CRTP-style dispatch).
-> Status: Most of the foundation in place (environment, interactions, containers, integrator, monitors, boundary conditions). Some Additional foundational features are in development (controllers, force fields, parallelism)
+> Status: A large portion of the foundational features are in place; Some code cleanup, QoL & optimization updates and further tests before finally implementing parallelism via OpenMP
 
 
 ## Core Features
 
-- **Modular design**: seamlessly swap or extend **forces**, **containers** (force calculators), **boundary conditions**, **integrators**, and **monitors**.
-- **Modern C++**: concepts for compile-time interface checking; a simple, readable public API via `april/april.h`.
+- **Modular design**: seamlessly swap, extend or create your own (inter particles) **forces**, **containers** (force calculators), **boundary conditions**, **controllers** (e.g. Thermostats), **Force fields**, **integrators**, and **monitors**.
+- **Modern C++**: concepts for compile-time interface checking; CRTP & template-meta programing for maximum performance; Variants for run time flexibility.
 - **Ergonomic setup**: clear setup path. Special care was taken to minimize template verbosity with automatic template deduction (CTAD).
 - **Declarative and imperative APIs**: supports both a **fluent, declarative style** (`.with_*()`) for concise setup and a **traditional imperative style** (`add_*()`, `set_*()`) for explicit configuration.
-- **Built-in monitors**: binary snapshots, terminal diagnostics, progress bar, and a simple benchmark.
-- **Built-in containers**: `DirectSum` (all-pairs) and `LinkedCells` (cell lists).
-- **Built-in boundary conditions**: Periodic, Repulsive (uses a force), Reflective, Absorbing and Open boundary conditions
 - **Tested core**: GoogleTest suite covering interactions, containers, boundary conditions, integrator steps, binary I/O, and utilities.
 - **Small animation script**: a Python helper to quickly preview simulation output.
 
+### Built-in Components
+- **Forces**: Lennard Jones (12-6), Power law force, Harmonic (spring force)
+- **Boundary conditions**: Periodic, Repulsive (uses a force), Reflective, Absorbing and Open boundary conditions
+- **(Force) Fields**: Uniform (global & constant) field, local field (optionally time dependent)
+- **Controllers**: a simple velocity scaling thermostat
+- **Containers**: `DirectSum` (all-pairs) and `LinkedCells` (cell lists).
+- **Monitors**: binary snapshots, terminal diagnostics, progress bar, and a simple benchmark.
+- **Integrators**: Størmer–Verlet, Yoshida4
 
 ## Getting Started
 
@@ -41,47 +46,57 @@ ctest --test-dir build --output-on-failure
 
 The following diagram shows the typical flow of a program using APRIL:
 ```
-[Forces] [boundaries] [Particles]          
-     \        |        /                          
-      v       v       v                           
-       +-------------+        +-----------+ 
-       | Environment |        | Container | 
-       +-------------+        +-----------+ 
-              \                    /         
-               \                  /          
-                v                v           
-             +---------------------+     transforms user-provided data (particles, 
-             |   build_system(...) |  <- types/IDs, forces, domain) into dense internal
-             +---------------------+     representations and wires the components together.
-                        |
-                        v
-                   +---------+
-                   | System  |   <— uses Container to compute forces
-                   +---------+
-                        ^
-                        |  (each step: system.update_forces)
-                        |
-                 +-------------+
-                 | Integrator  |
-                 +-------------+
-                        |
-                        |  emits records every N steps
-                        v
-                  +-----------+
-                  | Monitors  |
-                  +-----------+
+          [particles]   [boundaries]   [forces]          
+                     \        |        /                          
+                      v       v       v                           
+                       +-------------+        
+         [fields] ---> | Environment | <--- [controllers]       
+                       +-------------+        
+                              |                       
+                              |                        
+                              v                       
++-----------+      +---------------------+     transforms user-provided data (particles, 
+| Container | ---> |   build_system(...) |  <- types/IDs, forces, domain) into dense internal
++-----------+      +---------------------+     representations and wires the components together.
+                              |
+                              v
+                         +---------+
+                         | System  |   <— uses Container to compute forces
+                         +---------+
+                              ^
+                              |  (each step: system.update_forces)
+                              |
+                       +-------------+
+                       | Integrator  |
+                       +-------------+
+                              |
+                              |  emits records every N steps
+                              v
+                        +-----------+
+                        | Monitors  |
+                        +-----------+
 ```
 
 - **Environment** \
-Defines the simulation setup: particles, simulation domain (origin/extent), and the list of interactions (by **type pair** or **id pair**).
+Defines the simulation setup. In other words it contains all relevant physics: particles, simulation domain (origin/extent), boundary conditions, force fields, controllers and the list of interactions (by **type pair** or **id pair**).
 - **System** \
 Materializes the environment: maps user IDs/types to dense internals, builds interaction tables, finalizes the domain, and wires everything together.
 - **Container** \
 Owns internal particle storage/indices and computes pairwise forces (e.g., **DirectSum**, **LinkedCells**). It’s injected with the interaction manager built by the system.
 - **Integrator** \
-Advances the state in time (e.g., Stoermer–Verlet). On each step it updates positions/velocities and asks the system to refresh forces.
+Advances the state in time. On each step it updates positions/velocities and asks the system to refresh forces.
 - **Monitors** \
-Optional observers invoked every step (or every *N* steps). They’re the primary way to emit output (binary frames, progress, timing, etc.).
+Optional observers with custom invocation policies (Triggers). They’re the primary way to emit output (binary frames, progress, timing, etc.).
+
+## Design Notes
+- The entire public API is collected in april/april.h, so users normally only need a single include.
+- Clear separation of user-facing vs. internal API: users work with declarative structs (e.g., `Environment`, `Particle`, container config structs) which are then consumed to build the internal representations (`impl::Particle`, container internals). This keeps the public API ergonomic and stable while allowing optimized internal implementations.
+- Concepts enforce component interfaces at compile time (IsForce, IsMonitor, IsBoundary, IsSystem), making extension points explicit.
+- Environment → System → Integrator is the central workflow. Systems always delegate force evaluation to a chosen Container.
+- Interactions can be specified by type pair or by particle id pair; missing cross-type entries are derived via a mix function.
+- BinaryOutput writes a compact, versioned binary format (positions as float, plus type/id/state) suitable for lightweight analysis or visualization.
+- Defaults (e.g., automatic domain extent/origin) are provided, but can always be overridden explicitly.
+
 
 ## Usage (minimal example)
 ```c++
@@ -95,7 +110,7 @@ int main() {
         .with_particle(/*pos*/ {0,0,0}, /*vel*/ {0,0,0}, /*mass*/ 1.0, /*type*/0)   // Sun
         .with_particle(/*pos*/ {1,0,0}, /*vel*/ {0,1,0},/*mass*/ 1e-5, /*type*/0)   // Planet
         .with_force(InverseSquare(), to_type(0));                                   // gravity for type 0
-        .with_boundaries(Reflective(), all_faces);                                  // all faces reflective
+        .with_boundaries(Outflow(), all_faces);                                     // all faces open
 
     // 2) Choose a container (force calculator) and build a system
     auto container = DirectSum();
@@ -103,23 +118,15 @@ int main() {
 
     // 3) Integrate with Stoermer–Verlet and attach monitors
     auto integrator = StoermerVerlet (system, monitors<ProgressBar, Benchmark>)
-        .with_monitor(ProgressBar(Trigger::every(50)))    // updated every 50 steps            
+        .with_monitor(ProgressBar(Trigger::every(50)))    // update every 50 steps            
         .with_monitor(Benchmark())                        // simple timing utility
-        .run_for(0.01, 10.0);                             // dt=0.01, T=10
-}
+        .run_for(0.01, 10.0);                             // dt = 0.01, T = 10.0
 ```
+
 Further examples can be found in `examples/`:
 - Halley’s Comet - small N-body system with gravitational InverseSquare forces.
 - Two-Body Collision - MD-style collision with LennardJones interactions and explicit domain extents.
-
-## Design Notes
-- The entire public API is collected in april/april.h, so users normally only need a single include.
-- Clear separation of user-facing vs. internal API: users work with declarative structs (e.g., `Environment`, `Particle`, container config structs) which are then consumed to build the internal representations (`impl::Particle`, container internals). This keeps the public API ergonomic and stable while allowing optimized internal implementations.
-- Concepts enforce component interfaces at compile time (IsForce, IsMonitor, IsBoundary, IsSystem), making extension points explicit.
-- Environment → System → Integrator is the central workflow. Systems always delegate force evaluation to a chosen Container.
-- Interactions can be specified by type pair or by particle id pair; missing cross-type entries are derived via a mix function.
-- BinaryOutput writes a compact, versioned binary format (positions as float, plus type/id/state) suitable for lightweight analysis or visualization.
-- Defaults (e.g., automatic domain extent/origin) are provided, but can always be overridden explicitly.
+- Falling Water Drop - 2D simulation of a drop of liquid being dropped into a basin
 
 
 ## Benchmarks
@@ -142,11 +149,12 @@ APRIL’s linked-cell implementation achieves higher performance than HOOMD in p
 
 ## Extending APRIL
 
-APRIL’s components are designed to be easy to implement and drop in. In the following all nested namespaces inside april - aside from ::impl:: - are omitted for clarity. 
+APRIL’s components are designed to be easy to implement and drop in. In the following the majority of nested namespaces inside april are omitted for brevity. 
 
 
 ### Custom force
 
+Forces determine the pair wise interactions between particles. 
 Implement the call operator and a `mix` rule (used to derive cross-type interactions) and provide a `cutoff_radius`:
 
 ```c++
@@ -168,7 +176,8 @@ env.add_force(MyForce{...}, to_type(...));
 
 ### Custom boundary 
 
-To implement custom boundary logic, inherit from Boundary and set the topology parameters by initializing the base class. provide a const apply function: 
+Boundaries determine what happens to the particles near or outside the simulation domain.
+To implement custom boundary logic, inherit from `Boundary` and set the topology parameters by initializing the base class. provide a const apply function: 
 
 ```C++
 struct MyBoundary final : Boundary {
@@ -183,6 +192,57 @@ struct MyBoundary final : Boundary {
     }
 }
 ```
+
+
+### Custom controller
+
+Controllers are "god" objects, able to modify the system in non-physical ways.
+Inherit from `Controller` to create a controller with custom logic:
+
+```C++
+struct MyController final : Controller {
+    using Controller::Controller; // or define your own constructor
+    
+    // optional. called once at the beginning of the simulation
+    void init(SimulationContext & ctx) {
+        // your custom initilization logic here
+    }
+    
+    // required. called every time should_trigger(ctx) evaluates to true 
+    void apply(SimulationContext & ctx) {
+        // your custom controller logic here
+    }
+}
+```
+
+### Custom Field
+
+Fields are used to implement force fields. Their apply function is called in every step and is restricted to only modify particle forces. 
+To implement a custom force field inherit from `Field`:
+
+```C++
+struct MyField final : Field {
+    using Controller::Controller; // or define your own constructor
+    
+    // optional. called once at the beginning of the simulation
+    void init(const SimulationContext & ctx) {
+        // your custom initilization logic here
+    }
+    
+    // optional. called during every integration step
+    void update(const SimulationContext & ctx) {
+        // your custom update logic here
+        // can be used e.g. for temporal dependence
+    }
+    
+    // required. called during every integration step
+    void apply(env::RestrictedParticleRef particle) const {
+        // your custom force field logic here 
+        // only particle.force can be modified. All other attributes are read only
+    }
+}
+```
+
 
 ### Custom container
 
@@ -205,6 +265,7 @@ Additionally provide a struct pointing to the containers type. This is passed in
 template <class Env> class MyContainerImpl; // forward declaration
 
 struct MyContainer { // User facing declaration
+    // requires the following field for the compiler
 	template<class  Env> using impl = MyContainerImpl<Env>;
 	... // optional user config data here
 };
@@ -216,12 +277,12 @@ class MyContainerImpl final : public Container<MyContainer, Env> {
 public:
     using Base::Base; // forward config. To access config data use this->cfg.
 	
-    void build(const std::vector<Particle> & particles) { ... }
+    void build(const std::vector<internal::Particle> & particles) { ... }
     void calculate_forces() { ... }
     
     // provide stable id-based access and sequential index-based access
-    Particle& get_particle_by_id(ParticleID id) noexcept { /* ... */ }
-    Particle& get_particle_by_index(size_t idx) noexcept { /* ... */ }
+    internal::Particle& get_particle_by_id(internal::ParticleID id) noexcept { /* ... */ }
+    internal::Particle& get_particle_by_index(size_t idx) noexcept { /* ... */ }
 
     size_t particle_count() const { ... }
     
@@ -239,31 +300,34 @@ You can derive from `container::ContiguousContainer<Config, Env>` to reuse stora
 
 ### Custom integrator
 
-Inherit from `integrator::Integrator<System, MonitorPack<...>>` and provide `integration_step()`.
+Inherit from `Integrator<System, MonitorPack<...>>` and provide `integration_step()`.
 
 ````c++
-template<core::IsSystem Sys, class Pack>
-class MyIntegrator;
+// forward declaration
+template<IsSystem Sys, class MPack> class MyIntegrator;
 
-template<core::IsSystem Sys, class... Ms>
-class MyIntegrator<Sys, MonitorPack<Ms...>>
-  : public Integrator<Sys, MonitorPack<Ms...>> {
-    using Base = impl::Integrator<Sys, MonitorPack<Ms...>>;
+// specialization to access monitor paramter pack Ms
+template<IsSystem Sys, class... Ms>
+class MyIntegrator<Sys, MonitorPack<Ms...>> : public Integrator<Sys, MonitorPack<Ms...>> {
+ 
+    using Base = Integrator<Sys, MonitorPack<Ms...>>;
     using Base::sys; using Base::dt;
 
 public:
     void integration_step() { ... }
 };
+
+// optional: provide CTAD for better ergnomics
 ````
 
 ### Custom monitor
 
-Inherit from `monitor::Monitor` and implement `record(...)`. Optionally implement `before_step(...)` and `finalize()`.
+Inherit from `Monitor` and implement `record(...)`. Optionally implement `before_step(...)` and `finalize()`.
 
 ```c++
-class MyMonitor : public monitor::Monitor {
+class MyMonitor : public Monitor {
 public:
-    explicit MyMonitor(shared::Trigger trigger) : Monitor(std::move(trigger)) {}
+    explicit MyMonitor(Trigger trigger) : Monitor(std::move(trigger)) {}
 
     void record(const SimulationContext & sys) {
         // emit logs, write files, aggregate stats, etc.
@@ -280,7 +344,7 @@ public:
 Usage: 
 ````c++
 StoermerVerlet integrator(system, monitors<MyMonitor>);
-integrator.add_monitor(MyMonitor{10});  // call every 10 steps
+integrator.add_monitor(MyMonitor(Trigger::every(10));  // call every 10 steps
 ````
 
 
@@ -290,8 +354,8 @@ Planned additions (subject to change)
 
 Foundational: 
 - [x] Boundaries & boundary conditions
-- [ ] Controllers: particle sources/sinks, thermostats
-- [ ] Force fields, including time-dependent fields
+- [x] Controllers: e.g. thermostats
+- [x] Force fields, including time-dependent fields
 - [ ] Parallelism
 
 Additional Features: 
@@ -303,5 +367,7 @@ Additional Features:
 - [ ] Extendable particles via template parameter (e.g. add charge property)
 - [ ] C++ Modules
 - [ ] more build feedback from `build_system` (e.g. spatial partition parameters) 
+- [ ] Documentation
+- [ ] Continuous integration
 - [ ] python binding
 `````

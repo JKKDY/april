@@ -12,27 +12,38 @@ int main() {
 	remove_all(dir_path);   // delete the directory and all contents
 	create_directory(dir_path); // recreate the empty directory
 
-	Environment env (forces<NoForce, LennardJones, InverseSquare>, boundaries<Reflective, Absorb, Outflow, Periodic>);
-	env.add_particle({0.0, 0.5, 0.5},     {2, 0.0, 0.0},     1.0);
-	env.add_particle({0.5, 0.0, 0.0},     {-1, 0.0, 0.0},     1.0);
+	auto drop = ParticleSphere()
+		.at({150,150,0})
+		.radius_xyz({20, 20, 0})
+		.mass(1.0)
+		.spacing(1)
+		.type(0);
 
-	env.add_particle({0.0, 0.0, 0.5},     {0, 1.0, 0.0},     1.0);
-	env.add_particle({0.5, 0.5, 0.0},     {0, -2.0, 0.0},     1.0);
+	// auto thermostat = VelocityScalingThermostat(0.5,
+	// 	controller::TemperatureNotSet,
+	// 	controller::TemperatureNotSet,
+	// 	Trigger::every(1000));
 
-	env.add_particle({0.0, 0.0, 0.0},     {0, 0.0, 2.0},     1.0);
-	env.add_particle({0.5, 0.5, 0.5},     {0, 0.0, -3.0},     1.0);
+	auto gravity = UniformField({0, -12.44, 0});
 
-	env.set_extent({2,2,2});
-	env.set_origin({-1,-1,-1});
-	env.add_force(InverseSquare(), to_type(0));
-	env.set_boundaries(Periodic(), all_faces);
+	auto env = Environment(forces<LennardJones, NoForce>,
+		boundaries<Reflective>,
+		controllers<VelocityScalingThermostat>,
+		fields<UniformField>
+	)
+		.with_extent(303,180, 0)
+		.with_force(NoForce(), to_type(0))
+		.with_particles(drop)
+		.with_boundaries(Reflective(), all_faces)
+		// .with_controller(thermostat)
+		.with_field(gravity);
 
-	auto container = LinkedCells(1);
+	auto container = LinkedCells();
 	auto system = build_system(env, container);
 
-	auto integrator = StoermerVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
-	integrator.add_monitor(BinaryOutput(50, dir_path));
-	integrator.add_monitor(Benchmark());
-	integrator.add_monitor(ProgressBar(100));
-	integrator.run_for(0.0005, 5);
+	auto integrator = StoermerVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
+		.with_monitor(Benchmark())
+		.with_monitor(BinaryOutput(Trigger::every(100), dir_path))
+		.with_monitor(ProgressBar(Trigger::every(100)))
+		.run_for(0.0002, 5);
 }

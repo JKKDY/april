@@ -112,8 +112,9 @@ if __name__ == "__main__":
     halley_comet = "halleys_comet"
     bench = "bench"
     sandbox = "sandbox"
+    waterdrop = "falling_water_drop"
 
-    vis = ParticleVisualizer(f"../output/{two_body_collision}")
+    vis = ParticleVisualizer(f"../output/{sandbox}")
     app.run()
 
     # for f in list_bin_files("../output/two_body_collision"):

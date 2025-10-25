@@ -64,25 +64,11 @@ namespace april::utils {
         }
 
         // point-wise multiplication
-        Vec3& operator*(const Vec3 & other) noexcept {
-            x *= other.x;
-            y *= other.y;
-            z *= other.z;
-            return *this;
-        }
-
         Vec3 operator*(const Vec3 & other) const noexcept {
             return {x * other.x, y * other.y, z * other.z};
         }
 
         // point wise division
-        Vec3& operator/(const Vec3 & other) noexcept {
-            x /= other.x;
-            y /= other.y;
-            z /= other.z;
-            return *this;
-        }
-
         Vec3 operator/(const Vec3 & other) const noexcept {
             return {x / other.x, y / other.y, z / other.z};
         }

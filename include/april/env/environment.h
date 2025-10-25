@@ -210,6 +210,9 @@ namespace april::env {
 
         // Cuboid
         std::vector<ParticleID> add_particles(const ParticleCuboid& cuboid) {
+            if (cuboid.distance == 0) {
+                throw std::logic_error("Cuboid inter-particle distance is set to 0!");
+            }
             const uint32_t particle_count = cuboid.particle_count[0] * cuboid.particle_count[1] * cuboid.particle_count[2];
             const double width = cuboid.distance;
 
@@ -250,9 +253,9 @@ namespace april::env {
 
         // Sphere
         std::vector<ParticleID> add_particles(const ParticleSphere& sphere) {
-            const double width = sphere.distance;
-            const vec3 & r = sphere.radii;
-
+            if (sphere.distance == 0) {
+                throw std::logic_error("Sphere inter-particle distance is set to 0!");
+            }
             std::vector<ParticleID> ids;
 
             // get the maximum current id
@@ -263,15 +266,24 @@ namespace april::env {
             );
             int id = (it == data.particles.end() ? 0 : it->id+1);
 
-            for (int x = -static_cast<int>(sphere.radii.x/width); x < static_cast<int>(sphere.radii.x/width); ++x) {
-                for (int y = -static_cast<int>(sphere.radii.y/width); y < static_cast<int>(sphere.radii.y/width); ++y) {
-                    for (int z = -static_cast<int>(sphere.radii.z/width); z < static_cast<int>(sphere.radii.z/width); ++z) {
+            const double width = sphere.distance;
+            const vec3 radii = {
+                std::max(sphere.radii.x, width),
+                std::max(sphere.radii.y, width),
+                std::max(sphere.radii.z, width)
+            };
 
-                        vec3 pos = {x * width, y * width, z * width};
+            for (int x = -static_cast<int>(radii.x/width); x < static_cast<int>(radii.x/width); ++x) {
+                for (int y = -static_cast<int>(radii.y/width); y < static_cast<int>(radii.y/width); ++y) {
+                    for (int z = -static_cast<int>(radii.z/width); z < static_cast<int>(radii.z/width); ++z) {
+
+                        const vec3 pos = {x * width, y * width, z * width};
                         const vec3 pos_sq = pos * pos;
 
                         // if not in ellipsoid skip
-                        if (pos_sq.x/(r.x*r.x) + pos_sq.y/(r.y*r.y) + pos_sq.z/(r.z*r.z) > 1) continue;
+                        if (pos_sq.x/(radii.x*radii.x) +
+                            pos_sq.y/(radii.y*radii.y) +
+                            pos_sq.z/(radii.z*radii.z) >= 1) continue;
 
                         ids.push_back(id);
                         Particle p =  {

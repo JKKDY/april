@@ -207,7 +207,7 @@ namespace april::core {
 		void apply_force_fields() {
 			fields.for_each_item([this](auto & field) {
 				for (size_t i = index_start(); i < index_end(); ++i) {
-					field.dispatch_apply(get_particle_by_index(i));
+					field.dispatch_apply(env::RestrictedParticleRef(get_particle_by_index(i)));
 				}
 			});
 

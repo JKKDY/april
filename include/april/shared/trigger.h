@@ -2,16 +2,19 @@
 
 #include <cstddef>
 #include <functional>
+#include <utility>
 
 #include "april/core/context.h"
 
 namespace april::shared {
 	struct Trigger {
-		using TriggerFn = std::move_only_function<bool(const core::SimulationContext&)>;
+		using TriggerFn = std::function<bool(const core::SimulationContext&)>;
 
-		bool operator()(const core::SimulationContext& sys) {
+		bool operator()(const core::SimulationContext& sys) const {
 			return fn_(sys);
 		}
+
+		explicit Trigger(TriggerFn fn) : fn_(std::move(fn)) {}
 
 		// ---- convenience constructors ----
 
@@ -76,8 +79,8 @@ namespace april::shared {
 			return Trigger{[](const core::SimulationContext&) { return true; }};
 		}
 		// for custom triggers
-		static Trigger when(std::move_only_function<bool(const core::SimulationContext&)> pred) {
-			return Trigger{std::move(pred)};
+		static Trigger when(const std::function<bool(const core::SimulationContext&)>& pred) {
+			return Trigger{pred};
 		}
 
 
@@ -107,8 +110,6 @@ namespace april::shared {
 		}
 
 	private:
-		explicit Trigger(TriggerFn fn) : fn_(std::move(fn)) {}
-
-		 TriggerFn fn_;
+		TriggerFn fn_;
 	};
 }

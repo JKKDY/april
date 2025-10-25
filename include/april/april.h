@@ -18,6 +18,10 @@
 #include "april/controllers/controller.h"
 #include "april/controllers/thermostat.h"
 
+#include "april/fields/field.h"
+#include "april/fields/uniform_field.h"
+#include "april/fields/local_field.h"
+
 #include "april/monitors/monitor.h"
 #include "april/monitors/terminal_output.h"
 #include "april/monitors/binary_output.h"
@@ -82,6 +86,11 @@ namespace april {
 	using controller::controllers;
 	using controller::Controller;
 	using controller::VelocityScalingThermostat;
+
+	// Fields
+	using field::fields;
+	using field::UniformField;
+	using field::LocalForceField;
 
 	// Containers
 	using container::Container;

@@ -6,7 +6,7 @@ namespace april::controller {
 
 	static constexpr double TemperatureNotSet = -1.0;
 
-	class VelocityScalingThermostat : Controller {
+	class VelocityScalingThermostat : public Controller {
 	public:
 		VelocityScalingThermostat(const double init_T, const double target_T, const double max_dT, shared::Trigger trig)
 	   : Controller(std::move(trig)),

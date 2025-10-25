@@ -6,6 +6,7 @@
 namespace april::field {
 
 	class Field {
+	public:
 		void dispatch_init(this auto&& self, const core::SimulationContext & sys) {
 			if constexpr ( requires { self.init(sys); }) {
 				self.init(sys);

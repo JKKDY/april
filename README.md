@@ -46,7 +46,7 @@ ctest --test-dir build --output-on-failure
 
 The following diagram shows the typical flow of a program using APRIL:
 ```
-          [particles]   [boundaries]   [forces]          
+           [particles]   [boundaries]   [forces]          
                      \        |        /                          
                       v       v       v                           
                        +-------------+        
@@ -70,7 +70,7 @@ The following diagram shows the typical flow of a program using APRIL:
                        | Integrator  |
                        +-------------+
                               |
-                              |  emits records every N steps
+                              |  emits records based on custom trigger policies
                               v
                         +-----------+
                         | Monitors  |
@@ -106,10 +106,11 @@ using namespace april;
 // Simulation of a simple sun-planet system
 int main() {
     // 1) Define an environment: particles + force types + boundary types
-    auto env = Environment (forces<InverseSquare>, boundaries<Reflective>)
+	// constructor requires type information on, at run time, usable components
+    auto env = Environment (forces<InverseSquare>, boundaries<Outflow>)
         .with_particle(/*pos*/ {0,0,0}, /*vel*/ {0,0,0}, /*mass*/ 1.0, /*type*/0)   // Sun
         .with_particle(/*pos*/ {1,0,0}, /*vel*/ {0,1,0},/*mass*/ 1e-5, /*type*/0)   // Planet
-        .with_force(InverseSquare(), to_type(0));                                   // gravity for type 0
+        .with_force(InverseSquare(), to_type(0))                                    // gravity for type 0
         .with_boundaries(Outflow(), all_faces);                                     // all faces open
 
     // 2) Choose a container (force calculator) and build a system
@@ -121,6 +122,7 @@ int main() {
         .with_monitor(ProgressBar(Trigger::every(50)))    // update every 50 steps            
         .with_monitor(Benchmark())                        // simple timing utility
         .run_for(0.01, 10.0);                             // dt = 0.01, T = 10.0
+}
 ```
 
 Further examples can be found in `examples/`:

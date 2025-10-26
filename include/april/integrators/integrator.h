@@ -27,8 +27,7 @@ namespace april::integrator {
 
 		template<typename T> requires same_as_any<T, TMonitors...>
 		void add_monitor(T monitor) {
-			// std::get<std::vector<T>>(monitors).push_back(std::move(monitor));
-			m.add(std::move(monitor));
+			monitors.add(std::move(monitor));
 		}
 
 		template<typename... Ts>
@@ -41,36 +40,65 @@ namespace april::integrator {
 		requires same_as_any<T, TMonitors...>
 		auto&& with_monitor(this auto&& self, T monitor) {
 			self.add_monitor(std::move(monitor));
-			return std::forward<decltype(self)>(self);
+			return self;
 		}
 
 		template<typename... Ts>
 		auto&& with_monitors(this auto&& self, Ts&&... ms) {
 			(self.add_monitor(std::forward<Ts>(ms)), ...);
-			return std::forward<decltype(self)>(self);
+			return self;
 		}
 
-		auto&& run_for(this auto&& self, double dt, double duration) {
-			self.run_steps(dt, static_cast<std::size_t>(duration / dt));
-			return std::forward<decltype(self)>(self);
+
+		void set_dt(const double delta_t) {
+			dt = delta_t;
 		}
 
-		// Integrate for explicit number of steps
-		auto&& run_steps(this auto&& self, double delta_t, std::size_t num_steps) {
-			if (delta_t <= 0) {
+		void set_duration(const double dur) {
+			duration = dur;
+			most_recently_set = DURATION;
+		}
+
+		void set_steps(const size_t steps) {
+			num_steps = steps;
+			most_recently_set = STEP;
+		}
+
+		auto&& with_dt(this auto&& self, const double delta_t) {
+			self.set_dt(delta_t);
+			return self;
+		}
+
+		auto&& for_duration(this auto&& self, const double duration) {
+			self.set_duration(duration);
+			return self;
+		}
+
+		auto&& for_steps(this auto&& self, double num_steps) {
+			self.set_steps(num_steps);
+			return self;
+		}
+
+		auto&& run(this auto&& self) {
+			if (self.dt <= 0) {
 				throw std::invalid_argument(
-					"time step cannot be negative. Got delta_t=" + std::to_string(delta_t)
+					"time step cannot be negative. Got delta_t=" + std::to_string(self.dt)
 				);
 			}
 
-			self.duration = static_cast<double>(num_steps) * delta_t;
-			self.dt = delta_t;
-			self.num_steps = num_steps;
+			if (self.most_recently_set == DURATION) {
+				self.num_steps = static_cast<size_t>(self.duration / self.dt);
+			} else if (self.most_recently_set == STEP) {
+				self.duration = static_cast<double>(self.num_steps) * self.dt;
+			} else {
+				throw std::invalid_argument("neither duration nor number steps have been specified!");
+			}
 
 			self.init_monitors();
 			self.dispatch_initialize_monitors();
 
-			for (self.step = 0; self.step < num_steps; ++self.step) {
+			// simulation loop
+			for (self.step = 0; self.step < self.num_steps; ++self.step) {
 				self.dispatch_monitor_preparation();
 				self.integration_step();
 				self.dispatch_monitor_recording();
@@ -80,7 +108,16 @@ namespace april::integrator {
 
 			self.finalize_monitors();
 
-			return std::forward<decltype(self)>(self);
+			return self;
+		}
+
+		auto&& run_for(this auto&& self, double delta_t, const double duration) {
+			return self.with_dt(delta_t).for_duration(duration).run();
+		}
+
+		// Integrate for explicit number of steps
+		auto&& run_steps(this auto&& self, double delta_t, std::size_t num_steps) {
+			return self.with_dt(delta_t).for_steps(num_steps).run();
 		}
 
 
@@ -92,20 +129,25 @@ namespace april::integrator {
 		size_t step = 0;
 
 	private:
-		// std::tuple<std::vector<TMonitors>...> monitors{};
-		using Monitors = shared::internal::PackStorage<TMonitors...>;
-		Monitors m;
+		enum MostRecentlySet {
+			DURATION = 1,
+			NONE = 0,
+			STEP = -1
+		};
+		MostRecentlySet most_recently_set = NONE;
+
+		shared::internal::PackStorage<TMonitors...> monitors;
 
 		void init_monitors() {
-			m.for_each_item([&](auto& mon){mon.init(dt, 0, duration, num_steps); } );
+			monitors.for_each_item([&](auto& mon){mon.init(dt, 0, duration, num_steps); } );
 		}
 
 		void dispatch_initialize_monitors() {
-			m.for_each_item([&](auto& mon){mon.dispatch_initialize(); } );
+			monitors.for_each_item([&](auto& mon){mon.dispatch_initialize(); } );
 		}
 
 		void dispatch_monitor_preparation() {
-			m.for_each_item([&](auto & mon) {
+			monitors.for_each_item([&](auto & mon) {
 				if (mon.should_trigger(sys.context())) {
 					mon.dispatch_before_step(sys.context());
 				}
@@ -113,7 +155,7 @@ namespace april::integrator {
 		}
 
 		void dispatch_monitor_recording() {
-			m.for_each_item([&](auto & mon) {
+			monitors.for_each_item([&](auto & mon) {
 				if (mon.should_trigger(sys.context())) {
 					mon.dispatch_record(sys.context());
 				}
@@ -121,7 +163,7 @@ namespace april::integrator {
 		}
 
 		void finalize_monitors() {
-			m.for_each_item([&](auto& mon) {mon.dispatch_finalize(); } );
+			monitors.for_each_item([&](auto& mon) {mon.dispatch_finalize(); } );
 		}
 	};
 

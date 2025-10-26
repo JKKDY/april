@@ -144,6 +144,7 @@ namespace april::env {
             controller::ControllerPack<Cs...>,
             field::FieldPack<FFs...>) {}
 
+    // TODO clean up this mess; try create constructors that can take in packs in any order
         explicit Environment(force::ForcePack<Fs...> force_types)
             : Environment(force_types, boundary::boundaries<>, controller::controllers<>, field::fields<>) {}
 
@@ -209,6 +210,7 @@ namespace april::env {
         }
 
         // Cuboid
+        // TODO move implementation to separate function for a cleaner header
         std::vector<ParticleID> add_particles(const ParticleCuboid& cuboid) {
             if (cuboid.distance == 0) {
                 throw std::logic_error("Cuboid inter-particle distance is set to 0!");
@@ -252,6 +254,7 @@ namespace april::env {
         }
 
         // Sphere
+        // TODO move implementation to separate function for a cleaner header
         std::vector<ParticleID> add_particles(const ParticleSphere& sphere) {
             if (sphere.distance == 0) {
                 throw std::logic_error("Sphere inter-particle distance is set to 0!");

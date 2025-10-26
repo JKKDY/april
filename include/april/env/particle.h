@@ -7,6 +7,9 @@
 
 #include "april/common.h"
 
+// TODO enforce proper particle interface so containers can store particles however they want
+// TODO find a way to extend particles (maybe a void pointer)
+
 namespace april::env {
 	enum class ParticleState : uint8_t {
 		ALIVE      = 0b00000001, // Moves, exerts and experiences forces

@@ -43,8 +43,6 @@
 
 #define APRIL_API
 
-// TODO rework namespace
-// TODO use modules
 namespace april {
 
 	// Environment

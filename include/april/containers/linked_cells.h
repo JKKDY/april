@@ -13,6 +13,10 @@ namespace april::container {
 	struct LinkedCells {
 		template<typename  Env> using impl = internal::LinkedCells<Env>;
 		double cell_size_hint;
+
+		void with_cell_size(const double cell_size) {
+			cell_size_hint = cell_size;
+		}
 	};
 
 

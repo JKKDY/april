@@ -14,8 +14,8 @@ namespace april::field {
 		}
 
 		void dispatch_update(this auto&& self, const core::SimulationContext & sys) {
-			if constexpr ( requires { self.init(sys); }) {
-				self.init(sys);
+			if constexpr ( requires { self.update(sys); }) {
+				self.update(sys);
 			}
 		}
 

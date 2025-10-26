@@ -9,6 +9,7 @@
 
 namespace april::force {
 
+    // TODO define a force superclass instead
     template<typename F> concept IsForce =
         std::copy_constructible<F> &&
         std::assignable_from<F&, F const&> &&

@@ -4,7 +4,7 @@
 
 #include "april/boundaries/boundary.h"
 #include "april/boundaries/absorb.h"
-#include "april/boundaries/outflow.h"
+#include "april/boundaries/open.h"
 #include "april/boundaries/periodic.h"
 #include "april/boundaries/reflective.h"
 #include "april/boundaries/repulsive.h"
@@ -68,7 +68,7 @@ namespace april {
 	using boundary::boundaries;
 	using boundary::Boundary;
 	using boundary::Absorb;
-	using boundary::Outflow;
+	using boundary::Open;
 	using boundary::Periodic;
 	using boundary::Reflective;
 	using boundary::Repulsive;

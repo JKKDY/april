@@ -42,7 +42,7 @@ TEST(AbsorbBoundaryTest, Topology_IsOutsideAndPassive) {
 
 
 TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
-	std::variant<std::monostate, Absorb> absorb = Absorb();
+	std::variant<Absorb> absorb = Absorb();
 	env::Domain domain{{0,0,0}, {10,10,10}};
 
 	// Compile boundary for X+ face

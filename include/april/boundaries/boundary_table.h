@@ -9,24 +9,14 @@ namespace april::boundary::internal {
 		template<class BVariant>
 		const Topology& get_topology(const BVariant& v) {
 			return std::visit([]<typename BC>(const BC& bc) -> const Topology& {
-				using T = std::decay_t<BC>;
-				if constexpr (requires(const T& x) { x.topology; }) {
-					return bc.topology;
-				} else {
-					throw std::logic_error("Method called on Boundary Variant in std::monostate");
-				}
+				return bc.topology;
 			}, v);
 		}
 
 		template<class BVariant>
 		Topology& get_topology(BVariant& v) {
 			return std::visit([]<typename BC>(BC& bc) -> Topology& {
-				using T = std::decay_t<BC>;
-				if constexpr (requires(T& x) { x.topology; }) {
-					return bc.topology;
-				} else {
-					throw std::logic_error("Method called on Boundary Variant in std::monostate");
-				}
+				return bc.topology;
 			}, v);
 		}
 
@@ -38,13 +28,7 @@ namespace april::boundary::internal {
 
 				std::visit([&](auto const& bc) {
 					using T = std::decay_t<decltype(bc)>; // get the type of the alternative
-
-					if constexpr (std::same_as<T, std::monostate>) {
-						throw std::logic_error("Trying to set the boundary thunk on a monostate should never happen!");
-					} else {
-						static_assert(IsBoundary<T>, "Variant alternative must satisfy IsBoundary");
-						apply_fn =&thunk<T>; // store the thunk in apply_fn
-					}
+					apply_fn =&thunk<T>; // store the thunk in apply_fn
 				}, boundary_v);
 			}
 

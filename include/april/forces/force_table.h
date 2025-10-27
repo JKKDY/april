@@ -20,7 +20,6 @@ namespace april::force::internal {
 
         vec3 operator()(const env::internal::Particle&, const env::internal::Particle&, const vec3&) const noexcept {
             assert(false && "NullForce should never be executed");
-             return {};
         }
         [[nodiscard]] ForceSentinel mix(ForceSentinel const&) const { return {}; }
     };

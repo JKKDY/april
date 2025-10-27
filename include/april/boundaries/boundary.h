@@ -7,6 +7,8 @@
 
 namespace april::boundary {
 
+	struct Open;
+
 	enum class Face : uint8_t {
 		XMinus = 0, XPlus = 1,
 		YMinus = 2, YPlus = 3,
@@ -109,18 +111,37 @@ namespace april::boundary {
 
 
 	namespace internal {
+
+		struct BoundarySentinel : Boundary {
+			BoundarySentinel(): Boundary(-1, false, false, false) {}
+
+			void apply(env::internal::Particle &, const env::Box &, const Face) const noexcept {
+				AP_ASSERT(false, "apply called on null boundary! this should never happen");
+			}
+		};
+
 		// define boundary variant concept
 		template<typename T>
 		struct is_boundary_variant : std::false_type {};
 
-		// TODO use NullBoundary instead of monostate
-		// Accepts: std::variant<std::monostate, BCs...>
-		template<typename... BCs>
-		struct is_boundary_variant<std::variant<std::monostate, BCs...>>
-		: std::bool_constant<(IsBoundary<BCs> && ...)> {};
+		template<IsBoundary... BCs>
+		struct is_boundary_variant<std::variant<BCs...>> : std::true_type {};
 
 		template<typename T>
 		concept BoundaryVariant = is_boundary_variant<T>::value;
+
+		template<class... BCs>
+		struct VariantType {
+			static constexpr bool has_absorb = same_as_any<Open, BCs...>;
+			using type = std::conditional_t<
+				has_absorb,
+				std::variant<BoundarySentinel, BCs...>,
+				std::variant<BoundarySentinel, Open, BCs...>
+			>;
+		};
+
+		template<class... BCs>
+		using VariantType_t = typename VariantType<BCs...>::type;
 	}
 }
 

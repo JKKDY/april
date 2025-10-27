@@ -66,7 +66,7 @@ TEST(RepulsiveBoundaryTest, Topology_IsInsideAndNoChangesPosition) {
 // CompiledBoundary apply test
 TEST(RepulsiveBoundaryTest, CompiledBoundary_Apply_AddsInwardForce) {
 	ConstantForce f{2.0, 5.0};
-	std::variant<std::monostate, Repulsive<ConstantForce>> variant = Repulsive(f);
+	std::variant<Repulsive<ConstantForce>> variant = Repulsive(f);
 	env::Domain domain({0,0,0}, {10,10,10});
 
 	auto compiled = boundary::internal::compile_boundary(variant, domain, Face::YMinus);

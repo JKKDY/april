@@ -52,7 +52,7 @@ TEST(ReflectiveBoundaryTest, Topology_IsOutsideAndChangesPosition) {
 
 
 TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPosition) {
-	std::variant<std::monostate, Reflective> reflect = Reflective();
+	std::variant<Reflective> reflect = Reflective();
 	env::Domain domain({0,0,0}, {10,10,10});
 
 	// Compile boundary for X+ face

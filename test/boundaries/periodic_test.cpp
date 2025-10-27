@@ -94,7 +94,7 @@ TEST(PeriodicBoundaryTest, Topology_IsOutsideCoupledAndWrapsForces) {
 
 // 3. Compiled Boundary Variant
 TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
-	std::variant<std::monostate, Periodic> variant = Periodic();
+	std::variant<Periodic> variant = Periodic();
 	env::Domain domain({0,0,0}, {10,10,10});
 
 	auto compiled = boundary::internal::compile_boundary(variant, domain, Face::ZPlus);

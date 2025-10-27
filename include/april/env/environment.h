@@ -60,8 +60,8 @@ namespace april::env {
         template<class FPack, class BPack, class CPack, class FFPack>
         auto get_env_data(Environment<FPack, BPack, CPack, FFPack>& env) {
             for (auto & v : env.data.boundaries) {
-                if (std::holds_alternative<std::monostate>(v)) {
-                    v.template emplace<boundary::Absorb>(); // default-construct Absorb
+                if (std::holds_alternative<boundary::internal::BoundarySentinel>(v)) {
+                    v.template emplace<boundary::Open>(); // default-construct Open boundary
                 }
             }
 
@@ -136,7 +136,6 @@ namespace april::env {
         controller::ControllerPack<Cs...>,
         field::FieldPack<FFs...>
     >{
-        static constexpr bool has_absorb = (std::is_same_v<boundary::Absorb, BCs> || ...);
     public:
         explicit Environment(
             force::ForcePack<Fs...>,
@@ -144,26 +143,16 @@ namespace april::env {
             controller::ControllerPack<Cs...>,
             field::FieldPack<FFs...>) {}
 
-    // TODO clean up this mess; try create constructors that can take in packs in any order
+        // TODO clean up this mess; try create constructors that can take in packs in any order
         explicit Environment(force::ForcePack<Fs...> force_types)
             : Environment(force_types, boundary::boundaries<>, controller::controllers<>, field::fields<>) {}
 
         explicit Environment(force::ForcePack<Fs...> force_types, boundary::BoundaryPack<BCs...> boundary_types)
            : Environment(force_types, boundary_types, controller::controllers<>, field::fields<>) {}
 
-
-        // expose types for deduction by ForceManager/build_system
-        using forces_pack_t = force::ForcePack<Fs...>;
-        using boundary_pack_t = boundary::BoundaryPack<BCs...>;
-
+        // expose variant types
         using force_variant_t = std::variant<Fs...>;
-
-        // TODO use a boundary sentinel instead of std::monostate
-        using boundary_variant_t =
-            std::conditional_t<has_absorb,
-            std::variant<std::monostate, BCs...>,   // already contains Absorb
-            std::variant<std::monostate, boundary::Absorb, BCs...>    // ensure Absorb is present
-        >;
+        using boundary_variant_t = boundary::internal::VariantType_t<BCs...>;
 
     private:
         internal::EnvironmentData<force_variant_t, boundary_variant_t, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>> data;

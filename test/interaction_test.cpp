@@ -30,7 +30,7 @@ static env::internal::Particle make_particle(env::internal::ParticleType type, e
 // Use an environment that supports ConstantForce
 using Env = Environment<force::ForcePack<ConstantForce>, boundary::BoundaryPack<>, controller::ControllerPack<>, field::FieldPack<>>;
 using IM  = InteractionManager<Env>;
-using Info = force::internal::InteractionInfo<IM::force_variant_info_t>; // variant<ConstantForce>
+using Info = force::internal::InteractionInfo<Env::force_variant_t>; // variant<ConstantForce>
 
 
 TEST(InteractionManagerTest, EmptyBuild) {

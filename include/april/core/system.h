@@ -83,7 +83,7 @@ namespace april::core {
 			const ContainerFlags & container_flags,
 			const env::Domain& domainIn,
 			const std::vector<Particle> & particles,
-			const BoundaryTable boundaries,
+			const BoundaryTable & boundaries,
 			const Controllers & controllersIn,
 			const Fields & fieldsIn,
 			const UserToInternalMappings::TypeMap & usr_types_to_impl_types,

@@ -6,7 +6,7 @@
 #include <memory>
 
 # include "april/april.h"
-#include "ConstantForce.h"
+#include "constant_force.h"
 
 using namespace april;
 

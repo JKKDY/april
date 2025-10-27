@@ -6,11 +6,11 @@
 
 namespace april::force {
 	// No-op force: always returns zero vector and mixes to itself.
-	struct NoForce {
+	struct NoForce : Force{
 		// Negative cutoff_radius means "no cutoff"
-		double cutoff_radius = 0.0;
+		NoForce(): Force(0) {}
 
-		vec3 operator()(env::internal::Particle const&, env::internal::Particle const&, vec3 const&) const noexcept {
+		[[nodiscard]] vec3 eval(env::internal::Particle const&, env::internal::Particle const&, vec3 const&) const noexcept {
 			return vec3{0.0, 0.0, 0.0};
 		}
 

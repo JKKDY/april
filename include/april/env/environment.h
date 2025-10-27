@@ -157,6 +157,8 @@ namespace april::env {
         using boundary_pack_t = boundary::BoundaryPack<BCs...>;
 
         using force_variant_t = std::variant<Fs...>;
+
+        // TODO use a boundary sentinel instead of std::monostate
         using boundary_variant_t =
             std::conditional_t<has_absorb,
             std::variant<std::monostate, BCs...>,   // already contains Absorb

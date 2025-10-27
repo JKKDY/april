@@ -6,8 +6,8 @@ using testing::AnyOf;
 using testing::Eq;
 
 #include "april/april.h"
-#include "OrbitMonitor.h"
-#include "ConstantForce.h"
+#include "orbit_monitor.h"
+#include "constant_force.h"
 
 // TODO tests for get_particle_by_id
 using namespace april;

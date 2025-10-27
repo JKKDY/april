@@ -2,7 +2,7 @@
 #include <gmock/gmock.h>
 
 #include "april/april.h"
-#include "OrbitMonitor.h"
+#include "orbit_monitor.h"
 
 using namespace april;
 

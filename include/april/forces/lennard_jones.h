@@ -9,19 +9,17 @@
 namespace april::force {
 
 	// Lennard-Jones potential (12-6). epsilon: well depth; sigma: zero-cross distance.
-	struct LennardJones {
+	struct LennardJones : Force{
 		double epsilon; // Depth of the potential well
 		double sigma; // Distance at which potential is zero
-		double cutoff_radius; // Maximum interaction distance; negative: no cutoff
 
 		LennardJones(const double epsilon_, const double sigma_, const double cutoff = -1.0)
-		: epsilon(epsilon_), sigma(sigma_), sigma2(sigma * sigma) {
-			cutoff_radius = (cutoff < 0.0) ? 3.0 * sigma : cutoff;
-		}
+		: Force(cutoff < 0.0 ? 3.0 * sigma_ : cutoff),
+		epsilon(epsilon_), sigma(sigma_), sigma2(sigma * sigma) {}
 
-		vec3 operator()(env::internal::Particle const&, env::internal::Particle const&, vec3 const& r) const noexcept {
+		[[nodiscard]] vec3 eval(env::internal::Particle const&, env::internal::Particle const&, vec3 const& r) const noexcept {
 			const double r2 = r.norm_squared();
-			if (cutoff_radius > 0.0 && r2 > cutoff_radius * cutoff_radius)
+			if (cutoff > 0.0 && r2 > cutoff * cutoff)
 				return vec3{0.0, 0.0, 0.0};
 
 			const double inv_r2 = 1.0 / r2;
@@ -38,7 +36,7 @@ namespace april::force {
 			// Lorentz-Berthelot mixing rules
 			const double mixed_epsilon = std::sqrt(epsilon * other.epsilon);
 			const double mixed_sigma = 0.5 * (sigma + other.sigma);
-			const double mixed_cutoff = std::sqrt(cutoff_radius * other.cutoff_radius);
+			const double mixed_cutoff = std::sqrt(cutoff * other.cutoff);
 			return {mixed_epsilon, mixed_sigma, mixed_cutoff};
 		}
 	private:

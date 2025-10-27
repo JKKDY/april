@@ -15,8 +15,9 @@
 namespace april::force::internal {
 
     // internal placeholder only
-    struct ForceSentinel {
-        double cutoff_radius = -1.0;
+    struct ForceSentinel : Force {
+        ForceSentinel() : Force(-1.0) {}
+
         vec3 operator()(const env::internal::Particle&, const env::internal::Particle&, const vec3&) const noexcept {
             assert(false && "NullForce should never be executed");
              return {};
@@ -183,7 +184,7 @@ namespace april::force::internal {
 
             // get the max cutoff distance
             auto cutoff_of = [](auto const& v){
-                return std::visit([](auto const& f){ return f.cutoff_radius; }, v);
+                return std::visit([](auto const& f){ return f.cutoff; }, v);
             };
 
             max_cutoff = 0.0;

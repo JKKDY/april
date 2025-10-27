@@ -31,12 +31,13 @@ int main() {
 
 	auto gravity = UniformField({0, -12.44, 0});
 
-	auto env = Environment(forces<LennardJones>,
+	auto env = Environment(
+		forces<LennardJones>,
 		boundaries<Reflective>,
 		controllers<VelocityScalingThermostat>,
-		fields<UniformField>
-	)
-		.with_extent(303,180, 0)
+		fields<UniformField>);
+
+	env.with_extent(303,180, 0)
 		.with_force(LennardJones(1, 1.2), to_type(0))
 		.with_particles(liquid)
 		.with_particles(drop)
@@ -51,5 +52,7 @@ int main() {
 		.with_monitor(Benchmark())
 		.with_monitor(BinaryOutput(Trigger::every(100), dir_path))
 		.with_monitor(ProgressBar(Trigger::every(100)))
-		.run_for(0.0002, 20);
+		.with_dt(0.0002)
+		.for_duration(50)
+		.run();
 }

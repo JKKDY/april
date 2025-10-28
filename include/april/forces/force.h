@@ -78,10 +78,10 @@ namespace april::force {
         struct is_force_variant<std::variant<Fs...>> : std::true_type {};
 
         template<typename T>
-        concept ForceVariant = is_force_variant<T>::value;
+        concept IsForceVariant = is_force_variant<T>::value;
 
 
-        template<ForceVariant FV> struct InteractionInfo {
+        template<IsForceVariant FV> struct InteractionInfo {
             bool pair_contains_types;
             std::pair<int,int> key_pair;
             FV force;

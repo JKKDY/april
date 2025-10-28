@@ -245,19 +245,19 @@ namespace april::env {
         template<force::IsForce F> requires traits::template is_valid_force_v<F>
         void add_force(F force, to_type scope) {
             // add_force({true, std::pair{scope.type, scope.type}})
-            data.interactions.emplace_back(true, std::pair{scope.type, scope.type}, typename traits::force_variant_t{std::move(force)});
+            data.type_interactions.emplace_back(true, std::pair{scope.type, scope.type}, typename traits::force_variant_t{std::move(force)});
         }
 
         // Force applied between two particle types
         template<force::IsForce F> requires traits::template is_valid_force_v<F>
         void add_force(F force, between_types scope) {
-            data.interactions.emplace_back(true, std::pair{scope.t1, scope.t2}, typename traits::force_variant_t{std::move(force)});
+            data.type_interactions.emplace_back(true, std::pair{scope.t1, scope.t2}, typename traits::force_variant_t{std::move(force)});
         }
 
         // Force applied between two specific particle IDs
         template<force::IsForce F> requires traits::template is_valid_force_v<F>
         void add_force(F force, between_ids scope) {
-            data.interactions.emplace_back(false, std::pair{scope.id1, scope.id2}, typename traits::force_variant_t{std::move(force)});
+            data.id_interactions.emplace_back(false, std::pair{scope.id1, scope.id2}, typename traits::force_variant_t{std::move(force)});
         }
 
         // --- Add Boundaries ---

@@ -37,7 +37,7 @@ namespace april::env::internal {
 		using FFPack_t = field::FieldPack<FFs...>;
 
 		// Derived Variants
-		using force_variant_t    = std::variant<Fs...>;
+		using force_variant_t    = force::internal::VariantType_t<Fs...>;
 		using boundary_variant_t = boundary::internal::VariantType_t<BCs...>;
 
 		// Derived Storage Types

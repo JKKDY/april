@@ -63,13 +63,13 @@ namespace april::core {
 		);
 	}
 
-	template <container::IsContDecl C, class Env>
+	template <container::IsContDecl Container, env::IsEnvironment Environment>
 	auto build_system(
-		Env & environment,
-		const C& container,
+		const Environment & environment,
+		const Container& container,
 		UserToInternalMappings* particle_mappings
 	) {
-		using BoundaryTable = typename Env::traits::boundary_table_t;
+		using BoundaryTable = typename Environment::traits::boundary_table_t;
 		using namespace internal;
 
 		auto env = env::internal::get_env_data(environment);
@@ -108,6 +108,12 @@ namespace april::core {
 			particle_mappings->usr_types_to_impl_types = mapping.usr_types_to_impl_types;
 		}
 
+		for (auto & v : env.boundaries) {
+			if (std::holds_alternative<boundary::internal::BoundarySentinel>(v)) {
+				v.template emplace<boundary::Open>(); // default-construct Open boundary
+			}
+		}
+
 		BoundaryTable boundaries(env.boundaries, domain);
 
 		std::vector<boundary::Topology> topologies;
@@ -129,7 +135,7 @@ namespace april::core {
 			}
 		}
 
-		return System<C, typename Env::traits> (
+		return System<Container, typename Environment::traits> (
 			container,
 			container_flags,
 			domain,

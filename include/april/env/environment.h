@@ -77,10 +77,10 @@ namespace april::env {
 
 
     template<
-        force::IsForcePack              FPack,  // Constrained
-        boundary::IsBoundaryPack        BPack,  // Constrained
-        controller::IsControllerPack    CPack,  // Constrained
-        field::IsFieldPack              FFPack  // Constrained
+        force::IsForcePack              FPack,
+        boundary::IsBoundaryPack        BPack,
+        controller::IsControllerPack    CPack,
+        field::IsFieldPack              FFPack
     >
     class Environment {
     public:
@@ -98,10 +98,9 @@ namespace april::env {
 
 
     private:
-        using EnvData = typename traits::environment_data_t;
-        EnvData data;
+        typename traits::environment_data_t data;
 
-        friend auto internal::get_env_data<FPack, BPack, CPack, FFPack> (Environment& env);
+        friend auto internal::get_env_data<FPack, BPack, CPack, FFPack> (const Environment& env);
 
     public:
 
@@ -260,10 +259,6 @@ namespace april::env {
         void add_force(F force, between_ids scope) {
             data.interactions.emplace_back(false, std::pair{scope.id1, scope.id2}, typename traits::force_variant_t{std::move(force)});
         }
-
-        // void add_force(const force::internal::InteractionInfo<typename traits::force_variant_t> & info) {
-        //     data.interactions.push_back(info);
-        // }
 
         // --- Add Boundaries ---
         // Single boundary on one face
@@ -451,7 +446,6 @@ namespace april::env {
 
 
 
-
     // Deduction guide: 4 args
     template<force::IsForce... Fs, boundary::IsBoundary... BCs, controller::IsController... Cs, field::IsField... FFs>
     Environment(force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>)
@@ -467,4 +461,19 @@ namespace april::env {
     Environment(force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>)
     -> Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<>, field::FieldPack<>>;
 
+
+
+    template<typename T>
+    inline constexpr bool is_environment_v = false;
+
+    template<
+        force::IsForcePack FPack,
+        boundary::IsBoundaryPack BPack,
+        controller::IsControllerPack CPack,
+        field::IsFieldPack FFPack
+    >
+    inline constexpr bool is_environment_v<Environment<FPack, BPack, CPack, FFPack>> = true;
+
+    template<typename T>
+    concept IsEnvironment = is_environment_v<std::remove_cvref_t<T>>;
 }

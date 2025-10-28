@@ -2,10 +2,10 @@
 
 #include "april/env/data.h"
 
-// #include "april/forces/force.h"
+#include "april/forces/force.h"
 #include "april/forces/force_table.h"
 
-// #include "april/boundaries/boundary.h"
+#include "april/boundaries/boundary.h"
 #include "april/boundaries/boundary_table.h"
 
 #include "april/controllers/controller.h"
@@ -30,25 +30,25 @@ namespace april::env::internal {
 		field::FieldPack<FFs...>
 	>
 	{
-		// --- Core Packs ---
+		// Core Packs
 		using FPack_t  = force::ForcePack<Fs...>;
 		using BPack_t  = boundary::BoundaryPack<BCs...>;
 		using CPack_t  = controller::ControllerPack<Cs...>;
 		using FFPack_t = field::FieldPack<FFs...>;
 
-		// --- Derived Variants ---
+		// Derived Variants
 		using force_variant_t    = std::variant<Fs...>;
 		using boundary_variant_t = boundary::internal::VariantType_t<BCs...>;
 
-		// --- Derived Storage Types ---
+		// Derived Storage Types
 		using controller_storage_t = shared::internal::PackStorage<Cs...>;
 		using field_storage_t      = shared::internal::PackStorage<FFs...>;
 
-		// --- Table Types ---
+		// Table Types
 		using boundary_table_t = boundary::internal::BoundaryTable<boundary_variant_t>;
 		using force_table_t    = force::internal::ForceTable<force_variant_t>;
 
-		// --- Environment Data type ---
+		// Environment Data type
 		using environment_data_t = EnvironmentData<
 			force_variant_t,
 			boundary_variant_t,

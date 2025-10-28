@@ -18,18 +18,16 @@ namespace april::core {
 		IdMap usr_ids_to_impl_ids;
 	};
 
-	template <container::IsContDecl C, class Env>
+
+	template <container::IsContDecl C, env::IsEnvironment Env>
 	auto build_system(
-		Env & environment,
+		const Env & environment,
 		const C& container,
 		UserToInternalMappings* particle_mappings = nullptr
 	);
 
 
-	template <
-		container::IsContDecl C,
-		env::internal::IsEnvironmentTraits Traits
-	>
+	template <container::IsContDecl C, env::internal::IsEnvironmentTraits Traits>
 	class System final {
 		using Controllers    = typename Traits::controller_storage_t;
 		using Fields	     = typename Traits::field_storage_t;
@@ -89,10 +87,10 @@ namespace april::core {
 		std::unique_ptr<SimulationContext> simulation_context;
 
 		// System factory. Only valid way to create a System.
-		template <container::IsContDecl Cont, class Env>
+		template <container::IsContDecl Cont, env::IsEnvironment Env>
 		friend auto
 		build_system(
-			 Env & environment,
+			 const Env & environment,
 			 const Cont& container,
 			 UserToInternalMappings* particle_mappings
 		);

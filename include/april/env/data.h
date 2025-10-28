@@ -54,13 +54,7 @@ namespace april::env::internal {
             controller::IsControllerPack CPack,
             field::IsFieldPack FFPack
         >
-        auto get_env_data(Environment<FPack, BPack, CPack, FFPack>& env) {
-        // TODO move outside of getter. Getter should not have side effects
-        for (auto & v : env.data.boundaries) {
-            if (std::holds_alternative<boundary::internal::BoundarySentinel>(v)) {
-                v.template emplace<boundary::Open>(); // default-construct Open boundary
-            }
-        }
+        auto get_env_data(const Environment<FPack, BPack, CPack, FFPack>& env) {
         return env.data;
     }
 

@@ -248,11 +248,11 @@ namespace april::core::internal {
 	}
 
 	void validate_particle_data(
-			const std::vector<Particle>& particles,
-			const std::unordered_set<ParticleType>& user_types,
-			const std::unordered_set<ParticleID>& user_ids,
-			const std::vector<std::pair<ParticleType, ParticleType>>& type_pairs,
-			const std::vector<std::pair<ParticleID, ParticleID>>& id_pairs
+		const std::vector<Particle>& particles,
+		const std::unordered_set<ParticleType>& user_types,
+		const std::unordered_set<ParticleID>& user_ids,
+		const std::vector<std::pair<ParticleType, ParticleType>>& type_pairs,
+		const std::vector<std::pair<ParticleID, ParticleID>>& id_pairs
 	){
 		validate_types(user_types, type_pairs);
 		validate_ids(user_ids, id_pairs);
@@ -262,62 +262,85 @@ namespace april::core::internal {
 
 	// ---- build particles ----
 
-	UserToInternalMappings create_particle_mappings(
-		 std::vector<Particle> & particles,
-		 const std::vector<InteractionParameters>& interactions,
-		 std::unordered_set<ParticleID> & usr_particle_ids,
-		 std::unordered_set<ParticleType> & usr_particle_types
-		 ) {
-		UserToInternalMappings mapping;
-
+	void assign_missing_particle_ids(
+		std::vector<Particle>& particles,
+		std::unordered_set<ParticleID>& user_ids
+	) {
 		// give particles with undefined id a valid id
 		ParticleID id = 0;
 		for (Particle & p: particles) {
 			if (p.id != PARTICLE_ID_DONT_CARE) continue;
 
-			while (usr_particle_ids.contains(id)) id++;
+			while (user_ids.contains(id)) id++;
 
-			usr_particle_ids.insert(id);
+			user_ids.insert(id);
 			p.id = id;
 		}
+	}
 
-		// generate mapping for user types to implementation types
+	std::unordered_map<ParticleType, env::internal::ParticleType> create_type_map(
+		const std::unordered_set<ParticleType>& user_types
+	) {
+		std::unordered_map<ParticleType, env::internal::ParticleType> map;
 		std::vector<ParticleType> type_vector;
 		// copy user types
-		type_vector.reserve(usr_particle_types.size());
-		type_vector.insert(type_vector.end(), usr_particle_types.begin(), usr_particle_types.end());
+		type_vector.reserve(user_types.size());
+		type_vector.insert(type_vector.end(), user_types.begin(), user_types.end());
 
 		// create types map
 		for (size_t  i = 0; i < type_vector.size(); i++) {
-			mapping.user_types_to_impl_types[type_vector[i]] = static_cast<env::internal::ParticleType>(i);
+			map[type_vector[i]] = static_cast<env::internal::ParticleType>(i);
 		}
 
-		// generate mapping for user ids to implementation ids
+		return map;
+	}
+
+	std::unordered_map<ParticleID, env::internal::ParticleID> create_id_map(
+		const std::unordered_set<ParticleID>& user_ids,
+		const std::vector<std::pair<ParticleID, ParticleID>>& id_pairs
+	) {
+		std::unordered_map<ParticleID, env::internal::ParticleID> map;
 		std::vector<ParticleType> id_vector;
+
 		// copy user ids
-		id_vector.reserve(usr_particle_ids.size());
-		id_vector.insert(id_vector.end(), usr_particle_ids.begin(), usr_particle_ids.end());
+		id_vector.reserve(user_ids.size());
+		id_vector.insert(id_vector.end(), user_ids.begin(), user_ids.end());
 
 		// collect all ids involved in an id-to-id interaction
 		std::unordered_set<ParticleID> interacting_ids;
-		for (auto & x : interactions) {
-			if (!x.pair_contains_types) {
-				interacting_ids.insert(x.key_pair.first);
-				interacting_ids.insert(x.key_pair.second);
-			}
+		for (const auto [id1, id2] : id_pairs) {
+			interacting_ids.insert(id1);
+			interacting_ids.insert(id2);
 		}
 
 		//swap ids, such that all ID-interacting particles have the lowest implementation ids
 		std::ranges::partition(id_vector,
-				[&](const ParticleID id_) { return interacting_ids.contains(id_); }
+			[&](const ParticleID id_) { return interacting_ids.contains(id_); }
 		);
 
 		// create id map
 		for (size_t  i = 0; i < id_vector.size(); i++) {
-			mapping.user_ids_to_impl_ids[id_vector[i]] = static_cast<env::internal::ParticleID>(i);
+			map[id_vector[i]] = static_cast<env::internal::ParticleID>(i);
 		}
 
-		return mapping;
+		return map;
+	}
+
+	auto create_particle_mappings(
+		const std::vector<Particle>& particles,
+		const std::unordered_set<ParticleType>& user_types,
+		const std::unordered_set<ParticleID>& user_ids,
+		const std::vector<std::pair<ParticleType, ParticleType>>& type_pairs,
+		const std::vector<std::pair<ParticleID, ParticleID>>& id_pairs
+	) {
+		validate_types(user_types, type_pairs);
+		validate_ids(user_ids, id_pairs);
+		validate_particles(particles);
+
+		auto type_map = create_type_map(user_types);
+		auto id_map = create_id_map(user_ids, id_pairs);
+
+		return std::pair{type_map, id_map};
 	}
 
 
@@ -358,4 +381,10 @@ namespace april::core::internal {
 		}
 		return container_flags;
 	}
+
+
+	void validate_topologies(const std::vector<boundary::Topology> & topologies) {
+
+	}
+
 }

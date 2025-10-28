@@ -11,17 +11,13 @@
 
 namespace april::core {
 
+
+
 	namespace internal {
-		// swap origin and extent components such that for all axis i: origin[i] < extent[i]
-		// env::Box normalize_domain( const env::Domain & domain);
 
 		// calculate the minimal bounding box that contains all particles
 		env::Box particle_bounding_box(const std::vector<env::Particle>& particles);
 
-		// check if user set domain parameters are ok (e.g. if it contains all particles)
-		// check that all particles are contained in the box specified by extent and origin
-
-		// void verify_domain_consistency(const env::Box& domain_box, const env::Box& particle_bbox);
 
 		// given particle bounding box and user set parameters, calculate the simulation box
 		env::Box determine_simulation_box(
@@ -32,28 +28,25 @@ namespace april::core {
 		);
 
 
-		// check if particle parameters are ok (e.g. no duplicate ids, every particle type has a force specified)
-		// void validate_particle_data(
-		// 	const std::vector<env::Particle>& particles,
-		// 	const std::unordered_set<env::ParticleType>& user_types,
-		// 	const std::unordered_set<env::ParticleID>& user_ids,
-		// 	const std::vector<std::pair<env::ParticleType, env::ParticleType>>& type_pairs,
-		// 	const std::vector<std::pair<env::ParticleID, env::ParticleID>>& id_pairs
-		// );
-
-		// map user set particle ids & types to dense internal ids & types and return mappings
-		UserToInternalMappings create_particle_mappings(
+		void assign_missing_particle_ids(
 			std::vector<env::Particle>& particles,
-			const std::vector<InteractionParameters>& interactions,
-			std::unordered_set<env::ParticleID>& usr_particle_ids,
-			std::unordered_set<env::ParticleType>& usr_particle_types
+			std::unordered_set<env::ParticleID>& user_ids
 		);
 
+		// map user set particle ids & types to dense internal ids & types and return mappings
+		auto create_particle_mappings(
+			std::vector<env::Particle>& particles,
+			const std::unordered_set<env::ParticleType>& user_types,
+			std::unordered_set<env::ParticleID>& user_ids,
+			const std::vector<std::pair<env::ParticleType, env::ParticleType>>& type_pairs,
+			const std::vector<std::pair<env::ParticleID, env::ParticleID>>& id_pairs
+		);
 
 		// build internal particle representation from user data
 		std::vector<env::internal::Particle> build_particles(
 			const std::vector<env::Particle>& particle_infos,
-			const UserToInternalMappings& mapping
+			const std::unordered_map<env::ParticleType, env::internal::ParticleType> & type_map,
+			const std::unordered_map<env::ParticleID, env::internal::ParticleID> & id_map
 		);
 
 		// set container flags
@@ -80,13 +73,37 @@ namespace april::core {
 			return std::pair {type_pairs, id_pairs};
 		}
 
+		template<boundary::internal::IsBoundaryVariant BV>
+		auto set_default_boundaries(std::array<BV, 6>  & boundaries) {
+			for (auto & v : boundaries)
+				if (std::holds_alternative<boundary::internal::BoundarySentinel>(v))
+					v.template emplace<boundary::Open>(); // default-construct Open boundary
+		}
+
+		template<boundary::internal::IsBoundaryVariant BV>
+		auto extract_topologies(const std::array<BV, 6>  & boundaries) {
+			std::vector<boundary::Topology> topologies;
+			for (boundary::Face face : boundary::all_faces) {
+				topologies.push_back(boundaries.get_boundary(face).topology);
+			}
+		}
+
+		void validate_topologies(const std::vector<boundary::Topology> & topologies);
+
 	}
+
+	struct BuildInfo {
+		std::unordered_map<env::ParticleType, env::internal::ParticleType> type_map;
+		std::unordered_map<env::ParticleID, env::internal::ParticleID> id_map;
+		env::Domain particle_box;
+		env::Domain simulation_domain;
+	};
 
 	template <container::IsContDecl Container, env::IsEnvironment EnvT>
 	auto build_system(
 		const EnvT & environment,
 		const Container& container,
-		UserToInternalMappings* particle_mappings
+		BuildInfo * build_info
 	) {
 		using BoundaryTable = typename EnvT::traits::boundary_table_t;
 		using EnvData = env::internal::EnvironmentData< // explicit type so the IDE can perform code completion
@@ -94,70 +111,57 @@ namespace april::core {
 			typename EnvT::traits::boundary_variant_t,
 			typename EnvT::traits::controller_storage_t,
 			typename EnvT::traits::field_storage_t>;
-		using namespace internal;
 
+		// get a copy of the environment data
 		EnvData env = env::internal::get_env_data(environment);
 
 		// validate & set simulation domain
-		const env::Box particle_bbox = particle_bounding_box(env.particles);
-		const env::Box simulation_box = determine_simulation_box(env.domain, particle_bbox, env.margin_abs, env.margin_fac);
-
-
-
+		const env::Box particle_bbox = internal::particle_bounding_box(env.particles);
+		const env::Box simulation_box = internal::determine_simulation_box(
+			env.domain, particle_bbox, env.margin_abs, env.margin_fac);
 
 		// --- validate & create Particles ---
 		auto [type_pairs, id_pairs] = internal::extract_interaction_parameters(
-			env.type_interactions, env.id_interactions
-		);
+			env.type_interactions, env.id_interactions );
 
+		internal::assign_missing_particle_ids(env.particles, env.user_particle_ids);
 
-		validate_particle_params(
+		auto [type_map, id_map] = internal::create_particle_mappings(
 			env.particles,
-			interactions,
-			env.user_particle_ids,
-			env.user_particle_types);
-
-		const UserToInternalMappings mapping = create_particle_mappings(
-			env.particles,
-			interactions,
+			env.type_interactions,
+			env.id_interactions,
 			env.user_particle_ids,
 			env.user_particle_types
 		);
 
-		const std::vector<env::internal::Particle> particles = build_particles(env.particles, mapping);
+		const std::vector<env::internal::Particle> particles = internal::build_particles(env.particles, type_map, id_map);
 
 
 		// --- create boundary table ---
-		for (auto & v : env.boundaries)
-			if (std::holds_alternative<boundary::internal::BoundarySentinel>(v))
-				v.template emplace<boundary::Open>(); // default-construct Open boundary
-
-		BoundaryTable boundaries(env.boundaries, domain);
-
-		std::vector<boundary::Topology> topologies;
-		for (boundary::Face face : boundary::all_faces) {
-			topologies.push_back(boundaries.get_boundary(face).topology);
-		}
-
-		// TODO validate topologies e.g face linkage
+		auto topologies = internal::extract_topologies(env.boundaries);
+		internal::set_default_boundaries(env.boundaries);
+		internal::validate_topologies(topologies);
+		BoundaryTable boundaries(env.boundaries, simulation_box);
 
 
-		// return mappings
-		if (particle_mappings) {
-			particle_mappings->user_ids_to_impl_ids = mapping.user_ids_to_impl_ids;
-			particle_mappings->user_types_to_impl_types = mapping.user_types_to_impl_types;
+		// fill build info if given
+		if (build_info) {
+			build_info->type_map = type_map;
+			build_info->id_map = id_map;
+			build_info->particle_box = env::Domain(particle_bbox.min, particle_bbox.extent);
+			build_info->simulation_domain = env::Domain(simulation_box.min, simulation_box.extent);
 		}
 
 		return System<Container, typename EnvT::traits> (
 			container,
-			set_container_flags(topologies),
-			domain,
+			internal::set_container_flags(topologies),
+			simulation_box,
 			particles,
 			boundaries,
 			env.controllers,
 			env.fields,
-			mapping.user_types_to_impl_types,
-			mapping.user_ids_to_impl_ids,
+			type_map,
+			id_map,
 			env.interactions
 		);
 	}

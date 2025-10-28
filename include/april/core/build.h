@@ -18,20 +18,24 @@ namespace april::core {
 		};
 
 		// swap origin and extent components such that for all axis i: origin[i] < extent[i]
-		env::Domain clean_domain(
-			const env::Domain & domain
-		);
+		// env::Box normalize_domain( const env::Domain & domain);
 
 		// calculate the minimal bounding box that contains all particles
-		env::Box calculate_bounding_box(
-			const std::vector<env::Particle>& particles
-		);
+		env::Box particle_bounding_box(const std::vector<env::Particle>& particles);
 
 		// check if user set domain parameters are ok (e.g. if it contains all particles)
-		void validate_domain_params(
-			const env::Domain& domain,
-			const env::Box& bbox
+		// check that all particles are contained in the box specified by extent and origin
+
+		// void verify_domain_consistency(const env::Box& domain_box, const env::Box& particle_bbox);
+
+		// given particle bounding box and user set parameters, calculate the simulation box
+		env::Box determine_simulation_box(
+			const env::Domain& desired_domain,
+			const env::Box& particle_bbox,
+			const vec3 & margin_abs,
+			const vec3 & margin_fac
 		);
+
 
 		// check if particle parameters are ok (e.g. no duplicate ids, every particle type has a force specified)
 		void validate_particle_params(
@@ -42,20 +46,13 @@ namespace april::core {
 		);
 
 		// map user set particle ids & types to dense internal ids & types and return mappings
-		UserToInternalMappings map_ids_and_types_to_internal(
+		UserToInternalMappings create_particle_mappings(
 			std::vector<env::Particle>& particles,
 			const std::vector<InteractionParameters>& interactions,
 			std::unordered_set<env::ParticleID>& usr_particle_ids,
 			std::unordered_set<env::ParticleType>& usr_particle_types
 		);
 
-		// given particle bounding box and user set parameters, calculate the final simulation domain
-		env::Box finalize_environment_domain(
-			const env::Box& bbox,
-			const env::Domain& usr_domain,
-			const vec3 & margin_abs,
-			const vec3 & margin_fac
-		);
 
 		// build internal particle representation from user data
 		std::vector<env::internal::Particle> build_particles(
@@ -67,26 +64,33 @@ namespace april::core {
 		container::internal::ContainerFlags set_container_flags(
 			const std::vector<boundary::Topology> & topologies
 		);
+
+		template<force::internal::IsForceVariant FV>
+		auto extract_interaction_parameters(const std::vector<FV> & type_interactions, const std::vector<>)
+
 	}
 
-	template <container::IsContDecl Container, env::IsEnvironment Environment>
+	template <container::IsContDecl Container, env::IsEnvironment EnvT>
 	auto build_system(
-		const Environment & environment,
+		const EnvT & environment,
 		const Container& container,
 		UserToInternalMappings* particle_mappings
 	) {
-		using BoundaryTable = typename Environment::traits::boundary_table_t;
+		using BoundaryTable = typename EnvT::traits::boundary_table_t;
+		using EnvData = env::internal::EnvironmentData< // explicit type so the IDE can perform code completion
+			typename EnvT::traits::force_variant_t,
+			typename EnvT::traits::boundary_variant_t,
+			typename EnvT::traits::controller_storage_t,
+			typename EnvT::traits::field_storage_t>;
 		using namespace internal;
 
-		auto env = env::internal::get_env_data(environment);
+		EnvData env = env::internal::get_env_data(environment);
 
-		// --- validate & set simulation domain ---
-		const env::Box bbox = calculate_bounding_box(env.particles);
-		const env::Domain domain_cleaned = clean_domain(env.domain);
+		// validate & set simulation domain
+		const env::Box particle_bbox = particle_bounding_box(env.particles);
+		const env::Box simulation_box = determine_simulation_box(env.domain, particle_bbox, env.margin_abs, env.margin_fac);
 
-		validate_domain_params(domain_cleaned, bbox);
-		const env::Box box = finalize_environment_domain(bbox, domain_cleaned, env.margin_abs, env.margin_fac);
-		const env::Domain domain = {box.min, box.extent};
+
 
 
 		// --- validate & create Particles ---
@@ -102,7 +106,7 @@ namespace april::core {
 			env.user_particle_ids,
 			env.user_particle_types);
 
-		const UserToInternalMappings mapping = map_ids_and_types_to_internal(
+		const UserToInternalMappings mapping = create_particle_mappings(
 			env.particles,
 			interactions,
 			env.user_particle_ids,
@@ -133,7 +137,7 @@ namespace april::core {
 			particle_mappings->user_types_to_impl_types = mapping.user_types_to_impl_types;
 		}
 
-		return System<Container, typename Environment::traits> (
+		return System<Container, typename EnvT::traits> (
 			container,
 			set_container_flags(topologies),
 			domain,

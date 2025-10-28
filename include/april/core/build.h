@@ -10,8 +10,9 @@
 
 
 namespace april::core {
+
 	namespace internal {
-		struct InteractionParams {
+		struct InteractionParameters {
 			bool pair_contains_types;
 			std::pair<int,int> key_pair;
 		};
@@ -35,7 +36,7 @@ namespace april::core {
 		// check if particle parameters are ok (e.g. no duplicate ids, every particle type has a force specified)
 		void validate_particle_params(
 			const std::vector<env::Particle> & particles,
-			std::vector<InteractionParams> interactions,
+			std::vector<InteractionParameters> interactions,
 			const std::unordered_set<env::ParticleID>& usr_particle_ids,
 			const std::unordered_set<env::ParticleType>& usr_particle_types
 		);
@@ -43,7 +44,7 @@ namespace april::core {
 		// map user set particle ids & types to dense internal ids & types and return mappings
 		UserToInternalMappings map_ids_and_types_to_internal(
 			std::vector<env::Particle>& particles,
-			const std::vector<InteractionParams>& interactions,
+			const std::vector<InteractionParameters>& interactions,
 			std::unordered_set<env::ParticleID>& usr_particle_ids,
 			std::unordered_set<env::ParticleType>& usr_particle_types
 		);
@@ -61,6 +62,11 @@ namespace april::core {
 			const std::vector<env::Particle>& particle_infos,
 			const UserToInternalMappings& mapping
 		);
+
+		// set container flags
+		container::internal::ContainerFlags set_container_flags(
+			const std::vector<boundary::Topology> & topologies
+		);
 	}
 
 	template <container::IsContDecl Container, env::IsEnvironment Environment>
@@ -73,46 +79,43 @@ namespace april::core {
 		using namespace internal;
 
 		auto env = env::internal::get_env_data(environment);
+
+		// --- validate & set simulation domain ---
 		const env::Box bbox = calculate_bounding_box(env.particles);
 		const env::Domain domain_cleaned = clean_domain(env.domain);
 
-		std::vector<InteractionParams> interactions(env.interactions.size());
+		validate_domain_params(domain_cleaned, bbox);
+		const env::Box box = finalize_environment_domain(bbox, domain_cleaned, env.margin_abs, env.margin_fac);
+		const env::Domain domain = {box.min, box.extent};
+
+
+		// --- validate & create Particles ---
+		std::vector<InteractionParameters> interactions(env.interactions.size());
 		for (size_t i = 0; i < interactions.size(); i++) {
 			interactions[i].key_pair = env.interactions[i].key_pair;
 			interactions[i].pair_contains_types = env.interactions[i].pair_contains_types;
 		}
 
-		validate_domain_params(
-			domain_cleaned,
-			bbox);
-
 		validate_particle_params(
 			env.particles,
 			interactions,
-			env.usr_particle_ids,
-			env.usr_particle_types);
+			env.user_particle_ids,
+			env.user_particle_types);
 
 		const UserToInternalMappings mapping = map_ids_and_types_to_internal(
 			env.particles,
 			interactions,
-			env.usr_particle_ids,
-			env.usr_particle_types
+			env.user_particle_ids,
+			env.user_particle_types
 		);
 
-		const env::Box box = finalize_environment_domain(bbox, domain_cleaned, env.margin_abs, env.margin_fac);
-		const env::Domain domain = {box.min, box.extent};
 		const std::vector<env::internal::Particle> particles = build_particles(env.particles, mapping);
 
-		if (particle_mappings) {
-			particle_mappings->usr_ids_to_impl_ids = mapping.usr_ids_to_impl_ids;
-			particle_mappings->usr_types_to_impl_types = mapping.usr_types_to_impl_types;
-		}
 
-		for (auto & v : env.boundaries) {
-			if (std::holds_alternative<boundary::internal::BoundarySentinel>(v)) {
+		// --- create boundary table ---
+		for (auto & v : env.boundaries)
+			if (std::holds_alternative<boundary::internal::BoundarySentinel>(v))
 				v.template emplace<boundary::Open>(); // default-construct Open boundary
-			}
-		}
 
 		BoundaryTable boundaries(env.boundaries, domain);
 
@@ -121,30 +124,25 @@ namespace april::core {
 			topologies.push_back(boundaries.get_boundary(face).topology);
 		}
 
-		// TODO validate topologies
+		// TODO validate topologies e.g face linkage
 
-		container::internal::ContainerFlags container_flags = {};
-		for (const boundary::Face face : boundary::all_faces) {
-			if (topologies[face_to_int(face)].force_wrap) {
-				switch (axis_of_face(face)) {
-				case 0: container_flags.periodic_x = true; break;
-				case 1: container_flags.periodic_y = true; break;
-				case 2: container_flags.periodic_z = true; break;
-				default: std::unreachable();
-				}
-			}
+
+		// return mappings
+		if (particle_mappings) {
+			particle_mappings->user_ids_to_impl_ids = mapping.user_ids_to_impl_ids;
+			particle_mappings->user_types_to_impl_types = mapping.user_types_to_impl_types;
 		}
 
 		return System<Container, typename Environment::traits> (
 			container,
-			container_flags,
+			set_container_flags(topologies),
 			domain,
 			particles,
 			boundaries,
 			env.controllers,
 			env.fields,
-			mapping.usr_types_to_impl_types,
-			mapping.usr_ids_to_impl_ids,
+			mapping.user_types_to_impl_types,
+			mapping.user_ids_to_impl_ids,
 			env.interactions
 		);
 	}

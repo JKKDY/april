@@ -108,17 +108,17 @@ namespace april::env {
 
         // Single particle
         void add_particle(const Particle& particle) {
-            if (particle.id != PARTICLE_ID_DONT_CARE && data.usr_particle_ids.contains(particle.id)) {
+            if (particle.id != PARTICLE_ID_DONT_CARE && data.user_particle_ids.contains(particle.id)) {
                 throw std::invalid_argument("specified id is not unique");
             }
 
             data.particles.push_back(particle);
 
             if (particle.id != PARTICLE_ID_DONT_CARE) {
-                data.usr_particle_ids.insert(particle.id);
+                data.user_particle_ids.insert(particle.id);
             }
 
-            data.usr_particle_types.insert(particle.type);
+            data.user_particle_types.insert(particle.type);
         }
 
         // Single particle

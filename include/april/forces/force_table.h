@@ -46,7 +46,6 @@ namespace april::force::internal {
 
 
 
-    // TODO template just on IsForce... Fs instead of the entire environment!
     template<class FVariant> class ForceTable;
 
     template<IsForce... Fs>

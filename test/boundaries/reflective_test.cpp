@@ -132,7 +132,7 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
     };
 
     for (int uid = 0; uid < 6; ++uid) {
-        auto iid = mappings.usr_ids_to_impl_ids.at(uid);
+        auto iid = mappings.user_ids_to_impl_ids.at(uid);
     	env::internal::Particle & p = sys.get_particle_by_index(iid);
 
     	EXPECT_EQ(p.position.x, expected_pos[iid].x);

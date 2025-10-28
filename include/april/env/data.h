@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <unordered_set>
-#include <variant>
 
 #include "april/common.h"
 #include "april/env/domain.h"
@@ -37,8 +36,8 @@ namespace april::env::internal {
         vec3 margin_abs = {0, 0, 0};
         vec3 margin_fac = {0.5, 0.5, 0.5}; // 50 % margin on each side by default
 
-        std::unordered_set<env::ParticleID> usr_particle_ids; // TODO usr -> user
-        std::unordered_set<env::ParticleType> usr_particle_types;
+        std::unordered_set<env::ParticleID> user_particle_ids;
+        std::unordered_set<env::ParticleType> user_particle_types;
 
         std::vector<env::Particle> particles;
         std::vector<force::internal::InteractionInfo<ForceVariant>> interactions {};

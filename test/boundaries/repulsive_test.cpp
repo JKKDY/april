@@ -126,7 +126,7 @@ TYPED_TEST(RepulsiveBoundarySystemTestT, EachFace_AppliesInwardForce) {
 	};
 
 	for (int uid = 0; uid < 6; ++uid) {
-		auto iid = mappings.usr_ids_to_impl_ids.at(uid);
+		auto iid = mappings.user_ids_to_impl_ids.at(uid);
 		const auto& p = sys.get_particle_by_index(iid);
 		EXPECT_NEAR(p.force.x, expected[iid].x, 1e-12);
 		EXPECT_NEAR(p.force.y, expected[iid].y, 1e-12);

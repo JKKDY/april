@@ -190,8 +190,8 @@ TEST(DirectSumTest, PeriodicForceWrap_X) {
 	auto const& out = sys.export_particles();
 	ASSERT_EQ(out.size(), 2u);
 
-	auto p1 = sys.get_particle_by_id(mapping.usr_ids_to_impl_ids[0]);
-	auto p2 = sys.get_particle_by_id(mapping.usr_ids_to_impl_ids[1]);
+	auto p1 = sys.get_particle_by_id(mapping.user_ids_to_impl_ids[0]);
+	auto p2 = sys.get_particle_by_id(mapping.user_ids_to_impl_ids[1]);
 
 	// They should feel equal and opposite forces due to wrapping
 	EXPECT_EQ(p1.force, -p2.force);
@@ -227,8 +227,8 @@ TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 	auto const& out = sys.export_particles();
 	ASSERT_EQ(out.size(), 2u);
 
-	auto p1 = sys.get_particle_by_id(mapping.usr_ids_to_impl_ids[0]);
-	auto p2 = sys.get_particle_by_id(mapping.usr_ids_to_impl_ids[1]);
+	auto p1 = sys.get_particle_by_id(mapping.user_ids_to_impl_ids[0]);
+	auto p2 = sys.get_particle_by_id(mapping.user_ids_to_impl_ids[1]);
 
 	// In a 10x10x10 domain with full wrapping,
 	// the wrapped displacement should be (-1, -1, -1) for p1->p2.

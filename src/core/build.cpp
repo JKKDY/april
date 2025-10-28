@@ -10,7 +10,7 @@ namespace april::core::internal {
 	// ---- Domain Validation & Setting ----
 
 	Domain clean_domain(const Domain& domain) {
-		// if extent is set to auto then theres nothing to clean
+		// if extent is set to auto then there's nothing to clean
 		if (domain.extent == EXTENT_NOT_SET) {
 			return domain;
 		}
@@ -182,7 +182,7 @@ namespace april::core::internal {
 
 	void validate_particle_params(
 		const std::vector<Particle> & particles,
-		std::vector<InteractionParams> interactions,
+		std::vector<InteractionParameters> interactions,
 		const std::unordered_set<ParticleID> & usr_particle_ids,
 		const std::unordered_set<ParticleType> & usr_particle_types)
 	{
@@ -274,7 +274,7 @@ namespace april::core::internal {
 
 	UserToInternalMappings map_ids_and_types_to_internal(
 		 std::vector<Particle> & particles,
-		 const std::vector<InteractionParams>& interactions,
+		 const std::vector<InteractionParameters>& interactions,
 		 std::unordered_set<ParticleID> & usr_particle_ids,
 		 std::unordered_set<ParticleType> & usr_particle_types
 		 ) {
@@ -299,7 +299,7 @@ namespace april::core::internal {
 
 		// create types map
 		for (size_t  i = 0; i < type_vector.size(); i++) {
-			mapping.usr_types_to_impl_types[type_vector[i]] = static_cast<env::internal::ParticleType>(i);
+			mapping.user_types_to_impl_types[type_vector[i]] = static_cast<env::internal::ParticleType>(i);
 		}
 
 		// generate mapping for user ids to implementation ids
@@ -324,7 +324,7 @@ namespace april::core::internal {
 
 		// create id map
 		for (size_t  i = 0; i < id_vector.size(); i++) {
-			mapping.usr_ids_to_impl_ids[id_vector[i]] = static_cast<env::internal::ParticleID>(i);
+			mapping.user_ids_to_impl_ids[id_vector[i]] = static_cast<env::internal::ParticleID>(i);
 		}
 
 		return mapping;
@@ -336,11 +336,11 @@ namespace april::core::internal {
 
 		for (const auto & p : particle_infos) {
 			particles.emplace_back(
-				mapping.usr_ids_to_impl_ids.at(p.id),
+				mapping.user_ids_to_impl_ids.at(p.id),
 				p.position,
 				p.velocity,
 				p.mass,
-				mapping.usr_types_to_impl_types.at(p.type),
+				mapping.user_types_to_impl_types.at(p.type),
 				p.state,
 				vec3{},
 				vec3{},
@@ -349,5 +349,21 @@ namespace april::core::internal {
 		}
 
 		return particles;
+	}
+
+
+	container::internal::ContainerFlags set_container_flags(const std::vector<boundary::Topology>& topologies) {
+		container::internal::ContainerFlags container_flags = {};
+		for (const boundary::Face face : boundary::all_faces) {
+			if (topologies[face_to_int(face)].force_wrap) {
+				switch (axis_of_face(face)) {
+				case 0: container_flags.periodic_x = true; break;
+				case 1: container_flags.periodic_y = true; break;
+				case 2: container_flags.periodic_z = true; break;
+				default: std::unreachable();
+				}
+			}
+		}
+		return container_flags;
 	}
 }

@@ -14,8 +14,8 @@ namespace april::core {
 	struct UserToInternalMappings {
 		using TypeMap = std::unordered_map<env::ParticleType, env::internal::ParticleType>;
 		using IdMap = std::unordered_map<env::ParticleID, env::internal::ParticleID>;
-		TypeMap usr_types_to_impl_types;
-		IdMap usr_ids_to_impl_ids;
+		TypeMap user_types_to_impl_types;
+		IdMap user_ids_to_impl_ids;
 	};
 
 

@@ -85,7 +85,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, InsideDomain_RemainsAlive) {
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
-	auto id0 = mappings.usr_ids_to_impl_ids.at(0);
+	auto id0 = mappings.user_ids_to_impl_ids.at(0);
 	const auto& p = sys.get_particle_by_index(id0);
 
 	EXPECT_EQ(p.state, ParticleState::ALIVE)
@@ -125,7 +125,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 
 	// Verify all particles are DEAD
 	for (int uid = 0; uid < 6; ++uid) {
-		auto iid = mappings.usr_ids_to_impl_ids.at(uid);
+		auto iid = mappings.user_ids_to_impl_ids.at(uid);
 		const auto& p = sys.get_particle_by_index(iid);
 		EXPECT_EQ(p.state, ParticleState::DEAD)
 			<< "Particle " << uid << " crossing face " << uid

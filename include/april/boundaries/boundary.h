@@ -110,6 +110,17 @@ namespace april::boundary {
 	inline constexpr BoundaryPack<BCs...> boundaries {};
 
 
+	// Concept to check if a type T is a ControllerPack
+	template<typename T>
+	inline constexpr bool is_boundary_pack_v = false; // Default
+
+	template<IsBoundary... BCs>
+	inline constexpr bool is_boundary_pack_v<BoundaryPack<BCs...>> = true; // Specialization
+
+	template<typename T>
+	concept IsBoundaryPack = is_boundary_pack_v<std::remove_cvref_t<T>>;
+
+
 	namespace internal {
 
 		struct BoundarySentinel : Boundary {
@@ -128,7 +139,7 @@ namespace april::boundary {
 		struct is_boundary_variant<std::variant<BCs...>> : std::true_type {};
 
 		template<typename T>
-		concept BoundaryVariant = is_boundary_variant<T>::value;
+		concept IsBoundaryVariant = is_boundary_variant<T>::value;
 
 		template<class... BCs>
 		struct VariantType {

@@ -2,7 +2,6 @@
 #include <vector>
 
 #include "april/env/particle.h"
-#include "april/forces/force_table.h"
 #include "april/env/domain.h"
 
 
@@ -33,9 +32,9 @@ namespace april::container {
 		// in the future:
 		//   remove_particle
 		//   add_particle
-		template <class Env> class ContainerInterface {
+		// TODO add IsForceTable Concept
+		template <class ForceTable> class ContainerInterface {
 		public:
-			using ForceTable = force::internal::ForceTable<Env>;
 			using Domain = env::Domain;
 			using Particle = env::internal::Particle;
 			using ParticleID = env::internal::ParticleID;

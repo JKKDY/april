@@ -63,14 +63,13 @@ namespace april::core {
 		);
 	}
 
-	template <container::IsContDecl C, class FPack, class BPack, class CPack, class FFPack>
-	System<C, env::Environment<FPack, BPack, CPack, FFPack>> build_system(
-		env::Environment<FPack, BPack, CPack, FFPack> & environment,
+	template <container::IsContDecl C, class Env>
+	auto build_system(
+		Env & environment,
 		const C& container,
 		UserToInternalMappings* particle_mappings
 	) {
-		using EnvT = env::Environment<FPack, BPack, CPack, FFPack>;
-		using BoundaryTable = boundary::internal::BoundaryTable<typename EnvT::boundary_variant_t>;
+		using BoundaryTable = typename Env::traits::boundary_table_t;
 		using namespace internal;
 
 		auto env = env::internal::get_env_data(environment);
@@ -109,7 +108,7 @@ namespace april::core {
 			particle_mappings->usr_types_to_impl_types = mapping.usr_types_to_impl_types;
 		}
 
-		BoundaryTable boundaries (env.boundaries, domain);
+		BoundaryTable boundaries(env.boundaries, domain);
 
 		std::vector<boundary::Topology> topologies;
 		for (boundary::Face face : boundary::all_faces) {
@@ -130,7 +129,7 @@ namespace april::core {
 			}
 		}
 
-		return System<C, env::Environment<FPack, BPack, CPack, FFPack>> (
+		return System<C, typename Env::traits> (
 			container,
 			container_flags,
 			domain,

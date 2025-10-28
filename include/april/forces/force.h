@@ -58,6 +58,17 @@ namespace april::force {
     inline constexpr ForcePack<Fs...> forces{};
 
 
+    // Concept to check if a type T is a ForcePack
+    template<typename T>
+    inline constexpr bool is_force_pack_v = false; // Default
+
+    template<IsForce... Fs>
+    inline constexpr bool is_force_pack_v<ForcePack<Fs...>> = true; // Specialization
+
+    template<typename T>
+    concept IsForcePack = is_force_pack_v<std::remove_cvref_t<T>>;
+
+
     namespace internal {
 
         template<typename T>

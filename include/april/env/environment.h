@@ -2,73 +2,25 @@
 
 #include <vector>
 #include <functional>
-#include <unordered_set>
 #include <ranges>
 #include <algorithm>
-#include <variant>
 #include <limits>
+
 
 #include "april/common.h"
 #include "april/env/domain.h"
 #include "april/env/particle.h"
 #include "april/forces/force.h"
 #include "april/boundaries/boundary.h"
-#include "april/boundaries/absorb.h"
 #include "april/controllers/controller.h"
 #include "april/fields/field.h"
-#include "april/shared/pack_storage.h"
+
+#include "april/env/traits.h"
 
 
 namespace april::env {
-    template<class FPack, class BPack, class CPack, class FFPack> class Environment;
-
-    inline const auto EXTENT_NOT_SET = vec3(std::numeric_limits<double>::max());
-    inline const auto ORIGIN_NOT_SET = vec3(std::numeric_limits<double>::max());
     inline const auto MARGIN_DONT_CARE = vec3(std::numeric_limits<double>::max());
     inline const auto ZERO_THERMAL_V = [](const Particle&) {return vec3{}; };
-
-
-    namespace internal {
-        template<force::internal::ForceVariant FV,  boundary::internal::BoundaryVariant BV, class CPack, class FFPack> struct EnvironmentData;
-
-        template<force::internal::ForceVariant FV,  boundary::internal::BoundaryVariant BV, class...Cs, class...FFs>
-        struct EnvironmentData <
-            FV,
-            BV,
-            controller::ControllerPack<Cs ...>,
-            field::FieldPack<FFs...>
-        > {
-            using force_variant_t = FV;
-            using boundary_variant_t = BV;
-
-            Domain domain = {ORIGIN_NOT_SET, EXTENT_NOT_SET};
-            vec3 margin_abs = {0, 0, 0};
-            vec3 margin_fac = {0.5, 0.5, 0.5}; // 50 % margin on each side by default
-
-            std::unordered_set<env::ParticleID> usr_particle_ids;
-            std::unordered_set<env::ParticleType> usr_particle_types;
-
-            std::vector<env::Particle> particles;
-            std::vector<force::internal::InteractionInfo<force_variant_t>> interactions {};
-            std::array<boundary_variant_t, 6> boundaries;
-
-            shared::internal::PackStorage<Cs...> controllers;
-            shared::internal::PackStorage<FFs...> fields;
-
-        };
-
-        template<class FPack, class BPack, class CPack, class FFPack>
-        auto get_env_data(Environment<FPack, BPack, CPack, FFPack>& env) {
-            for (auto & v : env.data.boundaries) {
-                if (std::holds_alternative<boundary::internal::BoundarySentinel>(v)) {
-                    v.template emplace<boundary::Open>(); // default-construct Open boundary
-                }
-            }
-
-            return env.data;
-        }
-
-    }
 
 
     struct ParticleCuboid {
@@ -116,48 +68,40 @@ namespace april::env {
     };
 
 
-    struct to_type {
-        ParticleType type;
-    };
+    struct to_type { ParticleType type; };
 
-    struct between_types {
-        ParticleType t1, t2;
-    };
+    struct between_types { ParticleType t1, t2; };
 
-    struct between_ids {
-        ParticleID id1, id2;
-    };
+    struct between_ids { ParticleID id1, id2; };
 
 
-    template<class... Fs, class... BCs, class... Cs, class... FFs>
-    class Environment<
-        force::ForcePack<Fs...>,
-        boundary::BoundaryPack<BCs...>,
-        controller::ControllerPack<Cs...>,
-        field::FieldPack<FFs...>
-    >{
+
+    template<
+        force::IsForcePack              FPack,  // Constrained
+        boundary::IsBoundaryPack        BPack,  // Constrained
+        controller::IsControllerPack    CPack,  // Constrained
+        field::IsFieldPack              FFPack  // Constrained
+    >
+    class Environment {
     public:
-        explicit Environment(
-            force::ForcePack<Fs...>,
-            boundary::BoundaryPack<BCs...>,
-            controller::ControllerPack<Cs...>,
-            field::FieldPack<FFs...>) {}
+
+        using traits = internal::EnvironmentTraits<FPack, BPack, CPack, FFPack>;
+
+        explicit Environment(FPack, BPack, CPack, FFPack) {}
 
         // TODO clean up this mess; try create constructors that can take in packs in any order
-        explicit Environment(force::ForcePack<Fs...> force_types)
+        explicit Environment(FPack force_types)
             : Environment(force_types, boundary::boundaries<>, controller::controllers<>, field::fields<>) {}
 
-        explicit Environment(force::ForcePack<Fs...> force_types, boundary::BoundaryPack<BCs...> boundary_types)
+        explicit Environment(FPack force_types, BPack boundary_types)
            : Environment(force_types, boundary_types, controller::controllers<>, field::fields<>) {}
 
-        // expose variant types
-        using force_variant_t = std::variant<Fs...>;
-        using boundary_variant_t = boundary::internal::VariantType_t<BCs...>;
 
     private:
-        internal::EnvironmentData<force_variant_t, boundary_variant_t, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>> data;
-        template<class FPack, class BPack, class CPack, class FFPack>
-        friend auto internal::get_env_data(Environment<FPack, BPack, CPack, FFPack>& env);
+        using EnvData = typename traits::environment_data_t;
+        EnvData data;
+
+        friend auto internal::get_env_data<FPack, BPack, CPack, FFPack> (Environment& env);
 
     public:
 
@@ -298,33 +242,38 @@ namespace april::env {
         }
 
         // --- Add Forces ---
-        // Force applied to all particles of a given type
-        template<force::IsForce F> requires same_as_any<F, Fs...>
+        // Force applied to a single particle type (self-interaction)
+        template<force::IsForce F> requires traits::template is_valid_force_v<F>
         void add_force(F force, to_type scope) {
-            data.interactions.emplace_back(true, std::pair{scope.type, scope.type}, force_variant_t{std::move(force)});
+            // add_force({true, std::pair{scope.type, scope.type}})
+            data.interactions.emplace_back(true, std::pair{scope.type, scope.type}, typename traits::force_variant_t{std::move(force)});
         }
 
         // Force applied between two particle types
-        template<force::IsForce F> requires same_as_any<F, Fs...>
+        template<force::IsForce F> requires traits::template is_valid_force_v<F>
         void add_force(F force, between_types scope) {
-            data.interactions.emplace_back(true, ParticleTypePair{scope.t1, scope.t2}, force_variant_t{std::move(force)});
+            data.interactions.emplace_back(true, std::pair{scope.t1, scope.t2}, typename traits::force_variant_t{std::move(force)});
         }
 
         // Force applied between two specific particle IDs
-        template<force::IsForce F> requires same_as_any<F, Fs...>
+        template<force::IsForce F> requires traits::template is_valid_force_v<F>
         void add_force(F force, between_ids scope) {
-            data.interactions.emplace_back(false, ParticleIDPair{scope.id1, scope.id2}, force_variant_t{std::move(force)});
+            data.interactions.emplace_back(false, std::pair{scope.id1, scope.id2}, typename traits::force_variant_t{std::move(force)});
         }
+
+        // void add_force(const force::internal::InteractionInfo<typename traits::force_variant_t> & info) {
+        //     data.interactions.push_back(info);
+        // }
 
         // --- Add Boundaries ---
         // Single boundary on one face
-        template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
+        template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
         void set_boundary(B boundary, const boundary::Face face) {
             data.boundaries[face_to_int(face)].template emplace<B>(std::move(boundary));
         }
 
         // Same boundary applied to multiple faces
-        template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
+        template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
         void set_boundaries(B boundary, const std::vector<boundary::Face> & faces) {
             for (const boundary::Face face : faces) {
                 data.boundaries[face_to_int(face)].template emplace<B>(boundary);
@@ -332,7 +281,7 @@ namespace april::env {
         }
 
         // Boundaries provided as array (per-face)
-        template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
+        template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
         void set_boundaries(const std::array<B, 6> & boundaries) {
             for (const boundary::Face face : boundary::all_faces) {
                 data.boundaries[face_to_int(face)].template emplace<B>(boundaries[face_to_int(face)]);
@@ -340,7 +289,7 @@ namespace april::env {
         }
 
         // --- Add Controllers ---
-        template<controller::IsController C> requires same_as_any<C, Cs...>
+        template<controller::IsController C> requires traits::template is_valid_controller_v<C>
         void add_controller(C controller) {
             data.controllers.add(controller);
         }
@@ -351,7 +300,7 @@ namespace april::env {
         }
 
         // --- Add Fields ---
-        template<field::IsField F> requires same_as_any<F, FFs...>
+        template<field::IsField F>  requires traits::template is_valid_field_v<F>
         void add_field(F field) {
             data.fields.add(field);
         }
@@ -383,7 +332,7 @@ namespace april::env {
             return *this;
         }
 
-        Environment& with_particle(
+        Environment& with_particle (
         const vec3& position, const vec3& velocity, const double mass, const ParticleType type = 0, const ParticleID id = PARTICLE_ID_DONT_CARE) {
             add_particle(position, velocity, mass, type, id);
             return *this;
@@ -404,43 +353,43 @@ namespace april::env {
             return *this;
         }
 
-        template<force::IsForce F> requires same_as_any<F, Fs...>
+        template<force::IsForce F>
         Environment& with_force(F&& force, to_type scope) {
             add_force(std::forward<F>(force), scope);
             return *this;
         }
 
-        template<force::IsForce F> requires same_as_any<F, Fs...>
+        template<force::IsForce F>
         Environment& with_force(F&& force, between_types scope) {
             add_force(std::forward<F>(force), scope);
             return *this;
         }
 
-        template<force::IsForce F> requires same_as_any<F, Fs...>
+        template<force::IsForce F>
         Environment& with_force(F&& force, between_ids scope) {
             add_force(std::forward<F>(force), scope);
             return *this;
         }
 
-        template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
+        template<boundary::IsBoundary B>
         Environment& with_boundary(B&& boundary, boundary::Face face) {
             set_boundary(std::forward<B>(boundary), face);
             return *this;
         }
 
-        template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
+        template<boundary::IsBoundary B>
         Environment& with_boundaries(B&& boundary, const std::vector<boundary::Face>& faces) {
             set_boundaries(std::forward<B>(boundary), faces);
             return *this;
         }
 
-        template<boundary::IsBoundary B> requires same_as_any<B, BCs...>
+        template<boundary::IsBoundary B>
         Environment& with_boundaries(const std::array<B, 6>& boundaries) {
             set_boundaries(boundaries);
             return *this;
         }
 
-        template<controller::IsController C> requires same_as_any<C, Cs...>
+        template<controller::IsController C>
         Environment& with_controller(C controller) {
             add_controller(controller);
             return *this;
@@ -452,14 +401,14 @@ namespace april::env {
             return *this;
         }
 
-        template<field::IsField F> requires same_as_any<F, FFs...>
+        template<field::IsField F>
         Environment& with_field(F field) {
             add_field(field);
             return *this;
         }
 
         template<field::IsField... F>
-        Environment& with_controllers(F&&... fields) {
+        Environment& with_fields(F&&... fields) {
             add_fields(std::forward<F>(fields)...);
             return *this;
         }

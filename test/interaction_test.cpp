@@ -10,9 +10,6 @@
 
 using namespace april;
 
-template <class Env>
-using InteractionManager = force::internal::ForceTable<Env>;
-
 
 // Helper to make a dummy particle
 static env::internal::Particle make_particle(env::internal::ParticleType type, env::internal::ParticleID id, double mass=1.0, vec3 pos={0,0,0}) {
@@ -29,12 +26,12 @@ static env::internal::Particle make_particle(env::internal::ParticleType type, e
 
 // Use an environment that supports ConstantForce
 using Env = Environment<force::ForcePack<ConstantForce>, boundary::BoundaryPack<>, controller::ControllerPack<>, field::FieldPack<>>;
-using IM  = InteractionManager<Env>;
-using Info = force::internal::InteractionInfo<Env::force_variant_t>; // variant<ConstantForce>
+using FT  = Env::traits::force_table_t;
+using Info = force::internal::InteractionInfo<Env::traits::force_variant_t>; // variant<ConstantForce>
 
 
 TEST(InteractionManagerTest, EmptyBuild) {
-    IM mgr;
+    FT mgr;
     std::vector<Info> info;  // empty
 
     // empty maps are fine
@@ -43,7 +40,7 @@ TEST(InteractionManagerTest, EmptyBuild) {
 }
 
 TEST(InteractionManagerTest, MaxCutoffCalculation) {
-    IM mgr;
+    FT mgr;
 
     // two type-based interactions with cutoffs 1.5 and 2.5
     std::vector<Info> info;
@@ -57,7 +54,7 @@ TEST(InteractionManagerTest, MaxCutoffCalculation) {
 }
 
 TEST(InteractionManagerTest, TypeBasedLookup) {
-    IM mgr;
+    FT mgr;
 
     std::vector<Info> info;
     info.emplace_back(true, std::pair{0, 0}, ConstantForce(4, 5, 6, -1));
@@ -83,7 +80,7 @@ TEST(InteractionManagerTest, TypeBasedLookup) {
 }
 
 TEST(InteractionManagerTest, IdBasedLookup) {
-    IM mgr;
+    FT mgr;
 
     std::vector<Info> info;
     // Provide a zero type-force for (0,0) so evaluate never hits NullForce
@@ -111,7 +108,7 @@ TEST(InteractionManagerTest, IdBasedLookup) {
 
 
 TEST(InteractionManagerTest, MixingForces) {
-    IM mgr;
+    FT mgr;
 
     std::vector<Info> info;
     info.emplace_back(true, std::pair{0, 0}, ConstantForce(4, 5, 6, -1));

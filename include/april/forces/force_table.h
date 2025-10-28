@@ -7,9 +7,7 @@
 #include "april/env/particle.h"
 #include "april/forces/force.h"
 #include "april/forces/no_force.h"
-#include "april/boundaries/boundary.h"
 #include "april/common.h"
-#include "april/env/environment.h"
 
 
 namespace april::force::internal {
@@ -49,10 +47,10 @@ namespace april::force::internal {
 
 
     // TODO template just on IsForce... Fs instead of the entire environment!
-    template<class Env> class ForceTable;
+    template<class FVariant> class ForceTable;
 
-    template<IsForce... Fs, boundary::IsBoundary... BCs, controller::IsController...Cs, field::IsField...FFs>
-    class ForceTable<env::Environment<ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>>> {
+    template<IsForce... Fs>
+    class ForceTable<std::variant<Fs...>> {
         // big variant used internally by the manager. Contains NullForce (internal placeholder) & NoForce
         using internal_force_variant_t = VariantType_t<Fs...>;
 

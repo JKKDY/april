@@ -9,24 +9,25 @@ namespace fs = std::filesystem;
 // consequently it does not contain a fixed scenario
 int main() {
 
-	struct ForceTest : force::Force {
-		ForceTest() : Force(-1) {}
+	Force
 
-		[[nodiscard]] vec3 eval(env::internal::Particle const& , env::internal::Particle const& , const vec3 & ) const {
-			return {};
-		}
-
-		ForceTest mix(const ForceTest &) {
-			return ForceTest();
-		}
-	};
-
-	env::internal::Particle p1;
-	env::internal::Particle p2;
-
-	ForceTest f;
-	f.dispatch_eval(p1, p2, vec3{});
-	f(p1,p2, vec3{});
+	// struct ForceTest : force::Force {
+	// 	ForceTest() : Force(-1) {}
+	//
+	// 	[[nodiscard]] vec3 eval(env::internal::Particle const& , env::internal::Particle const& , const vec3 & ) const {
+	// 		return {};
+	// 	}
+	//
+	// 	ForceTest mix(const ForceTest &) {
+	// 		return ForceTest();
+	// 	}
+	// };
+	//
+	// env::internal::Particle p1;
+	// env::internal::Particle p2;
+	//
+	// ForceTest f;
+	// f(p1,p2, vec3{});
 
 	// const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/sandbox";
 	// remove_all(dir_path);   // delete the directory and all contents

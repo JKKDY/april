@@ -4,12 +4,10 @@
 #include "april/env/particle.h"
 #include "april/forces/force.h"
 #include "april/env/environment.h"
-#include "april/forces/force_table.h"
 #include "april/containers/container.h"
 #include "april/env/domain.h"
 #include "april/boundaries/boundary_table.h"
 #include "april/core/context.h"
-#include "april/shared/pack_storage.h"
 
 namespace april::core {
 
@@ -21,58 +19,31 @@ namespace april::core {
 	};
 
 	template <container::IsContDecl C, class Env>
-	class System;
-
-	template <container::IsContDecl Cont, class FPack, class BPack, class CPack, class FFPack>
 	auto build_system(
-		env::Environment<FPack, BPack, CPack, FFPack>& environment,
-		const Cont& container,
+		Env & environment,
+		const C& container,
 		UserToInternalMappings* particle_mappings = nullptr
-	) -> System<Cont, env::Environment<FPack, BPack, CPack, FFPack>>;
-
-
-	// Default: assume any type is not a System
-	template<typename>
-	inline constexpr bool is_system_v = false;
-
-	// Specialization: mark all System<C, Env> instantiations as true
-	template<container::IsContDecl C, class Env>
-	inline constexpr bool is_system_v<System<C, Env>> = true;
-
-	// Concept: true if T (after removing cv/ref) is a System specialization
-	template<typename T>
-	concept IsSystem = is_system_v<std::remove_cvref_t<T>>;
+	);
 
 
 	template <
 		container::IsContDecl C,
-		force::IsForce ... Fs,
-		boundary::IsBoundary ... BCs,
-		controller::IsController ... Cs,
-		field::IsField ... FFs
+		env::internal::IsEnvironmentTraits Traits
 	>
-	class System <C,
-		env::Environment<
-			force::ForcePack<Fs...>,
-			boundary::BoundaryPack<BCs...>,
-			controller::ControllerPack<Cs...>,
-			field::FieldPack<FFs...>
-		>
-	> {
-		using Controllers    = shared::internal::PackStorage<Cs...>;
-		using Fields	     = shared::internal::PackStorage<FFs...>;
-	public:
-		using EnvT           = env::Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>>;
-		using Container      = typename C::template impl<EnvT>;
+	class System final {
+		using Controllers    = typename Traits::controller_storage_t;
+		using Fields	     = typename Traits::field_storage_t;
+		using ForceTable     = typename Traits::force_table_t;
+		using BoundaryTable  = typename Traits::boundary_table_t;
+		using Container      = typename C::template impl<ForceTable>;
 		using ContainerFlags = container::internal::ContainerFlags;
-		using BoundaryTable  = boundary::internal::BoundaryTable<typename EnvT::boundary_variant_t>;
-		using ForceTable     = force::internal::ForceTable<EnvT>;
-		using Interaction    = force::internal::InteractionInfo<typename EnvT::force_variant_t>;
+		using Interaction    = force::internal::InteractionInfo<typename Traits::force_variant_t>;
+
 		using Particle       = env::internal::Particle;
 		using ParticleRef    = env::ParticleRef;
 		using ParticleView   = env::ParticleView;
 		using ParticleID     = env::internal::ParticleID;
-
+	public:
 
 		const env::Domain domain;
 
@@ -118,10 +89,10 @@ namespace april::core {
 		std::unique_ptr<SimulationContext> simulation_context;
 
 		// System factory. Only valid way to create a System.
-		template <container::IsContDecl Cont, class FPack, class BPack, class CPack, class FFPack>
-		friend System<Cont, env::Environment<FPack, BPack, CPack, FFPack>>
+		template <container::IsContDecl Cont, class Env>
+		friend auto
 		build_system(
-			env::Environment<FPack, BPack, CPack, FFPack>& environment,
+			 Env & environment,
 			 const Cont& container,
 			 UserToInternalMappings* particle_mappings
 		);
@@ -148,7 +119,7 @@ namespace april::core {
 
 		// call to apply boundary conditions to all particles. should not be called before register_particle_movements
 		void apply_boundary_conditions() {
-			using Boundary = boundary::internal::CompiledBoundary<typename EnvT::boundary_variant_t>;
+			using Boundary = boundary::internal::CompiledBoundary<typename Traits::boundary_variant_t>;
 
 			auto box = env::Box(domain);
 
@@ -299,6 +270,19 @@ namespace april::core {
 			return particles;
 		}
 	};
+
+
+	// Default: assume any type is not a System
+	template<typename>
+	inline constexpr bool is_system_v = false;
+
+	// Specialization: mark all System<C, Env> instantiations as true
+	template<container::IsContDecl C, env::internal::IsEnvironmentTraits Traits>
+	inline constexpr bool is_system_v<System<C, Traits>> = true;
+
+	// Concept: true if T (after removing cv/ref) is a System specialization
+	template<typename T>
+	concept IsSystem = is_system_v<std::remove_cvref_t<T>>;
 }
 
 

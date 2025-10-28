@@ -81,15 +81,27 @@ namespace april::force {
         concept IsForceVariant = is_force_variant<T>::value;
 
 
-        template<IsForceVariant FV> struct InteractionInfo {
-            bool pair_contains_types;
-            std::pair<int,int> key_pair;
-            FV force;
+        template<IsForceVariant FV> struct TypeInteraction {
+            const env::ParticleType type1;
+            const env::ParticleType type2;
+            const FV force;
 
-            InteractionInfo(const bool is_type_pair, const std::pair<int,int>& key, FV f)
-              : pair_contains_types(is_type_pair), key_pair(key), force(std::move(f))
+            TypeInteraction(const env::ParticleType type1, const env::ParticleType type2, FV f)
+              : type1(std::min(type1, type2)), type2(std::max(type1, type2)), force(std::move(f))
             {}
         };
+
+        template<IsForceVariant FV> struct IdInteraction {
+            const env::ParticleID id1;
+            const env::ParticleID id2;
+            const FV force;
+
+            IdInteraction(const env::ParticleID id1, const env::ParticleID id2, FV f)
+              : id1(std::min(id1, id2)), id2(std::max(id1, id2)), force(std::move(f))
+            {}
+        };
+
+
 
     }
 } // namespace april::env

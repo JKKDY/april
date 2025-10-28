@@ -16,7 +16,8 @@ namespace april::env::internal {
 	template<class FPack, class BPack, class CPack, class FFPack>
 	   struct EnvironmentTraits;
 
-
+	// this class holds relevant types derived from template parameter packs
+	// this significantly cleans up dependent type declarations in other classes
 	template<
 	force::IsForce... Fs,
 	boundary::IsBoundary... BCs,
@@ -55,21 +56,11 @@ namespace april::env::internal {
 			controller_storage_t,
 			field_storage_t>;
 
-		// This helper will be true if T is one of the types in Cs...
-		template<typename T>
-		static constexpr bool is_valid_force_v = same_as_any<T, Fs...>;
-
-		// This helper will be true if T is one of the types in BCs...
-		template<typename T>
-		static constexpr bool is_valid_boundary_v = same_as_any<T, BCs...>;
-
-		// This helper will be true if T is one of the types in Cs...
-		template<typename T>
-		static constexpr bool is_valid_controller_v = same_as_any<T, Cs...>;
-
-		// This helper will be true if T is one of the types in FFs...
-		template<typename T>
-		static constexpr bool is_valid_field_v = same_as_any<T, FFs...>;
+		// Validity check: check for membership in parameter packs
+		template<typename T> static constexpr bool is_valid_force_v = same_as_any<T, Fs...>;
+		template<typename T> static constexpr bool is_valid_boundary_v = same_as_any<T, BCs...>;
+		template<typename T> static constexpr bool is_valid_controller_v = same_as_any<T, Cs...>;
+		template<typename T> static constexpr bool is_valid_field_v = same_as_any<T, FFs...>;
 	};
 
 	template<typename T>

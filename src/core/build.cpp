@@ -149,92 +149,93 @@ namespace april::core::internal {
 
 
 
+	// ---- Particle Validation ----
 
-
-
-	// ---- Particle Validation & Setting ----
-
-	void validate_particle_params(
-		const std::vector<Particle> & particles,
-		std::vector<InteractionParameters> interactions,
-		const std::unordered_set<ParticleID> & usr_particle_ids,
-		const std::unordered_set<ParticleType> & usr_particle_types)
-	{
-
+	template <typename T>
+	void validate_no_duplicates(const std::vector<std::pair<T, T>>& pairs, std::string_view item_name) {
 		//check for duplicates: first sort, then check adjacent pairs
-        std::ranges::sort(interactions, [](const auto& a, const auto& b) {
-            if (a.key_pair != b.key_pair)
-                return a.key_pair < b.key_pair;
-            return a.pair_contains_types < b.pair_contains_types;
-        });
+		auto sorted_pairs = pairs;
+		std::ranges::sort(sorted_pairs);
 
-        for (size_t i = 1; i < interactions.size(); ++i) {
-            if (interactions[i].key_pair == interactions[i-1].key_pair &&
-                interactions[i].pair_contains_types == interactions[i-1].pair_contains_types) {
-                    throw std::invalid_argument("Found duplicate forces");
-            }
-        }
+		// returns the first pair of adjacent, equal elements
+		auto it = std::ranges::adjacent_find(sorted_pairs);
 
-        // check that each particle type has an interaction
-        std::unordered_set<ParticleType> types_without_interaction;
-        types_without_interaction.insert(usr_particle_types.begin(), usr_particle_types.end());
+		if (it != sorted_pairs.end()) {
+			throw std::invalid_argument(std::format(
+				"Found duplicate {}: ({}, {})",
+				item_name, it->first, it->second
+			));
+		}
+	}
 
-        for (const auto & x : interactions) {
-            auto [a,b] = x.key_pair;
-            if (x.pair_contains_types and a == b and types_without_interaction.contains(a)) {
-                types_without_interaction.erase(a);
-            }
-        }
+	void validate_types(
+		const std::unordered_set<ParticleType>& user_types,
+		const std::vector<std::pair<ParticleType, ParticleType>>& type_pairs
+	) {
+		validate_no_duplicates(type_pairs, "type interaction");
 
-        if (not types_without_interaction.empty()) {
-            std::string msg = "Cannot have particle types without interaction. Types without interaction:";
-            for (const auto type : types_without_interaction)
-                msg += " " + std::to_string(type);
-            throw std::invalid_argument(msg);
-        }
+		// check if types are valid i.e. if there are any particles with that type
+		for (const auto [type1, type2] : type_pairs) {
+			if (!user_types.contains(type1))
+				throw std::invalid_argument(
+					"Specified interacting particle type does not exist: " + std::to_string(type1));
 
+			if (!user_types.contains(type2))
+				throw std::invalid_argument(
+					"Specified interacting particle type does not exist: " + std::to_string(type2));
+		}
 
-        // check if interaction arguments (ids/types) are valid
-        for (auto & interaction : interactions) {
-            // make sure interaction pair arguments are in canonical order
-            if (auto [a,b] = interaction.key_pair; a > b)
-                throw std::invalid_argument(
-                    "Keys not in canonical order. Pair: (" +
-                    std::to_string(a) + ", " + std::to_string(b) + ")"
-                );
+		// check that each particle type has a self interaction
+		std::unordered_set<ParticleType> types_without_interaction;
+		types_without_interaction.insert(user_types.begin(), user_types.end());
 
-        	// check if types are valid
-            if (interaction.pair_contains_types) {
-                auto [type1, type2] = interaction.key_pair;
-                if (!usr_particle_types.contains(type1) || !usr_particle_types.contains(type2)) {
-                    throw std::invalid_argument(
-                        "Specified interacting particle types do not exist: (" +
-                        std::to_string(type1) + ", " + std::to_string(type2) + ")"
-                    );
-                }
-            } else { // check if ids are valid
-                auto [id1, id2] = interaction.key_pair;
-                if (id1 == PARTICLE_ID_DONT_CARE || id2 == PARTICLE_ID_DONT_CARE) {
-                    throw std::invalid_argument(
-                        "Cannot have interaction between particles with undefined IDs: (" +
-                        std::to_string(id1) + ", " + std::to_string(id2) + ")"
-                    );
-                }
-                if (!usr_particle_ids.contains(id1) || !usr_particle_ids.contains(id2)) {
-                    throw std::invalid_argument(
-                        "Specified interacting particle IDs do not exist: (" +
-                        std::to_string(id1) + ", " + std::to_string(id2) + ")"
-                    );
-                }
-                if (id1 == id2) {
-                    throw std::invalid_argument(
-                        "Cannot have self-interaction of particle ID: " +
-                        std::to_string(id1)
-                    );
-                }
-            }
-        }
+		for (const auto [a,b] : type_pairs) {
+			if (a == b and types_without_interaction.contains(a)) {
+				types_without_interaction.erase(a);
+			}
+		}
 
+		if (not types_without_interaction.empty()) {
+			std::string msg = "Cannot have particle types without interaction. Types without interaction:";
+			for (const auto type : types_without_interaction)
+				msg += " " + std::to_string(type);
+			throw std::invalid_argument(msg);
+		}
+	}
+
+	void validate_ids(
+		const std::unordered_set<ParticleID>& user_ids,
+		const std::vector<std::pair<ParticleID, ParticleID>>& id_pairs
+	) {
+		validate_no_duplicates(id_pairs, "ID interaction");
+
+		// check if interaction arguments (ids/types) are valid
+		for (const auto [id1, id2]  : id_pairs) {
+
+			// check if types are valid
+			if (id1 == PARTICLE_ID_DONT_CARE || id2 == PARTICLE_ID_DONT_CARE) {
+				throw std::invalid_argument(
+					"Cannot have interaction between particles with undefined IDs: (" +
+					std::to_string(id1) + ", " + std::to_string(id2) + ")"
+				);
+			}
+			if (!user_ids.contains(id1) || !user_ids.contains(id2)) {
+				throw std::invalid_argument(
+					"Specified interacting particle IDs do not exist: (" +
+					std::to_string(id1) + ", " + std::to_string(id2) + ")"
+				);
+			}
+			if (id1 == id2) {
+				throw std::invalid_argument(
+					"Cannot have self-interaction of particle ID: " +
+					std::to_string(id1)
+				);
+			}
+
+		}
+	}
+
+	void validate_particles(const std::vector<Particle>& particles) {
 		// check for positive particle masses
 		for (auto & p : particles) {
 			if (p.mass <= 0) {
@@ -245,6 +246,21 @@ namespace april::core::internal {
 			}
 		}
 	}
+
+	void validate_particle_data(
+			const std::vector<Particle>& particles,
+			const std::unordered_set<ParticleType>& user_types,
+			const std::unordered_set<ParticleID>& user_ids,
+			const std::vector<std::pair<ParticleType, ParticleType>>& type_pairs,
+			const std::vector<std::pair<ParticleID, ParticleID>>& id_pairs
+	){
+		validate_types(user_types, type_pairs);
+		validate_ids(user_ids, id_pairs);
+		validate_particles(particles);
+	}
+
+
+	// ---- build particles ----
 
 	UserToInternalMappings create_particle_mappings(
 		 std::vector<Particle> & particles,

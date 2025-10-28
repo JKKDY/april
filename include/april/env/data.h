@@ -9,12 +9,8 @@
 #include "april/env/particle.h"
 #include "april/forces/force.h"
 #include "april/boundaries/boundary.h"
-#include "april/shared/pack_storage.h"
 
 namespace april::env {
-    inline const auto EXTENT_NOT_SET = vec3(std::numeric_limits<double>::max());
-    inline const auto ORIGIN_NOT_SET = vec3(std::numeric_limits<double>::max());
-
     template<force::IsForcePack FPack,
             boundary::IsBoundaryPack BPack,
             controller::IsControllerPack CPack,
@@ -33,6 +29,7 @@ namespace april::env::internal {
         Domain domain = {ORIGIN_NOT_SET, EXTENT_NOT_SET};
 
         // TODO document which takes precedent
+        // we chose the maximum
         vec3 margin_abs = {0, 0, 0};
         vec3 margin_fac = {0.5, 0.5, 0.5}; // 50 % margin on each side by default
 
@@ -40,7 +37,8 @@ namespace april::env::internal {
         std::unordered_set<env::ParticleType> user_particle_types;
 
         std::vector<env::Particle> particles;
-        std::vector<force::internal::InteractionInfo<ForceVariant>> interactions {};
+        std::vector<force::internal::TypeInteraction<ForceVariant>> type_interactions {};
+        std::vector<force::internal::IdInteraction<ForceVariant>> id_interactions {};
         std::array<BoundaryVariant, 6>  boundaries;
 
         ControllerStorage controllers;

@@ -12,11 +12,6 @@
 namespace april::core {
 
 	namespace internal {
-		struct InteractionParameters {
-			bool pair_contains_types;
-			std::pair<int,int> key_pair;
-		};
-
 		// swap origin and extent components such that for all axis i: origin[i] < extent[i]
 		// env::Box normalize_domain( const env::Domain & domain);
 
@@ -38,12 +33,13 @@ namespace april::core {
 
 
 		// check if particle parameters are ok (e.g. no duplicate ids, every particle type has a force specified)
-		void validate_particle_params(
-			const std::vector<env::Particle> & particles,
-			std::vector<InteractionParameters> interactions,
-			const std::unordered_set<env::ParticleID>& usr_particle_ids,
-			const std::unordered_set<env::ParticleType>& usr_particle_types
-		);
+		// void validate_particle_data(
+		// 	const std::vector<env::Particle>& particles,
+		// 	const std::unordered_set<env::ParticleType>& user_types,
+		// 	const std::unordered_set<env::ParticleID>& user_ids,
+		// 	const std::vector<std::pair<env::ParticleType, env::ParticleType>>& type_pairs,
+		// 	const std::vector<std::pair<env::ParticleID, env::ParticleID>>& id_pairs
+		// );
 
 		// map user set particle ids & types to dense internal ids & types and return mappings
 		UserToInternalMappings create_particle_mappings(
@@ -66,7 +62,23 @@ namespace april::core {
 		);
 
 		template<force::internal::IsForceVariant FV>
-		auto extract_interaction_parameters(const std::vector<FV> & type_interactions, const std::vector<>)
+		auto extract_interaction_parameters(
+			const std::vector<force::internal::TypeInteraction<FV>> & type_interactions,
+			const std::vector<force::internal::IdInteraction<FV>> & id_interaction)
+		{
+			std::vector<std::pair<env::ParticleType, env::ParticleType>> type_pairs(type_interactions.size());
+			std::vector<std::pair<env::ParticleID, env::ParticleID>> id_pairs(id_interaction.size());
+
+			for (size_t i = 0; i < type_interactions.size(); i++) {
+				type_pairs[i] = {type_interactions[i].type1, type_interactions[i].type2};
+			}
+
+			for (size_t i = 0; i < id_interaction.size(); i++) {
+				id_pairs[i] = {id_interaction[i].id1, id_interaction[i].id2};
+			}
+
+			return std::pair {type_pairs, id_pairs};
+		}
 
 	}
 
@@ -94,11 +106,10 @@ namespace april::core {
 
 
 		// --- validate & create Particles ---
-		std::vector<InteractionParameters> interactions(env.interactions.size());
-		for (size_t i = 0; i < interactions.size(); i++) {
-			interactions[i].key_pair = env.interactions[i].key_pair;
-			interactions[i].pair_contains_types = env.interactions[i].pair_contains_types;
-		}
+		auto [type_pairs, id_pairs] = internal::extract_interaction_parameters(
+			env.type_interactions, env.id_interactions
+		);
+
 
 		validate_particle_params(
 			env.particles,

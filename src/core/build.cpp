@@ -1,5 +1,5 @@
 #include "april/core/build.h"
-
+#include <algorithm>
 
 namespace april::core::internal {
 

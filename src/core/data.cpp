@@ -1,7 +1,7 @@
 #include "april/env/data.h"
 #include "april/env/environment.h"
 
-
+#include <algorithm>
 
 namespace april::env::internal {
 

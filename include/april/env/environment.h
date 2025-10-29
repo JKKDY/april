@@ -2,8 +2,6 @@
 
 #include <vector>
 #include <functional>
-#include <ranges>
-#include <algorithm>
 #include <limits>
 
 
@@ -206,19 +204,37 @@ namespace april::env {
         }
 
         // --- Set Domain ---
-        void set_origin(const vec3& origin) { this->data.domain.origin = origin; }
-        void set_origin(const double x, const double y, const double z) { set_origin({x,y,z}); }
+        void set_origin(const vec3& origin) {
+            this->data.domain.origin = origin;
+        }
+        void set_origin(const double x, const double y, const double z) {
+            set_origin({x,y,z});
+        }
 
-        void set_extent(const vec3& extent) { this->data.domain.extent = extent; }
-        void set_extent(const double x, const double y, const double z) { set_extent({x,y,z}); }
+        void set_extent(const vec3& extent) {
+            this->data.domain.extent = extent;
+        }
+        void set_extent(const double x, const double y, const double z) {
+            set_extent({x,y,z});
+        }
 
-        void set_domain(const Domain& domain) { data.domain = domain; }
+        void set_domain(const Domain& domain) {
+            data.domain = domain;
+        }
 
-        void auto_domain(const vec3& margin_abs) { data.margin_abs = margin_abs; }
-        void auto_domain(const double margin_abs) {auto_domain(vec3{margin_abs}); }
+        void auto_domain(const vec3& margin_abs) {
+            data.margin_abs = margin_abs;
+        }
+        void auto_domain(const double margin_abs) {
+            auto_domain(vec3{margin_abs});
+        }
 
-        void auto_domain_factor(const vec3& margin_fac) { data.margin_fac = margin_fac; }
-        void auto_domain_factor(const double margin_fac) {auto_domain(vec3{margin_fac}); }
+        void auto_domain_factor(const vec3& margin_fac) {
+            data.margin_fac = margin_fac;
+        }
+        void auto_domain_factor(const double margin_fac) {
+            auto_domain(vec3{margin_fac});
+        }
 
 
         // --- DSL-style chaining helpers ---
@@ -248,43 +264,43 @@ namespace april::env {
             return *this;
         }
 
-        template<force::IsForce F>
+        template<force::IsForce F> requires traits::template is_valid_force_v<F>
         Environment& with_force(F&& force, to_type scope) {
             add_force(std::forward<F>(force), scope);
             return *this;
         }
 
-        template<force::IsForce F>
+        template<force::IsForce F> requires traits::template is_valid_force_v<F>
         Environment& with_force(F&& force, between_types scope) {
             add_force(std::forward<F>(force), scope);
             return *this;
         }
 
-        template<force::IsForce F>
+        template<force::IsForce F> requires traits::template is_valid_force_v<F>
         Environment& with_force(F&& force, between_ids scope) {
             add_force(std::forward<F>(force), scope);
             return *this;
         }
 
-        template<boundary::IsBoundary B>
+        template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
         Environment& with_boundary(B&& boundary, boundary::Face face) {
             set_boundary(std::forward<B>(boundary), face);
             return *this;
         }
 
-        template<boundary::IsBoundary B>
+        template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
         Environment& with_boundaries(B&& boundary, const std::vector<boundary::Face>& faces) {
             set_boundaries(std::forward<B>(boundary), faces);
             return *this;
         }
 
-        template<boundary::IsBoundary B>
+        template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
         Environment& with_boundaries(const std::array<B, 6>& boundaries) {
             set_boundaries(boundaries);
             return *this;
         }
 
-        template<controller::IsController C>
+        template<controller::IsController C> requires traits::template is_valid_controller_v<C>
         Environment& with_controller(C controller) {
             add_controller(controller);
             return *this;
@@ -296,7 +312,7 @@ namespace april::env {
             return *this;
         }
 
-        template<field::IsField F>
+        template<field::IsField F> requires traits::template is_valid_field_v<F>
         Environment& with_field(F field) {
             add_field(field);
             return *this;

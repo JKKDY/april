@@ -100,8 +100,5 @@ namespace april::force {
               : id1(std::min(id1, id2)), id2(std::max(id1, id2)), force(std::move(f))
             {}
         };
-
-
-
     }
 } // namespace april::env

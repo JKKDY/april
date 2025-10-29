@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include "april/containers/contiguous_container.h"
 
 

@@ -5,6 +5,7 @@ using namespace april;
 
 TEST(EnvTest, empty_env) {
     Environment e (forces<NoForce>);
+    e.set_extent(1,1,1);
 
     auto sys = build_system(e, DirectSum());
 
@@ -24,13 +25,14 @@ TEST(EnvTest, one_particle_test) {
         .state = ParticleState::ALIVE,
     });
     e.add_force(LennardJones(3, 5), to_type(0));
+    e.set_extent(1,1,1);
 
     auto sys = build_system(e, DirectSum());
     auto particles = sys.export_particles();
 
     EXPECT_EQ(particles.size(), 1);
 
-    const env::ParticleView p = particles[0];
+    const ParticleView p = particles[0];
     EXPECT_TRUE(p.type == 0);
     EXPECT_TRUE(p.id == 0);
     EXPECT_TRUE(p.mass == 10);
@@ -51,6 +53,8 @@ TEST(EnvTest, negative_mass_throws) {
         .state = ParticleState::ALIVE,
     });
     e.add_force(NoForce(), to_type(0));
+    e.set_extent(1,1,1);
+
     EXPECT_THROW(build_system(e, DirectSum()), std::invalid_argument);
 }
 
@@ -111,7 +115,7 @@ TEST(EnvTest, two_particle_force_test) {
 
     auto sys = build_system(e, DirectSum());
 
-    auto particles = sys.export_particles();
+    const auto particles = sys.export_particles();
     EXPECT_EQ(particles.size(), 2);
 
     const ParticleView & p1 = particles[0].id == 0? particles[0] : particles[1];
@@ -223,13 +227,12 @@ TEST(EnvTest, OnlyExtentCentersOrigin) {
     // Only extent given
     e.set_extent({4,4,4});
     e.add_force(NoForce(), to_type(0));
-    auto sys = build_system(e, DirectSum());
-    const vec3 origin = sys.domain.origin;
-    const vec3 extent = sys.domain.extent;
+    const auto sys = build_system(e, DirectSum());
+
     // bbox_min = (3,4,5), bbox_center = same
     // origin = center - extent/2 = (3,4,5) - (2,2,2) = (1,2,3)
-    EXPECT_EQ(origin, vec3(1,2,3));
-    EXPECT_EQ(extent, vec3(4,4,4));
+    EXPECT_EQ(sys.domain().origin, vec3(1,2,3));
+    EXPECT_EQ(sys.domain().extent, vec3(4,4,4));
 }
 
 TEST(EnvTest, OnlyOriginSymmetricExtent) {
@@ -241,13 +244,11 @@ TEST(EnvTest, OnlyOriginSymmetricExtent) {
     e.add_force(NoForce(), to_type(0));
     e.auto_domain(1);
 
-    auto sys = build_system(e, DirectSum());
+    const auto sys = build_system(e, DirectSum());
 
-    const vec3 origin = sys.domain.origin;
-    const vec3 extent = sys.domain.extent;
 
-    EXPECT_EQ(origin, vec3(0,0,0));
-    EXPECT_EQ(extent, vec3(4,5,6));
+    EXPECT_EQ(sys.domain().origin, vec3(0,0,0));
+    EXPECT_EQ(sys.domain().extent, vec3(4,5,6));
 }
 
 TEST(EnvTest, AutoOriginExtentDoublesBBox) {
@@ -259,13 +260,11 @@ TEST(EnvTest, AutoOriginExtentDoublesBBox) {
     e.auto_domain_factor(1);
 
     // neither origin nor extent set
-    auto sys = build_system(e, DirectSum());
+    const auto sys = build_system(e, DirectSum());
 
-    const vec3 origin = sys.domain.origin;
-    const vec3 extent = sys.domain.extent;
     // bbox_min = (1,2,3), bbox_max = (3,4,5), bbox_center = (2,3,4), bbox_extent = (2,2,2)
     // extent = bbox_extent * 2 = (4,4,4)
     // origin = center - extent/2 = (2,3,4) - (2,2,2) = (0,1,2)
-    EXPECT_EQ(origin, vec3(0,1,2));
-    EXPECT_EQ(extent, vec3(4,4,4));
+    EXPECT_EQ(sys.domain().origin, vec3(0,1,2));
+    EXPECT_EQ(sys.domain().extent, vec3(4,4,4));
 }

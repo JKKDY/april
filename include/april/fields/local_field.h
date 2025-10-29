@@ -8,7 +8,7 @@ namespace april::field {
 	struct LocalForceField  final : Field {
 
 		LocalForceField(const vec3 & force_dir, const env::Domain & domain, const double start_time, const double stop_time):
-		force(force_dir), region(domain), start(start_time), stop(stop_time), active(false) {}
+		force(force_dir), region(env::Box::from_domain(domain)), start(start_time), stop(stop_time), active(false) {}
 
 		void apply(env::RestrictedParticleRef particle) const {
 			if (!active && region.contains(particle.position))

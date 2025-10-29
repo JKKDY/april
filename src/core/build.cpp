@@ -9,46 +9,11 @@ namespace april::core::internal {
 
 	// ---- Domain Validation & Setting ----
 
-	// Box normalize_domain(const Domain& domain) {
-	// 	// if extent is set to auto then there's nothing for us to normalize
-	// 	if (domain.extent == EXTENT_NOT_SET) {
-	// 		return Box(domain);
-	// 	}
-	// 	// if only origin is set to auto then we flip all extent components to positive
-	// 	if (domain.origin == ORIGIN_NOT_SET && domain.extent != EXTENT_NOT_SET) {
-	// 		const vec3 extent = {
-	// 			std::abs(domain.extent.x),
-	// 			std::abs(domain.extent.y),
-	// 			std::abs(domain.extent.z)
-	// 		};
-	//
-	// 		return Box({domain.origin, extent });
-	// 	}
-	//
-	// 	// neither ORIGIN_AUTO nor EXTENT_AUTO are set
-	// 	const vec3 origin_corner  = domain.origin;
-	// 	const vec3 opposite_corner = domain.origin + domain.extent;
-	//
-	// 	const vec3 min_corner {
-	// 		std::min(origin_corner.x, opposite_corner.x),
-	// 		std::min(origin_corner.y, opposite_corner.y),
-	// 		std::min(origin_corner.x, opposite_corner.z)
-	// 	};
-	//
-	// 	const vec3 max_corner {
-	// 		std::max(origin_corner.x, opposite_corner.x),
-	// 		std::max(origin_corner.y, opposite_corner.y),
-	// 		std::max(origin_corner.z, opposite_corner.z)
-	// 	};
-	//
-	// 	return {min_corner, max_corner};
-	// }
-
-
 	Box particle_bounding_box(const std::vector<Particle>& particles) {
 		if (particles.empty()) return {};
 
-		vec3 min, max = particles[0].position;
+		vec3 min = particles[0].position;
+		vec3 max = particles[0].position;
 
 		for (const auto& p : particles) {
 			min.x = std::min(min.x, p.position.x);
@@ -94,26 +59,38 @@ namespace april::core::internal {
 	}
 
 
-	void verify_domain_consistency(const Box & domain_box, const Box & particle_bbox) {
-		// check that extent is larger or equal than particle_bbox_extent
-		if (domain_box.extent.x < particle_bbox.extent.x || // extent is always >= 0
-			domain_box.extent.y < particle_bbox.extent.y ||
-			domain_box.extent.z < particle_bbox.extent.z
-		) {
-			throw std::invalid_argument(
-				"Specified Environment extent is too small to contain all particles: \n"
-				"\tDomain box extent: " + domain_box.extent.to_string() + "\n"
-				"\tParticle bounding box extent: " + particle_bbox.extent.to_string()
+	void verify_domain_consistency(const Box & simulation_box, const Box & particle_bbox) {
+		if (simulation_box.extent.x <= 0 ||
+			simulation_box.extent.y <= 0 ||
+			simulation_box.extent.z <= 0)
+		{
+			throw std::logic_error(
+				"Simulation domain has zero or negative extent. "
+				"If you have no particles, you must specify a domain manually."
 			);
 		}
 
-		// ensure all particles fit in environment box
-		// check that (particle_bbox_origin, particle_bbox_extent) is contained in (origin extent)
-		if (particle_bbox.contains(domain_box.min) || particle_bbox.contains(domain_box.max)) {
+		// check that min corner is outside of particle bbox on all axis
+		if (simulation_box.min.x > particle_bbox.min.x ||
+			simulation_box.min.y > particle_bbox.min.y ||
+			simulation_box.min.z > particle_bbox.min.z
+		) {
 			throw std::invalid_argument(
-				"Environment origin is not compatible with particle bounding box: \n"
-				"\tDomain Box: [" + domain_box.min.to_string() + " — " + domain_box.max.to_string() + "]" "\n"
-				"\tParticle bounding box: [" + particle_bbox.min.to_string() + " — " + particle_bbox.max.to_string() + "]"
+				"Specified Environment domain does not contain all particles: \n"
+				"\tDomain box min corner: " + simulation_box.min.to_string() + "\n"
+				"\tParticle bounding min corner: " + particle_bbox.min.to_string()
+			);
+		}
+
+		// check that max corner is outside of particle bbox on all axis
+		if (simulation_box.max.x < particle_bbox.max.x ||
+			simulation_box.max.y < particle_bbox.max.y ||
+			simulation_box.max.z < particle_bbox.max.z
+		) {
+			throw std::invalid_argument(
+				"Specified Environment domain does not contain all particles: \n"
+				"\tDomain box max corner: " + simulation_box.min.to_string() + "\n"
+				"\tParticle bounding max corner: " + particle_bbox.min.to_string()
 			);
 		}
 	}
@@ -247,18 +224,6 @@ namespace april::core::internal {
 		}
 	}
 
-	void validate_particle_data(
-		const std::vector<Particle>& particles,
-		const std::unordered_set<ParticleType>& user_types,
-		const std::unordered_set<ParticleID>& user_ids,
-		const std::vector<std::pair<ParticleType, ParticleType>>& type_pairs,
-		const std::vector<std::pair<ParticleID, ParticleID>>& id_pairs
-	){
-		validate_types(user_types, type_pairs);
-		validate_ids(user_ids, id_pairs);
-		validate_particles(particles);
-	}
-
 
 	// ---- build particles ----
 
@@ -326,7 +291,9 @@ namespace april::core::internal {
 		return map;
 	}
 
-	auto create_particle_mappings(
+	std::pair<std::unordered_map<ParticleType, env::internal::ParticleType>,
+			std::unordered_map<ParticleID, env::internal::ParticleID>>
+	create_particle_mappings(
 		const std::vector<Particle>& particles,
 		const std::unordered_set<ParticleType>& user_types,
 		const std::unordered_set<ParticleID>& user_ids,
@@ -345,17 +312,20 @@ namespace april::core::internal {
 
 
 
-	std::vector<env::internal::Particle> build_particles(const std::vector<Particle> & particle_infos, const UserToInternalMappings& mapping) {
+	std::vector<env::internal::Particle> build_particles(
+		const std::vector<Particle> & particle_infos,
+		const std::unordered_map<ParticleType, env::internal::ParticleType> & type_map,
+		const std::unordered_map<ParticleID, env::internal::ParticleID> & id_map) {
 		std::vector<env::internal::Particle> particles;
 		particles.reserve(particle_infos.size());
 
 		for (const auto & p : particle_infos) {
 			particles.emplace_back(
-				mapping.user_ids_to_impl_ids.at(p.id),
+				id_map.at(p.id),
 				p.position,
 				p.velocity,
 				p.mass,
-				mapping.user_types_to_impl_types.at(p.type),
+				type_map.at(p.type),
 				p.state,
 				vec3{},
 				vec3{},
@@ -383,7 +353,7 @@ namespace april::core::internal {
 	}
 
 
-	void validate_topologies(const std::vector<boundary::Topology> & topologies) {
+	void validate_topologies(const std::vector<boundary::Topology> &) {
 
 	}
 

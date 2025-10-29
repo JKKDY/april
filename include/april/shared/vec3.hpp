@@ -149,11 +149,11 @@ namespace april::utils {
             return std::format("{{{}, {}, {}}}", x, y, z);
         }
 
-        T max() {
+        T max() const noexcept {
             return std::max(x, std::max(y, z));
         }
 
-        T min() {
+        T min() const noexcept {
             return std::min(x, std::min(y, z));
         }
 

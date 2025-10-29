@@ -56,7 +56,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPositi
 	env::Domain domain({0,0,0}, {10,10,10});
 
 	// Compile boundary for X+ face
-	auto compiled = boundary::internal::compile_boundary(reflect, domain, Face::XPlus);
+	auto compiled = boundary::internal::compile_boundary(reflect, env::Box::from_domain(domain), Face::XPlus);
 
 	auto p = make_particle({9.8,5,5}, {+1,0,0});
 	env::Box box{{0,0,0}, {10,10,10}};
@@ -98,7 +98,7 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
 	env.set_boundaries(Reflective(), all_faces);
 
 
-    UserToInternalMappings mappings;
+    BuildInfo mappings;
     auto sys = build_system(env, TypeParam(), &mappings);
 
     // simulate one step
@@ -132,7 +132,7 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
     };
 
     for (int uid = 0; uid < 6; ++uid) {
-        auto iid = mappings.user_ids_to_impl_ids.at(uid);
+        auto iid = mappings.id_map.at(uid);
     	env::internal::Particle & p = sys.get_particle_by_index(iid);
 
     	EXPECT_EQ(p.position.x, expected_pos[iid].x);

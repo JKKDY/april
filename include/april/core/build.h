@@ -18,7 +18,6 @@ namespace april::core {
 		// calculate the minimal bounding box that contains all particles
 		env::Box particle_bounding_box(const std::vector<env::Particle>& particles);
 
-
 		// given particle bounding box and user set parameters, calculate the simulation box
 		env::Box determine_simulation_box(
 			const env::Domain& desired_domain,
@@ -27,17 +26,19 @@ namespace april::core {
 			const vec3 & margin_fac
 		);
 
-
+		// give particles without and id a new id
 		void assign_missing_particle_ids(
 			std::vector<env::Particle>& particles,
 			std::unordered_set<env::ParticleID>& user_ids
 		);
 
 		// map user set particle ids & types to dense internal ids & types and return mappings
-		auto create_particle_mappings(
-			std::vector<env::Particle>& particles,
+		std::pair<std::unordered_map<env::ParticleType, env::internal::ParticleType>,
+			std::unordered_map<env::ParticleID, env::internal::ParticleID>>
+		create_particle_mappings(
+			const std::vector<env::Particle>& particles,
 			const std::unordered_set<env::ParticleType>& user_types,
-			std::unordered_set<env::ParticleID>& user_ids,
+			const std::unordered_set<env::ParticleID>& user_ids,
 			const std::vector<std::pair<env::ParticleType, env::ParticleType>>& type_pairs,
 			const std::vector<std::pair<env::ParticleID, env::ParticleID>>& id_pairs
 		);
@@ -49,7 +50,7 @@ namespace april::core {
 			const std::unordered_map<env::ParticleID, env::internal::ParticleID> & id_map
 		);
 
-		// set container flags
+		// get container flags from boundary topologies
 		container::internal::ContainerFlags set_container_flags(
 			const std::vector<boundary::Topology> & topologies
 		);
@@ -62,13 +63,11 @@ namespace april::core {
 			std::vector<std::pair<env::ParticleType, env::ParticleType>> type_pairs(type_interactions.size());
 			std::vector<std::pair<env::ParticleID, env::ParticleID>> id_pairs(id_interaction.size());
 
-			for (size_t i = 0; i < type_interactions.size(); i++) {
+			for (size_t i = 0; i < type_interactions.size(); i++)
 				type_pairs[i] = {type_interactions[i].type1, type_interactions[i].type2};
-			}
 
-			for (size_t i = 0; i < id_interaction.size(); i++) {
+			for (size_t i = 0; i < id_interaction.size(); i++)
 				id_pairs[i] = {id_interaction[i].id1, id_interaction[i].id2};
-			}
 
 			return std::pair {type_pairs, id_pairs};
 		}
@@ -80,24 +79,20 @@ namespace april::core {
 					v.template emplace<boundary::Open>(); // default-construct Open boundary
 		}
 
-		template<boundary::internal::IsBoundaryVariant BV>
-		auto extract_topologies(const std::array<BV, 6>  & boundaries) {
+		template<class BoundaryTable>
+		auto extract_topologies(const BoundaryTable  & boundaries) {
 			std::vector<boundary::Topology> topologies;
 			for (boundary::Face face : boundary::all_faces) {
 				topologies.push_back(boundaries.get_boundary(face).topology);
 			}
+			return topologies;
 		}
 
 		void validate_topologies(const std::vector<boundary::Topology> & topologies);
 
 	}
 
-	struct BuildInfo {
-		std::unordered_map<env::ParticleType, env::internal::ParticleType> type_map;
-		std::unordered_map<env::ParticleID, env::internal::ParticleID> id_map;
-		env::Domain particle_box;
-		env::Domain simulation_domain;
-	};
+
 
 	template <container::IsContDecl Container, env::IsEnvironment EnvT>
 	auto build_system(
@@ -106,6 +101,8 @@ namespace april::core {
 		BuildInfo * build_info
 	) {
 		using BoundaryTable = typename EnvT::traits::boundary_table_t;
+		using ForceTable = typename EnvT::traits::force_table_t;
+
 		using EnvData = env::internal::EnvironmentData< // explicit type so the IDE can perform code completion
 			typename EnvT::traits::force_variant_t,
 			typename EnvT::traits::boundary_variant_t,
@@ -120,7 +117,7 @@ namespace april::core {
 		const env::Box simulation_box = internal::determine_simulation_box(
 			env.domain, particle_bbox, env.margin_abs, env.margin_fac);
 
-		// --- validate & create Particles ---
+		// validate & create Particles
 		auto [type_pairs, id_pairs] = internal::extract_interaction_parameters(
 			env.type_interactions, env.id_interactions );
 
@@ -128,21 +125,21 @@ namespace april::core {
 
 		auto [type_map, id_map] = internal::create_particle_mappings(
 			env.particles,
-			env.type_interactions,
-			env.id_interactions,
+			env.user_particle_types,
 			env.user_particle_ids,
-			env.user_particle_types
+			type_pairs,
+			id_pairs
 		);
-
 		const std::vector<env::internal::Particle> particles = internal::build_particles(env.particles, type_map, id_map);
 
-
-		// --- create boundary table ---
-		auto topologies = internal::extract_topologies(env.boundaries);
+		// create boundary table
 		internal::set_default_boundaries(env.boundaries);
-		internal::validate_topologies(topologies);
 		BoundaryTable boundaries(env.boundaries, simulation_box);
+		auto topologies = internal::extract_topologies(boundaries);
+		internal::validate_topologies(topologies);
 
+		//  create force table
+		ForceTable forces (env.type_interactions, env.id_interactions, type_map, id_map);
 
 		// fill build info if given
 		if (build_info) {
@@ -158,11 +155,9 @@ namespace april::core {
 			simulation_box,
 			particles,
 			boundaries,
+			forces,
 			env.controllers,
-			env.fields,
-			type_map,
-			id_map,
-			env.interactions
+			env.fields
 		);
 	}
 }

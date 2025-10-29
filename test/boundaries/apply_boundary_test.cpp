@@ -51,13 +51,13 @@ TYPED_TEST(BoundaryTestT, InsideSlab_XMinus_AppliesOnlyToSlabParticles) {
 		TouchSpy{0.0, &szp}  // Z+
 	});
 
-	UserToInternalMappings mappings;
+	BuildInfo mappings;
 
 	auto sys = build_system(env, TypeParam(), &mappings);
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
-	auto id0 = mappings.user_ids_to_impl_ids.at(0);
+	auto id0 = mappings.id_map.at(0);
 	ASSERT_EQ(sxm.size(), 1u);
 	EXPECT_EQ(sxm[0], id0);
 	EXPECT_TRUE(sxp.empty());
@@ -92,7 +92,7 @@ TYPED_TEST(BoundaryTestT, OutsideHalfspace_XPlus_TouchesOnlyActualExiters) {
 		TouchSpy{ 0.0, &szp}  // Z+
 	});
 
-	UserToInternalMappings mappings;
+	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
 	// mark old positions behind where they will move from
@@ -105,8 +105,8 @@ TYPED_TEST(BoundaryTestT, OutsideHalfspace_XPlus_TouchesOnlyActualExiters) {
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
-	auto id0 = mappings.user_ids_to_impl_ids.at(0);
-	auto id1 = mappings.user_ids_to_impl_ids.at(1);
+	auto id0 = mappings.id_map.at(0);
+	auto id1 = mappings.id_map.at(1);
 
 	ASSERT_EQ(sxp.size(), 1u);
 	EXPECT_EQ(sxp[0], id0);    // p0 → X+
@@ -141,7 +141,7 @@ TYPED_TEST(BoundaryTestT, CornerExit_TriggersRelevantFaces) {
 		TouchSpy{ 0.0, &szp}  // Z+
 	});
 
-	UserToInternalMappings mappings;
+	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
 	// mark old positions behind where they will move from
@@ -154,7 +154,7 @@ TYPED_TEST(BoundaryTestT, CornerExit_TriggersRelevantFaces) {
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
-	auto id42 = mappings.user_ids_to_impl_ids.at(42);
+	auto id42 = mappings.id_map.at(42);
 
 	bool x_hit = std::ranges::find(sxp, id42) != sxp.end();
 	bool y_hit = std::ranges::find(syp, id42) != syp.end();
@@ -193,12 +193,12 @@ TYPED_TEST(BoundaryTestT, InsideCorner_TouchesAllOverlappingFaces) {
 		TouchSpy{1.0, &szp}  // Z+
 	});
 
-	UserToInternalMappings mappings;
+	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
-	auto id = mappings.user_ids_to_impl_ids.at(0);
+	auto id = mappings.id_map.at(0);
 
 	// The particle should be touched by the three minus faces.
 	EXPECT_EQ(sxm, std::vector{id});
@@ -234,11 +234,11 @@ TYPED_TEST(BoundaryTestT, NearCornerExit_TriggersCorrectFace) {
 		TouchSpy{-1.0, &szp}  // Z+
 	});
 
-	UserToInternalMappings mappings;
+	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
 	// mark old positions behind where they will move from
-	for (auto pid = sys.index_start(); pid < sys.index_end(); pid++) {
+	for (auto pid = sys.index_start(); pid < sys.index_end(); ++pid) {
 		env::internal::Particle & p = sys.get_particle_by_index(pid);
 		p.old_position = p.position;
 		p.position = p.old_position + p.velocity; // simulate one step
@@ -247,7 +247,7 @@ TYPED_TEST(BoundaryTestT, NearCornerExit_TriggersCorrectFace) {
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
-	auto id = mappings.user_ids_to_impl_ids.at(42);
+	auto id = mappings.id_map.at(42);
 
 	EXPECT_TRUE(sxp.empty());
 	EXPECT_TRUE(sxm.empty());
@@ -287,13 +287,13 @@ TYPED_TEST(BoundaryTestT, InsideSlab_AllFaces_OneParticleEach) {
 		TouchSpy{1.0, &szp}  // Z+
 	});
 
-	UserToInternalMappings mappings;
+	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
 	// Map user IDs → internal IDs for verification
-	auto get_id = [&](int uid) { return mappings.user_ids_to_impl_ids.at(uid); };
+	auto get_id = [&](const int uid) { return mappings.id_map.at(uid); };
 
 	EXPECT_EQ(sxm, std::vector{get_id(0)});
 	EXPECT_EQ(sxp, std::vector{get_id(1)});

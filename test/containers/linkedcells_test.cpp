@@ -293,15 +293,15 @@ TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 		// Enable periodic boundaries on both x faces
 		e.set_boundaries(DummyPeriodicBoundary(), {Face::XMinus, Face::XPlus});
 
-		UserToInternalMappings mapping;
+		BuildInfo mapping;
 		auto sys = build_system(e, LinkedCells(cell_size_hint), &mapping);
 		sys.update_forces();
 
 		auto const& out = sys.export_particles();
 		ASSERT_EQ(out.size(), 2u);
 
-		auto p1 = sys.get_particle_by_id(mapping.user_ids_to_impl_ids[0]);
-		auto p2 = sys.get_particle_by_id(mapping.user_ids_to_impl_ids[1]);
+		auto p1 = sys.get_particle_by_id(mapping.id_map[0]);
+		auto p2 = sys.get_particle_by_id(mapping.id_map[1]);
 
 		// They should feel equal and opposite forces due to wrapping
 		EXPECT_EQ(p1.force, -p2.force);
@@ -332,15 +332,15 @@ TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
 			Face::ZMinus, Face::ZPlus
 		});
 
-		UserToInternalMappings mapping;
+		BuildInfo mapping;
 		auto sys = build_system(e, LinkedCells(cell_size_hint), &mapping);
 		sys.update_forces();
 
 		auto const& out = sys.export_particles();
 		ASSERT_EQ(out.size(), 2u);
 
-		auto p1 = sys.get_particle_by_id(mapping.user_ids_to_impl_ids[0]);
-		auto p2 = sys.get_particle_by_id(mapping.user_ids_to_impl_ids[1]);
+		auto p1 = sys.get_particle_by_id(mapping.id_map[0]);
+		auto p2 = sys.get_particle_by_id(mapping.id_map[1]);
 
 		// Forces must be equal and opposite
 		EXPECT_EQ(p1.force, -p2.force);

@@ -69,7 +69,7 @@ TEST(RepulsiveBoundaryTest, CompiledBoundary_Apply_AddsInwardForce) {
 	std::variant<Repulsive<ConstantForce>> variant = Repulsive(f);
 	env::Domain domain({0,0,0}, {10,10,10});
 
-	auto compiled = boundary::internal::compile_boundary(variant, domain, Face::YMinus);
+	auto compiled = boundary::internal::compile_boundary(variant, env::Box::from_domain(domain), Face::YMinus);
 
 	env::internal::Particle p = make_particle({5,0.3,5});
 	const env::Box box({0,0,0}, {10,10,10});
@@ -111,7 +111,7 @@ TYPED_TEST(RepulsiveBoundarySystemTestT, EachFace_AppliesInwardForce) {
 		Repulsive(f), Repulsive(f)
 	});
 
-	UserToInternalMappings mappings;
+	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
 	// Apply boundaries
@@ -126,7 +126,7 @@ TYPED_TEST(RepulsiveBoundarySystemTestT, EachFace_AppliesInwardForce) {
 	};
 
 	for (int uid = 0; uid < 6; ++uid) {
-		auto iid = mappings.user_ids_to_impl_ids.at(uid);
+		auto iid = mappings.id_map.at(uid);
 		const auto& p = sys.get_particle_by_index(iid);
 		EXPECT_NEAR(p.force.x, expected[iid].x, 1e-12);
 		EXPECT_NEAR(p.force.y, expected[iid].y, 1e-12);

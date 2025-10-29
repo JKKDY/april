@@ -4,9 +4,6 @@
 #include "april/common.h"
 
 namespace april::env {
-	inline const auto EXTENT_NOT_SET = vec3(std::numeric_limits<double>::max());
-	inline const auto ORIGIN_NOT_SET = vec3(std::numeric_limits<double>::max());
-
 	struct Domain {
 		Domain() = default;
 		Domain(const vec3 & originIn, const vec3 & extentIn): origin(originIn), extent(extentIn) {}

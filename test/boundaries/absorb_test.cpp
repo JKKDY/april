@@ -46,7 +46,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 	env::Domain domain{{0,0,0}, {10,10,10}};
 
 	// Compile boundary for X+ face
-	auto compiled = boundary::internal::compile_boundary(absorb, domain, Face::XPlus);
+	auto compiled = boundary::internal::compile_boundary(absorb, env::Box::from_domain(domain), Face::XPlus);
 
 	auto p = make_alive_particle();
 	env::Box box{{0,0,0}, {10,10,10}};
@@ -79,13 +79,13 @@ TYPED_TEST(AbsorbBoundarySystemTestT, InsideDomain_RemainsAlive) {
 	env.set_boundaries(Absorb(), all_faces);
 
 
-	UserToInternalMappings mappings;
+	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
-	auto id0 = mappings.user_ids_to_impl_ids.at(0);
+	auto id0 = mappings.id_map.at(0);
 	const auto& p = sys.get_particle_by_index(id0);
 
 	EXPECT_EQ(p.state, ParticleState::ALIVE)
@@ -110,7 +110,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 	// Set Absorb on all faces
 	env.set_boundaries(Absorb(), all_faces);
 
-	UserToInternalMappings mappings;
+	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
 	// Simulate one time step: move each particle beyond its face
@@ -125,7 +125,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 
 	// Verify all particles are DEAD
 	for (int uid = 0; uid < 6; ++uid) {
-		auto iid = mappings.user_ids_to_impl_ids.at(uid);
+		auto iid = mappings.id_map.at(uid);
 		const auto& p = sys.get_particle_by_index(iid);
 		EXPECT_EQ(p.state, ParticleState::DEAD)
 			<< "Particle " << uid << " crossing face " << uid

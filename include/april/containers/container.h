@@ -33,18 +33,13 @@ namespace april::container {
 		//   remove_particle
 		//   add_particle
 		// TODO add IsForceTable Concept
-		template <class ForceTable> class ContainerInterface {
+		class ContainerInterface {
 		public:
-			using Domain = env::Domain;
+			using SimulationDomain = env::Box;
 			using Particle = env::internal::Particle;
 			using ParticleID = env::internal::ParticleID;
 
 			ContainerInterface() = default;
-			void init(ForceTable & force_table, const Domain & dom) {
-				interactions = &force_table;
-				domain = dom;
-			}
-			virtual ~ContainerInterface() = default;
 
 			// user hook to initialize the container
 			// TODO add regions that will be queried in the future so the container can keep track of particles better
@@ -171,24 +166,26 @@ namespace april::container {
 			void dispatch_remove_particle(this auto&&, ParticleID) {
 				throw std::logic_error("dispatch_remove_particle not implemented yet");
 			}
-
-		protected:
-			ForceTable * interactions{};
-			Domain domain;
 		};
 	} // namespace internal
 
-
-	template<typename Config, typename Env> class Container : public internal::ContainerInterface<Env> {
+	template<typename Config, typename ForceTable> class Container : public internal::ContainerInterface {
 	public:
 		using CFG = Config;
-		explicit Container(Config config, const internal::ContainerFlags & flags): cfg(config), flags(flags) {}
+		using ContainerInterface::Particle;
+		using ContainerInterface::ParticleID;
 
-		using typename internal::ContainerInterface<Env>::Particle;
-		using typename internal::ContainerInterface<Env>::ParticleID;
+		Container(const Config & config,
+		  const internal::ContainerFlags & flags,
+		  const env::Box & box,
+		  ForceTable * force_table)
+		: cfg(config), flags(flags), domain(box), interactions(force_table) {}
+
 	protected:
 		Config cfg;
 		const internal::ContainerFlags flags;
+		env::Box domain;
+		ForceTable * interactions{};
 	};
 
 

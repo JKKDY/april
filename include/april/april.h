@@ -98,7 +98,7 @@ namespace april {
 	// System
 	using core::System;
 	using core::build_system;
-	using core::UserToInternalMappings;
+	using core::BuildInfo;
 	using core::SimulationContext;
 
 	// Monitors

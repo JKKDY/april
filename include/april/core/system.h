@@ -11,11 +11,11 @@
 
 namespace april::core {
 
-	struct UserToInternalMappings {
-		using TypeMap = std::unordered_map<env::ParticleType, env::internal::ParticleType>;
-		using IdMap = std::unordered_map<env::ParticleID, env::internal::ParticleID>;
-		TypeMap user_types_to_impl_types;
-		IdMap user_ids_to_impl_ids;
+	struct BuildInfo {
+		std::unordered_map<env::ParticleType, env::internal::ParticleType> type_map;
+		std::unordered_map<env::ParticleID, env::internal::ParticleID> id_map;
+		env::Domain particle_box;
+		env::Domain simulation_domain;
 	};
 
 
@@ -23,7 +23,7 @@ namespace april::core {
 	auto build_system(
 		const Env & environment,
 		const C& container,
-		UserToInternalMappings* particle_mappings = nullptr
+		BuildInfo* build_info = nullptr
 	);
 
 
@@ -35,51 +35,44 @@ namespace april::core {
 		using BoundaryTable  = typename Traits::boundary_table_t;
 		using Container      = typename C::template impl<ForceTable>;
 		using ContainerFlags = container::internal::ContainerFlags;
-		using Interaction    = force::internal::InteractionInfo<typename Traits::force_variant_t>;
+		using TypeInteraction= force::internal::TypeInteraction<typename Traits::force_variant_t>;
+		using IdInteraction	 = force::internal::IdInteraction<typename Traits::force_variant_t>;
 
 		using Particle       = env::internal::Particle;
 		using ParticleRef    = env::ParticleRef;
 		using ParticleView   = env::ParticleView;
 		using ParticleID     = env::internal::ParticleID;
-	public:
 
-		const env::Domain domain;
-
-	private:
 		// private constructor since System should only be creatable through build_system(...)
 		System(
 			const C & container_cfg,
 			const ContainerFlags & container_flags,
-			const env::Domain& domainIn,
+			const env::Box & domainIn,
 			const std::vector<Particle> & particles,
-			const BoundaryTable & boundaries,
+			const BoundaryTable & boundariesIn,
+			const ForceTable & forcesIn,
 			const Controllers & controllersIn,
-			const Fields & fieldsIn,
-			const UserToInternalMappings::TypeMap & usr_types_to_impl_types,
-			const UserToInternalMappings::IdMap & usr_ids_to_impl_ids,
-			std::vector<Interaction> & interaction_infos):
-		domain(domainIn),
-		container(container_cfg, container_flags),
-		boundary_table(boundaries),
+			const Fields & fieldsIn
+			):
+		simulation_box(domainIn),
+		boundary_table(boundariesIn),
+		force_table(forcesIn),
 		controllers(controllersIn),
-		fields(fieldsIn)
+		fields(fieldsIn),
+		container(container_cfg, container_flags, domainIn, &force_table),
+		simulation_context(std::make_unique<internal::SimulationContextImpl<decltype(*this)>>(*this))
 		{
-			force_table.build(interaction_infos, usr_types_to_impl_types, usr_ids_to_impl_ids);
-			container.init(force_table, domain);
 			container.dispatch_build(particles);
-
-			using SystemType = std::remove_cvref_t<decltype(*this)>;
-			simulation_context = std::make_unique<internal::SimulationContextImpl<SystemType>>(*this);
-
 			controllers.for_each_item([&](auto & controller) {controller.dispatch_init(context()); });
 			fields.for_each_item([&](auto & field) {field.dispatch_init(context()); });
 		}
 
-		Container container;
+		env::Box simulation_box;
 		BoundaryTable boundary_table;
 		ForceTable force_table;
 		Controllers controllers;
 		Fields fields;
+		Container container;
 
 		double time_ = 0;
 		size_t step_ = 0;
@@ -92,10 +85,19 @@ namespace april::core {
 		build_system(
 			 const Env & environment,
 			 const Cont& container,
-			 UserToInternalMappings* particle_mappings
+			 BuildInfo * build_info
 		);
 
 	public:
+
+		[[nodiscard]] env::Domain domain() const {
+			return {simulation_box.min, simulation_box.extent};
+		}
+
+		[[nodiscard]] env::Box box() const {
+			return simulation_box;
+		}
+
 		[[nodiscard]] SimulationContext & context() const {
 			return *simulation_context;
 		}
@@ -119,7 +121,7 @@ namespace april::core {
 		void apply_boundary_conditions() {
 			using Boundary = boundary::internal::CompiledBoundary<typename Traits::boundary_variant_t>;
 
-			auto box = env::Box(domain);
+			auto sim_box = box();
 
 			for (boundary::Face face : boundary::all_faces) {
 
@@ -129,7 +131,7 @@ namespace april::core {
 				if (boundary.topology.boundary_thickness >= 0) {
 					for (auto p_idx : particle_ids) {
 						env::internal::Particle & p = container.dispatch_get_particle_by_index(p_idx);
-						boundary.apply(p, box, face);
+						boundary.apply(p, sim_box, face);
 
 						if (boundary.topology.may_change_particle_position) {
 							container.register_particle_movement(p_idx);
@@ -145,16 +147,16 @@ namespace april::core {
 						// diff is the path traveled, p is the particles starting position and y is the face
 						const int ax = axis_of_face(face);
 						const vec3 diff = p.position - p.old_position;
-						const double y = diff[ax] < 0 ? box.min[ax] : box.max[ax];
+						const double y = diff[ax] < 0 ? sim_box.min[ax] : sim_box.max[ax];
 						const double t = (y - p.old_position[ax]) / diff[ax];
 
 						const vec3 intersection = t * diff + p.old_position;
 
 						// and check if that point is on the domains surface
 						auto [ax1, ax2] = non_face_axis(face);
-						if (box.max[ax1] >= intersection[ax1] && box.min[ax1] <= intersection[ax1] &&
-							box.max[ax2] >= intersection[ax2] && box.min[ax2] <= intersection[ax2]) {
-							boundary.apply(p, box, face);
+						if (sim_box.max[ax1] >= intersection[ax1] && sim_box.min[ax1] <= intersection[ax1] &&
+							sim_box.max[ax2] >= intersection[ax2] && sim_box.min[ax2] <= intersection[ax2]) {
+							boundary.apply(p, sim_box, face);
 
 							if (boundary.topology.may_change_particle_position) {
 								container.register_particle_movement(p_idx);
@@ -221,7 +223,7 @@ namespace april::core {
 		}
 
 		[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Domain & region) {
-			return collect_indices_in_region(env::Box(region));
+			return collect_indices_in_region(env::Box(region.min_corner().value(), region.max_corner().value()));
 		}
 
 		// returns the systems time

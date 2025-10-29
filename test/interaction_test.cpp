@@ -27,42 +27,40 @@ static env::internal::Particle make_particle(env::internal::ParticleType type, e
 // Use an environment that supports ConstantForce
 using Env = Environment<force::ForcePack<ConstantForce>, boundary::BoundaryPack<>, controller::ControllerPack<>, field::FieldPack<>>;
 using FT  = Env::traits::force_table_t;
-using Info = force::internal::InteractionInfo<Env::traits::force_variant_t>; // variant<ConstantForce>
+using TypeInfo = force::internal::TypeInteraction<Env::traits::force_variant_t>; // variant<ConstantForce>
+using IdInfo = force::internal::IdInteraction<Env::traits::force_variant_t>; // variant<ConstantForce>
 
 
 TEST(InteractionManagerTest, EmptyBuild) {
-    FT mgr;
-    std::vector<Info> info;  // empty
-
     // empty maps are fine
-    EXPECT_NO_THROW(mgr.build(info, {}, {}));
+    EXPECT_NO_THROW(FT({}, {}, {}, {}));
+
+    const FT mgr({}, {}, {}, {});
     EXPECT_DOUBLE_EQ(mgr.get_max_cutoff(), 0.0);
 }
 
 TEST(InteractionManagerTest, MaxCutoffCalculation) {
-    FT mgr;
 
     // two type-based interactions with cutoffs 1.5 and 2.5
-    std::vector<Info> info;
-    info.emplace_back(true, std::pair{0, 0}, ConstantForce(1, 1, 1, 1.5));
-    info.emplace_back(true, std::pair{1, 1}, ConstantForce(2, 2, 2, 2.5));
+    std::vector<TypeInfo> info;
+    info.emplace_back(0, 0, ConstantForce(1, 1, 1, 1.5));
+    info.emplace_back(1, 1, ConstantForce(2, 2, 2, 2.5));
 
-    std::unordered_map<ParticleType, env::internal::ParticleType> type_map{{0, 0}, {1, 1}};
+    const std::unordered_map<ParticleType, env::internal::ParticleType> type_map{{0, 0}, {1, 1}};
 
-    EXPECT_NO_THROW(mgr.build(info, type_map, {}));
+    const FT mgr(info, {}, type_map, {});
+    EXPECT_NO_THROW(FT(info, {}, type_map, {}));
     EXPECT_DOUBLE_EQ(mgr.get_max_cutoff(), 2.5);
 }
 
 TEST(InteractionManagerTest, TypeBasedLookup) {
-    FT mgr;
-
-    std::vector<Info> info;
-    info.emplace_back(true, std::pair{0, 0}, ConstantForce(4, 5, 6, -1));
-    info.emplace_back(true, std::pair{1, 1}, ConstantForce(1, 2, 3, -1));
-    info.emplace_back(true, std::pair{0, 1}, ConstantForce(7, 8, 9, -1));
+    std::vector<TypeInfo> info;
+    info.emplace_back(0, 0, ConstantForce(4, 5, 6, -1));
+    info.emplace_back(1, 1, ConstantForce(1, 2, 3, -1));
+    info.emplace_back(0, 1, ConstantForce(7, 8, 9, -1));
 
     std::unordered_map<ParticleType, env::internal::ParticleType> type_map{{0, 0}, {1, 1}};
-    mgr.build(info, type_map, {});
+    FT mgr(info, {}, type_map, {});
 
     auto p0 = make_particle(0, 10, 1.0, {0, 0, 0});
     auto p1 = make_particle(1, 11, 1.0, {1, 1, 1});
@@ -80,17 +78,17 @@ TEST(InteractionManagerTest, TypeBasedLookup) {
 }
 
 TEST(InteractionManagerTest, IdBasedLookup) {
-    FT mgr;
+    std::vector<IdInfo> id_info;
+    std::vector<TypeInfo> type_info;
 
-    std::vector<Info> info;
     // Provide a zero type-force for (0,0) so evaluate never hits NullForce
-    info.emplace_back(true,  std::pair{0, 0}, ConstantForce(0, 0, 0));
+    type_info.emplace_back(0, 0, ConstantForce(0, 0, 0));
     // one id-based entry for (42,99)
-    info.emplace_back(false, std::pair{42, 99}, ConstantForce(7, 8, 9));
+    id_info.emplace_back(42, 99, ConstantForce(7, 8, 9));
 
     std::unordered_map<ParticleType, env::internal::ParticleType> type_map{{0, 0}};
     std::unordered_map<ParticleID, env::internal::ParticleID> id_map{{42, 0}, {99, 1}};
-    mgr.build(info, type_map, id_map);
+    const FT mgr (type_info, id_info, type_map, id_map);
 
     auto p1 = make_particle(0, 0);
     auto p2 = make_particle(0, 1);
@@ -108,14 +106,13 @@ TEST(InteractionManagerTest, IdBasedLookup) {
 
 
 TEST(InteractionManagerTest, MixingForces) {
-    FT mgr;
 
-    std::vector<Info> info;
-    info.emplace_back(true, std::pair{0, 0}, ConstantForce(4, 5, 6, -1));
-    info.emplace_back(true, std::pair{1, 1}, ConstantForce(1, 2, 3, -1));
+    std::vector<TypeInfo> info;
+    info.emplace_back(0, 0, ConstantForce(4, 5, 6, -1));
+    info.emplace_back(1, 1, ConstantForce(1, 2, 3, -1));
 
     std::unordered_map<ParticleType, env::internal::ParticleType> type_map{{0, 0}, {1, 1}};
-    mgr.build(info, type_map, {});
+    FT mgr (info, {}, type_map, {});
 
     auto p0 = make_particle(0, 10, 1.0, {0, 0, 0});
     auto p1 = make_particle(1, 11, 1.0, {1, 1, 1});

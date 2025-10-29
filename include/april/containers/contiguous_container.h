@@ -3,10 +3,10 @@
 #include "april/containers/container.h"
 
 namespace april::container {
-	template<typename Config, typename Env>
-	class ContiguousContainer : public Container<Config, Env> {
+	template<typename Config, typename ForceTable>
+	class ContiguousContainer : public Container<Config, ForceTable> {
 	public:
-		using Base = Container<Config, Env>;
+		using Base = Container<Config, ForceTable>;
 		using typename Base::Particle;
 		using typename Base::ParticleID;
 

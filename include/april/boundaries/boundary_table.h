@@ -54,11 +54,9 @@ namespace april::boundary::internal {
 
 
 	template<IsBoundaryVariant BVariant>
-	CompiledBoundary<BVariant> compile_boundary(const BVariant & boundary, const env::Domain & env_domain, const Face face) {
-		// TODO we expect env_domain.extent to be positive on all axis -> assert this
-
-		constexpr double NEG_INF = std::numeric_limits<double>::lowest() / 2; // divide by half to avoid overflow
-		constexpr double POS_INF = std::numeric_limits<double>::max() / 2;
+	CompiledBoundary<BVariant> compile_boundary(const BVariant & boundary, const env::Box & simulation_box, const Face face) {
+		constexpr double NEG_INF = std::numeric_limits<double>::lowest() / 4; // divide by 4 to avoid overflow
+		constexpr double POS_INF = std::numeric_limits<double>::max() / 4;
 
 		const vec3 POS_INF_VEC = {POS_INF, POS_INF, POS_INF};
 		const vec3 NEG_INF_VEC = {NEG_INF, NEG_INF, NEG_INF};
@@ -66,31 +64,34 @@ namespace april::boundary::internal {
 		const int  ax   = axis_of_face(face); // 0:x, 1:y, 2:z (see vec3)
 		const bool plus = face_sign_pos(face);
 
-		const Topology& topo = get_topology(boundary);
-		const double thickness = topo.boundary_thickness;
+		const Topology& topology = get_topology(boundary);
+		const double thickness = topology.boundary_thickness;
 
-		env::Domain region = {};
+		vec3 min, max;
 
 		if (thickness >= 0.0) { // inside the simulation domain
-			region.extent = env_domain.extent;
-			region.origin = env_domain.origin;
+			min = simulation_box.min;
+			max = simulation_box.max;
 
-			const double d =  std::clamp(thickness, 0.0, env_domain.extent[ax]);
-			if (plus) region.origin[ax] += env_domain.extent[ax] - d;
-			region.extent[ax] = d;
+			const double d =  std::clamp(thickness, 0.0, simulation_box.extent[ax]);
+			if (plus) {
+				min[ax] += max[ax] - d;
+			} else {
+				max[ax] = min[ax] + d;
+			}
 		} else { // outside
 			if (plus) {
-				region.extent = POS_INF_VEC;
-				region.origin = NEG_INF_VEC / 2;
-				region.origin[ax] = env_domain.origin[ax] + env_domain.extent[ax];
+				max = POS_INF_VEC;
+				min = NEG_INF_VEC;
+				min[ax] = simulation_box.max[ax];
 			} else {
-				region.extent = NEG_INF_VEC;
-				region.origin = POS_INF_VEC / 2;
-				region.origin[ax] = env_domain.origin[ax];
+				min = NEG_INF_VEC;
+				max = POS_INF_VEC / 2;
+				max[ax] = simulation_box.min[ax];
 			}
 		}
 
-		return internal::CompiledBoundary<BVariant>(boundary, env::Box(region));
+		return internal::CompiledBoundary<BVariant>(boundary, env::Box{min, max});
 	}
 
 
@@ -98,18 +99,18 @@ namespace april::boundary::internal {
 	template<IsBoundaryVariant BVariant>
 	struct BoundaryTable {
 
-		BoundaryTable(const std::array<BVariant, 6> & boundaries, const env::Domain & env_domain):
+		BoundaryTable(const std::array<BVariant, 6> & boundaries, const env::Box & simulation_box):
 			table({
-				compile_boundary<BVariant>(boundaries[face_to_int(Face::XMinus)], env_domain, Face::XMinus),
-				compile_boundary<BVariant>(boundaries[face_to_int(Face::XPlus )], env_domain, Face::XPlus ),
-				compile_boundary<BVariant>(boundaries[face_to_int(Face::YMinus)], env_domain, Face::YMinus),
-				compile_boundary<BVariant>(boundaries[face_to_int(Face::YPlus )], env_domain, Face::YPlus ),
-				compile_boundary<BVariant>(boundaries[face_to_int(Face::ZMinus)], env_domain, Face::ZMinus),
-				compile_boundary<BVariant>(boundaries[face_to_int(Face::ZPlus )], env_domain, Face::ZPlus ),
+				compile_boundary<BVariant>(boundaries[face_to_int(Face::XMinus)], simulation_box, Face::XMinus),
+				compile_boundary<BVariant>(boundaries[face_to_int(Face::XPlus )], simulation_box, Face::XPlus ),
+				compile_boundary<BVariant>(boundaries[face_to_int(Face::YMinus)], simulation_box, Face::YMinus),
+				compile_boundary<BVariant>(boundaries[face_to_int(Face::YPlus )], simulation_box, Face::YPlus ),
+				compile_boundary<BVariant>(boundaries[face_to_int(Face::ZMinus)], simulation_box, Face::ZMinus),
+				compile_boundary<BVariant>(boundaries[face_to_int(Face::ZPlus )], simulation_box, Face::ZPlus ),
 			})
 		{}
 
-		const CompiledBoundary<BVariant> & get_boundary(const Face face) {
+		const CompiledBoundary<BVariant> & get_boundary(const Face face) const {
 			return table[face_to_int(face)];
 		}
 

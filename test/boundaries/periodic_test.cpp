@@ -97,7 +97,7 @@ TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 	std::variant<Periodic> variant = Periodic();
 	env::Domain domain({0,0,0}, {10,10,10});
 
-	auto compiled = boundary::internal::compile_boundary(variant, domain, Face::ZPlus);
+	auto compiled = boundary::internal::compile_boundary(variant, env::Box::from_domain(domain), Face::ZPlus);
 	env::internal::Particle p = make_particle({5,5,10.2});
 	env::Box box({0,0,0}, {10,10,10});
 
@@ -133,7 +133,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 	// Enable periodic boundaries on all faces
 	env.set_boundaries(Periodic(), all_faces);
 
-	UserToInternalMappings mappings;
+	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
 	// Simulate one integration step: move each particle outside its face
@@ -157,7 +157,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 	};
 
 	for (int uid = 0; uid < 6; ++uid) {
-		auto iid = mappings.user_ids_to_impl_ids.at(uid);
+		auto iid = mappings.id_map.at(uid);
 		const auto& p = sys.get_particle_by_index(iid);
 		EXPECT_NEAR(p.position.x, expected[iid].x, 1e-12);
 		EXPECT_NEAR(p.position.y, expected[iid].y, 1e-12);
@@ -176,7 +176,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinu
 	env.add_particle({.id=0, .type=0, .position={9.8,5,5}, .velocity={+1,0,0}, .mass=1, .state=ParticleState::ALIVE});
 	env.set_boundaries(Periodic(), all_faces);
 
-	UserToInternalMappings mappings;
+	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
 	for (auto pid = sys.index_start(); pid < sys.index_end(); ++pid) {
@@ -188,7 +188,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinu
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
-	const auto& p = sys.get_particle_by_index(mappings.user_ids_to_impl_ids.at(0));
+	const auto& p = sys.get_particle_by_index(mappings.id_map.at(0));
 	EXPECT_NEAR(p.position.x, 0.8, 1e-12)
 		<< "Particle crossing +X should reappear at +0.8 within the domain.";
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);

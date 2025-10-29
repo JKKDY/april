@@ -16,6 +16,7 @@ TEST(DirectSumTest, SingleParticle_NoForce) {
     Environment e (forces<NoForce>);
     e.add_particle(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
 	e.add_force(NoForce(), to_type(0));
+	e.set_extent(1,1,1);
 
 	auto sys = build_system(e, DirectSum());
     sys.update_forces();
@@ -30,6 +31,7 @@ TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
 	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
     e.add_particle(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
 	e.add_force(ConstantForce(3,4,5), to_type(7));
+	e.set_extent(1,1,1);
 
 	auto sys = build_system(e, DirectSum());
     sys.update_forces();
@@ -52,6 +54,7 @@ TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
     e.add_particle(Particle{.id = 99, .type = 0, .position={0,1,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
+	e.set_extent(1,1,1);
 
 	auto sys = build_system(e, DirectSum());
 	sys.update_forces();
@@ -115,7 +118,7 @@ TEST(DirectSumTest, CollectIndicesInRegion) {
     // Case 1: small inner region (should include one particle)
     {
         env::Domain region({0.1, 0.1, 0.1}, {0.9, 0.9, 0.9});
-        auto indices = sys.collect_indices_in_region(env::Box(region));
+        auto indices = sys.collect_indices_in_region(env::Box::from_domain(region));
         ASSERT_EQ(indices.size(), 1u);
         auto p = sys.export_particles()[indices[0]];
         EXPECT_EQ(p.position.x, 0.25);
@@ -126,14 +129,14 @@ TEST(DirectSumTest, CollectIndicesInRegion) {
     // Case 2: mid region (should include all 27)
     {
         env::Domain region({0, 0, 0}, {5, 5, 5});
-        auto indices = sys.collect_indices_in_region(env::Box(region));
+        auto indices = sys.collect_indices_in_region(env::Box::from_domain(region));
         EXPECT_EQ(indices.size(), 27u);
     }
 
     // Case 3: partially overlapping region
     {
         env::Domain region({1.5, 1.5, 1.5}, {4.5, 4.5, 4.5});
-        std::vector indices = sys.collect_indices_in_region(env::Box(region));
+        std::vector indices = sys.collect_indices_in_region(env::Box::from_domain(region));
         EXPECT_GT(indices.size(), 0u);
         EXPECT_LT(indices.size(), 27u);
 
@@ -156,7 +159,7 @@ TEST(DirectSumTest, CollectIndicesInRegion) {
     // Case 4: region completely outside
     {
         env::Domain region({10, 10, 10}, {12, 12, 12});
-        auto indices = sys.collect_indices_in_region(env::Box(region));
+        auto indices = sys.collect_indices_in_region(env::Box::from_domain(region));
         EXPECT_TRUE(indices.empty());
     }
 }
@@ -183,15 +186,15 @@ TEST(DirectSumTest, PeriodicForceWrap_X) {
 	e.add_force(Harmonic(1, 0, 2), to_type(0)); // simple directional force
 	e.set_boundaries(DummyPeriodicBoundary(), {Face::XMinus, Face::XPlus});
 
-	UserToInternalMappings mapping;
+	BuildInfo mapping;
 	auto sys = build_system(e, DirectSum(),&mapping); // DirectSum container
 	sys.update_forces();
 
 	auto const& out = sys.export_particles();
 	ASSERT_EQ(out.size(), 2u);
 
-	auto p1 = sys.get_particle_by_id(mapping.user_ids_to_impl_ids[0]);
-	auto p2 = sys.get_particle_by_id(mapping.user_ids_to_impl_ids[1]);
+	auto p1 = sys.get_particle_by_id(mapping.id_map[0]);
+	auto p2 = sys.get_particle_by_id(mapping.id_map[1]);
 
 	// They should feel equal and opposite forces due to wrapping
 	EXPECT_EQ(p1.force, -p2.force);
@@ -220,15 +223,15 @@ TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 		Face::ZMinus, Face::ZPlus
 	});
 
-	UserToInternalMappings mapping;
+	BuildInfo mapping;
 	auto sys = build_system(e, DirectSum(), &mapping);
 	sys.update_forces();
 
 	auto const& out = sys.export_particles();
 	ASSERT_EQ(out.size(), 2u);
 
-	auto p1 = sys.get_particle_by_id(mapping.user_ids_to_impl_ids[0]);
-	auto p2 = sys.get_particle_by_id(mapping.user_ids_to_impl_ids[1]);
+	auto p1 = sys.get_particle_by_id(mapping.id_map[0]);
+	auto p2 = sys.get_particle_by_id(mapping.id_map[1]);
 
 	// In a 10x10x10 domain with full wrapping,
 	// the wrapped displacement should be (-1, -1, -1) for p1->p2.

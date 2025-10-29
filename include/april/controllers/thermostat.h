@@ -70,9 +70,9 @@ namespace april::controller {
 
 		static uint8_t dimensions(const core::SimulationContext& ctx) {
 			return 3 -
-				(ctx.domain().extent.x == 0) -
-				(ctx.domain().extent.y == 0) -
-				(ctx.domain().extent.z == 0);
+				(ctx.box().extent.x == 0) -
+				(ctx.box().extent.y == 0) -
+				(ctx.box().extent.z == 0);
 		}
 	};
 

@@ -44,8 +44,12 @@ public:
         : step_(step), time_(time), particles_(std::move(particles)) {}
 	env::Domain dummy_domain = {{0, 0, 0}, {1, 1, 1}};
     // ---- Core information ----
-    [[nodiscard]] const env::Domain& domain() const noexcept override {
+    [[nodiscard]] env::Domain domain() const noexcept override {
         return dummy_domain;
+    }
+
+	[[nodiscard]] env::Box box() const noexcept override {
+    	return env::Box::from_domain(dummy_domain);
     }
 
     [[nodiscard]] double time() const noexcept override { return time_; }

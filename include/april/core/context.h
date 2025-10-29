@@ -28,7 +28,8 @@ namespace april::core {
 		// TODO add size(ParticleState) query
 
 		// ---- Core information ----
-		[[nodiscard]] virtual const env::Domain& domain() const noexcept = 0;
+		[[nodiscard]] virtual env::Domain domain() const noexcept = 0;
+		[[nodiscard]] virtual env::Box box() const noexcept = 0;
 		[[nodiscard]] virtual double time() const noexcept = 0;
 		[[nodiscard]] virtual size_t step() const noexcept = 0;
 		[[nodiscard]] virtual size_t size() const noexcept = 0;
@@ -61,8 +62,12 @@ namespace april::core {
 			explicit SimulationContextImpl(System& sys) : system(sys) {}
 
 			// ---- Core information ----
-			[[nodiscard]] const env::Domain& domain() const noexcept override {
-				return system.domain;
+			[[nodiscard]] env::Domain domain() const noexcept override {
+				return system.domain();
+			}
+
+			[[nodiscard]] env::Box box() const noexcept override {
+				return system.box();
 			}
 
 			[[nodiscard]] double time() const noexcept override {
@@ -99,7 +104,7 @@ namespace april::core {
 			}
 
 			[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Domain & region) const override {
-				return collect_indices_in_region(env::Box(region));
+				return system.collect_indices_in_region(region);
 			}
 
 

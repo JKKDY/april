@@ -16,7 +16,8 @@ namespace april::force::internal {
         ForceSentinel() : Force(-1.0) {}
 
         vec3 operator()(const env::internal::Particle&, const env::internal::Particle&, const vec3&) const noexcept {
-            assert(false && "NullForce should never be executed");
+            AP_ASSERT(false, "NullForce should never be executed");
+            std::unreachable();
         }
         [[nodiscard]] ForceSentinel mix(ForceSentinel const&) const { return {}; }
     };
@@ -47,16 +48,15 @@ namespace april::force::internal {
 
     template<IsForceVariant ForceVariant>
     class ForceTable {
-        using Interaction = InteractionInfo<ForceVariant>;
+        using TypeInteraction = TypeInteraction<ForceVariant>;
+        using IdInteraction = IdInteraction<ForceVariant>;
         using IdMap = std::unordered_map<env::ParticleType, env::internal::ParticleType>;
         using TypeMap = std::unordered_map<env::ParticleType, env::internal::ParticleType>;
     public:
 
-		ForceTable() = default;
-
-        void build(
-            std::vector<Interaction> & type_interactions,
-            std::vector<Interaction> & id_interactions,
+        ForceTable(
+            std::vector<TypeInteraction> type_interactions,
+            std::vector<IdInteraction> id_interactions,
             const TypeMap & usr_types_to_impl_types,
             const IdMap & usr_ids_to_impl_ids
         ) {
@@ -124,13 +124,13 @@ namespace april::force::internal {
         }
 
 
-        void build_type_forces(std::vector<Interaction>& type_infos, const TypeMap & type_map)
+        void build_type_forces(std::vector<TypeInteraction>& type_infos, const TypeMap & type_map)
         {
             // collect unique particle types to define types map size (implementation types are dense [0, N-1])
             std::unordered_set<env::ParticleType> particle_types;
             for (auto& x : type_infos) {
-                particle_types.insert(type_map.at(x.key_pair.first));
-                particle_types.insert(type_map.at(x.key_pair.second));
+                particle_types.insert(type_map.at(x.type1));
+                particle_types.insert(type_map.at(x.type2));
             }
 
             n_types = particle_types.size();
@@ -138,8 +138,8 @@ namespace april::force::internal {
 
             // insert type forces into map & apply usr mappings
             for (auto& x : type_infos) {
-                const auto a = type_map.at(x.key_pair.first);
-                const auto b = type_map.at(x.key_pair.second);
+                const auto a = type_map.at(x.type1);
+                const auto b = type_map.at(x.type2);
                 inter_type_forces[type_index(a, b)] = x.force;
                 inter_type_forces[type_index(b, a)] = x.force;
             }
@@ -168,13 +168,13 @@ namespace april::force::internal {
         }
 
 
-        void build_id_forces(std::vector<Interaction>& id_infos, const IdMap & id_map)
+        void build_id_forces(std::vector<IdInteraction>& id_infos, const IdMap & id_map)
         {
             // collect particle ids to define ids map size (implementation ids are dense [0, M-1])
             std::unordered_set<env::ParticleID> ids;
             for (auto& x : id_infos) {
-                ids.insert(id_map.at(x.key_pair.first));
-                ids.insert(id_map.at(x.key_pair.second));
+                ids.insert(id_map.at(x.id1));
+                ids.insert(id_map.at(x.id2));
             }
 
             n_ids = ids.size();
@@ -182,8 +182,8 @@ namespace april::force::internal {
 
             // insert id forces into map & apply usr mappings
             for (auto& x : id_infos) {
-                const auto a = id_map.at(x.key_pair.first);
-                const auto b = id_map.at(x.key_pair.second);
+                const auto a = id_map.at(x.id1);
+                const auto b = id_map.at(x.id2);
                 intra_particle_forces[id_index(a, b)] = x.force;
                 intra_particle_forces[id_index(b, a)] = x.force;
             }
@@ -220,7 +220,7 @@ namespace april::force::internal {
         }
 
 
-        void compute_max_cutoff() noexcept {
+        void compute_max_cutoff() {
             // get the max cutoff distance
             auto cutoff_of = [](auto const& v){
                 return std::visit([](auto const& f){ return f.cutoff; }, v);

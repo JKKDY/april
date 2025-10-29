@@ -21,9 +21,9 @@ namespace april::container {
 
 
 	namespace internal {
-		template <class Env>
-		class LinkedCells final : public ContiguousContainer<container::LinkedCells, Env> {
-			using Base = ContiguousContainer<container::LinkedCells, Env>;
+		template <class ForceTable>
+		class LinkedCells final : public ContiguousContainer<container::LinkedCells, ForceTable> {
+			using Base = ContiguousContainer<container::LinkedCells, ForceTable>;
 			using typename Base::Particle;
 			using typename Base::ParticleID;
 			using Base::interactions;
@@ -211,8 +211,8 @@ namespace april::container {
 			std::vector<uint32_t> cells_in_box(const env::Box & box) {
 
 				//  Convert world coords to cell coords (relative to domain origin)
-				const vec3 min = (box.min - domain.origin) * inv_cell_size;
-				const vec3 max = (box.max - domain.origin) * inv_cell_size;
+				const vec3 min = (box.min - domain.min) * inv_cell_size;
+				const vec3 max = (box.max - domain.min) * inv_cell_size;
 
 				// clamp cell coordinates to valid ranges
 				const vec3 min_clamped = {
@@ -248,7 +248,7 @@ namespace april::container {
 					}
 				}
 
-				if (!(box.min>= domain.min_corner() && box.max <= domain.max_corner())) {
+				if (!(box.min>= domain.min && box.max <= domain.max)) {
 					cells.push_back(outside_cell_id);
 				}
 
@@ -356,7 +356,7 @@ namespace april::container {
 			}
 
 			uint32_t cell_index_of(const vec3 & position) {
-				const vec3 pos = position - domain.origin;
+				const vec3 pos = position - domain.min;
 				if (pos[0] < 0 || pos[1] < 0 || pos[2] < 0) {
 					return outside_cell_id;
 				}

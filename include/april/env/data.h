@@ -26,7 +26,7 @@ namespace april::env::internal {
 
     template<class ForceVariant, class BoundaryVariant, class ControllerStorage, class FieldStorage>
     struct EnvironmentData final {
-        Domain domain = {ORIGIN_NOT_SET, EXTENT_NOT_SET};
+        Domain domain;
 
         // TODO document which takes precedent
         // we chose the maximum

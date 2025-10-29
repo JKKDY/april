@@ -11,37 +11,38 @@
 
 namespace april::core {
 
-	struct BuildInfo {
-		std::unordered_map<env::ParticleType, env::internal::ParticleType> type_map;
-		std::unordered_map<env::ParticleID, env::internal::ParticleID> id_map;
-		env::Domain particle_box;
-		env::Domain simulation_domain;
-	};
+	struct BuildInfo;
+
+	template <class C, env::internal::IsEnvironmentTraits Traits>
+	requires container::IsContainerDecl<C, Traits>
+	class System;
 
 
-	template <container::IsContDecl C, env::IsEnvironment Env>
-	auto build_system(
+	template <class Cont, env::IsEnvironment Env>
+	requires container::IsContainerDecl<Cont, typename Env::traits>
+	System<Cont, typename Env::traits> build_system(
 		const Env & environment,
-		const C& container,
+		const Cont& container,
 		BuildInfo* build_info = nullptr
 	);
 
 
-	template <container::IsContDecl C, env::internal::IsEnvironmentTraits Traits>
+	template <class C, env::internal::IsEnvironmentTraits Traits>
+	requires container::IsContainerDecl<C, Traits>
 	class System final {
-		using Controllers    = typename Traits::controller_storage_t;
-		using Fields	     = typename Traits::field_storage_t;
-		using ForceTable     = typename Traits::force_table_t;
-		using BoundaryTable  = typename Traits::boundary_table_t;
-		using Container      = typename C::template impl<typename Traits::force_variant_t>;
-		using ContainerFlags = container::internal::ContainerFlags;
-		using TypeInteraction= force::internal::TypeInteraction<typename Traits::force_variant_t>;
-		using IdInteraction	 = force::internal::IdInteraction<typename Traits::force_variant_t>;
+		using Controllers    	= typename Traits::controller_storage_t;
+		using Fields	     	= typename Traits::field_storage_t;
+		using ForceTable     	= typename Traits::force_table_t;
+		using BoundaryTable  	= typename Traits::boundary_table_t;
+		using Container      	= typename C::template impl<typename Traits::force_variant_t>;
+		using ContainerFlags 	= container::internal::ContainerFlags;
+		using TypeInteraction	= force::internal::TypeInteraction<typename Traits::force_variant_t>;
+		using IdInteraction	 	= force::internal::IdInteraction<typename Traits::force_variant_t>;
 
-		using Particle       = env::internal::Particle;
-		using ParticleRef    = env::ParticleRef;
-		using ParticleView   = env::ParticleView;
-		using ParticleID     = env::internal::ParticleID;
+		using Particle       	= env::internal::Particle;
+		using ParticleRef    	= env::ParticleRef;
+		using ParticleView   	= env::ParticleView;
+		using ParticleID     	= env::internal::ParticleID;
 
 		// private constructor since System should only be creatable through build_system(...)
 		System(
@@ -80,8 +81,9 @@ namespace april::core {
 		std::unique_ptr<SimulationContext> simulation_context;
 
 		// System factory. Only valid way to create a System.
-		template <container::IsContDecl Cont, env::IsEnvironment Env>
-		friend auto
+		template <class Cont, env::IsEnvironment Env>
+		requires container::IsContainerDecl<Cont, typename Env::traits>
+		friend System<Cont, typename Env::traits>
 		build_system(
 			 const Env & environment,
 			 const Cont& container,
@@ -277,7 +279,7 @@ namespace april::core {
 	inline constexpr bool is_system_v = false;
 
 	// Specialization: mark all System<C, Env> instantiations as true
-	template<container::IsContDecl C, env::internal::IsEnvironmentTraits Traits>
+	template<class C, env::internal::IsEnvironmentTraits Traits>
 	inline constexpr bool is_system_v<System<C, Traits>> = true;
 
 	// Concept: true if T (after removing cv/ref) is a System specialization

@@ -11,7 +11,12 @@
 
 namespace april::core {
 
-
+	struct BuildInfo {
+		std::unordered_map<env::ParticleType, env::internal::ParticleType> type_map;
+		std::unordered_map<env::ParticleID, env::internal::ParticleID> id_map;
+		env::Domain particle_box;
+		env::Domain simulation_domain;
+	};
 
 	namespace internal {
 
@@ -94,8 +99,9 @@ namespace april::core {
 
 
 
-	template <container::IsContDecl Container, env::IsEnvironment EnvT>
-	auto build_system(
+	template <class Container, env::IsEnvironment EnvT>
+	requires container::IsContainerDecl<Container, typename EnvT::traits>
+	System<Container, typename EnvT::traits> build_system(
 		const EnvT & environment,
 		const Container& container,
 		BuildInfo * build_info

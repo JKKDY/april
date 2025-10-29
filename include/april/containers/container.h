@@ -168,11 +168,10 @@ namespace april::container {
 		};
 	} // namespace internal
 
-	// TODO add IsForceTable Concept
-
 	template<typename Config, force::internal::IsForceVariant ForceVariant> class Container : public internal::ContainerInterface {
-		using ForceTable = force::internal::ForceTable<ForceVariant>;
 	public:
+		using force_variant_t = ForceVariant;
+		using ForceTable = force::internal::ForceTable<ForceVariant>;
 		using CFG = Config;
 		using ContainerInterface::Particle;
 		using ContainerInterface::ParticleID;
@@ -191,17 +190,24 @@ namespace april::container {
 	};
 
 
-	template<typename A> concept IsContainer =
-		// std::derived_from<A, Container<typename A::CFG, >> &&
-			requires {
-		typename A::CFG::impl;
+	template<typename C> concept IsContainer =
+	requires {
+		typename C::CFG;
+		typename C::force_variant_t;
+	} && requires {
+		typename C::CFG::template impl<typename C::force_variant_t>;
+	} && requires {
+		std::same_as<C, typename C::CFG::template impl<typename C::force_variant_t>>;
+	} && requires {
+		std::derived_from<C, Container<typename C::CFG, typename C::force_variant_t>>;
 	};
 
 
-	// TODO implement Container declaration concept
-	template<typename A> concept IsContDecl = std::true_type::value;
-	// 	requires {
-	// 	typename A::impl;
-	// }  && IsContainer<typename A::impl>;
+	template<typename ContainerDecl, typename Traits> concept IsContainerDecl =
+		env::internal::IsEnvironmentTraits<Traits> &&
+	requires {
+		typename ContainerDecl::template impl<typename Traits::force_variant_t>;
+	}
+	&& IsContainer<typename ContainerDecl::template impl<typename Traits::force_variant_t>>;
 
 } // namespace april::container

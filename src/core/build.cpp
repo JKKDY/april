@@ -89,8 +89,8 @@ namespace april::core::internal {
 		) {
 			throw std::invalid_argument(
 				"Specified Environment domain does not contain all particles: \n"
-				"\tDomain box max corner: " + simulation_box.min.to_string() + "\n"
-				"\tParticle bounding max corner: " + particle_bbox.min.to_string()
+				"\tDomain box max corner: " + simulation_box.max.to_string() + "\n"
+				"\tParticle bounding max corner: " + particle_bbox.max.to_string()
 			);
 		}
 	}

@@ -6,17 +6,17 @@
 namespace april::container {
 
 	namespace internal {
-		template <class Env> class DirectSum;
+		template <class FV> class DirectSum;
 	}
 
 	struct DirectSum {
-		template<typename Env> using impl = internal::DirectSum<Env>;
+		template<typename FV> using impl = internal::DirectSum<FV>;
 	};
 
 	namespace internal {
-		template <class Env>
-		class DirectSum final : public ContiguousContainer<container::DirectSum, Env> {
-			using Base = ContiguousContainer<container::DirectSum, Env>;
+		template <class Fv>
+		class DirectSum final : public ContiguousContainer<container::DirectSum, Fv> {
+			using Base = ContiguousContainer<container::DirectSum, Fv>;
 			using typename Base::Particle;
 			using typename Base::ParticleID;
 			using Base::interactions;

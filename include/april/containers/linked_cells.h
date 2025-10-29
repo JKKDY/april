@@ -11,7 +11,7 @@ namespace april::container {
 
 
 	struct LinkedCells {
-		template<typename  Env> using impl = internal::LinkedCells<Env>;
+		template<typename  FV> using impl = internal::LinkedCells<FV>;
 		double cell_size_hint;
 
 		void with_cell_size(const double cell_size) {
@@ -21,9 +21,9 @@ namespace april::container {
 
 
 	namespace internal {
-		template <class ForceTable>
-		class LinkedCells final : public ContiguousContainer<container::LinkedCells, ForceTable> {
-			using Base = ContiguousContainer<container::LinkedCells, ForceTable>;
+		template <class Fv>
+		class LinkedCells final : public ContiguousContainer<container::LinkedCells, Fv> {
+			using Base = ContiguousContainer<container::LinkedCells, Fv>;
 			using typename Base::Particle;
 			using typename Base::ParticleID;
 			using Base::interactions;

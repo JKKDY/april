@@ -19,20 +19,19 @@ namespace april::container {
 			bool particle_deletable;	// particles can be deleted during run time
 		};
 
-		// Containers must implement the following functions:
-		//   build();
-		//   register_all_particle_movements()
-		//   register_particle_movement()
-		//   calculate_forces()
-		//   get_particle_by_id, id_start, id_end
-		//   id_to_index
-		//   get_particle_by_index (optional), index_start, index_end
-		//   particle_count()
-		//   collect_indices_in_region()
-		// in the future:
-		//   remove_particle
-		//   add_particle
-		// TODO add IsForceTable Concept
+		/// Containers must implement the following functions:
+		///   build();
+		///   register_all_particle_movements()
+		///   register_particle_movement()
+		///   calculate_forces()
+		///   get_particle_by_id, id_start, id_end
+		///   id_to_index
+		///   get_particle_by_index (optional), index_start, index_end
+		///   particle_count()
+		///   collect_indices_in_region()
+		/// in the future:
+		///   remove_particle
+		///   add_particle
 		class ContainerInterface {
 		public:
 			using SimulationDomain = env::Box;
@@ -169,7 +168,10 @@ namespace april::container {
 		};
 	} // namespace internal
 
-	template<typename Config, typename ForceTable> class Container : public internal::ContainerInterface {
+	// TODO add IsForceTable Concept
+
+	template<typename Config, force::internal::IsForceVariant ForceVariant> class Container : public internal::ContainerInterface {
+		using ForceTable = force::internal::ForceTable<ForceVariant>;
 	public:
 		using CFG = Config;
 		using ContainerInterface::Particle;

@@ -33,7 +33,7 @@ namespace april::core {
 		using Fields	     = typename Traits::field_storage_t;
 		using ForceTable     = typename Traits::force_table_t;
 		using BoundaryTable  = typename Traits::boundary_table_t;
-		using Container      = typename C::template impl<ForceTable>;
+		using Container      = typename C::template impl<typename Traits::force_variant_t>;
 		using ContainerFlags = container::internal::ContainerFlags;
 		using TypeInteraction= force::internal::TypeInteraction<typename Traits::force_variant_t>;
 		using IdInteraction	 = force::internal::IdInteraction<typename Traits::force_variant_t>;

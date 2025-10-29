@@ -25,7 +25,6 @@ namespace april::core {
 
 		virtual ~SimulationContext() = default;
 
-		// TODO add size(ParticleState) query
 
 		// ---- Core information ----
 		[[nodiscard]] virtual env::Domain domain() const noexcept = 0;

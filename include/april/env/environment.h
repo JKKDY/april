@@ -4,7 +4,6 @@
 #include <functional>
 #include <limits>
 
-
 #include "april/common.h"
 #include "april/env/domain.h"
 #include "april/env/particle.h"
@@ -12,8 +11,8 @@
 #include "april/boundaries/boundary.h"
 #include "april/controllers/controller.h"
 #include "april/fields/field.h"
-
 #include "april/env/traits.h"
+#include "april/env/pack_utils.h"
 
 
 namespace april::env {
@@ -66,6 +65,7 @@ namespace april::env {
     };
 
 
+
     struct to_type { ParticleType type; };
 
     struct between_types { ParticleType t1, t2; };
@@ -75,25 +75,31 @@ namespace april::env {
 
 
     template<
-        force::IsForcePack              FPack,
-        boundary::IsBoundaryPack        BPack,
-        controller::IsControllerPack    CPack,
-        field::IsFieldPack              FFPack
+    force::IsForcePack FPack,
+    boundary::IsBoundaryPack BPack,
+    controller::IsControllerPack CPack,
+    field::IsFieldPack FFPack
     >
     class Environment {
     public:
-
         using traits = internal::EnvironmentTraits<FPack, BPack, CPack, FFPack>;
 
         explicit Environment(FPack, BPack, CPack, FFPack) {}
 
-        // TODO clean up this mess; try create constructors that can take in packs in any order
-        explicit Environment(FPack force_types)
-            : Environment(force_types, boundary::boundaries<>, controller::controllers<>, field::fields<>) {}
+        // empty convinience constructor
+        Environment()
+        : Environment(force::forces<>, boundary::boundaries<>, controller::controllers<>, field::fields<>) {}
 
-        explicit Environment(FPack force_types, BPack boundary_types)
-           : Environment(force_types, boundary_types, controller::controllers<>, field::fields<>) {}
-
+        // accepts any subset & order of packs
+        template<class... Packs>
+        requires (internal::is_any_pack_v<std::remove_cvref_t<Packs>> && ...)
+        explicit Environment(Packs&&...)
+            : Environment(
+                internal::get_pack_t<force::ForcePack, Packs...>{},
+                internal::get_pack_t<boundary::BoundaryPack, Packs...>{},
+                internal::get_pack_t<controller::ControllerPack,Packs...>{},
+                internal::get_pack_t<field::FieldPack, Packs...>{}
+            ) {}
 
     private:
         typename traits::environment_data_t data;
@@ -361,21 +367,15 @@ namespace april::env {
     };
 
 
-
-    // Deduction guide: 4 args
-    template<force::IsForce... Fs, boundary::IsBoundary... BCs, controller::IsController... Cs, field::IsField... FFs>
-    Environment(force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>)
-        -> Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<Cs...>, field::FieldPack<FFs...>>;
-
-    // Deduction guide: 1 args
-    template<force::IsForce... Fs>
-    Environment(force::ForcePack<Fs...>)
-    -> Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<>, controller::ControllerPack<>, field::FieldPack<>>;
-
-    // Deduction guide: 2 args
-    template<force::IsForce... Fs, boundary::IsBoundary... BCs>
-    Environment(force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>)
-    -> Environment<force::ForcePack<Fs...>, boundary::BoundaryPack<BCs...>, controller::ControllerPack<>, field::FieldPack<>>;
+    // one CTAD guide to deduce the four template parameters from any-order args
+    template<class... Packs>
+    Environment(Packs...)
+      -> Environment<
+           internal::get_pack_t<force::ForcePack, Packs...>,
+           internal::get_pack_t<boundary::BoundaryPack, Packs...>,
+           internal::get_pack_t<controller::ControllerPack,Packs...>,
+           internal::get_pack_t<field::FieldPack, Packs...>
+         >;
 
 
 

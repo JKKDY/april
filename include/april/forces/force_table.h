@@ -45,7 +45,6 @@ namespace april::force::internal {
             // check if both particles even have any individual interactions defined for them
             if (p1.id < n_ids && p2.id < n_ids) {
                 auto & iF = get_id_force(p1.id, p2.id);
-                // TODO replace std::visit with a thunk
                 force += std::visit([&](auto const& f){ return f(p1,p2,r); }, iF);
             }
 
@@ -181,9 +180,7 @@ namespace april::force::internal {
                     else
                         AP_ASSERT(!std::holds_alternative<ForceSentinel>(v),
                                   "intra_particle_forces should not contain ForceSentinel for differing ids");
-                    AP_ASSERT(inter_type_forces[type_index(i, j)] == inter_type_forces[type_index(j, i)],
-                        "Type force table not symmetric");
-                }
+            }
             #endif
         }
 

@@ -28,11 +28,11 @@ namespace april::field {
 		}
 	};
 
-	// define controller concept
+	// define field concept
 	template <class FFs>
 	concept IsField = std::derived_from<FFs, Field>;
 
-	// define controller Pack
+	// define field Pack
 	template<IsField...>
 	struct FieldPack {};
 

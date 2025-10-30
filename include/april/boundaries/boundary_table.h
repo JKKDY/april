@@ -25,30 +25,17 @@ namespace april::boundary::internal {
 	public:
 		CompiledBoundary(const BVariant & boundary, const env::Box & boundary_region):
 			region(boundary_region), topology(get_topology(boundary)), boundary_v(boundary) {
-
-			std::visit([&](auto const& bc) {
-				using T = std::decay_t<decltype(bc)>; // get the type of the alternative
-				apply_fn =&thunk<T>; // store the thunk in apply_fn
-			}, boundary_v);
 		}
 
 		void apply(env::internal::Particle & p, const env::Box & domain_box, const Face face) const noexcept {
-			apply_fn(this, p, domain_box, face);
+			std::visit([&](const auto& bc) {
+				bc.dispatch_apply(p, domain_box, face);
+			}, boundary_v);
 		}
 
 		const env::Box region;
 		const Topology topology;
 	private:
-		template<typename T>
-		static void thunk(const CompiledBoundary * self, env::internal::Particle & p, const env::Box & domain_box, Face face) noexcept {
-			// thunk for uniform function pointer type regardless of underlying variant type
-			// get the alternative from the variant and call apply on the particle
-			std::get<T>(self->boundary_v).dispatch_apply(p, domain_box, face);
-		}
-
-		using ApplyFn = void (*)(const CompiledBoundary*, env::internal::Particle&, const env::Box&, Face);
-		ApplyFn apply_fn = nullptr;
-
 		const BVariant boundary_v;
 	};
 

@@ -11,40 +11,6 @@
 
 namespace april::force::internal {
 
-    // internal placeholder only
-    struct ForceSentinel : Force {
-        ForceSentinel() : Force(-1.0) {}
-
-        vec3 operator()(const env::internal::Particle&, const env::internal::Particle&, const vec3&) const noexcept {
-            AP_ASSERT(false, "NullForce should never be executed");
-            std::unreachable();
-        }
-        [[nodiscard]] ForceSentinel mix(ForceSentinel const&) const { return {}; }
-    };
-
-
-    template<class... Fs>
-    struct VariantType {
-        // 1. Disallow the internal sentinel type in user packs
-        static_assert((!std::is_same_v<ForceSentinel, Fs> && ...),
-                      "ForceSentinel must NOT appear in ForcePack (internal sentinel only).");
-
-        // 2. Detect whether NoForce is already supplied
-        static constexpr bool has_no_force = (std::is_same_v<NoForce, Fs> || ...);
-
-        // 3. Compute the variant type
-        using type = std::conditional_t<
-            has_no_force,
-            std::variant<ForceSentinel, Fs...>,           // user already included NoForce
-            std::variant<ForceSentinel, Fs..., NoForce>   // append it
-        >;
-    };
-
-    // Convenience alias
-    template<class... Fs>
-    using VariantType_t = typename VariantType<Fs...>::type;
-
-
 
     template<IsForceVariant ForceVariant>
     class ForceTable {
@@ -215,6 +181,8 @@ namespace april::force::internal {
                     else
                         AP_ASSERT(!std::holds_alternative<ForceSentinel>(v),
                                   "intra_particle_forces should not contain ForceSentinel for differing ids");
+                    AP_ASSERT(inter_type_forces[type_index(i, j)] == inter_type_forces[type_index(j, i)],
+                        "Type force table not symmetric");
                 }
             #endif
         }

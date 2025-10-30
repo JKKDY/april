@@ -2,6 +2,7 @@
 
 #include <variant>
 #include <concepts>
+#include <utility>
 
 #include "april/common.h"
 #include "april/env/particle.h"
@@ -69,6 +70,8 @@ namespace april::force {
     concept IsForcePack = is_force_pack_v<std::remove_cvref_t<T>>;
 
 
+    struct NoForce;
+
     namespace internal {
 
         template<typename T>
@@ -100,5 +103,39 @@ namespace april::force {
               : id1(std::min(id1, id2)), id2(std::max(id1, id2)), force(std::move(f))
             {}
         };
+
+
+        // internal placeholder only
+        struct ForceSentinel : Force {
+            ForceSentinel() : Force(-1.0) {}
+
+            vec3 operator()(const env::internal::Particle&, const env::internal::Particle&, const vec3&) const noexcept {
+                AP_ASSERT(false, "NullForce should never be executed");
+                std::unreachable();
+            }
+            [[nodiscard]] ForceSentinel mix(ForceSentinel const&) const { return {}; }
+        };
+
+
+        template<class... Fs>
+        struct VariantType {
+            // 1. Disallow the internal sentinel type in user packs
+            static_assert((!std::is_same_v<ForceSentinel, Fs> && ...),
+                          "ForceSentinel must NOT appear in ForcePack (internal sentinel only).");
+
+            // 2. Detect whether NoForce is already supplied
+            static constexpr bool has_no_force = (std::is_same_v<NoForce, Fs> || ...);
+
+            // 3. Compute the variant type
+            using type = std::conditional_t<
+                has_no_force,
+                std::variant<ForceSentinel, Fs...>,           // user already included NoForce
+                std::variant<ForceSentinel, Fs..., NoForce>   // append it
+            >;
+        };
+
+        // Convenience alias
+        template<class... Fs>
+        using VariantType_t = typename VariantType<Fs...>::type;
     }
 } // namespace april::env

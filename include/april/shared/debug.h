@@ -1,6 +1,6 @@
 #pragma once
 
-#ifndef DNDEBUG
+#ifndef NDEBUG
 
 #include <iostream>
 #include <cstdlib>

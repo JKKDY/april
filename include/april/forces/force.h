@@ -16,7 +16,7 @@ namespace april::force {
         explicit Force(const double cutoff): cutoff(cutoff) {}
 
         vec3 operator()(this const auto & self,
-            env::internal::Particle const& p1, env::internal::Particle const& p2, const vec3 & r) {
+            const env::internal::Particle & p1, const env::internal::Particle & p2, const vec3 & r) {
             static_assert(
                 requires { self.eval(p1, p2, r); },
                 "Force must implement eval(env::internal::Particle, env::internal::Particle, const vec3&)"
@@ -52,11 +52,8 @@ namespace april::force {
     concept IsForce = std::derived_from<F, Force>;
 
     // define Force pack
-    template<IsForce... Fs>
-    struct ForcePack { /* empty */ };
-
-    template<class... Fs>
-    inline constexpr ForcePack<Fs...> forces{};
+    template<IsForce... Fs> struct ForcePack {};
+    template<class... Fs> inline constexpr ForcePack<Fs...> forces{};
 
 
     // Concept to check if a type T is a ForcePack

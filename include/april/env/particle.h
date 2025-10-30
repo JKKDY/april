@@ -165,7 +165,7 @@ namespace april::env {
 		const vec3& old_force;
 
 		const internal::Particle::State&  state;
-		const double&				  mass;
+		const double&					  mass;
 		const internal::ParticleType&     type;
 		const internal::ParticleID&       id;
 

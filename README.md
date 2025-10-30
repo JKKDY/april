@@ -1,13 +1,13 @@
 # APRIL -  A Particle Runtime Interaction Library
 
 APRIL is a small, modular C++ library for particle-based simulations.
-It aims to combine high performance with a flexible, easy-to-use, and expressive API. The library emphasizes clear architecture, plug-and-play components, and modern C++ features (concepts, CRTP-style dispatch).
-> Status: A large portion of the foundational features are in place; Some code cleanup, QoL & optimization updates and further tests before finally implementing parallelism via OpenMP
+It aims to combine high performance with an easy-to-use and expressive API. The library emphasizes clear architecture, plug-and-play components, and modern C++ features (concepts, CRTP-style dispatch).
+> Status: A large portion of the foundational features are in place; Next TODOs: Some QoL & optimization updates and further tests before finally implementing parallelism via OpenMP
 
 
 ## Core Features
 
-- **Modular design**: seamlessly swap, extend or create your own (inter particles) **forces**, **containers** (force calculators), **boundary conditions**, **controllers** (e.g. Thermostats), **Force fields**, **integrators**, and **monitors**.
+- **Modular design**: seamlessly swap, extend or create your own components: (inter particles) **forces**, **containers** (force calculators), **boundary conditions**, **controllers** (e.g. Thermostats), **Force fields**, **integrators**, and **monitors**.
 - **Modern C++**: concepts for compile-time interface checking; CRTP & template-meta programing for maximum performance; Variants for run time flexibility.
 - **Ergonomic setup**: clear setup path. Special care was taken to minimize template verbosity with automatic template deduction (CTAD).
 - **Declarative and imperative APIs**: supports both a **fluent, declarative style** (`.with_*()`) for concise setup and a **traditional imperative style** (`add_*()`, `set_*()`) for explicit configuration.
@@ -90,8 +90,8 @@ Optional observers with custom invocation policies (Triggers). They’re the pri
 
 ## Design Notes
 - The entire public API is collected in april/april.h, so users normally only need a single include.
-- Clear separation of user-facing vs. internal API: users work with declarative structs (e.g., `Environment`, `Particle`, container config structs) which are then consumed to build the internal representations (`impl::Particle`, container internals). This keeps the public API ergonomic and stable while allowing optimized internal implementations.
-- Concepts enforce component interfaces at compile time (IsForce, IsMonitor, IsBoundary, IsSystem), making extension points explicit.
+- Clear separation of user-facing vs. internal API: users work with declarative structs (e.g., `Environment`, `Particle`, container config structs) which are then used to build the internal representations. This keeps the public API ergonomic and stable while allowing optimized internal implementations.
+- Concepts enforce component interfaces at compile time (IsForce, IsMonitor, IsBoundary, IsSystem, ..) for better error handling.
 - Environment → System → Integrator is the central workflow. Systems always delegate force evaluation to a chosen Container.
 - Interactions can be specified by type pair or by particle id pair; missing cross-type entries are derived via a mix function.
 - BinaryOutput writes a compact, versioned binary format (positions as float, plus type/id/state) suitable for lightweight analysis or visualization.
@@ -107,6 +107,7 @@ using namespace april;
 int main() {
     // 1) Define an environment: particles + force types + boundary types
 	// constructor requires type information on, at run time, usable components
+	// possible template packs are: forces, boundaries, fields, controllers
     auto env = Environment (forces<InverseSquare>, boundaries<Outflow>)
         .with_particle(/*pos*/ {0,0,0}, /*vel*/ {0,0,0}, /*mass*/ 1.0, /*type*/0)   // Sun
         .with_particle(/*pos*/ {1,0,0}, /*vel*/ {0,1,0},/*mass*/ 1e-5, /*type*/0)   // Planet
@@ -160,16 +161,20 @@ Forces determine the pair wise interactions between particles.
 Implement the call operator and a `mix` rule (used to derive cross-type interactions) and provide a `cutoff_radius`:
 
 ```c++
-struct MyForce {
-    double cutoff_radius = -1.0; // negative = no cutoff
-    vec3 operator()(const impl::Particle& a,
-                    const impl::Particle& b,
-                    const vec3& r_ab) const noexcept;
-    MyForce mix(const MyForce& other) const noexcept;
+struct MyForce : Force{
+    using Force::Force;
+    
+    vec3 eval(const impl::Particle& a, const impl::Particle& b, const vec3& r_ab) const noexcept {
+        // your force logic here                
+    }
+    
+    MyForce mix(const MyForce& other) const noexcept {
+        // your mixing logic here
+    }
 };
 ```
 
-Register in an environment:
+To add to a simulation, simply specify its type during environment declaration and add it:
 
 ```c++
 Environment env (forces<MyForce>);
@@ -178,7 +183,7 @@ env.add_force(MyForce{...}, to_type(...));
 
 ### Custom boundary 
 
-Boundaries determine what happens to the particles near or outside the simulation domain.
+Boundaries determine what happens to the particles near or outside the simulation domain. 
 To implement custom boundary logic, inherit from `Boundary` and set the topology parameters by initializing the base class. provide a const apply function: 
 
 ```C++
@@ -188,9 +193,8 @@ struct MyBoundary final : Boundary {
                  /*force_wrap*/  false,
                  /*may_change_particle_position*/ true) {}
                  
-    void apply(env::internal::Particle& p, const env::Box& box,
-               boundary::Face face) const noexcept {
-        // your boundary logic           
+    void apply(env::internal::Particle& p, const env::Box& box, boundary::Face face) const noexcept {
+        // your boundary logic here          
     }
 }
 ```

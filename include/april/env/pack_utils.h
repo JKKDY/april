@@ -5,10 +5,10 @@
 #include "april/boundaries/boundary.h"
 #include "april/controllers/controller.h"
 #include "april/fields/field.h"
+#include "april/env/particle.h"
 
 
 namespace april::env::internal {
-
 	// base case
 	template<template<class ... > class Pack, class ... Packs>
 	struct contains_pack : std::false_type {};
@@ -42,14 +42,42 @@ namespace april::env::internal {
 	};
 
 	template<template<class ...> class Pack, class ... Packs>
-	using get_pack_t = typename get_pack<Pack,  std::remove_cvref_t<Packs>...>::type;
+	using get_pack_t = typename get_pack<Pack, std::remove_cvref_t<Packs>...>::type;
 
 
 
 	template<class T>
-	static constexpr bool is_any_pack_v =
-		force::IsForcePack<T> || boundary::IsBoundaryPack<T> ||
-		controller::IsControllerPack<T> || field::IsFieldPack<T>;
+	struct is_particle_data : std::false_type {};
 
+	template<class U>
+	struct is_particle_data<ParticleData<U>> : std::true_type {};
+
+	template<class T>
+	inline constexpr bool is_particle_data_v = is_particle_data<std::remove_cvref_t<T>>::value;
+
+
+	// Base Case
+	template<class ... Args>
+	struct get_user_data {using type = ParticleData<>::user_data_t;};
+
+	// recursion
+	template<class Head, class ... Tail>
+	struct get_user_data<Head, Tail...> : get_user_data<Tail...>{};
+
+	// match case:
+	template<class UserData, class ... Tail>
+	struct get_user_data<ParticleData<UserData>, Tail...> {
+		static_assert(!(... || is_particle_data_v<Tail>), "Multiple Particle<...> markers provided to Environment().");
+		using type = UserData;
+	};
+
+	template<class... Args>
+	using get_user_data_t = typename get_user_data<std::remove_cvref_t<Args>...>::type;
+
+
+	template<class T> static constexpr bool is_any_pack_v =
+		force::IsForcePack<T> || boundary::IsBoundaryPack<T> ||
+		controller::IsControllerPack<T> || field::IsFieldPack<T> ||
+		is_particle_data_v<T>;
 
 }

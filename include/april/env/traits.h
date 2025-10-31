@@ -22,7 +22,8 @@ namespace april::env::internal {
 	force::IsForce... Fs,
 	boundary::IsBoundary... BCs,
 	controller::IsController... Cs,
-	field::IsField... FFs
+	field::IsField... FFs,
+	IsParticleData UserData
 	>
 	struct EnvironmentTraits<
 		force::ForcePack<Fs...>,
@@ -48,6 +49,10 @@ namespace april::env::internal {
 		// Table Types
 		using boundary_table_t = boundary::internal::BoundaryTable<boundary_variant_t>;
 		using force_table_t    = force::internal::ForceTable<force_variant_t>;
+
+		// particles
+		using user_data_t = UserData;
+		using particle_t = Particle<UserData>;
 
 		// Environment Data type
 		using environment_data_t = EnvironmentData<

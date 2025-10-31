@@ -3,6 +3,7 @@
 #include <vector>
 #include <functional>
 #include <limits>
+#include <any>
 
 #include "april/common.h"
 #include "april/env/domain.h"
@@ -17,8 +18,7 @@
 
 namespace april::env {
     inline const auto MARGIN_DONT_CARE = vec3(std::numeric_limits<double>::max());
-    inline const auto ZERO_THERMAL_V = [](const Particle&) {return vec3{}; };
-
+    inline const auto ZERO_THERMAL_V = [](const vec3&) {return vec3{}; };
 
     struct ParticleCuboid {
         vec3 origin;
@@ -26,8 +26,9 @@ namespace april::env {
         uint3 particle_count;
         double distance;
         double particle_mass;
-        int type_id;
-        std::function<vec3(const Particle&)> thermal_velocity = ZERO_THERMAL_V;
+        ParticleType type_idx;
+        std::any user_data;
+        std::function<vec3(const vec3&)> thermal_velocity = ZERO_THERMAL_V;
         ParticleState particle_state = ParticleState::ALIVE;
 
         // fluent setters
@@ -37,7 +38,7 @@ namespace april::env {
         [[nodiscard]] ParticleCuboid& spacing(double d) noexcept;
         [[nodiscard]] ParticleCuboid& mass(double m) noexcept;
         [[nodiscard]] ParticleCuboid& type(int t) noexcept;
-        [[nodiscard]] ParticleCuboid& thermal(std::function<vec3(const Particle&)> tv);
+        [[nodiscard]] ParticleCuboid& thermal(std::function<vec3(const vec3&)> tv);
         [[nodiscard]] ParticleCuboid& state(ParticleState s) noexcept;
     };
 
@@ -48,8 +49,9 @@ namespace april::env {
         vec3 radii;  // for true sphere set all equal
         double distance;  // packing spacing
         double particle_mass;
-        int type_id;
-        std::function<vec3(const Particle&)> thermal_velocity = ZERO_THERMAL_V;
+        ParticleType type_idx;
+        std::any user_data;
+        std::function<vec3(const vec3&)> thermal_velocity = ZERO_THERMAL_V;
         ParticleState particle_state = ParticleState::ALIVE;
 
         // fluent setters
@@ -60,7 +62,7 @@ namespace april::env {
         [[nodiscard]] ParticleSphere& spacing(double d) noexcept;
         [[nodiscard]] ParticleSphere& mass(double m) noexcept;
         [[nodiscard]] ParticleSphere& type(int t) noexcept;
-        [[nodiscard]] ParticleSphere& thermal(std::function<vec3(const Particle&)> tv);
+        [[nodiscard]] ParticleSphere& thermal(std::function<vec3(const vec3&)> tv);
         [[nodiscard]] ParticleSphere& state(ParticleState s) noexcept;
     };
 
@@ -78,27 +80,29 @@ namespace april::env {
     force::IsForcePack FPack,
     boundary::IsBoundaryPack BPack,
     controller::IsControllerPack CPack,
-    field::IsFieldPack FFPack
+    field::IsFieldPack FFPack,
+    IsParticleData ParticleData
     >
     class Environment {
     public:
         using traits = internal::EnvironmentTraits<FPack, BPack, CPack, FFPack>;
 
-        explicit Environment(FPack, BPack, CPack, FFPack) {}
+        explicit Environment(FPack, BPack, CPack, FFPack, ParticleData) {}
 
-        // empty convinience constructor
+        // empty convenience constructor
         Environment()
-        : Environment(force::forces<>, boundary::boundaries<>, controller::controllers<>, field::fields<>) {}
+        : Environment(force::forces<>, boundary::boundaries<>, controller::controllers<>, field::fields<>, NoUserData{}) {}
 
         // accepts any subset & order of packs
-        template<class... Packs>
-        requires (internal::is_any_pack_v<std::remove_cvref_t<Packs>> && ...)
-        explicit Environment(Packs&&...)
+        template<class... Args>
+        requires (internal::is_any_pack_v<std::remove_cvref_t<Args>> && ...)
+        explicit Environment(Args&&...)
             : Environment(
-                internal::get_pack_t<force::ForcePack, Packs...>{},
-                internal::get_pack_t<boundary::BoundaryPack, Packs...>{},
-                internal::get_pack_t<controller::ControllerPack,Packs...>{},
-                internal::get_pack_t<field::FieldPack, Packs...>{}
+                internal::get_pack_t<force::ForcePack, Args...>{},
+                internal::get_pack_t<boundary::BoundaryPack, Args...>{},
+                internal::get_pack_t<controller::ControllerPack,Args...>{},
+                internal::get_pack_t<field::FieldPack, Args...>{},
+                internal::get_user_data_t<Args...>{}
             ) {}
 
     private:
@@ -107,7 +111,6 @@ namespace april::env {
         friend auto internal::get_env_data<FPack, BPack, CPack, FFPack> (const Environment& env);
 
     public:
-
         // --- Add particles ---
 
         // Single particle
@@ -117,14 +120,14 @@ namespace april::env {
 
         // Single particle
         void add_particle(
-         const vec3& position, const vec3& velocity, const double mass, const ParticleType type = 0, const ParticleID id = PARTICLE_ID_DONT_CARE) {
+         const vec3& position, const vec3& velocity, const double mass, const ParticleType type = 0, const std::any& user_data = {}) {
             add_particle(Particle{
-               .id = id,
-               .type = type,
-               .position =  position,
-               .velocity = velocity,
-               .mass = mass,
-               .state = ParticleState::ALIVE
+                .type = type,
+                .position =  position,
+                .velocity = velocity,
+                .mass = mass,
+                .state = ParticleState::ALIVE,
+                .user_data = user_data
            });
         }
 
@@ -250,7 +253,7 @@ namespace april::env {
         }
 
         Environment& with_particle (
-        const vec3& position, const vec3& velocity, const double mass, const ParticleType type = 0, const ParticleID id = PARTICLE_ID_DONT_CARE) {
+        const vec3& position, const vec3& velocity, const double mass, const ParticleType type = 0, const std::optional<ParticleID> id = {}) {
             add_particle(position, velocity, mass, type, id);
             return *this;
         }
@@ -368,14 +371,15 @@ namespace april::env {
 
 
     // one CTAD guide to deduce the four template parameters from any-order args
-    template<class... Packs>
-    Environment(Packs...)
-      -> Environment<
-           internal::get_pack_t<force::ForcePack, Packs...>,
-           internal::get_pack_t<boundary::BoundaryPack, Packs...>,
-           internal::get_pack_t<controller::ControllerPack,Packs...>,
-           internal::get_pack_t<field::FieldPack, Packs...>
-         >;
+    template<class... Args>
+    Environment(Args...)
+        -> Environment<
+            internal::get_pack_t<force::ForcePack, Args...>,
+            internal::get_pack_t<boundary::BoundaryPack, Args...>,
+            internal::get_pack_t<controller::ControllerPack,Args...>,
+            internal::get_pack_t<field::FieldPack, Args...>,
+            internal::get_user_data_t<Args...>
+        >;
 
 
 
@@ -386,9 +390,10 @@ namespace april::env {
         force::IsForcePack FPack,
         boundary::IsBoundaryPack BPack,
         controller::IsControllerPack CPack,
-        field::IsFieldPack FFPack
+        field::IsFieldPack FFPack,
+        IsParticleData ParticleData
     >
-    inline constexpr bool is_environment_v<Environment<FPack, BPack, CPack, FFPack>> = true;
+    inline constexpr bool is_environment_v<Environment<FPack, BPack, CPack, FFPack, ParticleData>> = true;
 
     template<typename T>
     concept IsEnvironment = is_environment_v<std::remove_cvref_t<T>>;

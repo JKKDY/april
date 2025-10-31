@@ -2,40 +2,42 @@
 #include "april/env/environment.h"
 
 #include <algorithm>
+#include <ranges>
 
 namespace april::env::internal {
 
-	void add_particle_impl(EnvironmentCommonData& data, const env::Particle& particle) {
-		if (particle.id != PARTICLE_ID_DONT_CARE && data.user_particle_ids.contains(particle.id)) {
+	void add_particle_impl(EnvironmentCommonData& data, const Particle& particle) {
+		if (particle.id.has_value() && data.user_particle_ids.contains(particle.id.value())) {
 			throw std::invalid_argument("specified id is not unique");
 		}
 
 		data.particles.push_back(particle);
 
-		if (particle.id != PARTICLE_ID_DONT_CARE) {
-			data.user_particle_ids.insert(particle.id);
+		if (particle.id.has_value()) {
+			data.user_particle_ids.insert(particle.id.value());
 		}
 
 		data.user_particle_types.insert(particle.type);
 	}
 
 
-	std::vector<env::ParticleID> add_cuboid_particles_impl(EnvironmentCommonData& data, const ParticleCuboid& cuboid) {
+	std::vector<ParticleID> add_cuboid_particles_impl(EnvironmentCommonData& data, const ParticleCuboid& cuboid) {
 		if (cuboid.distance == 0) {
 			throw std::logic_error("Cuboid inter-particle distance is set to 0!");
 		}
 		const uint32_t particle_count = cuboid.particle_count[0] * cuboid.particle_count[1] * cuboid.particle_count[2];
 		const double width = cuboid.distance;
 
-		std::vector<env::ParticleID> ids;
+		std::vector<ParticleID> ids;
 		ids.reserve(particle_count);
 
+		auto valid = data.particles | std::views::filter([](auto& p){ return p.id.has_value(); });
 		const auto it = std::ranges::max_element (
-			data.particles,
+			valid,
 			{},               // default `<` comparator
-			&env::Particle::id       // project each Particle to its `id`
+			&Particle::id       // project each Particle to its `id`
 		);
-		int id = ( it == data.particles.end() ? 0 : it->id+1 );
+		ParticleID id = ( it == valid.end() ? 0 : it->id.value()+1 );
 
 		data.particles.reserve(data.particles.size() + particle_count);
 
@@ -45,15 +47,15 @@ namespace april::env::internal {
 
 					ids.push_back(id);
 
-					env::Particle p = {
+					Particle p = {
 						.id = id++,
-						.type = cuboid.type_id,
+						.type = cuboid.type_idx,
 						.position = cuboid.origin + vec3(x * width, y * width, z * width),
 						.velocity = cuboid.mean_velocity,
 						.mass = cuboid.particle_mass,
 						.state = cuboid.particle_state,
 					};
-					p.velocity += cuboid.thermal_velocity(p);
+					p.velocity += cuboid.thermal_velocity(p.position);
 
 					add_particle_impl(data, p);
 				}
@@ -63,19 +65,20 @@ namespace april::env::internal {
 	}
 
 
-	std::vector<env::ParticleID> add_sphere_particles_impl(EnvironmentCommonData& data, const ParticleSphere& sphere) {
+	std::vector<ParticleID> add_sphere_particles_impl(EnvironmentCommonData& data, const ParticleSphere& sphere) {
 		if (sphere.distance == 0) {
             throw std::logic_error("Sphere inter-particle distance is set to 0!");
         }
-        std::vector<env::ParticleID> ids;
+        std::vector<ParticleID> ids;
 
         // get the maximum current id
-        const auto it = std::ranges::max_element(
-            data.particles,
-            {},                 // default `<` comparator
-            &env::Particle::id       // project each Particle to its `id`
-        );
-        int id = (it == data.particles.end() ? 0 : it->id+1);
+		auto valid = data.particles | std::views::filter([](auto& p){ return p.id.has_value(); });
+		const auto it = std::ranges::max_element (
+			valid,
+			{},               // default `<` comparator
+			&Particle::id       // project each Particle to its `id`
+		);
+		ParticleID id = ( it == valid.end() ? 0 : it->id.value()+1 );
 
         const double width = sphere.distance;
         const vec3 radii = {
@@ -97,15 +100,16 @@ namespace april::env::internal {
                         pos_sq.z/(radii.z*radii.z) >= 1) continue;
 
                     ids.push_back(id);
-                    env::Particle p =  {
+
+                	Particle p =  {
                         .id = id++,
-                        .type = sphere.type_id,
+                        .type = sphere.type_idx,
                         .position = sphere.center + pos,
                         .velocity = sphere.mean_velocity,
                         .mass = sphere.particle_mass,
                         .state = sphere.particle_state,
                     };
-                    p.velocity += sphere.thermal_velocity(p);
+                	p.velocity += sphere.thermal_velocity(p.position);
 
                     add_particle_impl(data, p);
                 }

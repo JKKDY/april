@@ -21,9 +21,9 @@ namespace april::env {
         particle_mass = m; return *this;
     }
     ParticleCuboid& ParticleCuboid::type(const int t) noexcept {
-        type_id = t; return *this;
+        type_idx = t; return *this;
     }
-    ParticleCuboid& ParticleCuboid::thermal(std::function<vec3(const Particle&)> tv) {
+    ParticleCuboid& ParticleCuboid::thermal(std::function<vec3(const vec3&)> tv) {
         thermal_velocity = std::move(tv); return *this;
     }
     ParticleCuboid& ParticleCuboid::state(const ParticleState s) noexcept {
@@ -50,9 +50,9 @@ namespace april::env {
         particle_mass = m; return *this;
     }
     ParticleSphere& ParticleSphere::type(const int t) noexcept {
-        type_id = t; return *this;
+        type_idx = t; return *this;
     }
-    ParticleSphere& ParticleSphere::thermal(std::function<vec3(const Particle&)> tv) {
+    ParticleSphere& ParticleSphere::thermal(std::function<vec3(const vec3&)> tv) {
         thermal_velocity = std::move(tv); return *this;
     }
     ParticleSphere& ParticleSphere::state(const ParticleState s) noexcept {

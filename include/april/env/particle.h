@@ -55,7 +55,7 @@ namespace april::env {
 
 
 	template <typename T>
-	concept IsUserData =
+	concept IsParticleData =
 		std::default_initializable<T> &&
 		std::is_trivially_copyable_v<T> &&
 		std::is_trivially_destructible_v<T> &&
@@ -68,10 +68,13 @@ namespace april::env {
 	using ParticleID = uint32_t;
 
 
-	template<IsUserData UserDataT = NoUserData>
-	struct Particle {
-		using user_data_t = UserDataT;
+	template<typename Data = NoUserData>
+	struct ParticleData {
+		using user_data_t = Data;
+	};
 
+
+	struct Particle {
 		std::optional<ParticleID> id;			// The id of the particle.
 		ParticleType type = 0;  				// The type of the particle.
 
@@ -86,11 +89,17 @@ namespace april::env {
 		std::optional<vec3> old_force = {};			// previous force acting on the particle.
 		std::optional<vec3> force = {};				// current force
 
-		UserDataT user_data {}; // custom user data
+		std::any user_data {}; // custom user data
 	};
 
+	template<IsParticleData UserDataT = NoUserData>
 
-	template<IsUserData UserDataT>
+
+	// template <typename T = NoUserData>
+	// Particle() -> Particle<T>;
+
+
+	template<IsParticleData UserDataT>
 	struct ParticleRef {
 
 		vec3 & position;
@@ -111,7 +120,7 @@ namespace april::env {
 		bool operator==(const ParticleRef & other) const noexcept {return id == other.id; };
 	};
 
-	template<IsUserData UserDataT>
+	template<IsParticleData UserDataT>
 	struct RestrictedParticleRef {
 		const vec3 & position;
 		const vec3 & velocity;
@@ -126,7 +135,7 @@ namespace april::env {
 		UserDataT & user_data;
 	};
 
-	template<IsUserData UserDataT>
+	template<IsParticleData UserDataT>
 	struct ParticleView {
 
 		const vec3& position;
@@ -158,32 +167,32 @@ namespace april::env {
 	}
 
 
-	namespace internal
-	{
-		template<IsUserData UserDataT>
-		struct Particle {
-
-			Particle() = default;
-
-			ParticleID id {};		// id of the particle.
-			ParticleType type {};	// type of the particle.
-
-			vec3 position;			// current position of the particle.
-			vec3 old_position;		// previous position of the particle. Useful for applying boundary conditions
-			vec3 velocity;			// current velocity of the particle.
-			vec3 force;				// current force acting on the particle.
-			vec3 old_force;			// previous force acting on the particle.
-
-			ParticleState state {};	// state of the particle.
-			double mass {};			// mass of the particle.
-
-			UserDataT user_data;
-
-			bool operator==(const Particle& other) const {
-				return id == other.id;
-			}
-		};
-	}
+	// namespace internal
+	// {
+	// 	template<IsUserData UserDataT>
+	// 	struct Particle {
+	//
+	// 		Particle() = default;
+	//
+	// 		ParticleID id {};		// id of the particle.
+	// 		ParticleType type {};	// type of the particle.
+	//
+	// 		vec3 position;			// current position of the particle.
+	// 		vec3 old_position;		// previous position of the particle. Useful for applying boundary conditions
+	// 		vec3 velocity;			// current velocity of the particle.
+	// 		vec3 force;				// current force acting on the particle.
+	// 		vec3 old_force;			// previous force acting on the particle.
+	//
+	// 		ParticleState state {};	// state of the particle.
+	// 		double mass {};			// mass of the particle.
+	//
+	// 		UserDataT user_data;
+	//
+	// 		bool operator==(const Particle& other) const {
+	// 			return id == other.id;
+	// 		}
+	// 	};
+	// }
 
 }
 

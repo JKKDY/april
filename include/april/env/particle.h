@@ -4,19 +4,20 @@
 #include <type_traits>
 #include <cstdint>
 #include <sstream>
+#include <any>
 
 #include "april/common.h"
 
 
 namespace april::env {
 	enum class ParticleState : uint8_t {
-		ALIVE      = 0b00000001, // Moves, exerts and experiences forces
-		DEAD       = 0b00000010, // Inactive; no movement or interaction
-		PASSIVE    = 0b00000100, // Moves, experiences forces but exerts none
-		STATIONARY = 0b00001000, // Exerts forces but does not move or respond
+		ALIVE      = 1u << 0, // Moves, exerts and experiences forces
+		DEAD       = 1u << 1, // Inactive; no movement or interaction
+		PASSIVE    = 1u << 2, // Moves, experiences forces but exerts none
+		STATIONARY = 1u << 3, // Exerts forces but does not move or respond
 		EXERTING   = ALIVE | STATIONARY, // Can exert forces on others
 		MOVABLE    = ALIVE | PASSIVE,    // Can move (may or may not exert forces)
-		ALL        = 0b11111111  // Matches all states
+		ALL        = ~0u  // Matches all states
 	};
 
 
@@ -54,8 +55,44 @@ namespace april::env {
 	}
 
 
+	using FieldMask = uint32_t;
+
+	enum class Field : FieldMask {
+		position     = 1u << 0,
+		velocity     = 1u << 1,
+		force        = 1u << 2,
+		old_position = 1u << 3,
+		old_force    = 1u << 4,
+		state        = 1u << 5,
+		mass         = 1u << 6,
+		type         = 1u << 7,
+		id           = 1u << 8,
+		user_data    = 1u << 9,
+		all			 = ~0u
+	};
+
+	constexpr FieldMask to_field_mask(Field f) { return static_cast<FieldMask>(f); }
+
+	constexpr FieldMask operator|(const Field a, const Field b) { return to_field_mask(a) | to_field_mask(b); }
+	constexpr FieldMask operator|(const FieldMask m, const Field f) { return m | to_field_mask(f); }
+	constexpr FieldMask operator|(const Field a, const FieldMask m) { return to_field_mask(a) | m; }
+
+	template<FieldMask M, Field F>
+	inline constexpr bool has_field = (M & to_field_mask(F)) != 0;
+
+
+
+	template< typename T, Field F, FieldMask M, bool Ref, bool Const = false>
+	using make_field = std::conditional_t<Ref,
+		std::conditional_t<Const, const T&, T&>,
+		std::conditional_t<Const, const T, T>>;
+
+
+	using ParticleType = uint16_t;
+	using ParticleID = uint32_t;
+
 	template <typename T>
-	concept IsParticleData =
+	concept IsUserData =
 		std::default_initializable<T> &&
 		std::is_trivially_copyable_v<T> &&
 		std::is_trivially_destructible_v<T> &&
@@ -64,8 +101,6 @@ namespace april::env {
 
 	struct NoUserData {};
 
-	using ParticleType = uint16_t;
-	using ParticleID = uint32_t;
 
 
 	template<typename Data = NoUserData>
@@ -73,7 +108,7 @@ namespace april::env {
 		using user_data_t = Data;
 	};
 
-
+	// user facing declaration with optional fields and non typed field for user data
 	struct Particle {
 		std::optional<ParticleID> id;			// The id of the particle.
 		ParticleType type = 0;  				// The type of the particle.
@@ -92,67 +127,67 @@ namespace april::env {
 		std::any user_data {}; // custom user data
 	};
 
-	template<IsParticleData UserDataT = NoUserData>
 
-
-	// template <typename T = NoUserData>
-	// Particle() -> Particle<T>;
-
-
-	template<IsParticleData UserDataT>
+	// reference to particle data. This is passed to e.g. controllers & boundaries that can mutate particle data
+	template<FieldMask M, IsUserData UserDataT>
 	struct ParticleRef {
+		// everything by reference except for type & id
+		make_field<vec3, Field::position, M, true> position;
+		make_field<vec3, Field::velocity, M, true> velocity;
+		make_field<vec3, Field::force,    M, true> force;
 
-		vec3 & position;
-		vec3 & velocity;
-		vec3 & force;
+		make_field<vec3, Field::old_position, M, true> old_position;
+		make_field<vec3, Field::old_force, M, true> old_force;
 
-		vec3 & old_position;
-		vec3 & old_force;
+		make_field<double, Field::mass, M, true> mass;
+		make_field<ParticleState, Field::state, M, true> state;
+		make_field<ParticleType, Field::type, M, false, true> type; // const
+		make_field<ParticleID, Field::id, M, false, true> id; // const
 
-		ParticleState & state;
-
-		double & mass;
-		const ParticleType type;
-		const ParticleID id;
-
-		UserDataT & user_data;
-
-		bool operator==(const ParticleRef & other) const noexcept {return id == other.id; };
+		make_field<UserDataT, Field::user_data, M, true> user_data;
 	};
 
-	template<IsParticleData UserDataT>
+	// a restricted reference that only allows force to be mutated e.g. for fields
+	template<FieldMask M, IsUserData UserDataT>
 	struct RestrictedParticleRef {
-		const vec3 & position;
-		const vec3 & velocity;
-		vec3 & force;
+		// everything except for numerical types by reference and const except for force
+		make_field<vec3, Field::position, M, true, true> position;
+		make_field<vec3, Field::velocity, M, true, true> velocity;
+		make_field<vec3, Field::force,    M, true, false> force;
 
-		const ParticleState state;
+		make_field<vec3, Field::old_position, M, true, true> old_position;
+		make_field<vec3, Field::old_force, M, true, true> old_force;
 
-		const double mass;
-		const ParticleType type;
-		const ParticleID id;
+		make_field<double, Field::mass, M, false, true> mass;
+		make_field<ParticleState, Field::state, M, false, true> state;
+		make_field<ParticleType, Field::type, M, false, true> type;
+		make_field<ParticleID, Field::id, M, false, true> id;
 
-		UserDataT & user_data;
+		make_field<UserDataT, Field::user_data, M, true, true> user_data;
 	};
 
-	template<IsParticleData UserDataT>
+
+	// an immutable reference to the particle data. meant for read only e.g. in monitors
+	template<FieldMask M, IsUserData UserDataT>
 	struct ParticleView {
+		// everything const
+		make_field<vec3, Field::position, M, true, true> position;
+		make_field<vec3, Field::velocity, M, true, true> velocity;
+		make_field<vec3, Field::force,    M, true, true> force;
 
-		const vec3& position;
-		const vec3& old_position;
-		const vec3& velocity;
-		const vec3& force;
-		const vec3& old_force;
+		make_field<vec3, Field::old_position, M, true, true> old_position;
+		make_field<vec3, Field::old_force, M, true, true> old_force;
 
-		const ParticleState  state;
-		const double		 mass;
-		const ParticleType   type;
-		const ParticleID     id;
+		make_field<double, Field::mass, M, false, true> mass;
+		make_field<ParticleState, Field::state, M, false, true> state;
+		make_field<ParticleType, Field::type, M, false, true> type;
+		make_field<ParticleID, Field::id, M, false, true> id;
 
-		const UserDataT & user_data;
+		make_field<UserDataT, Field::user_data, M, true, true> user_data;
 	};
 
 
+	// easy terminal diagnostics
 	template<typename P>
 	std::string particle_to_string(const P & p) {
 		std::ostringstream oss;
@@ -161,38 +196,39 @@ namespace april::env {
 			<< "Velocity: " << p.velocity.to_string() << "\n"
 			<< "Force: " << p.force.to_string() << "\n"
 			<< "Mass: " << p.mass << "\n"
-			<< "Type: " << p.pe << "\n"
+			<< "Type: " << p.type << "\n"
 			<< "State: " << static_cast<int>(p.state) << "\n";
 		return oss.str();
 	}
 
 
-	// namespace internal
-	// {
-	// 	template<IsUserData UserDataT>
-	// 	struct Particle {
-	//
-	// 		Particle() = default;
-	//
-	// 		ParticleID id {};		// id of the particle.
-	// 		ParticleType type {};	// type of the particle.
-	//
-	// 		vec3 position;			// current position of the particle.
-	// 		vec3 old_position;		// previous position of the particle. Useful for applying boundary conditions
-	// 		vec3 velocity;			// current velocity of the particle.
-	// 		vec3 force;				// current force acting on the particle.
-	// 		vec3 old_force;			// previous force acting on the particle.
-	//
-	// 		ParticleState state {};	// state of the particle.
-	// 		double mass {};			// mass of the particle.
-	//
-	// 		UserDataT user_data;
-	//
-	// 		bool operator==(const Particle& other) const {
-	// 			return id == other.id;
-	// 		}
-	// 	};
-	// }
+	namespace internal
+	{
+		// used internally in system. Holds all data of a particle
+		template<IsUserData ParticleData>
+		struct ParticleRecord {
+
+			ParticleRecord() = default;
+
+			ParticleID id {};		// id of the particle.
+			ParticleType type {};	// type of the particle.
+
+			vec3 position;			// current position of the particle.
+			vec3 old_position;		// previous position of the particle. Useful for applying boundary conditions
+			vec3 velocity;			// current velocity of the particle.
+			vec3 force;				// current force acting on the particle.
+			vec3 old_force;			// previous force acting on the particle.
+
+			ParticleState state {};	// state of the particle.
+			double mass {};			// mass of the particle.
+
+			ParticleData user_data;
+
+			bool operator==(const ParticleRecord& other) const {
+				return id == other.id;
+			}
+		};
+	}
 
 }
 

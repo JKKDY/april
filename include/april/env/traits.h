@@ -23,7 +23,7 @@ namespace april::env::internal {
 	boundary::IsBoundary... BCs,
 	controller::IsController... Cs,
 	field::IsField... FFs,
-	IsParticleData UserData
+	IsUserData UserData
 	>
 	struct EnvironmentTraits<
 		force::ForcePack<Fs...>,
@@ -52,7 +52,9 @@ namespace april::env::internal {
 
 		// particles
 		using user_data_t = UserData;
-		using particle_t = Particle<UserData>;
+		using particle_record_t = ParticleRecord<user_data_t>;
+		using particle_ref_t = ParticleRecord<user_data_t>;
+		using particle_view_t = ParticleView<user_data_t>;
 
 		// Environment Data type
 		using environment_data_t = EnvironmentData<

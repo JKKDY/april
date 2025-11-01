@@ -81,7 +81,7 @@ namespace april::env {
     boundary::IsBoundaryPack BPack,
     controller::IsControllerPack CPack,
     field::IsFieldPack FFPack,
-    IsParticleData ParticleData
+    IsUserData ParticleData
     >
     class Environment {
     public:
@@ -391,7 +391,7 @@ namespace april::env {
         boundary::IsBoundaryPack BPack,
         controller::IsControllerPack CPack,
         field::IsFieldPack FFPack,
-        IsParticleData ParticleData
+        IsUserData ParticleData
     >
     inline constexpr bool is_environment_v<Environment<FPack, BPack, CPack, FFPack, ParticleData>> = true;
 

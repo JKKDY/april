@@ -17,7 +17,7 @@ namespace april::env {
             boundary::IsBoundaryPack BPack,
             controller::IsControllerPack CPack,
             field::IsFieldPack FFPack,
-    	    IsParticleData ParticleData>
+    	    IsUserData ParticleData>
     class Environment;
 
     struct ParticleCuboid;
@@ -60,7 +60,7 @@ namespace april::env::internal {
     boundary::IsBoundaryPack BPack,
     controller::IsControllerPack CPack,
     field::IsFieldPack FFPack,
-    IsParticleData ParticleData
+    IsUserData ParticleData
     >
     auto get_env_data(const Environment<FPack, BPack, CPack, FFPack, ParticleData>& env) {
         return env.data;

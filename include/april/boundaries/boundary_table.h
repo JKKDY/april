@@ -23,17 +23,18 @@ namespace april::boundary::internal {
 
 	template<IsBoundaryVariant BVariant> class CompiledBoundary{
 	public:
-		CompiledBoundary(const BVariant & boundary, const env::Box & boundary_region):
+		CompiledBoundary(const BVariant & boundary, const Box & boundary_region):
 			region(boundary_region), topology(get_topology(boundary)), boundary_v(boundary) {
 		}
 
-		void apply(env::internal::Particle & p, const env::Box & domain_box, const Face face) const noexcept {
+		template<IsUserData UserData>
+		void apply(ParticleRef<M, UserData> & p, const Box & domain_box, const Face face) const noexcept {
 			std::visit([&](const auto& bc) {
 				bc.dispatch_apply(p, domain_box, face);
 			}, boundary_v);
 		}
 
-		const env::Box region;
+		const Box region;
 		const Topology topology;
 	private:
 		const BVariant boundary_v;

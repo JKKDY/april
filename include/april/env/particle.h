@@ -43,13 +43,13 @@ namespace april::env {
 	}
 
 	// OR-assignment
-	inline ParticleState& operator|=(ParticleState& a, ParticleState b) {
+	inline ParticleState& operator|=(ParticleState& a, const ParticleState b) {
 		a = a | b;
 		return a;
 	}
 
 	// AND-assignment
-	inline ParticleState& operator&=(ParticleState& a, ParticleState b) {
+	inline ParticleState& operator&=(ParticleState& a, const ParticleState b) {
 		a = a & b;
 		return a;
 	}
@@ -58,17 +58,18 @@ namespace april::env {
 	using FieldMask = uint32_t;
 
 	enum class Field : FieldMask {
-		position     = 1u << 0,
-		velocity     = 1u << 1,
-		force        = 1u << 2,
-		old_position = 1u << 3,
-		old_force    = 1u << 4,
-		state        = 1u << 5,
-		mass         = 1u << 6,
-		type         = 1u << 7,
-		id           = 1u << 8,
-		user_data    = 1u << 9,
-		all			 = ~0u
+		none			= 0u,
+		position     	= 1u << 0,
+		velocity     	= 1u << 1,
+		force        	= 1u << 2,
+		old_position 	= 1u << 3,
+		old_force    	= 1u << 4,
+		state        	= 1u << 5,
+		mass         	= 1u << 6,
+		type         	= 1u << 7,
+		id           	= 1u << 8,
+		user_data    	= 1u << 9,
+		all			 	= ~0u
 	};
 
 	constexpr FieldMask to_field_mask(Field f) { return static_cast<FieldMask>(f); }
@@ -80,6 +81,9 @@ namespace april::env {
 	template<FieldMask M, Field F>
 	inline constexpr bool has_field = (M & to_field_mask(F)) != 0;
 
+
+	template<class T>
+	concept HasFields = requires { T::fields; };
 
 
 	template< typename T, Field F, FieldMask M, bool Ref, bool Const = false>
@@ -100,7 +104,6 @@ namespace april::env {
 		(!std::is_polymorphic_v<T>);
 
 	struct NoUserData {};
-
 
 
 	template<typename Data = NoUserData>
@@ -153,7 +156,7 @@ namespace april::env {
 		// everything except for numerical types by reference and const except for force
 		make_field<vec3, Field::position, M, true, true> position;
 		make_field<vec3, Field::velocity, M, true, true> velocity;
-		make_field<vec3, Field::force,    M, true, false> force;
+		vec3 & force;
 
 		make_field<vec3, Field::old_position, M, true, true> old_position;
 		make_field<vec3, Field::old_force, M, true, true> old_force;
@@ -222,7 +225,7 @@ namespace april::env {
 			ParticleState state {};	// state of the particle.
 			double mass {};			// mass of the particle.
 
-			ParticleData user_data;
+			ParticleData user_data; // optional user data
 
 			bool operator==(const ParticleRecord& other) const {
 				return id == other.id;

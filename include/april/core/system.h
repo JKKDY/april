@@ -34,15 +34,17 @@ namespace april::core {
 		using Fields	     	= typename Traits::field_storage_t;
 		using ForceTable     	= typename Traits::force_table_t;
 		using BoundaryTable  	= typename Traits::boundary_table_t;
+
+		using ParticleRec = typename Traits::particle_record_t;
+		template<env::FieldMask M> using ParticleRef    		= typename Traits::template particle_record_t<M>;
+		template<env::FieldMask M> using ParticleView   		= typename Traits::template particle_view_t<M>;
+		template<env::FieldMask M> using RestrictedParticleRef	= typename Traits::template restricted_particle_ref_t<M>;
+
 		using Container      	= typename C::template impl<typename Traits::force_variant_t>;
 		using ContainerFlags 	= container::internal::ContainerFlags;
 		using TypeInteraction	= force::internal::TypeInteraction<typename Traits::force_variant_t>;
 		using IdInteraction	 	= force::internal::IdInteraction<typename Traits::force_variant_t>;
 
-		using Particle       	= env::internal::Particle;
-		using ParticleRef    	= env::ParticleRef;
-		using ParticleView   	= env::ParticleView;
-		using ParticleID     	= env::internal::ParticleID;
 	public:
 		// call to update all pairwise forces between particles
 		void update_forces() {
@@ -54,7 +56,7 @@ namespace april::core {
 			container.dispatch_register_all_particle_movements();
 		}
 
-		void register_particle_movement(ParticleID id) {
+		void register_particle_movement(env::ParticleID id) {
 			size_t idx = container.id_to_index(id);
 			container.dispatch_register_particle_movement(idx);
 		}
@@ -82,22 +84,22 @@ namespace april::core {
 		}
 
 		// Useful for stable iterations and accessing a specific particle
-		[[nodiscard]] Particle & get_particle_by_id(const ParticleID id) noexcept {
+		[[nodiscard]] ParticleRec & get_particle_by_id(const env::ParticleID id) noexcept {
 			return container.dispatch_get_particle_by_id(id);
 		}
 
 		// get the first particle id (usually 0)
-		[[nodiscard]] ParticleID id_start() const noexcept{
+		[[nodiscard]] env::ParticleID id_start() const noexcept{
 			return container.dispatch_id_start();
 		}
 
 		// get the last particle id (usually n-1 with n = #particles)
-		[[nodiscard]] ParticleID id_end() const noexcept {
+		[[nodiscard]] env::ParticleID id_end() const noexcept {
 			return container.dispatch_id_end();
 		}
 
 		// get a particle by its container specific id. useful for non-stable (but fast) iteration over particles
-		[[nodiscard]] Particle & get_particle_by_index(const size_t index) noexcept {
+		[[nodiscard]] ParticleRec & get_particle_by_index(const size_t index) noexcept {
 			return container.dispatch_get_particle_by_index(index);
 		}
 
@@ -148,7 +150,20 @@ namespace april::core {
 		}
 
 		// get read access to all internal particles based on their state. Useful for snapshots and analysis.
-		[[nodiscard]] std::vector<ParticleView> export_particles(env::ParticleState state = env::ParticleState::ALL);
+		template<env::FieldMask M>
+		[[nodiscard]] std::vector<ParticleView<M>> export_particles(env::ParticleState state = env::ParticleState::ALL) {
+				std::vector<ParticleView<M>> particles;
+				if (container.dispatch_particle_count() == 0) {
+					return {};
+				}
+				particles.reserve(index_end() - index_start() + 1);
+				for (auto i = index_start(); i < index_end(); ++i) {
+					auto & p = get_particle_by_index(i);
+					if (static_cast<int>(p.state & state))
+						particles.emplace_back(p);
+				}
+				return particles;
+		}
 
 
 	private:
@@ -157,7 +172,7 @@ namespace april::core {
 			const C& container_cfg,
 			const ContainerFlags& container_flags,
 			const env::Box& domain_in,
-			const std::vector<Particle>& particles,
+			const std::vector<ParticleRec>& particles,
 			const BoundaryTable& boundaries_in,
 			const ForceTable& forces_in,
 			const Controllers& controllers_in,
@@ -188,7 +203,7 @@ namespace april::core {
 			return std::make_unique<internal::SimulationContextImpl<decltype(*this)>>(*this);
 		}
 
-		void build_particles(const std::vector<Particle>& particles) {
+		void build_particles(const std::vector<ParticleRec>& particles) {
 			container.dispatch_build(particles);
 		}
 
@@ -249,6 +264,7 @@ namespace april::core {
 		for (boundary::Face face : boundary::all_faces) {
 
 			const Boundary & boundary = boundary_table.get_boundary(face);
+			const env::FieldMask = boundary.
 			std::vector<size_t> particle_ids = container.dispatch_collect_indices_in_region(boundary.region);
 
 			if (boundary.topology.boundary_thickness >= 0) {
@@ -310,24 +326,6 @@ namespace april::core {
 		fields.for_each_item([this](auto & field) {
 			field.dispatch_update(context());
 		});
-	}
-
-
-	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
-	std::vector<typename System<C, Traits>::ParticleView> System<C, Traits>::export_particles(
-		const env::ParticleState state)
-	{
-		std::vector<ParticleView> particles;
-		if (container.dispatch_particle_count() == 0) {
-			return {};
-		}
-		particles.reserve(index_end() - index_start() + 1);
-		for (auto i = index_start(); i < index_end(); ++i) {
-			auto & p = get_particle_by_index(i);
-			if (static_cast<int>(p.state & state))
-				particles.emplace_back(p);
-		}
-		return particles;
 	}
 }
 

@@ -5,26 +5,29 @@
 
 namespace april::boundary {
 
-	template <typename F>
-	concept IsBoundaryForce = requires(F f, const env::internal::Particle& p, double dist) {
+	template <typename F, FieldMask M, IsUserData U>
+	concept IsBoundaryForce = requires(F f, const ParticleRef<M,U> & p, double dist) {
 		{ f.apply(p, dist) } -> std::convertible_to<double>;
 		{ f.cutoff() } -> std::convertible_to<double>;
 	};
 
 
 
-	template <IsBoundaryForce Force>
+	template <class Force>
 	struct Repulsive : Boundary {
+		static constexpr FieldMask fields = Field::position | Field::force | Field::old_position;
+
 		explicit Repulsive(Force & force, const bool simulate_halo=false):
 		Boundary(force.cutoff(), false, false, false),
 		boundary_force(force), simulate_halo(simulate_halo) {}
 
-		void apply(env::internal::Particle & particle, const env::Box & domain_box, const Face face) const noexcept{
+		template<IsUserData UserData> requires IsBoundaryForce<Force, fields, UserData>
+		void apply(ParticleRef<fields, UserData> particle, const Box & domain_box, const Face face) const noexcept{
 			const int is_plus = face_sign_pos(face);
 			const int ax = axis_of_face(face);
 
 			AP_ASSERT(particle.position[ax] >= domain_box.min[ax] && particle.position[ax] <= domain_box.max[ax],
-			"particle should be inside domain on specified axis! \n\tface:"  + std::to_string(face_to_int(face)) +
+			"particle should be inside domain on specified axis! \n\t face:"  + std::to_string(face_to_int(face)) +
 			"\n\t" + particle.position.to_string() + "  old pos: " + particle.old_position.to_string() );
 
 			const double wall_position  = (is_plus? domain_box.max : domain_box.min)[ax];
@@ -55,9 +58,10 @@ namespace april::boundary {
 
 		[[nodiscard]] double cutoff() const noexcept { return rc; }
 
-		[[nodiscard]] double apply(const env::internal::Particle&, const double d) const noexcept {
-			if (d > rc) return 0.0;
-			return A * std::exp(-d / lambda);
+		template <FieldMask M, IsUserData U>
+		[[nodiscard]] double apply(const ParticleRef<M, U>, const double distance) const noexcept {
+			if (distance > rc) return 0.0;
+			return A * std::exp(-distance / lambda);
 		}
 	};
 
@@ -71,9 +75,10 @@ namespace april::boundary {
 
 		[[nodiscard]] double cutoff() const noexcept { return rc; }
 
-		[[nodiscard]] double apply(const env::internal::Particle&, const double d) const noexcept {
-			if (d > rc) return 0.0;
-			return A / std::pow(d, n);
+		template <FieldMask M, IsUserData U>
+		[[nodiscard]] double apply(const ParticleRef<M, U>, const double distance) const noexcept {
+			if (distance > rc) return 0.0;
+			return A / std::pow(distance, n);
 		}
 	};
 
@@ -87,9 +92,10 @@ namespace april::boundary {
 
 		[[nodiscard]] double cutoff() const noexcept { return rc; }
 
-		[[nodiscard]] double apply(const env::internal::Particle&, double d) const noexcept {
-			if (d > rc) return 0.0;
-			const double sr = sigma / d;
+		template <FieldMask M, IsUserData U>
+		[[nodiscard]] double apply(const ParticleRef<M, U>, const double distance) const noexcept {
+			if (distance > rc) return 0.0;
+			const double sr = sigma / distance;
 			const double sr3 = sr * sr * sr;
 			const double sr9 = sr3 * sr3 * sr3;
 			return 4.0 * epsilon * (3.0 * sr3 - 9.0 * sr9);
@@ -107,12 +113,13 @@ namespace april::boundary {
 
 		[[nodiscard]] double cutoff() const noexcept { return rc; }
 
-		[[nodiscard]] double apply(const env::internal::Particle&, const double d) const noexcept {
-			if (d > rc) return 0.0;
-			const double sr = sigma / d;
+		template <FieldMask M, IsUserData U>
+		[[nodiscard]] double apply(const ParticleRef<M, U>, const double distance) const noexcept {
+			if (distance > rc) return 0.0;
+			const double sr = sigma / distance;
 			const double sr6 = std::pow(sr, 6);
 			const double sr12 = sr6 * sr6;
-			const double f = 24.0 * epsilon * (2.0 * sr12 - sr6) / d;
+			const double f = 24.0 * epsilon * (2.0 * sr12 - sr6) / distance;
 			return std::abs(f);  // ensure positive scalar magnitude
 		}
 	};

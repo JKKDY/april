@@ -7,6 +7,8 @@
 
 namespace april::boundary {
 
+	using namespace env;
+
 	struct Open;
 
 	enum class Face : uint8_t {
@@ -81,7 +83,10 @@ namespace april::boundary {
 			topology(thickness, couples_axis, force_wrap, may_change_particle_pos)
 		{}
 
-		void dispatch_apply(this auto&& self, env::internal::Particle & particle, const env::Box & domain_box, Face face) noexcept {
+		// TODO maybe make particle to rvalue reference
+		template<IsUserData UserData, HasFields Self>
+		void dispatch_apply(this Self&& self, ParticleRef<std::remove_reference_t<Self>::fields, UserData> particle,
+			const Box & domain_box, Face face) noexcept {
 			static_assert(
 			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },
 			   "BoundaryCondition subclass must implement: void dispatch_apply(particle)"
@@ -124,9 +129,11 @@ namespace april::boundary {
 	namespace internal {
 
 		struct BoundarySentinel : Boundary {
+			static constexpr FieldMask fields = to_field_mask(Field::none);
 			BoundarySentinel(): Boundary(-1, false, false, false) {}
 
-			void apply(env::internal::Particle &, const env::Box &, const Face) const noexcept {
+			template<IsUserData UserData>
+			void apply(ParticleRef<fields, UserData>, const Box &, const Face) const noexcept {
 				AP_ASSERT(false, "apply called on null boundary! this should never happen");
 			}
 		};

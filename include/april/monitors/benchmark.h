@@ -6,20 +6,22 @@
 #include "april/monitors/monitor.h"
 
 namespace april::monitor {
-	class Benchmark : public Monitor {
+	class Benchmark : public Monitor<trigger::Always> {
 	public:
-		Benchmark() : Monitor(shared::Trigger::always()) {}
+		Benchmark() : Monitor(trigger::Always()) {}
 
 		void initialize() {
 			glob_start_time = std::chrono::high_resolution_clock::now();
 		}
 
-		void before_step(const core::SimulationContext & sys) {
+		template<class S>
+		void before_step(const core::SystemContext<S> & sys) {
 			updates+= sys.index_start() - sys.index_end();
 			start_time = std::chrono::high_resolution_clock::now();
 		}
 
-		void record(const core::SimulationContext &) {
+		template<class S>
+		void record(const core::SystemContext<S> &) {
 			end_time = std::chrono::high_resolution_clock::now();
 			const auto elapsed = std::chrono::duration<double>(end_time - start_time).count();
 			timings.push_back(elapsed);

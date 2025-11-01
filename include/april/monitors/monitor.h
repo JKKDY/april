@@ -6,11 +6,13 @@
 namespace april::monitor {
 
 
+	template<trigger::IsTrigger Trig>
 	class Monitor {
 	public:
-		explicit Monitor(shared::Trigger trig) : trigger(std::move(trig)) {}
+		explicit Monitor(const Trig & trig) : trigger(trig) {}
 
-		[[nodiscard]] bool should_trigger(const core::SimulationContext & sys) {
+		template<class S>
+		[[nodiscard]] bool should_trigger(const core::SystemContext<S> & sys) {
 			return trigger(sys);
 		}
 
@@ -30,19 +32,21 @@ namespace april::monitor {
 		}
 
 		// Optional: Called before a step
-		void dispatch_before_step(this auto&& self, const core::SimulationContext & context) {
-			if constexpr (requires { self.before_step(context); }) {
-				self.before_step(context);
+		template<class S>
+		void dispatch_before_step(this auto&& self, const core::SystemContext<S> & sys) {
+			if constexpr (requires { self.before_step(sys); }) {
+				self.before_step(sys);
 			}
 		}
 
 		// Required: Called after a step
-		void dispatch_record(this auto&& self, const core::SimulationContext & context) {
+		template<class S>
+		void dispatch_record(this auto&& self, const core::SystemContext<S> & sys) {
 			static_assert(
-				requires { self.record(context); },
+				requires { self.record(sys); },
 				"Monitor subclass must implement: void dispatch_record(const core::SimulationContext &)"
 			);
-			self.record(context);
+			self.record(sys);
 		}
 
 		// Optional: Called once at the end
@@ -57,11 +61,23 @@ namespace april::monitor {
 		double start_time{};
 		double end_time{};
 		size_t num_steps{};
-		shared::Trigger trigger;
+		Trig trigger;
 	};
 
 
-	template <class M> concept IsMonitor = std::derived_from<M, Monitor>;
+	// define monitor concept
+	template <typename T>
+	struct has_monitor_base {
+	private:
+		template <trigger::IsTrigger Trig>
+		static std::true_type test(const Monitor<Trig>*); // use ptr conversion from T* to Monitor*
+		static std::false_type test(...);
+	public:
+		static constexpr bool value = decltype(test(std::declval<T*>()))::value;
+	};
+
+	template <typename T>
+	concept IsMonitor = has_monitor_base<T>::value;
 
 	template<IsMonitor... Ms> struct MonitorPack {};
 

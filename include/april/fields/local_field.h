@@ -15,7 +15,7 @@ namespace april::field {
 				particle.force += force;
 		}
 
-		void update(const core::SimulationContext & ctx) {
+		void update(const core::SystemContext & ctx) {
 			active = ctx.time() >= start && ctx.time() < stop;
 		}
 

@@ -33,7 +33,7 @@ static env::internal::Particle make_particle(env::internal::ParticleType type, e
 
 
 
-class DummyContext final : public SimulationContext {
+class DummyContext final : public SystemContext {
 public:
     using ParticleView = env::ParticleView;
     using ParticleRef  = env::ParticleRef;

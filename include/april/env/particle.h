@@ -78,9 +78,6 @@ namespace april::env {
 	constexpr FieldMask operator|(const FieldMask m, const Field f) { return m | to_field_mask(f); }
 	constexpr FieldMask operator|(const Field a, const FieldMask m) { return to_field_mask(a) | m; }
 
-	template<FieldMask M, Field F>
-	inline constexpr bool has_field = (M & to_field_mask(F)) != 0;
-
 
 	template<class T>
 	concept HasFields = requires { T::fields; };

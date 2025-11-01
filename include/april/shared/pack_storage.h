@@ -54,6 +54,15 @@ namespace april::shared::internal {
 			});
 		}
 
+		template<typename Func>
+		void for_each_item(Func&& f) const {
+			for_each_list([&](const auto& list) {
+				for (const auto& item : list) {
+					f(item);
+				}
+			});
+		}
+
 		// Get the vector for a specific type T
 		template<typename T>
 		std::vector<T>& get_list() {

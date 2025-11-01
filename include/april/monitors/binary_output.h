@@ -8,18 +8,22 @@
 
 #include "april/monitors/monitor.h"
 
+
 namespace april::monitor {
 
-	class BinaryOutput final : public Monitor {
+	template<trigger::IsTrigger Trig>
+	class BinaryOutput final : public Monitor<Trig> {
 	public:
+		static constexpr env::FieldMask fields = to_field_mask(env::Field::all);
 		explicit BinaryOutput(
-			shared::Trigger trigger,
+			const Trig & trigger,
 			std::string dir = "output",
 			std::string base_name = "output")
 		:
-			Monitor(std::move(trigger)), base_name(std::move(base_name)), dir(std::move(dir)) {}
+			Monitor<Trig>(trigger), base_name(std::move(base_name)), dir(std::move(dir)) {}
 
-		void record(const core::SimulationContext & sys) const {
+		template<class S>
+		void record(const core::SystemContext<S> & sys) const {
 			namespace fs = std::filesystem;
 
 			size_t start_idx = sys.index_start();
@@ -33,14 +37,14 @@ namespace april::monitor {
 			if (!out) throw std::runtime_error("Failed to create output file: " + full_path.string());
 
 			// Write header
-			out.write(magic, sizeof(magic));							// 4 bytes
-			write_binary(out, version);                             // 4 bytes
+			out.write(magic, sizeof(magic));				// 4 bytes
+			write_binary(out, version);                 // 4 bytes
 			write_binary(out, sys.step());				// 8 bytes
-			write_binary(out, end_idx - start_idx);	// 8 bytes
-			write_binary(out, format_flags);                        // 4 bytes
+			write_binary(out, end_idx - start_idx);		// 8 bytes
+			write_binary(out, format_flags);            // 4 bytes
 
-			for (size_t i = start_idx; i < end_idx; i++) {
-				env::ParticleView p = sys.get_particle_by_index(i);
+			for (size_t i = start_idx; i < end_idx; ++i) {
+				auto p = sys.get_particle_by_index<fields>(i);
 				// Write position as 3 floats
 				write_binary(out, static_cast<float>(p.position.x));
 				write_binary(out, static_cast<float>(p.position.y));
@@ -56,6 +60,7 @@ namespace april::monitor {
 			out.write(reinterpret_cast<const char*>(&value), sizeof(T));
 		}
 
+	private:
 		std::string base_name;
 		std::string dir;
 

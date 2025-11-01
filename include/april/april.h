@@ -99,7 +99,7 @@ namespace april {
 	using core::System;
 	using core::build_system;
 	using core::BuildInfo;
-	using core::SimulationContext;
+	using core::SystemContext;
 
 	// Monitors
 	using monitor::monitors;

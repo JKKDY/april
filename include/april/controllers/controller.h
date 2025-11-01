@@ -1,43 +1,54 @@
 #pragma once
 
-#include <concepts>
-
 #include "april/shared/trigger.h"
 #include "april/core/context.h"
 
 namespace april::controller  {
 
+	template<trigger::IsTrigger Trig>
 	class Controller {
 	public:
-		explicit Controller(shared::Trigger trig) : trigger(std::move(trig)) {}
+		explicit Controller(const Trig & trig) : trigger(trig) {}
 
-		[[nodiscard]] bool should_trigger(const core::SimulationContext & sys) {
+		template<class S>
+		[[nodiscard]] bool should_trigger(const core::SystemContext<S> & sys) {
 			return trigger(sys);
 		}
 
-		void dispatch_init(this auto && self, core::SimulationContext & sys) {
+		template<class S>
+		void dispatch_init(this auto && self, const core::SystemContext<S> & sys) {
 			if constexpr (requires { self.apply(sys); }) {
-				self.init(sys);
+				self.template init<S>(sys);
 			}
 		}
 
-		void dispatch_apply(this auto&& self, core::SimulationContext & sys) {
+		template<class S>
+		void dispatch_apply(this auto&& self, core::SystemContext<S> & sys) {
 			static_assert(
 				requires { self.apply(sys); },
-				"Controller subclass must implement: void apply(core::SimulationContext &)"
+				"Controller subclass must implement: void apply(const core::SystemContext<S> & sys)"
 			);
-			self.apply(sys);
+			self.template apply<S>(sys);
 		}
 
 	private:
-		shared::Trigger trigger;
+		Trig trigger;
 	};
 
 
 
-	// define controller concept
+	template<typename C>
+	struct has_controller_base {
+	private:
+		template<trigger::IsTrigger Trig>
+		static std::true_type test(const Controller<Trig>*);
+		static std::false_type test(...);
+	public:
+		static constexpr bool value = decltype(test(std::declval<C*>()))::value;
+	};
+
 	template <class C>
-	concept IsController = std::derived_from<C, Controller>;
+	concept IsController = has_controller_base<C>::value;
 
 	// define controller Pack
 	template<IsController...>
@@ -58,4 +69,5 @@ namespace april::controller  {
 
 	template<typename T>
 	concept IsControllerPack = is_controller_pack_v<std::remove_cvref_t<T>>;
-}
+
+} // namespace april::controller

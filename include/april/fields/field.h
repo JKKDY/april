@@ -7,13 +7,13 @@ namespace april::field {
 
 	class Field {
 	public:
-		void dispatch_init(this auto&& self, const core::SimulationContext & sys) {
+		void dispatch_init(this auto&& self, const core::SystemContext & sys) {
 			if constexpr ( requires { self.init(sys); }) {
 				self.init(sys);
 			}
 		}
 
-		void dispatch_update(this auto&& self, const core::SimulationContext & sys) {
+		void dispatch_update(this auto&& self, const core::SystemContext & sys) {
 			if constexpr ( requires { self.update(sys); }) {
 				self.update(sys);
 			}

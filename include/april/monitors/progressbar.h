@@ -4,11 +4,14 @@
 #include "april/monitors/monitor.h"
 
 namespace april::monitor {
-	class ProgressBar : public Monitor {
+	template<trigger::IsTrigger Trig>
+	class ProgressBar : public Monitor<Trig> {
 	public:
-		using Monitor::Monitor;
+		using Monitor<Trig>::num_steps;
+		using Monitor<Trig>::Monitor;
 
-		void record(const core::SimulationContext & sys) const {
+		template<class S>
+		void record(const core::SystemContext<S> & sys) const {
 			constexpr size_t bar_width = 50;
 			const float progress = static_cast<float>(sys.step() + 1) / static_cast<float>(num_steps);
 			const auto pos = static_cast<size_t>(bar_width * progress);

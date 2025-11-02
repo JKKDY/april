@@ -18,7 +18,7 @@ namespace april::monitor {
 			std::cout << "step: " << sys.step() <<  "\n";
 
 			for (size_t i = sys.index_start(); i < sys.index_end(); ++i) {
-				env::ParticleView p = sys.get_particle_by_index<fields>(i);
+				env::ParticleView p = sys.template get_particle_by_index<fields>(i);
 				std::cout << p.to_string() << "\n";
 			}
 		}

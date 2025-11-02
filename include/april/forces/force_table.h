@@ -16,8 +16,8 @@ namespace april::force::internal {
     class ForceTable {
         using TypeInteraction = TypeInteraction<ForceVariant>;
         using IdInteraction = IdInteraction<ForceVariant>;
-        using IdMap = std::unordered_map<env::ParticleType, env::internal::ParticleType>;
-        using TypeMap = std::unordered_map<env::ParticleType, env::internal::ParticleType>;
+        using IdMap = std::unordered_map<env::ParticleID, env::ParticleID>;
+        using TypeMap = std::unordered_map<env::ParticleType, env::ParticleType>;
     public:
 
         ForceTable(
@@ -32,61 +32,64 @@ namespace april::force::internal {
             compute_max_cutoff();
         }
 
+        // template<env::IsUserData U1, env::IsUserData U2>
+        // [[nodiscard]] vec3 evaluate(const env::ParticleView<U1>& p1, const env::ParticleView<U2>& p2) const {
+        //     return evaluate(p1, p2, p2.position - p1.position); // dist vector points from p1 to p2
+        // }
+        //
+        // template<env::IsUserData U1, env::IsUserData U2>
+        // [[nodiscard]] vec3 evaluate(const env::ParticleView<U1>& p1, const env::ParticleView<U2>& p2, const vec3& r) const {
+        //     auto & tF = get_type_force(p1.type, p2.type);
+        //     vec3 force = std::visit([&](auto const& f){ return f(p1,p2,r); }, tF);
+        //
+        //     // check if both particles even have any individual interactions defined for them
+        //     if (p1.id < n_ids && p2.id < n_ids) {
+        //         auto & iF = get_id_force(p1.id, p2.id);
+        //         force += std::visit([&](auto const& f){ return f(p1,p2,r); }, iF);
+        //     }
+        //
+        //     return force;
+        // }
+        //
+        // [[nodiscard]] double get_max_cutoff() const {
+        //     return max_cutoff;
+        // }
 
-        [[nodiscard]] vec3 evaluate(const env::internal::Particle& p1, const env::internal::Particle& p2) const {
-            return evaluate(p1, p2, p2.position - p1.position); // dist vector points from p1 to p2
+
+        ForceVariant & get_type_force(const env::ParticleType a, const env::ParticleType b) noexcept {
+            return type_forces[type_index(a, b)];
         }
 
-
-        [[nodiscard]] vec3 evaluate(const env::internal::Particle& p1, const env::internal::Particle& p2, const vec3& r) const {
-            auto & tF = get_type_force(p1.type, p2.type);
-            vec3 force = std::visit([&](auto const& f){ return f(p1,p2,r); }, tF);
-
-            // check if both particles even have any individual interactions defined for them
-            if (p1.id < n_ids && p2.id < n_ids) {
-                auto & iF = get_id_force(p1.id, p2.id);
-                force += std::visit([&](auto const& f){ return f(p1,p2,r); }, iF);
-            }
-
-            return force;
+        ForceVariant & get_id_force(const env::ParticleID a, const env::ParticleID b) noexcept {
+            return id_forces[id_index(a, b)];
         }
 
-        [[nodiscard]] double get_max_cutoff() const {
-            return max_cutoff;
+        const ForceVariant& get_type_force(const env::ParticleType a, const env::ParticleType b) const noexcept {
+            return type_forces[type_index(a,b)];
         }
 
-    private:
-        std::vector<ForceVariant> inter_type_forces; // Forces between different particle types (e.g. type A <-> type B)
-        std::vector<ForceVariant> intra_particle_forces; // Forces between specific particle instances (by ID e.g. id1 <-> id2)
+        const ForceVariant& get_id_force(const env::ParticleID a, const env::ParticleID b) const noexcept {
+            return id_forces[id_index(a,b)];
+        }
 
         size_t n_types{};
         size_t n_ids{};
 
+    private:
+        std::vector<ForceVariant> type_forces; // Forces between different particle types (e.g. type A <-> type B)
+        std::vector<ForceVariant> id_forces; // Forces between specific particle instances (by ID e.g. id1 <-> id2)
+
+
         double max_cutoff = 0;
 
-        [[nodiscard]] size_t type_index(const size_t a, const size_t b) const noexcept{
+        [[nodiscard]] size_t type_index(const env::ParticleType a, const env::ParticleType b) const noexcept{
             return n_types * a + b;
         }
 
-        [[nodiscard]] size_t id_index(const size_t a, const size_t b) const noexcept{
+        [[nodiscard]] size_t id_index(const env::ParticleID a, const env::ParticleID b) const noexcept{
             return n_ids * a + b;
         }
 
-        ForceVariant & get_type_force(const size_t a, const size_t b) noexcept {
-            return inter_type_forces[type_index(a, b)];
-        }
-
-        ForceVariant & get_id_force(const size_t a, const size_t b) noexcept {
-            return intra_particle_forces[id_index(a, b)];
-        }
-
-        const ForceVariant& get_type_force(const size_t a, const size_t b) const noexcept {
-            return inter_type_forces[type_index(a,b)];
-        }
-
-        const ForceVariant& get_id_force(const size_t a, const size_t b) const noexcept {
-            return intra_particle_forces[id_index(a,b)];
-        }
 
 
         void build_type_forces(std::vector<TypeInteraction>& type_infos, const TypeMap & type_map)
@@ -99,14 +102,14 @@ namespace april::force::internal {
             }
 
             n_types = particle_types.size();
-            inter_type_forces.resize(n_types * n_types);
+            type_forces.resize(n_types * n_types);
 
             // insert type forces into map & apply usr mappings
             for (auto& x : type_infos) {
                 const auto a = type_map.at(x.type1);
                 const auto b = type_map.at(x.type2);
-                inter_type_forces[type_index(a, b)] = x.force;
-                inter_type_forces[type_index(b, a)] = x.force;
+                type_forces[type_index(a, b)] = x.force;
+                type_forces[type_index(b, a)] = x.force;
             }
 
             //  mix missing type pairs from diagonals
@@ -126,8 +129,8 @@ namespace april::force::internal {
                         },
                         fa, fb);
 
-                    inter_type_forces[type_index(a, b)] = force;
-                    inter_type_forces[type_index(b, a)] = force;
+                    type_forces[type_index(a, b)] = force;
+                    type_forces[type_index(b, a)] = force;
                 }
             }
         }
@@ -143,20 +146,20 @@ namespace april::force::internal {
             }
 
             n_ids = ids.size();
-            intra_particle_forces.resize(n_ids * n_ids);
+            id_forces.resize(n_ids * n_ids);
 
             // insert id forces into map & apply usr mappings
             for (auto& x : id_infos) {
                 const auto a = id_map.at(x.id1);
                 const auto b = id_map.at(x.id2);
-                intra_particle_forces[id_index(a, b)] = x.force;
-                intra_particle_forces[id_index(b, a)] = x.force;
+                id_forces[id_index(a, b)] = x.force;
+                id_forces[id_index(b, a)] = x.force;
             }
 
             // Fill undefined id interactions with no forces
             for (size_t a = 0; a < n_ids; a++) {
                 for (size_t b = 0; b < n_ids; b++) {
-                    auto & v = intra_particle_forces[id_index(a, b)];
+                    auto & v = id_forces[id_index(a, b)];
                     if (a != b && std::holds_alternative<ForceSentinel>(v)) {
                         v = NoForce();
                     }
@@ -168,12 +171,12 @@ namespace april::force::internal {
             #ifndef NDEBUG
             for (size_t i = 0; i < n_types; ++i)
                 for (size_t j = 0; j < n_types; ++j)
-                    AP_ASSERT(!std::holds_alternative<ForceSentinel>(inter_type_forces[type_index(i, j)]),
+                    AP_ASSERT(!std::holds_alternative<ForceSentinel>(type_forces[type_index(i, j)]),
                               "inter_type_forces should not contain ForceSentinel");
 
             for (size_t i = 0; i < n_ids; ++i)
                 for (size_t j = 0; j < n_ids; ++j) {
-                    auto& v = intra_particle_forces[id_index(i, j)];
+                    auto& v = id_forces[id_index(i, j)];
                     if (i == j)
                         AP_ASSERT(std::holds_alternative<ForceSentinel>(v),
                                   "intra_particle_forces should contain ForceSentinel for identical ids");
@@ -194,11 +197,11 @@ namespace april::force::internal {
             max_cutoff = 0.0;
 
             // 1. Scan type-based forces
-            for (auto const& v : inter_type_forces)
+            for (auto const& v : type_forces)
                 max_cutoff = std::max(max_cutoff, cutoff_of(v));
 
             // 2. Scan id-based forces (ignore sentinels)
-            for (auto const& v : intra_particle_forces)
+            for (auto const& v : id_forces)
                 if (!std::holds_alternative<ForceSentinel>(v))
                     max_cutoff = std::max(max_cutoff, cutoff_of(v));
         }

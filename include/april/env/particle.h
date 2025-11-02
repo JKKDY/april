@@ -100,9 +100,12 @@ namespace april::env {
 		std::is_standard_layout_v<T> &&
 		(!std::is_polymorphic_v<T>);
 
+	template<HasFields Self>
+	inline constexpr FieldMask FieldOf = typename std::remove_cvref_t<Self>::fields;
+
+
+	// used to tell the environment what user data will be used
 	struct NoUserData {};
-
-
 	template<typename Data = NoUserData>
 	struct ParticleData {
 		using user_data_t = Data;

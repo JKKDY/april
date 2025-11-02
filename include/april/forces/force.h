@@ -15,8 +15,11 @@ namespace april::force {
 
         explicit Force(const double cutoff): cutoff(cutoff) {}
 
-        vec3 operator()(this const auto & self,
-            const env::internal::Particle & p1, const env::internal::Particle & p2, const vec3 & r) {
+        template<env::IsUserData U1, env::IsUserData U2, env::HasFields Self>
+        vec3 operator()(this const Self & self,
+            const env::ParticleView<env::FieldOf<Self>, U1> p1,
+            const env::ParticleView<env::FieldOf<Self>, U2> p2,
+            const vec3 & r) {
             static_assert(
                 requires { self.eval(p1, p2, r); },
                 "Force must implement eval(env::internal::Particle, env::internal::Particle, const vec3&)"
@@ -105,8 +108,10 @@ namespace april::force {
         // internal placeholder only
         struct ForceSentinel : Force {
             ForceSentinel() : Force(-1.0) {}
+            static constexpr env::FieldMask fields = env::to_field_mask(env::Field::none);
 
-            vec3 operator()(const env::internal::Particle&, const env::internal::Particle&, const vec3&) const noexcept {
+            template<env::IsUserData U1, env::IsUserData U2>
+            vec3 operator()(env::ParticleView<fields, U1>&, env::ParticleView<fields, U2>&, const vec3&) const noexcept {
                 AP_ASSERT(false, "NullForce should never be executed");
                 std::unreachable();
             }

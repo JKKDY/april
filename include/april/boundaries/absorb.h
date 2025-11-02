@@ -5,10 +5,12 @@
 
 namespace april::boundary {
 	struct Absorb : Boundary {
+		static constexpr env::FieldMask fields = env::to_field_mask(env::Field::state);
 		Absorb(): Boundary(-1, false, false, false) {}
 
-		void apply(env::internal::Particle & particle, const env::Box &, const Face) const noexcept{
-			particle.state = env::ParticleState::DEAD;
+		template<env::IsUserData UserData>
+		void apply(env::ParticleRef<fields, UserData> p, const env::Box &, const Face) const noexcept{
+			p.state = env::ParticleState::DEAD;
 		}
 	};
 }

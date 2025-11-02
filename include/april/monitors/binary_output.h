@@ -44,7 +44,7 @@ namespace april::monitor {
 			write_binary(out, format_flags);            // 4 bytes
 
 			for (size_t i = start_idx; i < end_idx; ++i) {
-				auto p = sys.get_particle_by_index<fields>(i);
+				auto p = sys.template get_particle_by_index<fields>(i);
 				// Write position as 3 floats
 				write_binary(out, static_cast<float>(p.position.x));
 				write_binary(out, static_cast<float>(p.position.y));

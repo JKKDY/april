@@ -10,13 +10,15 @@ namespace april::force {
     // Power force law force (e.g., gravity, Coulomb)
 
     struct PowerLaw : Force{
+        static constexpr env::FieldMask fields = to_field_mask(env::Field::mass);
         double pre_factor; // e.g. G or Coulomb constant
         uint8_t exp;
 
         explicit PowerLaw(const uint8_t exp, const double pre_factor_ = 1.0, const double cutoff = -1.0)
             : Force(cutoff), pre_factor(pre_factor_), exp(exp) {}
 
-        [[nodiscard]] vec3 eval(env::internal::Particle const& p1, env::internal::Particle const& p2, vec3 const& r) const noexcept {
+        template<env::IsUserData U1, env::IsUserData U2>
+        vec3 operator()(const env::ParticleView<fields, U1> & p1, const env::ParticleView<fields, U2> & p2, const vec3& r) const noexcept {
             const double r2 = r.norm_squared();
             if (has_cutoff() && r2 > cutoff*cutoff) return {};
 

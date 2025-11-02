@@ -10,6 +10,8 @@ namespace april::force {
 
 	// Lennard-Jones potential (12-6). epsilon: well depth; sigma: zero-cross distance.
 	struct LennardJones : Force{
+		static constexpr env::FieldMask fields = to_field_mask(env::Field::none);
+
 		double epsilon; // Depth of the potential well
 		double sigma; // Distance at which potential is zero
 
@@ -17,7 +19,9 @@ namespace april::force {
 		: Force(cutoff < 0.0 ? 3.0 * sigma_ : cutoff),
 		epsilon(epsilon_), sigma(sigma_), sigma2(sigma * sigma) {}
 
-		[[nodiscard]] vec3 eval(env::internal::Particle const&, env::internal::Particle const&, vec3 const& r) const noexcept {
+
+		template<env::IsUserData U1, env::IsUserData U2>
+		vec3 operator()(const env::ParticleView<fields, U1>&, const env::ParticleView<fields, U2>&, const vec3& r) const noexcept {
 			const double r2 = r.norm_squared();
 			if (cutoff > 0.0 && r2 > cutoff * cutoff)
 				return vec3{0.0, 0.0, 0.0};

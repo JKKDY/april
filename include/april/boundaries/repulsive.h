@@ -5,8 +5,8 @@
 
 namespace april::boundary {
 
-	template <typename F, FieldMask M, IsUserData U>
-	concept IsBoundaryForce = requires(F f, const ParticleRef<M,U> & p, double dist) {
+	template <typename F, env::FieldMask M, env::IsUserData U>
+	concept IsBoundaryForce = requires(F f, const env::ParticleRef<M,U> & p, double dist) {
 		{ f.apply(p, dist) } -> std::convertible_to<double>;
 		{ f.cutoff() } -> std::convertible_to<double>;
 	};
@@ -15,14 +15,14 @@ namespace april::boundary {
 
 	template <class Force>
 	struct Repulsive : Boundary {
-		static constexpr FieldMask fields = Field::position | Field::force | Field::old_position;
+		static constexpr env::FieldMask fields = env::Field::position | env::Field::force | env::Field::old_position;
 
 		explicit Repulsive(Force & force, const bool simulate_halo=false):
 		Boundary(force.cutoff(), false, false, false),
 		boundary_force(force), simulate_halo(simulate_halo) {}
 
-		template<IsUserData UserData> requires IsBoundaryForce<Force, fields, UserData>
-		void apply(ParticleRef<fields, UserData> particle, const Box & domain_box, const Face face) const noexcept{
+		template<env::IsUserData UserData> requires IsBoundaryForce<Force, fields, UserData>
+		void apply(env::ParticleRef<fields, UserData> particle, const env::Box & domain_box, const Face face) const noexcept{
 			const int is_plus = face_sign_pos(face);
 			const int ax = axis_of_face(face);
 
@@ -58,8 +58,8 @@ namespace april::boundary {
 
 		[[nodiscard]] double cutoff() const noexcept { return rc; }
 
-		template <FieldMask M, IsUserData U>
-		[[nodiscard]] double apply(const ParticleRef<M, U>, const double distance) const noexcept {
+		template <env::FieldMask M, env::IsUserData U>
+		[[nodiscard]] double apply(const env::ParticleRef<M, U>, const double distance) const noexcept {
 			if (distance > rc) return 0.0;
 			return A * std::exp(-distance / lambda);
 		}
@@ -75,8 +75,8 @@ namespace april::boundary {
 
 		[[nodiscard]] double cutoff() const noexcept { return rc; }
 
-		template <FieldMask M, IsUserData U>
-		[[nodiscard]] double apply(const ParticleRef<M, U>, const double distance) const noexcept {
+		template <env::FieldMask M, env::IsUserData U>
+		[[nodiscard]] double apply(const env::ParticleRef<M, U>, const double distance) const noexcept {
 			if (distance > rc) return 0.0;
 			return A / std::pow(distance, n);
 		}
@@ -92,8 +92,8 @@ namespace april::boundary {
 
 		[[nodiscard]] double cutoff() const noexcept { return rc; }
 
-		template <FieldMask M, IsUserData U>
-		[[nodiscard]] double apply(const ParticleRef<M, U>, const double distance) const noexcept {
+		template <env::FieldMask M, env::IsUserData U>
+		[[nodiscard]] double apply(const env::ParticleRef<M, U>, const double distance) const noexcept {
 			if (distance > rc) return 0.0;
 			const double sr = sigma / distance;
 			const double sr3 = sr * sr * sr;
@@ -113,8 +113,8 @@ namespace april::boundary {
 
 		[[nodiscard]] double cutoff() const noexcept { return rc; }
 
-		template <FieldMask M, IsUserData U>
-		[[nodiscard]] double apply(const ParticleRef<M, U>, const double distance) const noexcept {
+		template <env::FieldMask M, env::IsUserData U>
+		[[nodiscard]] double apply(const env::ParticleRef<M, U>, const double distance) const noexcept {
 			if (distance > rc) return 0.0;
 			const double sr = sigma / distance;
 			const double sr6 = std::pow(sr, 6);

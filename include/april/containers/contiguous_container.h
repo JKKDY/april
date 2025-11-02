@@ -3,51 +3,76 @@
 #include "april/containers/container.h"
 
 namespace april::container {
-	template<typename Config, typename ForceVariant>
-	class ContiguousContainer : public Container<Config, ForceVariant> {
+	template<typename C, typename FV, env::IsUserData U>
+	class ContiguousContainer : public Container<C, FV, U> {
 	public:
-		using Base = Container<Config, ForceVariant>;
-		using typename Base::Particle;
-		using typename Base::ParticleID;
+		using Base = Container<C, FV, U>;
+		using ParticleFetcher = env::internal::ParticleRecordFetcher<U>;
+
+		using ParticleRecord = env::internal::ParticleRecord<U>;
+		template<env::FieldMask M> using ParticleView = env::ParticleView<M, U>;
+		template<env::FieldMask M> using ParticleRef = env::ParticleRef<M, U>;
 
 		using Base::Base;
 
-		void build_storage(const std::vector<Particle>& particles) {
+		void build_storage(const std::vector<ParticleRecord>& particles) {
 			AP_ASSERT(!is_built, "storage has already been built");
+
 			this->particles = std::vector(particles);
+			indices.resize(particles.size());
 			for (size_t i = 0; i < particles.size(); i++) {
-				indices.push_back(i);
+				const auto id = static_cast<size_t>(this->particles[i].id);
+				indices[id] = i;
 			}
 			this->is_built = true;
 		}
 
-		[[nodiscard]] Particle& get_particle_by_id(ParticleID id) noexcept{
+		template<env::FieldMask M>
+		[[nodiscard]] ParticleRef<M> get_particle_by_id(const env::ParticleID id) noexcept{
 			// TODO this method needs testing
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
 			AP_ASSERT(id >= id_start() && id < id_end(), "invalid id. got " + std::to_string(id));
-			return particles[indices[static_cast<size_t>(id)]];
+			const size_t index = id_to_index(id);
+			return ParticleRef<M> (ParticleFetcher(particles[index]));
 		}
 
-		[[nodiscard]] ParticleID id_start() const {
+		template<env::FieldMask M>
+		[[nodiscard]] ParticleView<M> get_particle_by_id(const env::ParticleID id) const noexcept{
+			// TODO this method needs testing
+			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
+			AP_ASSERT(id >= id_start() && id < id_end(), "invalid id. got " + std::to_string(id));
+			const size_t index = id_to_index(id);
+			return ParticleView<M> (ParticleFetcher(particles[index]));
+		}
+
+		[[nodiscard]] env::ParticleID id_start() const {
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
 			return 0;
 		}
 
-		[[nodiscard]] ParticleID id_end() const {
+		[[nodiscard]] env::ParticleID id_end() const {
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
-			return particles.size();
+			return static_cast<env::ParticleID>(particles.size());
 		}
 
-		[[nodiscard]] size_t id_to_index(ParticleID id) const {
+		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
 			return indices[static_cast<size_t>(id)];
 		}
 
 		// index for non-stable iteration
-		[[nodiscard]] Particle& get_particle_by_index(size_t index) noexcept {
+		template<env::FieldMask M>
+		[[nodiscard]] ParticleRef<M> get_particle_by_index(size_t index) noexcept {
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
 			AP_ASSERT(index < particles.size(), "index must be < #particles");
-			return particles[index];
+			return ParticleRef<M> (ParticleFetcher(particles[index]));
+		}
+
+		template<env::FieldMask M>
+		[[nodiscard]] ParticleView<M> get_particle_by_index(size_t index) const noexcept {
+			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
+			AP_ASSERT(index < particles.size(), "index must be < #particles");
+			return ParticleView<M> (ParticleFetcher(particles[index]));
 		}
 
 		[[nodiscard]] size_t index_start() const {
@@ -66,12 +91,13 @@ namespace april::container {
 
 	protected:
 		void swap_particles (uint32_t idx1, uint32_t idx2) {
+			auto id1 = particles[idx1].id, id2 = particles[idx2].id;
 			std::swap(particles[idx1], particles[idx2]);
-			std::swap(indices[idx1], indices[idx2]);
+			std::swap(indices[id1], indices[id2]);
 		}
 
-		std::vector<Particle> particles;
-		std::vector<uint32_t> indices;
+		std::vector<ParticleRecord> particles;
+		std::vector<uint32_t> indices; // map id to index
 	private:
 		bool is_built = false;
 	};

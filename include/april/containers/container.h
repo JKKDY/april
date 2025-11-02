@@ -32,17 +32,23 @@ namespace april::container {
 		/// in the future:
 		///   remove_particle
 		///   add_particle
+		template<env::IsUserData U>
 		class ContainerInterface {
 		public:
 			using SimulationDomain = env::Box;
-			using Particle = env::internal::Particle;
-			using ParticleID = env::internal::ParticleID;
+
+			using ParticleID = env::ParticleID;
+			using ParticleType = env::ParticleType;
+
+			using ParticleRecord = env::internal::ParticleRecord<U>;
+			template<env::FieldMask M> using ParticleView = env::ParticleView<M, U>;
+			template<env::FieldMask M> using ParticleRef = env::ParticleRef<M, U>;
 
 			ContainerInterface() = default;
 
 			// user hook to initialize the container
 			// TODO add regions that will be queried in the future so the container can keep track of particles better
-			void dispatch_build(this auto&& self, const std::vector<Particle>& particles) {
+			void dispatch_build(this auto&& self, const std::vector<ParticleRecord>& particles) {
 		        static_assert(
 		            requires { self.build(particles); },
 		            "Container subclass must implement: void build(const vector<Particle>&)"
@@ -88,16 +94,25 @@ namespace april::container {
 
 			// ids are always dense in [0, N-1]
 			// use ids for stable iteration
-		    Particle& dispatch_get_particle_by_id(this auto&& self, ParticleID id) {
-				if constexpr (
-					requires { { self.get_particle_by_id(id) } -> std::same_as<Particle&>; }
-					) {
-					return self.get_particle_by_id(id);
+			template<env::FieldMask M>
+		    ParticleRef<M> dispatch_get_particle_by_id(this auto&& self, ParticleID id) noexcept{
+				if constexpr ( requires { { self.get_particle_by_id(id) } -> std::same_as<ParticleRef<M>>; }) {
+					return self.template get_particle_by_id<M>(id);
 				} else {
 					size_t idx = self.dispatch_id_to_index(id);
-					return self.dispatch_get_particle_by_index(idx);
+					return self.template dispatch_get_particle_by_index<M>(idx);
 				}
 		    }
+
+			template<env::FieldMask M>
+			ParticleView<M> dispatch_get_particle_by_id(this const auto&& self, ParticleID id) noexcept{
+				if constexpr ( requires { { self.get_particle_by_id(id) } -> std::same_as<ParticleView<M>>; }) {
+					return self.template get_particle_by_id<M>(id);
+				} else {
+					size_t idx = self.dispatch_id_to_index(id);
+					return self.template dispatch_get_particle_by_index<M>(idx);
+				}
+			}
 
 		    ParticleID dispatch_id_start(this auto&& self) {
 		        static_assert(
@@ -116,13 +131,23 @@ namespace april::container {
 		    }
 
 
-		    Particle& dispatch_get_particle_by_index(this auto&& self, size_t index) noexcept {
+			template<env::FieldMask M>
+			ParticleRef<M> dispatch_get_particle_by_index(this auto&& self, ParticleID index) noexcept {
 		        static_assert(
-		            requires { { self.get_particle_by_index(index) } -> std::same_as<Particle&>; },
+		            requires { { self.get_particle_by_index(index) } -> std::same_as<ParticleRef<M>>; },
 		            "Container subclass must implement: Particle& get_particle_by_index(size_t)"
 		        );
 		        return self.get_particle_by_index(index);
 		    }
+
+			template<env::FieldMask M>
+			ParticleView<M> dispatch_get_particle_by_index(this const auto&& self, ParticleID index) noexcept {
+				static_assert(
+					requires { { self.get_particle_by_index(index) } -> std::same_as<ParticleView<M>>; },
+					"Container subclass must implement: Particle& get_particle_by_index(size_t)"
+				);
+				return self.get_particle_by_index(index);
+			}
 
 		    size_t dispatch_index_start(this auto&& self) {
 		        static_assert(
@@ -139,6 +164,8 @@ namespace april::container {
 		        );
 		        return self.index_end();
 		    }
+
+
 
 		    size_t dispatch_particle_count(this auto&& self) {
 		        static_assert(
@@ -158,7 +185,7 @@ namespace april::container {
 				return self.collect_indices_in_region(region);
 			}
 
-			void dispatch_add_particle(this auto&&, const Particle &) {
+			void dispatch_add_particle(this auto&&, const ParticleRecord &) {
 				throw std::logic_error("dispatch_add_particle not implemented yet");
 			}
 
@@ -168,13 +195,16 @@ namespace april::container {
 		};
 	} // namespace internal
 
-	template<typename Config, force::internal::IsForceVariant ForceVariant> class Container : public internal::ContainerInterface {
+
+	template<typename Config, force::internal::IsForceVariant ForceVariant, env::IsUserData U>
+	class Container : public internal::ContainerInterface<U> {
 	public:
+		using config_type_t = Config;
 		using force_variant_t = ForceVariant;
+		using user_type_t = U;
 		using ForceTable = force::internal::ForceTable<ForceVariant>;
-		using CFG = Config;
-		using ContainerInterface::Particle;
-		using ContainerInterface::ParticleID;
+		using internal::ContainerInterface<U>::Particle;
+		using internal::ContainerInterface<U>::ParticleID;
 
 		Container(const Config & config,
 		  const internal::ContainerFlags & flags,
@@ -194,12 +224,13 @@ namespace april::container {
 	requires {
 		typename C::CFG;
 		typename C::force_variant_t;
+		typename C::user_type_t;
 	} && requires {
-		typename C::CFG::template impl<typename C::force_variant_t>;
+		typename C::CFG::template impl<typename C::force_variant_t, typename C::user_type_t>;
 	} && requires {
-		std::same_as<C, typename C::CFG::template impl<typename C::force_variant_t>>;
+		std::same_as<C, typename C::CFG::template impl<typename C::force_variant_t, typename C::user_type_t>>;
 	} && requires {
-		std::derived_from<C, Container<typename C::CFG, typename C::force_variant_t>>;
+		std::derived_from<C, Container<typename C::CFG, typename C::force_variant_t, typename C::user_type_t>>;
 	};
 
 

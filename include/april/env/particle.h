@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <sstream>
 #include <any>
+#include <utility>
 
 #include "april/common.h"
 
@@ -55,6 +56,29 @@ namespace april::env {
 	}
 
 
+	using ParticleType = uint16_t;
+	using ParticleID = uint32_t;
+
+	// user facing declaration with optional fields and non typed field for user data
+	struct Particle {
+		std::optional<ParticleID> id;			// The id of the particle.
+		ParticleType type = 0;  				// The type of the particle.
+
+		vec3 position;      					// The position of the particle.
+		vec3 velocity;      					// The velocity of the particle.
+
+		double mass{};        					// The mass of the particle.
+		ParticleState state{};					// The state of the particle.
+
+		// optional data e.g. if initializing from a simulation snapshot
+		std::optional<vec3> old_position = {};		// previous position of the particle. Useful for applying boundary conditions
+		std::optional<vec3> old_force = {};			// previous force acting on the particle.
+		std::optional<vec3> force = {};				// current force
+
+		std::any user_data {}; // custom user data
+	};
+
+
 	using FieldMask = uint32_t;
 
 	enum class Field : FieldMask {
@@ -82,15 +106,12 @@ namespace april::env {
 	template<class T>
 	concept HasFields = requires { T::fields; };
 
+	template<HasFields Self>
+	inline constexpr FieldMask FieldOf = typename std::remove_cvref_t<Self>::fields;
 
-	template< typename T, Field F, FieldMask M, bool Ref, bool Const = false>
-	using make_field = std::conditional_t<Ref,
-		std::conditional_t<Const, const T&, T&>,
-		std::conditional_t<Const, const T, T>>;
+	template<FieldMask M, Field F>
+	inline constexpr bool has_field_v = (M & to_field_mask(F)) != 0;
 
-
-	using ParticleType = uint16_t;
-	using ParticleID = uint32_t;
 
 	template <typename T>
 	concept IsUserData =
@@ -100,10 +121,6 @@ namespace april::env {
 		std::is_standard_layout_v<T> &&
 		(!std::is_polymorphic_v<T>);
 
-	template<HasFields Self>
-	inline constexpr FieldMask FieldOf = typename std::remove_cvref_t<Self>::fields;
-
-
 	// used to tell the environment what user data will be used
 	struct NoUserData {};
 	template<typename Data = NoUserData>
@@ -111,83 +128,132 @@ namespace april::env {
 		using user_data_t = Data;
 	};
 
-	// user facing declaration with optional fields and non typed field for user data
-	struct Particle {
-		std::optional<ParticleID> id;			// The id of the particle.
-		ParticleType type = 0;  				// The type of the particle.
 
-		vec3 position;      					// The position of the particle.
-		vec3 velocity;      					// The velocity of the particle.
 
-		double mass{};        					// The mass of the particle.
-		ParticleState state{};					// The state of the particle.
+	template<typename T, Field F, FieldMask M>
+	using field_type_t = std::conditional_t<has_field_v<M, F>, T, std::monostate>;
 
-		// optional data e.g. if initializing from a simulation snapshot
-		std::optional<vec3> old_position = {};		// previous position of the particle. Useful for applying boundary conditions
-		std::optional<vec3> old_force = {};			// previous force acting on the particle.
-		std::optional<vec3> force = {};				// current force
+	template< typename T, Field F, FieldMask M, typename Get>
+	constexpr field_type_t<T, F, M> init_field(Get && get) noexcept(noexcept(get())) {
+		if constexpr (has_field_v<M, F>) return std::forward<Get>(get)();  // call get
+		else return std::monostate();
+	}
 
-		std::any user_data {}; // custom user data
+	template<typename F, IsUserData U>
+	concept IsFetcher = requires(F f, const F cf) {
+		{ f.force() }         -> std::same_as<vec3&>;
+		{ f.position() }      -> std::same_as<vec3&>;
+		{ f.velocity() }      -> std::same_as<vec3&>;
+		{ f.old_position() }  -> std::same_as<vec3&>;
+		{ f.old_force() }     -> std::same_as<vec3&>;
+		{ f.mass() }          -> std::same_as<double&>;
+		{ f.state() }         -> std::same_as<ParticleState&>;
+		{ f.type() }          -> std::same_as<ParticleType&>;
+		{ f.id() }            -> std::same_as<ParticleID&>;
+		{ f.user_data() }     -> std::same_as<U&>;
+
+		{ cf.position() }	  -> std::same_as<const vec3&>;
+		{ cf.velocity() }	  -> std::same_as<const vec3&>;
+		{ cf.force() }		  -> std::same_as<const vec3&>;
+		{ cf.old_position() } -> std::same_as<const vec3&>;
+		{ cf.old_force() }	  -> std::same_as<const vec3&>;
+		{ cf.mass() }		  -> std::same_as<double>;
+		{ cf.state() }		  -> std::same_as<ParticleState>;
+		{ cf.type() }		  -> std::same_as<ParticleType>;
+		{ cf.id() }			  -> std::same_as<ParticleID>;
+		{ cf.user_data() }	  -> std::same_as<const U&>;
 	};
 
-
-	// reference to particle data. This is passed to e.g. controllers & boundaries that can mutate particle data
+	// Reference to particle data passed to controllers and boundaries that can mutate particle data.
 	template<FieldMask M, IsUserData UserDataT>
 	struct ParticleRef {
-		// everything by reference except for type & id
-		make_field<vec3, Field::position, M, true> position;
-		make_field<vec3, Field::velocity, M, true> velocity;
-		make_field<vec3, Field::force,    M, true> force;
 
-		make_field<vec3, Field::old_position, M, true> old_position;
-		make_field<vec3, Field::old_force, M, true> old_force;
+		template<class Fetcher> requires IsFetcher<Fetcher, UserDataT>
+		explicit ParticleRef(Fetcher& f)
+			: force      ( init_field<vec3&,         		Field::force,		M>([&]{ return f.force(); }) )
+			, position   ( init_field<vec3&,         		Field::position,	M>([&]{ return f.position(); }) )
+			, velocity   ( init_field<vec3&,         		Field::velocity,	M>([&]{ return f.velocity(); }) )
+			, old_position(init_field<vec3&,         		Field::old_position,M>([&]{ return f.old_position(); }) )
+			, old_force  ( init_field<vec3&,         		Field::old_force, 	M>([&]{ return f.old_force(); }) )
+			, mass       ( init_field<double&,       		Field::mass,      	M>([&]{ return f.mass(); }) )
+			, state      ( init_field<ParticleState&,		Field::state,     	M>([&]{ return f.state(); }) )
+			, type       ( init_field<const ParticleType&, 	Field::type,		M>([&]{ return f.type(); }) )
+			, id         ( init_field<const ParticleID&,   	Field::id,			M>([&]{ return f.id(); }) )
+			, user_data  ( init_field<UserDataT&,			Field::user_data,	M>([&]{ return f.user_data(); }) )
+		{}
 
-		make_field<double, Field::mass, M, true> mass;
-		make_field<ParticleState, Field::state, M, true> state;
-		make_field<ParticleType, Field::type, M, false, true> type; // const
-		make_field<ParticleID, Field::id, M, false, true> id; // const
-
-		make_field<UserDataT, Field::user_data, M, true> user_data;
+		[[no_unique_address]] field_type_t<vec3&, Field::force, M> force;
+		[[no_unique_address]] field_type_t<vec3&, Field::position, M> position;
+		[[no_unique_address]] field_type_t<vec3&, Field::velocity, M> velocity;
+		[[no_unique_address]] field_type_t<vec3&, Field::old_position, M> old_position;
+		[[no_unique_address]] field_type_t<vec3&, Field::old_force, M> old_force;
+		[[no_unique_address]] field_type_t<double&, Field::mass, M> mass;
+		[[no_unique_address]] field_type_t<ParticleState&, Field::state, M> state;
+		[[no_unique_address]] field_type_t<const ParticleType&, Field::type, M> type;
+		[[no_unique_address]] field_type_t<const ParticleID&, Field::id, M> id;
+		[[no_unique_address]] field_type_t<UserDataT&, Field::user_data, M> user_data;
 	};
 
-	// a restricted reference that only allows force to be mutated e.g. for fields
+	// Restricted reference allowing only the force field to be modified, used for fields.
 	template<FieldMask M, IsUserData UserDataT>
 	struct RestrictedParticleRef {
-		// everything except for numerical types by reference and const except for force
-		make_field<vec3, Field::position, M, true, true> position;
-		make_field<vec3, Field::velocity, M, true, true> velocity;
-		vec3 & force;
+		template<class Fetcher> requires IsFetcher<Fetcher, UserDataT>
+		explicit RestrictedParticleRef(Fetcher& f)
+			: force        ( f.force() )
+			, position     ( init_field<const vec3&,		Field::position, M>([&]{ return f.position(); }) )
+			, velocity     ( init_field<const vec3&,		Field::velocity, M>([&]{ return f.velocity(); }) )
+			, old_position ( init_field<const vec3&,		Field::old_position, M>([&]{ return f.old_position(); }) )
+			, old_force    ( init_field<const vec3&,		Field::old_force, M>([&]{ return f.old_force(); }) )
+			, mass         ( init_field<const double,		Field::mass, M>([&]{ return f.mass(); }) )
+			, state        ( init_field<const ParticleState,Field::state, M>([&]{ return f.state(); }) )
+			, type         ( init_field<const ParticleType, Field::type, M>([&]{ return f.type(); }) )
+			, id           ( init_field<const ParticleID,	Field::id, M>([&]{ return f.id(); }) )
+			, user_data    ( init_field<const UserDataT&,	Field::user_data, M>([&]{ return f.user_data(); }) )
+		{}
 
-		make_field<vec3, Field::old_position, M, true, true> old_position;
-		make_field<vec3, Field::old_force, M, true, true> old_force;
-
-		make_field<double, Field::mass, M, false, true> mass;
-		make_field<ParticleState, Field::state, M, false, true> state;
-		make_field<ParticleType, Field::type, M, false, true> type;
-		make_field<ParticleID, Field::id, M, false, true> id;
-
-		make_field<UserDataT, Field::user_data, M, true, true> user_data;
+		vec3& force;
+		[[no_unique_address]] field_type_t<const vec3&, Field::position, M> position;
+		[[no_unique_address]] field_type_t<const vec3&, Field::velocity, M> velocity;
+		[[no_unique_address]] field_type_t<const vec3&, Field::old_position, M> old_position;
+		[[no_unique_address]] field_type_t<const vec3&, Field::old_force, M> old_force;
+		[[no_unique_address]] field_type_t<const double, Field::mass, M> mass;
+		[[no_unique_address]] field_type_t<const ParticleState, Field::state, M> state;
+		[[no_unique_address]] field_type_t<const ParticleType, Field::type, M> type;
+		[[no_unique_address]] field_type_t<const ParticleID, Field::id, M> id;
+		[[no_unique_address]] field_type_t<const UserDataT&, Field::user_data, M> user_data;
 	};
 
 
-	// an immutable reference to the particle data. meant for read only e.g. in monitors
+
+	// Immutable reference to particle data, intended for read-only access (e.g., monitors).
 	template<FieldMask M, IsUserData UserDataT>
 	struct ParticleView {
-		// everything const
-		make_field<vec3, Field::position, M, true, true> position;
-		make_field<vec3, Field::velocity, M, true, true> velocity;
-		make_field<vec3, Field::force,    M, true, true> force;
+		template<class Fetcher> requires IsFetcher<Fetcher, UserDataT>
+		explicit ParticleView(const Fetcher& f)
+		   : force        ( init_field<const vec3&, 		Field::force,		M>([&]{ return f.force(); }) )
+		   , position     ( init_field<const vec3&, 		Field::position,	M>([&]{ return f.position(); }) )
+		   , velocity     ( init_field<const vec3&, 		Field::velocity,	M>([&]{ return f.velocity(); }) )
+		   , old_position ( init_field<const vec3&, 		Field::old_position,M>([&]{ return f.old_position(); }) )
+		   , old_force    ( init_field<const vec3&, 		Field::old_force,	M>([&]{ return f.old_force(); }) )
+		   , mass         ( init_field<const double,		Field::mass,		M>([&]{ return f.mass(); }) )
+		   , state        ( init_field<const ParticleState, Field::state,		M>([&]{ return f.state(); }) )
+		   , type         ( init_field<const ParticleType,	Field::type,		M>([&]{ return f.type(); }) )
+		   , id           ( init_field<const ParticleID,	Field::id,			M>([&]{ return f.id(); }) )
+		   , user_data    ( init_field<const UserDataT&,	Field::user_data,	M>([&]{ return f.user_data(); }) )
+			{}
 
-		make_field<vec3, Field::old_position, M, true, true> old_position;
-		make_field<vec3, Field::old_force, M, true, true> old_force;
-
-		make_field<double, Field::mass, M, false, true> mass;
-		make_field<ParticleState, Field::state, M, false, true> state;
-		make_field<ParticleType, Field::type, M, false, true> type;
-		make_field<ParticleID, Field::id, M, false, true> id;
-
-		make_field<UserDataT, Field::user_data, M, true, true> user_data;
+		[[no_unique_address]] field_type_t<const vec3&, Field::force, M> force;
+		[[no_unique_address]] field_type_t<const vec3&, Field::position, M> position;
+		[[no_unique_address]] field_type_t<const vec3&, Field::velocity, M> velocity;
+		[[no_unique_address]] field_type_t<const vec3&, Field::old_position, M> old_position;
+		[[no_unique_address]] field_type_t<const vec3&, Field::old_force, M> old_force;
+		[[no_unique_address]] field_type_t<const double, Field::mass, M> mass;
+		[[no_unique_address]] field_type_t<const ParticleState, Field::state, M> state;
+		[[no_unique_address]] field_type_t<const ParticleType, Field::type, M> type;
+		[[no_unique_address]] field_type_t<const ParticleID, Field::id, M> id;
+		[[no_unique_address]] field_type_t<const UserDataT&, Field::user_data, M> user_data;
 	};
+
 
 
 	// easy terminal diagnostics
@@ -230,6 +296,37 @@ namespace april::env {
 			bool operator==(const ParticleRecord& other) const {
 				return id == other.id;
 			}
+		};
+
+		template<IsUserData UserDataT>
+		struct ParticleRecordFetcher {
+			using Record = ParticleRecord<UserDataT>;
+			Record& record;
+
+			explicit ParticleRecordFetcher(Record& r) : record(r) {}
+
+			// --- Mutable accessors ---
+			vec3& position()       { return record.position; }
+			vec3& velocity()       { return record.velocity; }
+			vec3& force()          { return record.force; }
+			vec3& old_position()   { return record.old_position; }
+			vec3& old_force()      { return record.old_force; }
+			double& mass()         { return record.mass; }
+			ParticleState& state() { return record.state; }
+			ParticleType& type()   { return record.type; }
+			ParticleID& id()       { return record.id; }
+			UserDataT& user_data() { return record.user_data; }
+
+			[[nodiscard]] const vec3& position() const       { return record.position; }
+			[[nodiscard]] const vec3& velocity() const       { return record.velocity; }
+			[[nodiscard]] const vec3& force() const          { return record.force; }
+			[[nodiscard]] const vec3& old_position() const   { return record.old_position; }
+			[[nodiscard]] const vec3& old_force() const      { return record.old_force; }
+			[[nodiscard]] const double& mass() const         { return record.mass; }
+			[[nodiscard]] const ParticleState& state() const { return record.state; }
+			[[nodiscard]] const ParticleType& type() const   { return record.type; }
+			[[nodiscard]] const ParticleID& id() const       { return record.id; }
+			[[nodiscard]] const UserDataT& user_data() const { return record.user_data; }
 		};
 	}
 

@@ -7,22 +7,26 @@ namespace april::field {
 
 	class Field {
 	public:
-		void dispatch_init(this auto&& self, const core::SystemContext & sys) {
+
+		template<class S>
+		void dispatch_init(this auto&& self, const core::SystemContext<S> & sys) {
 			if constexpr ( requires { self.init(sys); }) {
 				self.init(sys);
 			}
 		}
 
-		void dispatch_update(this auto&& self, const core::SystemContext & sys) {
+		template<class S>
+		void dispatch_update(this auto&& self, const core::SystemContext<S> & sys) {
 			if constexpr ( requires { self.update(sys); }) {
 				self.update(sys);
 			}
 		}
 
-		void dispatch_apply(this const auto& self, env::RestrictedParticleRef particle) {
+		template<env::IsUserData U, env::HasFields Self>
+		void dispatch_apply(this const Self& self, env::RestrictedParticleRef<env::FieldOf<Self>, U> particle) {
 			static_assert(
 				requires { self.apply(particle); },
-				"Field must implement: void apply(env::RestrictedParticleRef particle) const"
+				"Field must implement: void apply(env::RestrictedParticleRef<M, U> particle) const"
 			);
 			self.apply(particle);
 		}

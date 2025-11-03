@@ -4,11 +4,13 @@
 #include "april/monitors/monitor.h"
 
 namespace april::monitor {
-	template<trigger::IsTrigger Trig>
-	class ProgressBar : public Monitor<Trig> {
+
+	class ProgressBar : public Monitor {
 	public:
-		using Monitor<Trig>::num_steps;
-		using Monitor<Trig>::Monitor;
+		using Monitor::num_steps;
+
+		using Monitor::Monitor;
+
 
 		template<class S>
 		void record(const core::SystemContext<S> & sys) const {

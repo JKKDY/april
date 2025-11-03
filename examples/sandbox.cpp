@@ -9,10 +9,10 @@ namespace fs = std::filesystem;
 // consequently it does not contain a fixed scenario
 int main() {
 
-	// const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/sandbox";
-	// remove_all(dir_path);   // delete the directory and all contents
-	// create_directory(dir_path); // recreate the empty directory
-	//
+	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/sandbox";
+	remove_all(dir_path);   // delete the directory and all contents
+	create_directory(dir_path); // recreate the empty directory
+
 	auto drop = ParticleSphere()
 		.at({150,150,0})
 		.radius_xyz({20, 20, 0})
@@ -27,21 +27,24 @@ int main() {
 	//
 	// auto gravity = UniformField({0, -12.44, 0});
 	//
+
+
 	auto env = Environment(
 		controllers<VelocityScalingThermostat>,
 		forces<LennardJones, NoForce>,
 		fields<UniformField>,
 		boundaries<Reflective>
-	)
-		.with_extent(303,180, 0)
-		.with_force(NoForce(), to_type(0))
-		.with_particles(drop)
-		.with_boundaries(Reflective(), all_faces);
-		// .with_controller(thermostat)
-	//
-	auto container = LinkedCells();
-	auto system = build_system(env, container);
-	//
+	);
+	// env.add_force(NoForce(), to_type(0));
+	// 	// .with_extent(303,180, 0)
+	// 	// .with_force(NoForce(), to_type(0))
+	// 	// .with_particles(drop)
+	// 	// .with_boundaries(Reflective(), all_faces);
+	// 	// .with_controller(thermostat)
+	// //
+	// auto container = LinkedCells();
+	// auto system = build_system(env, container);
+	// //
 	// auto integrator = StoermerVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
 	// 	.with_monitor(Benchmark())
 	// 	.with_monitor(BinaryOutput(Trigger::every(100), dir_path))

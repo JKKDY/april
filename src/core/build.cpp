@@ -190,12 +190,6 @@ namespace april::core::internal {
 		for (const auto [id1, id2]  : id_pairs) {
 
 			// check if types are valid
-			if (id1 == PARTICLE_ID_DONT_CARE || id2 == PARTICLE_ID_DONT_CARE) {
-				throw std::invalid_argument(
-					"Cannot have interaction between particles with undefined IDs: (" +
-					std::to_string(id1) + ", " + std::to_string(id2) + ")"
-				);
-			}
 			if (!user_ids.contains(id1) || !user_ids.contains(id2)) {
 				throw std::invalid_argument(
 					"Specified interacting particle IDs do not exist: (" +
@@ -218,7 +212,7 @@ namespace april::core::internal {
 			if (p.mass <= 0) {
 				throw std::invalid_argument(
 				   "Particles cannot have negative masses. Particle with ID " +
-				   std::to_string(p.id) + " has mass " + std::to_string(p.mass)
+				   std::to_string(p.id.value()) + " has mass " + std::to_string(p.mass)
 				);
 			}
 		}
@@ -234,19 +228,20 @@ namespace april::core::internal {
 		// give particles with undefined id a valid id
 		ParticleID id = 0;
 		for (Particle & p: particles) {
-			if (p.id != PARTICLE_ID_DONT_CARE) continue;
+			if (p.id.has_value()) continue;
 
+			// find the next free id
 			while (user_ids.contains(id)) id++;
 
-			user_ids.insert(id);
 			p.id = id;
+			user_ids.insert(id);
 		}
 	}
 
-	std::unordered_map<ParticleType, env::internal::ParticleType> create_type_map(
+	std::unordered_map<ParticleType, ParticleType> create_type_map(
 		const std::unordered_set<ParticleType>& user_types
 	) {
-		std::unordered_map<ParticleType, env::internal::ParticleType> map;
+		std::unordered_map<ParticleType, ParticleType> map;
 		std::vector<ParticleType> type_vector;
 		// copy user types
 		type_vector.reserve(user_types.size());
@@ -254,17 +249,17 @@ namespace april::core::internal {
 
 		// create types map
 		for (size_t  i = 0; i < type_vector.size(); i++) {
-			map[type_vector[i]] = static_cast<env::internal::ParticleType>(i);
+			map[type_vector[i]] = static_cast<ParticleType>(i);
 		}
 
 		return map;
 	}
 
-	std::unordered_map<ParticleID, env::internal::ParticleID> create_id_map(
+	std::unordered_map<ParticleID, ParticleID> create_id_map(
 		const std::unordered_set<ParticleID>& user_ids,
 		const std::vector<std::pair<ParticleID, ParticleID>>& id_pairs
 	) {
-		std::unordered_map<ParticleID, env::internal::ParticleID> map;
+		std::unordered_map<ParticleID, ParticleID> map;
 		std::vector<ParticleType> id_vector;
 
 		// copy user ids
@@ -285,14 +280,14 @@ namespace april::core::internal {
 
 		// create id map
 		for (size_t  i = 0; i < id_vector.size(); i++) {
-			map[id_vector[i]] = static_cast<env::internal::ParticleID>(i);
+			map[id_vector[i]] = static_cast<ParticleID>(i);
 		}
 
 		return map;
 	}
 
-	std::pair<std::unordered_map<ParticleType, env::internal::ParticleType>,
-			std::unordered_map<ParticleID, env::internal::ParticleID>>
+	std::pair<std::unordered_map<ParticleType, ParticleType>,
+			std::unordered_map<ParticleID, ParticleID>>
 	create_particle_mappings(
 		const std::vector<Particle>& particles,
 		const std::unordered_set<ParticleType>& user_types,
@@ -310,31 +305,6 @@ namespace april::core::internal {
 		return std::pair{type_map, id_map};
 	}
 
-
-
-	std::vector<env::internal::Particle> build_particles(
-		const std::vector<Particle> & particle_infos,
-		const std::unordered_map<ParticleType, env::internal::ParticleType> & type_map,
-		const std::unordered_map<ParticleID, env::internal::ParticleID> & id_map) {
-		std::vector<env::internal::Particle> particles;
-		particles.reserve(particle_infos.size());
-
-		for (const auto & p : particle_infos) {
-			particles.emplace_back(
-				id_map.at(p.id),
-				p.position,
-				p.velocity,
-				p.mass,
-				type_map.at(p.type),
-				p.state,
-				vec3{},
-				vec3{},
-				p.position
-			);
-		}
-
-		return particles;
-	}
 
 
 	container::internal::ContainerFlags set_container_flags(const std::vector<boundary::Topology>& topologies) {

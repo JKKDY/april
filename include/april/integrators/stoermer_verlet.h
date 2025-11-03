@@ -19,12 +19,20 @@ namespace april::integrator {
 		using Base::sys;
 		using Base::Base;
 
+		static constexpr env::FieldMask pos_upd_fields =
+			env::Field::state | env::Field::velocity | env::Field::position | env::Field::mass | env::Field::old_position;
+
+		static constexpr env::FieldMask vel_upd_fields =
+			env::Field::state | env::Field::velocity | env::Field::force | env::Field::mass | env::Field::old_force;
+
 		void integration_step() const {
 			// position update
 			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
-				env::internal::Particle & p = sys.get_particle_by_index(i);
-				if (static_cast<int>(p.state & State::MOVABLE))
-					p.update_position(dt * p.velocity + (dt*dt) / (2 * p.mass) * p.force);
+				auto & p = sys.get_particle_by_index<pos_upd_fields>(i);
+				if (static_cast<int>(p.state & State::MOVABLE)) {
+					p.old_position = p.position;
+					p.position += dt * p.velocity + (dt*dt) / (2 * p.mass) * p.force;
+				}
 			}
 
 			sys.register_all_particle_movements();
@@ -34,9 +42,11 @@ namespace april::integrator {
 
 			// velocity update
 			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
-				auto & p = sys.get_particle_by_index(i);
-				if (static_cast<int>(p.state & State::MOVABLE))
-					p.update_velocity(dt / 2 / p.mass * (p.force + p.old_force));
+				auto & p = sys.get_particle_by_index<vel_upd_fields>(i);
+				if (static_cast<int>(p.state & State::MOVABLE)) {
+					p.old_velocitiy = p.velocity;
+					p.velocity += dt / 2 / p.mass * (p.force + p.old_force);
+				}
 			}
 
 			sys.apply_controllers();

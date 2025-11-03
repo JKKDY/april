@@ -1,6 +1,9 @@
 #pragma once
 
-
+#include <cxxabi.h>
+#include <typeinfo>
+#include <memory>
+#include <iostream>
 #include <vector>
 #include "april/core/system.h"
 #include "april/env/particle.h"
@@ -12,8 +15,8 @@
 namespace april::core {
 
 	struct BuildInfo {
-		std::unordered_map<env::ParticleType, env::internal::ParticleType> type_map;
-		std::unordered_map<env::ParticleID, env::internal::ParticleID> id_map;
+		std::unordered_map<env::ParticleType, env::ParticleType> type_map;
+		std::unordered_map<env::ParticleID, env::ParticleID> id_map;
 		env::Domain particle_box;
 		env::Domain simulation_domain;
 	};
@@ -38,8 +41,8 @@ namespace april::core {
 		);
 
 		// map user set particle ids & types to dense internal ids & types and return mappings
-		std::pair<std::unordered_map<env::ParticleType, env::internal::ParticleType>,
-			std::unordered_map<env::ParticleID, env::internal::ParticleID>>
+		std::pair<std::unordered_map<env::ParticleType, env::ParticleType>,
+			std::unordered_map<env::ParticleID, env::ParticleID>>
 		create_particle_mappings(
 			const std::vector<env::Particle>& particles,
 			const std::unordered_set<env::ParticleType>& user_types,
@@ -48,17 +51,55 @@ namespace april::core {
 			const std::vector<std::pair<env::ParticleID, env::ParticleID>>& id_pairs
 		);
 
-		// build internal particle representation from user data
-		std::vector<env::internal::Particle> build_particles(
-			const std::vector<env::Particle>& particle_infos,
-			const std::unordered_map<env::ParticleType, env::internal::ParticleType> & type_map,
-			const std::unordered_map<env::ParticleID, env::internal::ParticleID> & id_map
-		);
-
 		// get container flags from boundary topologies
 		container::internal::ContainerFlags set_container_flags(
 			const std::vector<boundary::Topology> & topologies
 		);
+
+
+
+		template<typename T>
+		std::string demangled_type_name() {
+			int status = 0;
+			const std::unique_ptr<char, void(*)(void*)> demangled{
+				abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, &status),
+				std::free
+			};
+			return (status == 0) ? demangled.get() : typeid(T).name();
+		}
+
+		// build internal particle representation from user data
+		template <env::IsUserData UserData>
+		std::vector<env::internal::ParticleRecord<UserData>> build_particles(
+			const std::vector<env::Particle>& particle_infos,
+			const std::unordered_map<env::ParticleType, env::ParticleType> & type_map,
+			const std::unordered_map<env::ParticleID, env::ParticleID> & id_map
+		) {
+			std::vector<env::internal::ParticleRecord<UserData>> particles;
+			particles.reserve(particle_infos.size());
+
+			for (const auto & p : particle_infos) {
+				AP_ASSERT(p.id.has_value(), "particle id not set during build phase");
+				AP_ASSERT(std::any_cast<UserData>(p.user_data), "user data particle with id " + std::to_string(p.id.value())
+					+ " is not of expected type " + demangled_type_name<UserData>());
+
+				env::internal::ParticleRecord<UserData> particle;
+				particle.id = id_map.at(p.id.value());
+				particle.type = type_map.at(p.type);
+				particle.mass = p.mass;
+				particle.state = p.state;
+				particle.position = p.position;
+				particle.velocity = p.velocity;
+				particle.force = p.force.value_or(vec3{});
+				particle.old_force = p.old_force.value_or(vec3{});
+				particle.old_position = p.old_position.value_or(vec3{});
+				particle.user_data = std::any_cast<UserData>(p.user_data);
+
+				particles.push_back(p);
+			}
+
+			return particles;
+		}
 
 		template<force::internal::IsForceVariant FV>
 		auto extract_interaction_parameters(
@@ -108,6 +149,8 @@ namespace april::core {
 	) {
 		using BoundaryTable = typename EnvT::traits::boundary_table_t;
 		using ForceTable = typename EnvT::traits::force_table_t;
+		using ParticleRecord = typename EnvT::traits::particle_record_t;
+		using UserData = typename EnvT::traits::user_data_t;
 
 		using EnvData = env::internal::EnvironmentData< // explicit type so the IDE can perform code completion
 			typename EnvT::traits::force_variant_t,
@@ -136,7 +179,8 @@ namespace april::core {
 			type_pairs,
 			id_pairs
 		);
-		const std::vector<env::internal::Particle> particles = internal::build_particles(env.particles, type_map, id_map);
+
+		const std::vector<ParticleRecord> particles = internal::build_particles<UserData>(env.particles, type_map, id_map);
 
 		// create boundary table
 		internal::set_default_boundaries(env.boundaries);

@@ -85,7 +85,7 @@ namespace april::env {
     >
     class Environment {
     public:
-        using traits = internal::EnvironmentTraits<FPack, BPack, CPack, FFPack>;
+        using traits = internal::EnvironmentTraits<FPack, BPack, CPack, FFPack, ParticleData>;
 
         explicit Environment(FPack, BPack, CPack, FFPack, ParticleData) {}
 
@@ -121,14 +121,14 @@ namespace april::env {
         // Single particle
         void add_particle(
          const vec3& position, const vec3& velocity, const double mass, const ParticleType type = 0, const std::any& user_data = {}) {
-            add_particle(Particle{
-                .type = type,
-                .position =  position,
-                .velocity = velocity,
-                .mass = mass,
-                .state = ParticleState::ALIVE,
-                .user_data = user_data
-           });
+            Particle p;
+            p.type = type,
+            p.position =  position,
+            p.velocity = velocity,
+            p.mass = mass,
+            p.state = ParticleState::ALIVE,
+            p.user_data = user_data,
+            add_particle(p);
         }
 
         // Multiple particles

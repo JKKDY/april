@@ -5,8 +5,9 @@
 
 namespace april::boundary {
 
-	template <typename F, env::FieldMask M, env::IsUserData U>
-	concept IsBoundaryForce = requires(F f, const env::ParticleRef<M,U> & p, double dist) {
+	template <typename F, env::FieldMask M, class U>
+	concept IsBoundaryForce = env::IsUserData <U> &&
+		requires(F f, const env::ParticleRef<M,U> & p, double dist) {
 		{ f.apply(p, dist) } -> std::convertible_to<double>;
 		{ f.cutoff() } -> std::convertible_to<double>;
 	};

@@ -18,7 +18,7 @@ namespace april::env {
 		STATIONARY = 1u << 3, // Exerts forces but does not move or respond
 		EXERTING   = ALIVE | STATIONARY, // Can exert forces on others
 		MOVABLE    = ALIVE | PASSIVE,    // Can move (may or may not exert forces)
-		ALL        = ~0u  // Matches all states
+		ALL        = 0b11111111  // Matches all states
 	};
 
 
@@ -107,7 +107,7 @@ namespace april::env {
 	concept HasFields = requires { T::fields; };
 
 	template<HasFields Self>
-	inline constexpr FieldMask FieldOf = typename std::remove_cvref_t<Self>::fields;
+	inline constexpr FieldMask FieldOf = std::remove_cvref_t<Self>::fields;
 
 	template<FieldMask M, Field F>
 	inline constexpr bool has_field_v = (M & to_field_mask(F)) != 0;
@@ -139,8 +139,9 @@ namespace april::env {
 		else return std::monostate();
 	}
 
-	template<typename F, IsUserData U>
-	concept IsFetcher = requires(F f, const F cf) {
+	template<typename F, typename  U>
+	concept IsFetcher = IsUserData<U> &&
+		requires(F f, const F cf) {
 		{ f.force() }         -> std::same_as<vec3&>;
 		{ f.position() }      -> std::same_as<vec3&>;
 		{ f.velocity() }      -> std::same_as<vec3&>;

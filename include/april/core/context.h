@@ -58,12 +58,12 @@ namespace april::core {
 
 		// ---- Particle access by index ----
 		template<env::FieldMask M>
-		[[nodiscard]] ParticleRef<M>  get_particle_by_index(size_t index) noexcept {
+		[[nodiscard]] ParticleRef<M> get_particle_by_index(size_t index) noexcept {
 			return system.template get_particle_by_index<M>(index);
 		}
 
 		template<env::FieldMask M>
-		[[nodiscard]] ParticleView<M>  get_particle_by_index(size_t index) const noexcept {
+		[[nodiscard]] ParticleView<M> get_particle_by_index(size_t index) const noexcept {
 			return system.template get_particle_by_index<M>(index);
 		}
 

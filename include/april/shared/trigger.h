@@ -1,180 +1,144 @@
 #pragma once
 
 #include <cstddef>
-#include <concepts>
 
 #include "april/core/context.h"
 
-namespace april::trigger {
+namespace april::shared {
+
+	struct TriggerContext {
+		virtual ~TriggerContext() = default;
+
+		[[nodiscard]] virtual env::Box box() const noexcept = 0;
+		[[nodiscard]] virtual double time() const noexcept = 0;
+		[[nodiscard]] virtual size_t step() const noexcept = 0;
+		[[nodiscard]] virtual size_t size() const noexcept = 0;
+		[[nodiscard]] virtual size_t size(env::ParticleState state) const noexcept = 0;
+
+		// Todo: add more accessors
+	};
+
+	template<class System>
+	struct TriggerContextImpl final : TriggerContext {
+		explicit TriggerContextImpl(const System & sys): system(sys) {}
+
+		[[nodiscard]] env::Box box() const noexcept override { return system.box(); }
+		[[nodiscard]] double time() const noexcept override { return system.time(); }
+		[[nodiscard]] size_t step() const noexcept override { return system.step(); }
+		[[nodiscard]] size_t size() const noexcept override {
+			return system.size(env::ParticleState::ALL);
+		}
+		[[nodiscard]] size_t size(env::ParticleState state) const noexcept override {
+			return system.size(state);
+		}
+
+	private:
+		const System& system;
+	};
 
 	struct Trigger {
-		template<class S>
-		bool operator()(this const auto&& self, const core::SystemContext<S>& sys) const noexcept {
-			static_assert(
-				requires { {self.should_fire(sys) } -> std::same_as<bool>; },
-				"Trigger subclass must implement operator()"
-			);
-			return self.should_fire(sys);
-		}
-	};
+		using TriggerFn = std::function<bool(const TriggerContext&)>;
 
-	template <class T>
-	concept IsTrigger = std::derived_from<T, Trigger>;
-
-
-
-	// ---- Pre defined Triggers ----
-
-	// -- step based triggers: --
-	// trigger every N steps
-	struct Every : Trigger {
-		explicit Every(const size_t N, const size_t offset = 0):
-			N(N), offset(offset) {}
-
-		template<class S>
-		bool should_fire(const core::SystemContext<S>& sys) {
-			return (sys.step() + offset) % N == 0;
+		bool operator()(const TriggerContext& sys) const {
+			return fn_(sys);
 		}
 
-	private:
-		size_t N, offset;
-	};
+		explicit Trigger(TriggerFn fn) : fn_(std::move(fn)) {}
 
-	// start triggering after *step*
-	struct After : Trigger {
-		explicit After(const size_t step): step(step) {}
+		// ---- convenience constructors ----
 
-		template<class S>
-		bool should_fire(const core::SystemContext<S>& sys) {
-			return (sys.step() >= step);
+		// step based triggers:
+		// trigger every N steps
+		static Trigger every(const size_t N, const size_t offset = 0) {
+			return Trigger{[=](const TriggerContext&sys) { return (sys.step() + offset) % N == 0; }};
 		}
 
-	private:
-		size_t step;
-	};
-
-	// Trigger while current step ∈ [start, end)
-	struct Between : Trigger {
-		Between(const size_t start, const size_t end) : start(start), end(end) {}
-
-		template<class S>
-		bool should_fire(const core::SystemContext<S>& sys) const noexcept {
-			return sys.step() >= start && sys.step() < end;
+		// start triggering after *step*
+		static Trigger after(const size_t step) {
+			return Trigger{[=](const TriggerContext& sys) { return sys.step() >= step; }};
 		}
 
-	private:
-		size_t start, end;
-	};
-
-	// Trigger exactly at one step
-	struct AtStep : Between {
-		explicit AtStep(const size_t step) : Between(step, step+1) {}
-	};
-
-
-	// -- Time-based triggers --
-	// Trigger periodically every `period` time units, with optional offset
-	struct Periodically : Trigger {
-		explicit Periodically(const double period, const double offset = 0.0)
-			: period(period), offset(offset), last(offset - period) {}
-
-		template<class S>
-		bool should_fire(const core::SystemContext<S>& sys) noexcept {
-			if (sys.time() - last >= period) {
-				last = sys.time();
-				return true;
-			}
-			return false;
+		// trigger only while current step in [start, end)
+		static Trigger between(const size_t start, const size_t end) {
+			return Trigger{[=](const TriggerContext& sys) {
+				const auto s = sys.step();
+				return s >= start && s < end;
+			}};
 		}
 
-	private:
-		double period, offset, last;
-	};
-
-	// Trigger only after a given time
-	struct AfterTime : Trigger {
-		explicit AfterTime(const double t) : t(t) {}
-
-		template<class S>
-		bool should_fire(const core::SystemContext<S>& sys) const noexcept {
-			return sys.time() >= t;
+		/// Fires exactly at a single step
+		static Trigger at_step(const std::size_t step) {
+			return Trigger{[=](const TriggerContext& ctx) {
+				return ctx.step() == step;
+			}};
 		}
 
-	private:
-		double t;
-	};
 
-	// Trigger only while time ∈ [t_start, t_end)
-	struct BetweenTime : Trigger {
-		BetweenTime(const double t_start, const double t_end)
-			: t_start(t_start), t_end(t_end) {}
 
-		template<class S>
-		bool should_fire(const core::SystemContext<S>& sys) const noexcept {
-			return sys.time() >= t_start && sys.time() < t_end;
+		// time based triggers:
+		// trigger after given time period
+		static Trigger periodically(const double period, const double offset = 0.0) {
+			return Trigger{[=, last = offset - period](const TriggerContext& sys) mutable {
+				if (sys.time() - last >= period) {
+					last = sys.time();
+					return true;
+				}
+				return false;
+			}};
+		}
+
+		// start triggering only after a given time t
+		static Trigger after_time(const double t) {
+			return Trigger{[=](const TriggerContext& sys) {
+				return sys.time() >= t;
+			}};
+		}
+
+		// trigger only while simulation time between t_start and t_end
+		static Trigger between_time(const double t_start, const double t_end) {
+			return Trigger{[=](const TriggerContext& sys) {
+				const auto t = sys.time();
+				return t >= t_start && t < t_end;
+			}};
+		}
+
+		// generic triggers:
+		// trigger every step
+		static Trigger always() {
+			return Trigger{[](const TriggerContext&) { return true; }};
+		}
+		// for custom triggers
+		static Trigger when(const std::function<bool(const TriggerContext&)>& pred) {
+			return Trigger{pred};
+		}
+
+
+
+		// ---- Chaining operators ----
+		// Logical AND
+		friend Trigger operator&&(Trigger lhs, Trigger rhs) {
+			return Trigger{[lhs = std::move(lhs), rhs = std::move(rhs)]
+						   (const TriggerContext& sys) mutable {
+				return lhs(sys) && rhs(sys);
+			}};
+		}
+
+		// Logical OR
+		friend Trigger operator||(Trigger lhs, Trigger rhs) {
+			return Trigger{[lhs = std::move(lhs), rhs = std::move(rhs)]
+						   (const TriggerContext& sys) mutable {
+				return lhs(sys) || rhs(sys);
+			}};
+		}
+
+		// Logical NOT
+		friend Trigger operator!(Trigger t) {
+			return Trigger{[t = std::move(t)](const TriggerContext& sys) mutable {
+				return !t(sys);
+			}};
 		}
 
 	private:
-		double t_start, t_end;
+		TriggerFn fn_;
 	};
-
-
-	// -- Generic triggers --
-	// Always true
-	struct Always : Trigger {
-		template<class S>
-		bool should_fire(const core::SystemContext<S>&) const noexcept {
-			return true;
-		}
-	};
-
-
-
-	// ---- Logical Operators ----
-	template<class L, class R>
-	struct AndTrigger : Trigger<AndTrigger<L,R>> {
-		L lhs;
-		R rhs;
-
-		template<class S>
-		bool should_fire(const core::SystemContext<S>& sys) const noexcept {
-			return lhs(sys) && rhs(sys);
-		}
-	};
-
-	template<class L, class R>
-	struct OrTrigger : Trigger<OrTrigger<L,R>> {
-		L lhs;
-		R rhs;
-
-		template<class S>
-		bool should_fire(const core::SystemContext<S>& sys) const noexcept {
-			return lhs(sys) || rhs(sys);
-		}
-	};
-
-	template<class T>
-	struct NotTrigger : Trigger<NotTrigger<T>> {
-		T inner;
-
-		template<class S>
-		bool should_fire(const core::SystemContext<S>& sys) const noexcept {
-			return !inner(sys);
-		}
-	};
-
-	template<class L, class R>
-	constexpr auto operator&&(const Trigger<L>& lhs, const Trigger<R>& rhs) noexcept {
-		return AndTrigger<L, R>{static_cast<const L&>(lhs), static_cast<const R&>(rhs)};
-	}
-
-	template<class L, class R>
-	constexpr auto operator||(const Trigger<L>& lhs, const Trigger<R>& rhs) noexcept {
-		return OrTrigger<L, R>{static_cast<const L&>(lhs), static_cast<const R&>(rhs)};
-	}
-
-	template<class T>
-	constexpr auto operator!(const Trigger<T>& t) noexcept {
-		return NotTrigger<T>{static_cast<const T&>(t)};
-	}
 }

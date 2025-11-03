@@ -6,14 +6,13 @@ namespace april::controller {
 
 	static constexpr double TemperatureNotSet = -1.0;
 
-	template<trigger::IsTrigger Trig>
-	class VelocityScalingThermostat : public Controller<Trig> {
+	class VelocityScalingThermostat : public Controller {
 		static constexpr env::FieldMask mass_vel = env::Field::velocity | env::Field::mass;
 		static constexpr env::FieldMask vel = to_field_mask(env::Field::velocity);
 
 	public:
-		VelocityScalingThermostat(const double init_T, const double target_T, const double max_dT, const Trig & trig)
-	   : Controller<Trig>(trig),
+		VelocityScalingThermostat(const double init_T, const double target_T, const double max_dT, const shared::Trigger & trig)
+	   : Controller(trig),
 		 init_temp(init_T),
 		 target_temp(target_T),
 		 max_temp_change(max_dT) {}

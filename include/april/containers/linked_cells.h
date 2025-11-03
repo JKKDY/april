@@ -7,12 +7,12 @@
 
 namespace april::container {
 	namespace internal {
-		template <class Env> class LinkedCells;
+		template <class FV, class U> class LinkedCells;
 	}
 
 
 	struct LinkedCells {
-		template<typename  FV> using impl = internal::LinkedCells<FV>;
+		template<class FV, class U> using impl = internal::LinkedCells<FV, U>;
 		double cell_size_hint;
 
 		void with_cell_size(const double cell_size) {
@@ -22,9 +22,9 @@ namespace april::container {
 
 
 	namespace internal {
-		template <class Fv>
-		class LinkedCells final : public ContiguousContainer<container::LinkedCells, Fv> {
-			using Base = ContiguousContainer<container::LinkedCells, Fv>;
+		template <class Fv, class U>
+		class LinkedCells final : public ContiguousContainer<container::LinkedCells, Fv, U> {
+			using Base = ContiguousContainer<container::LinkedCells, Fv, U>;
 			using typename Base::Particle;
 			using typename Base::ParticleID;
 			using Base::interactions;
@@ -117,52 +117,52 @@ namespace april::container {
 					p.reset_force();
 				}
 
-				// for every cell
-				for (uint32_t cid = 0; cid < cell_begin.size() - 1; cid++) {
-					const uint32_t start = cell_begin[cid];
-					const uint32_t end = cell_begin[cid+1];
-
-					for (uint32_t i = start; i < end; i++) {
-						for (uint32_t j = i+1; j < end; j++) {
-							auto & p1 = particles[i];
-							auto & p2 = particles[j];
-
-							const vec3 force = interactions->evaluate(p1, p2);
-							p1.force += force;
-							p2.force -= force;
-						}
-					}
-				}
-
-				// for every neighbouring cell pair
-				for (const auto & pair : neighbor_cell_pairs) {
-					for (uint32_t i = cell_begin[pair.c1]; i < cell_begin[pair.c1+1]; ++i) {
-						for (uint32_t j = cell_begin[pair.c2]; j < cell_begin[pair.c2+1]; ++j) {
-							auto & p1 = particles[i];
-							auto & p2 = particles[j];
-
-							const vec3 force = interactions->evaluate(p1, p2);
-							p1.force += force;
-							p2.force -= force;
-						}
-					}
-				}
+				// // for every cell
+				// for (uint32_t cid = 0; cid < cell_begin.size() - 1; cid++) {
+				// 	const uint32_t start = cell_begin[cid];
+				// 	const uint32_t end = cell_begin[cid+1];
+				//
+				// 	for (uint32_t i = start; i < end; i++) {
+				// 		for (uint32_t j = i+1; j < end; j++) {
+				// 			auto & p1 = particles[i];
+				// 			auto & p2 = particles[j];
+				//
+				// 			const vec3 force = interactions->evaluate(p1, p2);
+				// 			p1.force += force;
+				// 			p2.force -= force;
+				// 		}
+				// 	}
+				// }
+				//
+				// // for every neighbouring cell pair
+				// for (const auto & pair : neighbor_cell_pairs) {
+				// 	for (uint32_t i = cell_begin[pair.c1]; i < cell_begin[pair.c1+1]; ++i) {
+				// 		for (uint32_t j = cell_begin[pair.c2]; j < cell_begin[pair.c2+1]; ++j) {
+				// 			auto & p1 = particles[i];
+				// 			auto & p2 = particles[j];
+				//
+				// 			const vec3 force = interactions->evaluate(p1, p2);
+				// 			p1.force += force;
+				// 			p2.force -= force;
+				// 		}
+				// 	}
+				// }
 
 				// for every wrapped cell pair
-				for (const auto & pair : wrapped_cell_pairs) {
-					for (uint32_t i = cell_begin[pair.c1]; i < cell_begin[pair.c1+1]; ++i) {
-						for (uint32_t j = cell_begin[pair.c2]; j < cell_begin[pair.c2+1]; ++j) {
-							auto & p1 = particles[i];
-							auto & p2 = particles[j];
-
-							const vec3 diff = p2.position - p1.position + pair.shift;
-							const vec3 force = interactions->evaluate(p1, p2, diff);
-
-							p1.force += force;
-							p2.force -= force;
-						}
-					}
-				}
+				// for (const auto & pair : wrapped_cell_pairs) {
+				// 	for (uint32_t i = cell_begin[pair.c1]; i < cell_begin[pair.c1+1]; ++i) {
+				// 		for (uint32_t j = cell_begin[pair.c2]; j < cell_begin[pair.c2+1]; ++j) {
+				// 			auto & p1 = particles[i];
+				// 			auto & p2 = particles[j];
+				//
+				// 			const vec3 diff = p2.position - p1.position + pair.shift;
+				// 			const vec3 force = interactions->evaluate(p1, p2, diff);
+				//
+				// 			p1.force += force;
+				// 			p2.force -= force;
+				// 		}
+				// 	}
+				// }
 			}
 
 			std::vector<size_t> collect_indices_in_region(const env::Box & region) {

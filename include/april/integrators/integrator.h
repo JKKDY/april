@@ -148,7 +148,7 @@ namespace april::integrator {
 
 		void dispatch_monitor_preparation() {
 			monitors.for_each_item([&](auto & mon) {
-				if (mon.should_trigger(sys.context())) {
+				if (mon.should_trigger(sys.trigger_context())) {
 					mon.dispatch_before_step(sys.context());
 				}
 			});
@@ -156,7 +156,7 @@ namespace april::integrator {
 
 		void dispatch_monitor_recording() {
 			monitors.for_each_item([&](auto & mon) {
-				if (mon.should_trigger(sys.context())) {
+				if (mon.should_trigger(sys.trigger_context())) {
 					mon.dispatch_record(sys.context());
 				}
 			});

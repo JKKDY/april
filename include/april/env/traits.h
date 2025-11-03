@@ -13,7 +13,7 @@
 #include "april/shared/pack_storage.h"
 
 namespace april::env::internal {
-	template<class FPack, class BPack, class CPack, class FFPack>
+	template<class FPack, class BPack, class CPack, class FFPack, class U>
 	   struct EnvironmentTraits;
 
 	// this class holds relevant types derived from template parameter packs
@@ -29,7 +29,8 @@ namespace april::env::internal {
 		force::ForcePack<Fs...>,
 		boundary::BoundaryPack<BCs...>,
 		controller::ControllerPack<Cs...>,
-		field::FieldPack<FFs...>
+		field::FieldPack<FFs...>,
+		UserData
 	>
 	{
 		// Core Packs
@@ -52,7 +53,7 @@ namespace april::env::internal {
 
 		// particles
 		using user_data_t = UserData;
-		template<FieldMask M> using particle_record_t = ParticleRecord<user_data_t>;
+		using particle_record_t = ParticleRecord<user_data_t>;
 		template<FieldMask M> using particle_ref_t = ParticleRef<M, user_data_t>;
 		template<FieldMask M> using restricted_particle_ref_t = RestrictedParticleRef<M, user_data_t>;
 		template<FieldMask M> using particle_view_t = ParticleView<M, user_data_t>;

@@ -1,18 +1,18 @@
 #pragma once
 
+#include <utility>
+
 #include "april/core/context.h"
 #include "april/shared/trigger.h"
 
 namespace april::monitor {
 
 
-	template<trigger::IsTrigger Trig>
 	class Monitor {
 	public:
-		explicit Monitor(const Trig & trig) : trigger(trig) {}
+		explicit Monitor(shared::Trigger  trig) : trigger(std::move(trig)) {}
 
-		template<class S>
-		[[nodiscard]] bool should_trigger(const core::SystemContext<S> & sys) {
+		[[nodiscard]] bool should_trigger(const shared::TriggerContext & sys) const {
 			return trigger(sys);
 		}
 
@@ -61,23 +61,11 @@ namespace april::monitor {
 		double start_time{};
 		double end_time{};
 		size_t num_steps{};
-		Trig trigger;
+		shared::Trigger trigger;
 	};
 
 
-	// define monitor concept
-	template <typename T>
-	struct has_monitor_base {
-	private:
-		template <trigger::IsTrigger Trig>
-		static std::true_type test(const Monitor<Trig>*); // use ptr conversion from T* to Monitor*
-		static std::false_type test(...);
-	public:
-		static constexpr bool value = decltype(test(std::declval<T*>()))::value;
-	};
-
-	template <typename T>
-	concept IsMonitor = has_monitor_base<T>::value;
+	template <class M> concept IsMonitor = std::derived_from<M, Monitor>;
 
 	template<IsMonitor... Ms> struct MonitorPack {};
 

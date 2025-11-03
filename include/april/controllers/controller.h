@@ -1,17 +1,17 @@
 #pragma once
 
+#include <utility>
+
 #include "april/shared/trigger.h"
 #include "april/core/context.h"
 
 namespace april::controller  {
 
-	template<trigger::IsTrigger Trig>
 	class Controller {
 	public:
-		explicit Controller(const Trig & trig) : trigger(trig) {}
+		explicit Controller(shared::Trigger trig) : trigger(std::move(trig)) {}
 
-		template<class S>
-		[[nodiscard]] bool should_trigger(const core::SystemContext<S> & sys) {
+		[[nodiscard]] bool should_trigger(const shared::TriggerContext & sys) const {
 			return trigger(sys);
 		}
 
@@ -32,23 +32,14 @@ namespace april::controller  {
 		}
 
 	private:
-		Trig trigger;
+		shared::Trigger trigger;
 	};
 
 
 
-	template<typename C>
-	struct has_controller_base {
-	private:
-		template<trigger::IsTrigger Trig>
-		static std::true_type test(const Controller<Trig>*);
-		static std::false_type test(...);
-	public:
-		static constexpr bool value = decltype(test(std::declval<C*>()))::value;
-	};
 
 	template <class C>
-	concept IsController = has_controller_base<C>::value;
+	concept IsController = std::derived_from<C, Controller>;
 
 	// define controller Pack
 	template<IsController...>

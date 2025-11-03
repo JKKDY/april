@@ -6,12 +6,12 @@
 
 namespace april::monitor {
 
-	template<trigger::IsTrigger Trig>
-	class TerminalOutput final : public Monitor<Trig> {
+	class TerminalOutput final : public Monitor {
 	public:
 		static constexpr env::FieldMask fields = to_field_mask(env::Field::all);
 
-		using Monitor<Trig>::Monitor;
+		using Monitor::Monitor;
+
 
 		template<class S>
 		void record(const core::SystemContext<S> & sys) {

@@ -5,10 +5,12 @@
 
 namespace april::field {
 	struct UniformField final : Field {
+		static constexpr env::FieldMask fields = to_field_mask(env::Field::force);
 
 		explicit UniformField(const vec3 & force_dir): force(force_dir) {}
 
-		void apply(env::RestrictedParticleRef particle) const {
+		template<env::IsUserData U>
+		void apply(env::RestrictedParticleRef<fields, U> particle) const {
 			particle.force += force;
 		}
 

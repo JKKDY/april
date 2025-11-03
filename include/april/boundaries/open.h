@@ -5,7 +5,6 @@
 
 namespace april::boundary {
 	struct Open : Boundary {
-		using namespace april::env;
 		static constexpr env::FieldMask fields = to_field_mask(env::Field::none);
 
 		Open(): Boundary(-1, false, false, false) {}

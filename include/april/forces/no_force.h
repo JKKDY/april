@@ -7,7 +7,7 @@
 namespace april::force {
 	// No-op force: always returns zero vector and mixes to itself.
 	struct NoForce : Force{
-		static constexpr env::FieldMask fields = env::to_field_mask(env::Field::none);
+		static constexpr env::FieldMask fields = to_field_mask(env::Field::none);
 		// Negative cutoff_radius means "no cutoff"
 		NoForce(): Force(0) {}
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include "april/env/particle.h"
 #include "april/forces/force.h"
 #include "april/env/environment.h"
@@ -104,6 +103,10 @@ namespace april::core {
 			return system_context;
 		}
 
+		[[nodiscard]] SysContext & trigger_context() const {
+			return trig_context;
+		}
+
 
 		// Useful for stable iterations and accessing a specific particle
 		template<env::FieldMask M>
@@ -185,7 +188,8 @@ namespace april::core {
 			  controllers(controllers_in),
 			  fields(fields_in),
 			  container(make_container(container_cfg, container_flags, domain_in)),
-			  system_context(*this)
+			  system_context(*this),
+			  trig_context(*this)
 		{
 			build_particles(particles);
 			init_controllers();
@@ -223,6 +227,7 @@ namespace april::core {
 		size_t step_ = 0;
 
 		SystemContext<System> system_context;
+		shared::TriggerContextImpl<System> trig_context;
 
 		// Friend factory: only entry point for constructing a System
 		// Avoids exposing constructor internals publicly.
@@ -306,7 +311,7 @@ namespace april::core {
 	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::apply_controllers() {
 		controllers.for_each_item([this](auto & controller) {
-			if (controller.should_trigger(system_context)) {
+			if (controller.should_trigger(trig_context)) {
 				controller.dispatch_apply(system_context);
 			}
 		});

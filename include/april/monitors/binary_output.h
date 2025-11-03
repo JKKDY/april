@@ -11,16 +11,15 @@
 
 namespace april::monitor {
 
-	template<trigger::IsTrigger Trig>
-	class BinaryOutput final : public Monitor<Trig> {
+	class BinaryOutput final : public Monitor {
 	public:
 		static constexpr env::FieldMask fields = to_field_mask(env::Field::all);
 		explicit BinaryOutput(
-			const Trig & trigger,
+			const shared::Trigger & trigger,
 			std::string dir = "output",
 			std::string base_name = "output")
 		:
-			Monitor<Trig>(trigger), base_name(std::move(base_name)), dir(std::move(dir)) {}
+			Monitor(trigger), base_name(std::move(base_name)), dir(std::move(dir)) {}
 
 		template<class S>
 		void record(const core::SystemContext<S> & sys) const {

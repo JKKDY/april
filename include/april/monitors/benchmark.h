@@ -6,9 +6,9 @@
 #include "april/monitors/monitor.h"
 
 namespace april::monitor {
-	class Benchmark : public Monitor<trigger::Always> {
+	class Benchmark : public Monitor {
 	public:
-		Benchmark() : Monitor(trigger::Always()) {}
+		Benchmark() : Monitor(shared::Trigger::always()) {}
 
 		void initialize() {
 			glob_start_time = std::chrono::high_resolution_clock::now();

@@ -6,27 +6,27 @@
 namespace april::container {
 
 	namespace internal {
-		template <class FV, class U> class DirectSum;
+		template <class FT, class U> class DirectSum;
 	}
 
 	struct DirectSum {
-		template<typename FV, class U> using impl = internal::DirectSum<FV, U>;
+		template<typename FT, class U> using impl = internal::DirectSum<FT, U>;
 	};
 
 	namespace internal {
-		template <class Fv, class U>
-		class DirectSum final : public ContiguousContainer<container::DirectSum, Fv, U> {
-			using Base = ContiguousContainer<container::DirectSum, Fv, U>;
-			using typename Base::Particle;
+		template <class FT, class U>
+		class DirectSum final : public ContiguousContainer<container::DirectSum, FT, U> {
+			using Base = ContiguousContainer<container::DirectSum, FT, U>;
+			using typename Base::ParticleRecord;
 			using typename Base::ParticleID;
-			using Base::interactions;
+			using Base::force_table;
 			using Base::particles;
 			using Base::domain;
 			using Base::flags;
 		public:
 			using Base::Base;
 
-			void build(const std::vector<Particle> & particles) {
+			void build(const std::vector<ParticleRecord> & particles) {
 				this->build_storage(particles);
 
 				// const int mode = (flags.periodic_x ? 4 : 0)
@@ -50,7 +50,7 @@ namespace april::container {
 				// ret.reserve(static_cast<size_t>(size));
 
 				for (size_t i = 0; i < particles.size(); i++) {
-					if (region.contains(particles[i].position) && particles[i].state != Particle::State::DEAD) {
+					if (region.contains(particles[i].position) && particles[i].state != env::ParticleState::DEAD) {
 						ret.push_back(i);
 					}
 				}
@@ -114,7 +114,3 @@ namespace april::container {
 		};
 	}
 }
-
-//  Total integration time: 5.15198 s
-//   Total integration time: 5.11681 s
-//   Total integration time: 4.93966 s

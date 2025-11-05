@@ -25,9 +25,9 @@ namespace april::container {
 		template <class Fv, class U>
 		class LinkedCells final : public ContiguousContainer<container::LinkedCells, Fv, U> {
 			using Base = ContiguousContainer<container::LinkedCells, Fv, U>;
-			using typename Base::Particle;
+			using typename Base::ParticleRecord;
 			using typename Base::ParticleID;
-			using Base::interactions;
+			using Base::force_table;
 			using Base::cfg;
 			using Base::domain;
 			using Base::particles;
@@ -56,7 +56,7 @@ namespace april::container {
 		public:
 			using Base::Base;
 
-			void build(const std::vector<Particle>& input_particles) {
+			void build(const std::vector<ParticleRecord>& input_particles) {
 				this->build_storage(input_particles);
 				set_cell_size();
 				rebuild_cell_structure();
@@ -68,7 +68,7 @@ namespace april::container {
 			}
 
 			void register_particle_movement(size_t p_idx) {
-				Particle & particle = Base::get_particle_by_index(p_idx);
+				ParticleRecord & particle = Base::get_particle_by_index(p_idx);
 
 				const uint32_t dst_cell = cell_index_of(particle.position);
 				// const uint32_t src_cell = cell_index_of(particle.old_position);
@@ -113,9 +113,9 @@ namespace april::container {
 			}
 
 			void calculate_forces() {
-				for (auto & p : particles) {
-					p.reset_force();
-				}
+				// for (auto & p : particles) {
+				// 	p.reset_force();
+				// }
 
 				// // for every cell
 				// for (uint32_t cid = 0; cid < cell_begin.size() - 1; cid++) {
@@ -178,7 +178,7 @@ namespace april::container {
 				for (const uint32_t cid : cells) {
 					const uint32_t start = cell_begin[cid];
 					for (size_t i = 0; i < particles_per_cell[cid]; i++) {
-						if (region.contains(particles[start + i].position) && particles[start + i].state != Particle::State::DEAD) {
+						if (region.contains(particles[start + i].position) && particles[start + i].state != env::ParticleState::DEAD) {
 							ret.push_back(start + i);
 						}
 					}
@@ -190,7 +190,7 @@ namespace april::container {
 
 		private:
 			void set_cell_size() {
-				cfg.cell_size_hint = std::max(interactions->get_max_cutoff(), cfg.cell_size_hint);
+				cfg.cell_size_hint = std::max(force_table->get_max_cutoff(), cfg.cell_size_hint);
 				if (cfg.cell_size_hint <= 0) { // negative -> no force cutoff
 					cfg.cell_size_hint = domain.extent.max();
 				}
@@ -274,7 +274,7 @@ namespace april::container {
 
 				// scatter particles into bins
 				const size_t N = particles.size();
-				std::vector<Particle> tmp_p(N);
+				std::vector<ParticleRecord> tmp_p(N);
 				std::vector<uint32_t> tmp_i(N);
 				std::vector<uint32_t> write_ptr = cell_begin; // copy
 

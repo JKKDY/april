@@ -13,9 +13,9 @@ namespace april::core {
 		using ParticleID = env::ParticleID;
 	public:
 		using user_data_t = typename System::user_data_t;
-		template<env::FieldMask M> using ParticleRef    		= typename System::template particle_record_t<M>;
-		template<env::FieldMask M> using ParticleView   		= typename System::template particle_view_t<M>;
-		template<env::FieldMask M> using RestrictedParticleRef	= typename System::template restricted_particle_ref_t<M>;
+		template<env::FieldMask M> using ParticleRef    		= typename System::template ParticleRef<M>;
+		template<env::FieldMask M> using ParticleView   		= typename System::template ParticleView<M>;
+		template<env::FieldMask M> using RestrictedParticleRef	= typename System::template RestrictedParticleRef<M>;
 
 		explicit SystemContext(System & sys): system(sys) {}
 
@@ -47,7 +47,7 @@ namespace april::core {
 
 		template<env::FieldMask M>
 		[[nodiscard]] ParticleView<M> get_particle_by_id(ParticleID id) const noexcept {
-			return system.template get_particle_by_id<M>(id);
+			return std::as_const(system).template get_particle_by_id<M>(id);
 		}
 
 		[[nodiscard]] std::vector<env::ParticleID> particle_id_list() const noexcept {
@@ -64,7 +64,7 @@ namespace april::core {
 
 		template<env::FieldMask M>
 		[[nodiscard]] ParticleView<M> get_particle_by_index(size_t index) const noexcept {
-			return system.template get_particle_by_index<M>(index);
+			return std::as_const(system).template get_particle_by_index<M>(index);
 		}
 
 		[[nodiscard]] size_t index_start() const noexcept {

@@ -55,6 +55,7 @@ namespace april {
 	using env::Particle;
 	using env::ParticleID;
 	using env::ParticleType;
+	using env::particle_data;
 
 	using env::between_types;
 	using env::to_type;

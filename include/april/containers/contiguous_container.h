@@ -3,16 +3,18 @@
 #include "april/containers/container.h"
 
 namespace april::container {
-	template<typename C, typename FV, env::IsUserData U>
-	class ContiguousContainer : public Container<C, FV, U> {
+
+	template<typename Config, typename FT, env::IsUserData U>
+	class ContiguousContainer : public Container<Config, FT, U,
+	env::internal::ParticleRecordFetcher<U>,
+	env::internal::ConstParticleRecordFetcher<U>> {
 	public:
-		using Base = Container<C, FV, U>;
-		using ParticleFetcher = env::internal::ParticleRecordFetcher<U>;
-
-		using ParticleRecord = env::internal::ParticleRecord<U>;
-		template<env::FieldMask M> using ParticleView = env::ParticleView<M, U>;
-		template<env::FieldMask M> using ParticleRef = env::ParticleRef<M, U>;
-
+		using Base = Container<Config, FT, U,
+		env::internal::ParticleRecordFetcher<U>,
+		env::internal::ConstParticleRecordFetcher<U>>;
+		using typename Base::MutableFetcher;
+		using typename Base::ConstFetcher;
+		using typename Base::ParticleRecord;
 		using Base::Base;
 
 		void build_storage(const std::vector<ParticleRecord>& particles) {
@@ -27,22 +29,12 @@ namespace april::container {
 			this->is_built = true;
 		}
 
-		template<env::FieldMask M>
-		[[nodiscard]] ParticleRef<M> get_particle_by_id(const env::ParticleID id) noexcept{
+		[[nodiscard]] MutableFetcher get_fetcher_by_id(const env::ParticleID id) noexcept{
 			// TODO this method needs testing
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
 			AP_ASSERT(id >= id_start() && id < id_end(), "invalid id. got " + std::to_string(id));
 			const size_t index = id_to_index(id);
-			return ParticleRef<M> (ParticleFetcher(particles[index]));
-		}
-
-		template<env::FieldMask M>
-		[[nodiscard]] ParticleView<M> get_particle_by_id(const env::ParticleID id) const noexcept{
-			// TODO this method needs testing
-			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
-			AP_ASSERT(id >= id_start() && id < id_end(), "invalid id. got " + std::to_string(id));
-			const size_t index = id_to_index(id);
-			return ParticleView<M> (ParticleFetcher(particles[index]));
+			return MutableFetcher(particles[index]);
 		}
 
 		[[nodiscard]] env::ParticleID id_start() const {
@@ -61,18 +53,16 @@ namespace april::container {
 		}
 
 		// index for non-stable iteration
-		template<env::FieldMask M>
-		[[nodiscard]] ParticleRef<M> get_particle_by_index(size_t index) noexcept {
-			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
+		[[nodiscard]] MutableFetcher get_fetcher_by_index(size_t index) noexcept {
+			AP_ASSERT(is_built, "storage was not built. build_storage must be called beforehand");
 			AP_ASSERT(index < particles.size(), "index must be < #particles");
-			return ParticleRef<M> (ParticleFetcher(particles[index]));
+			return MutableFetcher(particles[index]);
 		}
 
-		template<env::FieldMask M>
-		[[nodiscard]] ParticleView<M> get_particle_by_index(size_t index) const noexcept {
-			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
+		[[nodiscard]] ConstFetcher get_fetcher_by_index(size_t index) const noexcept{
+			AP_ASSERT(is_built, "storage was not built. build_storage must be called beforehand");
 			AP_ASSERT(index < particles.size(), "index must be < #particles");
-			return ParticleView<M> (ParticleFetcher(particles[index]));
+			return ConstFetcher(particles[index]);
 		}
 
 		[[nodiscard]] size_t index_start() const {
@@ -96,7 +86,7 @@ namespace april::container {
 			std::swap(indices[id1], indices[id2]);
 		}
 
-		std::vector<ParticleRecord> particles;
+		std::vector<ParticleRecord> particles = {};
 		std::vector<uint32_t> indices; // map id to index
 	private:
 		bool is_built = false;

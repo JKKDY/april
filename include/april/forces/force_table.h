@@ -51,9 +51,9 @@ namespace april::force::internal {
         //     return force;
         // }
         //
-        // [[nodiscard]] double get_max_cutoff() const {
-        //     return max_cutoff;
-        // }
+        [[nodiscard]] double get_max_cutoff() const {
+            return max_cutoff;
+        }
 
 
         ForceVariant & get_type_force(const env::ParticleType a, const env::ParticleType b) noexcept {

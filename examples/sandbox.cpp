@@ -13,43 +13,47 @@ int main() {
 	remove_all(dir_path);   // delete the directory and all contents
 	create_directory(dir_path); // recreate the empty directory
 
-	auto drop = ParticleSphere()
-		.at({150,150,0})
-		.radius_xyz({20, 20, 0})
-		.mass(1.0)
-		.spacing(1)
-		.type(0);
-	//
-	// // auto thermostat = VelocityScalingThermostat(0.5,
-	// // 	controller::TemperatureNotSet,
-	// // 	controller::TemperatureNotSet,
-	// // 	Trigger::every(1000));
-	//
-	// auto gravity = UniformField({0, -12.44, 0});
-	//
 
 
-	auto env = Environment(
-		controllers<VelocityScalingThermostat>,
-		forces<LennardJones, NoForce>,
-		fields<UniformField>,
-		boundaries<Reflective>
-	);
-	// env.add_force(NoForce(), to_type(0));
-	// 	// .with_extent(303,180, 0)
-	// 	// .with_force(NoForce(), to_type(0))
-	// 	// .with_particles(drop)
-	// 	// .with_boundaries(Reflective(), all_faces);
-	// 	// .with_controller(thermostat)
-	// //
-	// auto container = LinkedCells();
-	// auto system = build_system(env, container);
-	// //
-	// auto integrator = StoermerVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
-	// 	.with_monitor(Benchmark())
-	// 	.with_monitor(BinaryOutput(Trigger::every(100), dir_path))
-	// 	.with_monitor(ProgressBar(Trigger::every(100)))
-	// 	.with_dt(0.0002)
-	// 	.for_duration(5)
-	// 	.run();
+	struct Charge {
+		double charge;
+	};
+
+	auto cuboid1 = ParticleCuboid{}
+	.at({0, 0, 0})
+	.velocity({0, 0, 0})
+	.count({40, 8, 5})
+	.mass(1.0)
+	.spacing(1.1225)
+	.type(0)
+	.with_data(Charge(1));
+
+	auto cuboid2 = ParticleCuboid{}
+	.at({15, 15, 0})
+	.velocity({0, -20, 0})
+	.count({8, 8, 5})
+	.mass(1.0)
+	.spacing(1.1225)
+	.type(0)
+	.with_data(Charge(1));
+
+
+	auto env = Environment(forces<LennardJones>, boundaries<Reflective, Absorb, Open>, particle_data<Charge>)
+	   .with_particles(cuboid1)
+	   .with_particles(cuboid2)
+	   .with_extent(100,80,40)
+	   .with_origin(-20,-20,-20)
+	   .with_force(LennardJones(5, 1), to_type(0))
+	   .with_boundaries(Reflective(), all_faces);
+
+	auto container = LinkedCells();
+	auto system = build_system(env, container);
+
+	auto integrator = StoermerVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
+		.with_monitor(Benchmark())
+		.with_monitor(BinaryOutput(Trigger::every(100), dir_path))
+		.with_monitor(ProgressBar(Trigger::every(100)))
+		.with_dt(0.0002)
+		.for_duration(5)
+		.run();
 }

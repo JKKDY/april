@@ -13,7 +13,7 @@ namespace april::field {
 
 
 		template<env::IsUserData U>
-		void apply(env::RestrictedParticleRef<fields, U> particle) const {
+		void apply(const env::RestrictedParticleRef<fields, U> & particle) const {
 			if (!active && region.contains(particle.position))
 				particle.force += force;
 		}

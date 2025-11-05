@@ -54,6 +54,7 @@ namespace april::env::internal {
 						.velocity = cuboid.mean_velocity,
 						.mass = cuboid.particle_mass,
 						.state = cuboid.particle_state,
+						.user_data = cuboid.user_data
 					};
 					p.velocity += cuboid.thermal_velocity(p.position);
 
@@ -108,6 +109,7 @@ namespace april::env::internal {
                         .velocity = sphere.mean_velocity,
                         .mass = sphere.particle_mass,
                         .state = sphere.particle_state,
+                		.user_data = sphere.user_data
                     };
                 	p.velocity += sphere.thermal_velocity(p.position);
 

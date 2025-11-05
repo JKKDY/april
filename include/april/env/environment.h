@@ -40,6 +40,7 @@ namespace april::env {
         [[nodiscard]] ParticleCuboid& type(int t) noexcept;
         [[nodiscard]] ParticleCuboid& thermal(std::function<vec3(const vec3&)> tv);
         [[nodiscard]] ParticleCuboid& state(ParticleState s) noexcept;
+        [[nodiscard]] ParticleCuboid& with_data(const std::any & data) noexcept;
     };
 
 
@@ -64,6 +65,8 @@ namespace april::env {
         [[nodiscard]] ParticleSphere& type(int t) noexcept;
         [[nodiscard]] ParticleSphere& thermal(std::function<vec3(const vec3&)> tv);
         [[nodiscard]] ParticleSphere& state(ParticleState s) noexcept;
+        [[nodiscard]] ParticleSphere& with_data(const std::any & data) noexcept;
+
     };
 
 

@@ -34,17 +34,18 @@ namespace april::core {
 		using ForceTable     	= typename Traits::force_table_t;
 		using BoundaryTable  	= typename Traits::boundary_table_t;
 
-		using Container      	= typename C::template impl<typename Traits::force_variant_t>;
+		using Container      	= typename C::template impl<typename Traits::force_table_t, typename  Traits::user_data_t>;
 		using ContainerFlags 	= container::internal::ContainerFlags;
 		using TypeInteraction	= force::internal::TypeInteraction<typename Traits::force_variant_t>;
 		using IdInteraction	 	= force::internal::IdInteraction<typename Traits::force_variant_t>;
 
 		using SysContext 		= SystemContext<System>;
+		using TrigContext		= shared::TriggerContextImpl<System>;
 
 	public:
 		using ParticleRec = typename Traits::particle_record_t;
 		using user_data_t = typename Traits::user_data_t;
-		template<env::FieldMask M> using ParticleRef    		= typename Traits::template particle_record_t<M>;
+		template<env::FieldMask M> using ParticleRef    		= typename Traits::template particle_ref_t<M>;
 		template<env::FieldMask M> using ParticleView   		= typename Traits::template particle_view_t<M>;
 		template<env::FieldMask M> using RestrictedParticleRef	= typename Traits::template restricted_particle_ref_t<M>;
 
@@ -96,27 +97,25 @@ namespace april::core {
 
 		void apply_force_fields();
 
+
+
+		[[nodiscard]] SysContext & context() { return system_context; }
+		[[nodiscard]] const SysContext & context() const { return system_context; }
+
+		[[nodiscard]] TrigContext & trigger_context() { return trig_context; }
+		[[nodiscard]] const TrigContext & trigger_context() const { return trig_context; }
+
+
 		// get a particle reference by its id. Usually slower than getting it by its index.
-
-
-		[[nodiscard]] SysContext & context() const {
-			return system_context;
-		}
-
-		[[nodiscard]] SysContext & trigger_context() const {
-			return trig_context;
-		}
-
-
 		// Useful for stable iterations and accessing a specific particle
 		template<env::FieldMask M>
 		[[nodiscard]] ParticleRef<M> get_particle_by_id(const env::ParticleID id) noexcept {
-			return container.dispatch_get_particle_by_id<M>(id);
+			return ParticleRef<M>(container.dispatch_get_fetcher_by_id(id));
 		}
 
 		template<env::FieldMask M>
 		[[nodiscard]] ParticleView<M> get_particle_by_id(const env::ParticleID id) const noexcept {
-			return container.dispatch_get_particle_by_id<M>(id);
+			return ParticleView<M>(container.dispatch_get_fetcher_by_id(id));
 		}
 
 		// get the lowest particle id
@@ -133,12 +132,12 @@ namespace april::core {
 		// get a particle by its container specific id. useful for non-stable (but fast) iteration over particles
 		template<env::FieldMask M>
 		[[nodiscard]] ParticleRef<M> get_particle_by_index(const size_t index) noexcept {
-			return container.dispatch_get_particle_by_index<M>(index);
+			return ParticleRef<M>{container.dispatch_get_fetcher_by_index(index)};
 		}
 
 		template<env::FieldMask M>
 		[[nodiscard]] ParticleView<M> get_particle_by_index(const size_t index) const noexcept {
-			return container.dispatch_get_particle_by_index<M>(index);
+			return ParticleView<M>{container.dispatch_get_fetcher_by_index(index)};
 		}
 
 		// get the first particle index (usually 0)
@@ -322,13 +321,13 @@ namespace april::core {
 		fields.for_each_item([this]<typename F>(F & field) {
 			for (size_t i = index_start(); i < index_end(); ++i) {
 				constexpr env::FieldMask M = F::fields;
-				const ParticleRef<M> p = get_particle_by_index<M>(i);
-				field.dispatch_apply(p);
+				RestrictedParticleRef<M> restricted (container.dispatch_get_fetcher_by_id(i));
+				field.template dispatch_apply<user_data_t>(restricted);
 			}
 		});
 
 		fields.for_each_item([this](auto & field) {
-			field.dispatch_update(system_context);
+			field.template dispatch_update<System>(system_context);
 		});
 	}
 }

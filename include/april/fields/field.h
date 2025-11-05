@@ -23,7 +23,7 @@ namespace april::field {
 		}
 
 		template<env::IsUserData U, env::HasFields Self>
-		void dispatch_apply(this const Self& self, env::RestrictedParticleRef<env::FieldOf<Self>, U> particle) {
+		void dispatch_apply(this const Self& self, const env::RestrictedParticleRef<env::FieldOf<Self>, U> & particle) {
 			static_assert(
 				requires { self.apply(particle); },
 				"Field must implement: void apply(env::RestrictedParticleRef<M, U> particle) const"

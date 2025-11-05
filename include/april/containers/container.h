@@ -32,17 +32,20 @@ namespace april::container {
 		/// in the future:
 		///   remove_particle
 		///   add_particle
-		template<env::IsUserData U>
+		template<env::IsUserData U, env::IsMutableFetcher MF, env::IsConstFetcher CF>
 		class ContainerInterface {
 		public:
-			using SimulationDomain = env::Box;
+			static_assert(std::same_as<U, typename MF::user_data_t>, "U must match MF::user_data_t");
+			static_assert(std::same_as<U, typename CF::user_data_t>, "U must match CF::user_data_t");
 
 			using ParticleID = env::ParticleID;
 			using ParticleType = env::ParticleType;
-
 			using ParticleRecord = env::internal::ParticleRecord<U>;
-			template<env::FieldMask M> using ParticleView = env::ParticleView<M, U>;
-			template<env::FieldMask M> using ParticleRef = env::ParticleRef<M, U>;
+			using MutableFetcher = MF;
+			using ConstFetcher = CF;
+
+			// template<env::FieldMask M> using ParticleView = env::ParticleView<M, U>;
+			// template<env::FieldMask M> using ParticleRef = env::ParticleRef<M, U>;
 
 			ContainerInterface() = default;
 
@@ -92,28 +95,26 @@ namespace april::container {
 				return self.id_to_index(id);
 			}
 
-			// ids are always dense in [0, N-1]
-			// use ids for stable iteration
-			template<env::FieldMask M>
-		    ParticleRef<M> dispatch_get_particle_by_id(this auto&& self, ParticleID id) noexcept{
-				if constexpr ( requires { { self.get_particle_by_id(id) } -> std::same_as<ParticleRef<M>>; }) {
-					return self.template get_particle_by_id<M>(id);
+			MutableFetcher dispatch_get_fetcher_by_id(this auto&& self, ParticleID id) noexcept{
+				if constexpr ( requires { { self.get_fetcher_by_id(id) } -> std::same_as<MutableFetcher>; }) {
+					return self.get_fetcher_by_id(id);
 				} else {
 					size_t idx = self.dispatch_id_to_index(id);
-					return self.template dispatch_get_particle_by_index<M>(idx);
-				}
-		    }
-
-			template<env::FieldMask M>
-			ParticleView<M> dispatch_get_particle_by_id(this const auto&& self, ParticleID id) noexcept{
-				if constexpr ( requires { { self.get_particle_by_id(id) } -> std::same_as<ParticleView<M>>; }) {
-					return self.template get_particle_by_id<M>(id);
-				} else {
-					size_t idx = self.dispatch_id_to_index(id);
-					return self.template dispatch_get_particle_by_index<M>(idx);
+					return self.dispatch_get_fetcher_by_index(idx);
 				}
 			}
 
+			ConstFetcher dispatch_get_fetcher_by_id(this const auto & self, ParticleID id) noexcept{
+				if constexpr ( requires { { self.get_fetcher_by_id(id) } -> std::same_as<ConstFetcher>; }) {
+					return self.get_fetcher_by_id(id);
+				} else {
+					size_t idx = self.dispatch_id_to_index(id);
+					return self.dispatch_get_fetcher_by_index(idx);
+				}
+			}
+
+			// ids are always dense in [0, N-1]
+			// use ids for stable iteration
 		    ParticleID dispatch_id_start(this auto&& self) {
 		        static_assert(
 		            requires { { self.id_start() } -> std::same_as<ParticleID>; },
@@ -131,22 +132,20 @@ namespace april::container {
 		    }
 
 
-			template<env::FieldMask M>
-			ParticleRef<M> dispatch_get_particle_by_index(this auto&& self, ParticleID index) noexcept {
+			MutableFetcher dispatch_get_fetcher_by_index(this auto&& self, size_t index) noexcept {
 		        static_assert(
-		            requires { { self.get_particle_by_index(index) } -> std::same_as<ParticleRef<M>>; },
-		            "Container subclass must implement: Particle& get_particle_by_index(size_t)"
+		            requires { { self.get_fetcher_by_index(index) } -> std::same_as<MutableFetcher>; },
+		            "Container subclass must implement: MutableFetcher get_fetcher_by_index(size_t)"
 		        );
-		        return self.get_particle_by_index(index);
+		        return self.get_fetcher_by_index(index);
 		    }
 
-			template<env::FieldMask M>
-			ParticleView<M> dispatch_get_particle_by_index(this const auto&& self, ParticleID index) noexcept {
+			ConstFetcher dispatch_get_fetcher_by_index(this const auto & self, size_t index) noexcept {
 				static_assert(
-					requires { { self.get_particle_by_index(index) } -> std::same_as<ParticleView<M>>; },
-					"Container subclass must implement: Particle& get_particle_by_index(size_t)"
+					requires { { self.get_fetcher_by_index(index) } -> std::same_as<ConstFetcher>; },
+					"Container subclass must implement: ConstFetcher get_fetcher_by_index(size_t) const"
 				);
-				return self.get_particle_by_index(index);
+				return self.get_fetcher_by_index(index);
 			}
 
 		    size_t dispatch_index_start(this auto&& self) {
@@ -196,49 +195,64 @@ namespace april::container {
 	} // namespace internal
 
 
-	template<typename Config, force::internal::IsForceVariant ForceVariant, env::IsUserData U>
-	class Container : public internal::ContainerInterface<U> {
+	template<typename CFG, class ForceTable, env::IsUserData U, env::IsMutableFetcher MF, env::IsConstFetcher CF>
+	class Container : public internal::ContainerInterface<U, MF, CF> {
 	public:
-		using config_type_t = Config;
-		using force_variant_t = ForceVariant;
+		// using Iface = internal::ContainerInterface<U, F>;
+		// using Iface::ParticleFetcher;
+		// using Iface::ParticleRecord;
+		using config_type_t = CFG;
 		using user_type_t = U;
-		using ForceTable = force::internal::ForceTable<ForceVariant>;
-		using internal::ContainerInterface<U>::Particle;
-		using internal::ContainerInterface<U>::ParticleID;
+		using force_table_t = ForceTable;
+		using mutable_fetcher_t = MF;
+		using const_fetcher = CF;
 
-		Container(const Config & config,
+		Container(const CFG & config,
 		  const internal::ContainerFlags & flags,
 		  const env::Box & box,
 		  ForceTable * force_table)
-		: cfg(config), flags(flags), domain(box), interactions(force_table) {}
+		: cfg(config), flags(flags), domain(box), force_table(force_table) {}
 
 	protected:
-		Config cfg;
+		CFG cfg;
 		const internal::ContainerFlags flags;
 		env::Box domain;
-		ForceTable * interactions{};
+		ForceTable * force_table{};
 	};
 
 
 	template<typename C> concept IsContainer =
 	requires {
-		typename C::CFG;
-		typename C::force_variant_t;
+		typename C::config_type_t;
+		typename C::force_table_t;
 		typename C::user_type_t;
+		typename C::mutable_fetcher_t;
+		typename C::const_fetcher;
 	} && requires {
-		typename C::CFG::template impl<typename C::force_variant_t, typename C::user_type_t>;
+		// Check config_type_t defines an impl template taking (force_table_t, user_type_t)
+		typename C::config_type_t::template impl<
+			typename C::force_table_t,
+			typename C::user_type_t>;
 	} && requires {
-		std::same_as<C, typename C::CFG::template impl<typename C::force_variant_t, typename C::user_type_t>>;
+		// Check impl<force_table_t, user_type_t> resolves to this container type
+		std::same_as<C, typename C::config_type_t::template impl<typename C::force_table_t, typename C::user_type_t>>;
 	} && requires {
-		std::derived_from<C, Container<typename C::CFG, typename C::force_variant_t, typename C::user_type_t>>;
+		// check that C is a derivative of Container
+		std::derived_from<C, Container<
+			typename C::config_type_t,
+			typename C::force_table_t,
+			typename C::user_type_t,
+			typename C::mutable_fetcher_t,
+			typename C::const_fetcher
+		>>;
 	};
 
 
 	template<typename ContainerDecl, typename Traits> concept IsContainerDecl =
 		env::internal::IsEnvironmentTraits<Traits> &&
 	requires {
-		typename ContainerDecl::template impl<typename Traits::force_variant_t>;
-	}
-	&& IsContainer<typename ContainerDecl::template impl<typename Traits::force_variant_t>>;
+		typename ContainerDecl::template impl<typename Traits::force_table_t, typename Traits::user_data_t>;
+	} &&
+		IsContainer<typename ContainerDecl::template impl<typename Traits::force_table_t, typename Traits::user_data_t>>;
 
 } // namespace april::container

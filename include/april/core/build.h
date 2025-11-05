@@ -80,8 +80,6 @@ namespace april::core {
 
 			for (const auto & p : particle_infos) {
 				AP_ASSERT(p.id.has_value(), "particle id not set during build phase");
-				AP_ASSERT(std::any_cast<UserData>(p.user_data), "user data particle with id " + std::to_string(p.id.value())
-					+ " is not of expected type " + demangled_type_name<UserData>());
 
 				env::internal::ParticleRecord<UserData> particle;
 				particle.id = id_map.at(p.id.value());
@@ -93,9 +91,17 @@ namespace april::core {
 				particle.force = p.force.value_or(vec3{});
 				particle.old_force = p.old_force.value_or(vec3{});
 				particle.old_position = p.old_position.value_or(vec3{});
-				particle.user_data = std::any_cast<UserData>(p.user_data);
+				if constexpr (std::is_same_v<UserData, env::NoUserData>) {
+					particle.user_data = env::NoUserData();
+				} else {
+					AP_ASSERT((std::any_cast<UserData>(&p.user_data) != nullptr), "user data particle with id "
+						+ std::to_string(p.id.value())
+						+ " is not of expected type " + demangled_type_name<UserData>()
+						+ " but has (mangled) type " + p.user_data.type().name());
+					particle.user_data = std::any_cast<UserData>(p.user_data);
+				}
 
-				particles.push_back(p);
+				particles.push_back(particle);
 			}
 
 			return particles;

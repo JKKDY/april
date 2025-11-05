@@ -29,6 +29,9 @@ namespace april::env {
     ParticleCuboid& ParticleCuboid::state(const ParticleState s) noexcept {
         particle_state = s; return *this;
     }
+    ParticleCuboid& ParticleCuboid::with_data(const std::any & data) noexcept {
+        user_data = data; return *this;
+    }
 
     // ---- ParticleSphere ----
     ParticleSphere& ParticleSphere::at(const vec3& c) noexcept {
@@ -58,6 +61,8 @@ namespace april::env {
     ParticleSphere& ParticleSphere::state(const ParticleState s) noexcept {
         particle_state = s; return *this;
     }
-
+    ParticleSphere& ParticleSphere::with_data(const std::any & data) noexcept {
+        user_data = data; return *this;
+    }
 } // namespace april::env
 

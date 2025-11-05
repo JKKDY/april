@@ -60,14 +60,15 @@ namespace april::core::internal {
 
 
 	void verify_domain_consistency(const Box & simulation_box, const Box & particle_bbox) {
-		if (simulation_box.extent.x <= 0 ||
-			simulation_box.extent.y <= 0 ||
-			simulation_box.extent.z <= 0)
+		if (simulation_box.extent.x < 0 || simulation_box.extent.y < 0 || simulation_box.extent.z < 0)
 		{
-			throw std::logic_error(
-				"Simulation domain has zero or negative extent. "
-				"If you have no particles, you must specify a domain manually."
-			);
+			throw std::logic_error("Simulation domain has negative extent. Got extent " + simulation_box.extent.to_string());
+		}
+
+		if (simulation_box.extent.x == 0 && simulation_box.extent.y == 0 && simulation_box.extent.z == 0)
+		{
+			throw std::logic_error("Simulation domain size is zero. Got extent " + simulation_box.extent.to_string() +
+				"\n If you have no particles or they all have the same position, you must specify a domain manually.");
 		}
 
 		// check that min corner is outside of particle bbox on all axis

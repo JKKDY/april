@@ -68,7 +68,7 @@ namespace april::container {
 			}
 
 			void register_particle_movement(size_t p_idx) {
-				ParticleRecord & particle = Base::get_particle_by_index(p_idx);
+				ParticleRecord & particle = particles[p_idx];
 
 				const uint32_t dst_cell = cell_index_of(particle.position);
 				// const uint32_t src_cell = cell_index_of(particle.old_position);

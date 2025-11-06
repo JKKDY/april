@@ -21,6 +21,7 @@ namespace april::boundary::internal {
 	}
 
 
+
 	template<IsBoundaryVariant BVariant> class CompiledBoundary{
 	public:
 		CompiledBoundary(const BVariant & boundary, const env::Box & boundary_region):
@@ -36,7 +37,7 @@ namespace april::boundary::internal {
 
 		const env::Box region;
 		const Topology topology;
-	private:
+	// private:
 		const BVariant boundary_v;
 	};
 

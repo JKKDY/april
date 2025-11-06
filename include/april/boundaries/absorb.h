@@ -5,7 +5,7 @@
 
 namespace april::boundary {
 	struct Absorb : Boundary {
-		static constexpr env::FieldMask fields = env::to_field_mask(env::Field::state);
+		static constexpr env::FieldMask fields = to_field_mask(env::Field::state);
 		Absorb(): Boundary(-1, false, false, false) {}
 
 		template<env::IsUserData UserData>

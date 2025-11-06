@@ -81,9 +81,8 @@ namespace april::boundary {
 			topology(thickness, couples_axis, force_wrap, may_change_particle_pos)
 		{}
 
-		// TODO maybe make particle to rvalue reference?
 		template<env::IsUserData UserData, env::HasFields Self>
-		void dispatch_apply(this Self&& self, env::ParticleRef<env::FieldOf<Self>, UserData> particle,
+		void dispatch_apply(this Self && self, env::ParticleRef<env::FieldOf<Self>, UserData> particle,
 			const env::Box & domain_box, Face face) noexcept {
 			static_assert(
 			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },

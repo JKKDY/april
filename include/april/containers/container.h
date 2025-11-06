@@ -198,9 +198,6 @@ namespace april::container {
 	template<typename CFG, class ForceTable, env::IsUserData U, env::IsMutableFetcher MF, env::IsConstFetcher CF>
 	class Container : public internal::ContainerInterface<U, MF, CF> {
 	public:
-		// using Iface = internal::ContainerInterface<U, F>;
-		// using Iface::ParticleFetcher;
-		// using Iface::ParticleRecord;
 		using config_type_t = CFG;
 		using user_type_t = U;
 		using force_table_t = ForceTable;

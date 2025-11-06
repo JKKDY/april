@@ -104,7 +104,7 @@ namespace april::env {
 
 
 	template<class T>
-	concept HasFields = requires { T::fields; };
+	concept HasFields = requires { std::remove_cvref_t<T>::fields; };
 
 	template<HasFields Self>
 	inline constexpr FieldMask FieldOf = std::remove_cvref_t<Self>::fields;

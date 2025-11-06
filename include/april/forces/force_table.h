@@ -12,17 +12,6 @@
 namespace april::force::internal {
 
 
-    // temporary helper until the use of variant is eliminated
-    template<typename T>
-    struct variant_fields_helper;
-
-    template<typename... TForces>
-    struct variant_fields_helper<std::variant<TForces...>> {
-        static constexpr env::FieldMask value = (env::FieldOf<TForces> | ... | env::Field::none);
-    };
-
-    template<typename TVariant>
-    inline constexpr env::FieldMask all_fields_of_v = variant_fields_helper<TVariant>::value;
 
     template<IsForceVariant ForceVariant>
     class ForceTable {
@@ -31,9 +20,6 @@ namespace april::force::internal {
         using IdMap = std::unordered_map<env::ParticleID, env::ParticleID>;
         using TypeMap = std::unordered_map<env::ParticleType, env::ParticleType>;
     public:
-
-        // static constexpr env::FieldMask fields =
-        //     env::Field::state | env::Field::position | env::Field::id | env::Field::type;
 
         ForceTable(
             std::vector<TypeInteraction> type_interactions,

@@ -7,12 +7,12 @@
 
 namespace april::container {
 	namespace internal {
-		template <class FV, class U> class LinkedCells;
+		template <class FT, class U> class LinkedCells;
 	}
 
 
 	struct LinkedCells {
-		template<class FV, class U> using impl = internal::LinkedCells<FV, U>;
+		template<class FT, class U> using impl = internal::LinkedCells<FT, U>;
 		double cell_size_hint;
 
 		void with_cell_size(const double cell_size) {
@@ -22,9 +22,9 @@ namespace april::container {
 
 
 	namespace internal {
-		template <class Fv, class U>
-		class LinkedCells final : public ContiguousContainer<container::LinkedCells, Fv, U> {
-			using Base = ContiguousContainer<container::LinkedCells, Fv, U>;
+		template <class FT, class U>
+		class LinkedCells final : public ContiguousContainer<container::LinkedCells, FT, U> {
+			using Base = ContiguousContainer<container::LinkedCells, FT, U>;
 			using typename Base::ParticleRecord;
 			using typename Base::ParticleID;
 			using Base::force_table;
@@ -113,56 +113,78 @@ namespace april::container {
 			}
 
 			void calculate_forces() {
-				// for (auto & p : particles) {
-				// 	p.reset_force();
-				// }
+				for (auto & p : particles) {
+					p.old_force = p.force;
+					p.force = {};
+				}
 
-				// // for every cell
-				// for (uint32_t cid = 0; cid < cell_begin.size() - 1; cid++) {
-				// 	const uint32_t start = cell_begin[cid];
-				// 	const uint32_t end = cell_begin[cid+1];
-				//
-				// 	for (uint32_t i = start; i < end; i++) {
-				// 		for (uint32_t j = i+1; j < end; j++) {
-				// 			auto & p1 = particles[i];
-				// 			auto & p2 = particles[j];
-				//
-				// 			const vec3 force = interactions->evaluate(p1, p2);
-				// 			p1.force += force;
-				// 			p2.force -= force;
-				// 		}
-				// 	}
-				// }
-				//
-				// // for every neighbouring cell pair
-				// for (const auto & pair : neighbor_cell_pairs) {
-				// 	for (uint32_t i = cell_begin[pair.c1]; i < cell_begin[pair.c1+1]; ++i) {
-				// 		for (uint32_t j = cell_begin[pair.c2]; j < cell_begin[pair.c2+1]; ++j) {
-				// 			auto & p1 = particles[i];
-				// 			auto & p2 = particles[j];
-				//
-				// 			const vec3 force = interactions->evaluate(p1, p2);
-				// 			p1.force += force;
-				// 			p2.force -= force;
-				// 		}
-				// 	}
-				// }
+				// for every cell
+				for (uint32_t cid = 0; cid < cell_begin.size() - 1; cid++) {
+					const uint32_t start = cell_begin[cid];
+					const uint32_t end = cell_begin[cid+1];
+
+					for (uint32_t i = start; i < end; i++) {
+						for (uint32_t j = i+1; j < end; j++) {
+							auto & p1 = particles[i];
+							auto & p2 = particles[j];
+
+							auto force_variant = force_table->get_type_force(p1.type, p2.type);
+							vec3 force = std::visit( [&]<typename F>(F const& ff) {
+								constexpr env::FieldMask fields = F::fields;
+								auto pv1 = env::ParticleView<fields, U>{this->get_fetcher_by_index(i)};
+								auto pv2 = env::ParticleView<fields, U>{this->get_fetcher_by_index(j)};
+								return ff(pv1, pv2, p2.position - p1.position);
+							}, force_variant);
+
+							p1.force += force;
+							p2.force -= force;
+						}
+					}
+				}
+
+				// for every neighbouring cell pair
+				for (const auto & pair : neighbor_cell_pairs) {
+					for (uint32_t i = cell_begin[pair.c1]; i < cell_begin[pair.c1+1]; ++i) {
+						for (uint32_t j = cell_begin[pair.c2]; j < cell_begin[pair.c2+1]; ++j) {
+							auto & p1 = particles[i];
+							auto & p2 = particles[j];
+
+							auto force_variant = force_table->get_type_force(p1.type, p2.type);
+							vec3 force = std::visit( [&]<typename F>(F const& ff) {
+								constexpr env::FieldMask fields = F::fields;
+								auto pv1 = env::ParticleView<fields, U>{this->get_fetcher_by_index(i)};
+								auto pv2 = env::ParticleView<fields, U>{this->get_fetcher_by_index(j)};
+								return ff(pv1, pv2, p2.position - p1.position);
+							}, force_variant);
+
+							p1.force += force;
+							p2.force -= force;
+						}
+					}
+				}
 
 				// for every wrapped cell pair
-				// for (const auto & pair : wrapped_cell_pairs) {
-				// 	for (uint32_t i = cell_begin[pair.c1]; i < cell_begin[pair.c1+1]; ++i) {
-				// 		for (uint32_t j = cell_begin[pair.c2]; j < cell_begin[pair.c2+1]; ++j) {
-				// 			auto & p1 = particles[i];
-				// 			auto & p2 = particles[j];
-				//
-				// 			const vec3 diff = p2.position - p1.position + pair.shift;
-				// 			const vec3 force = interactions->evaluate(p1, p2, diff);
-				//
-				// 			p1.force += force;
-				// 			p2.force -= force;
-				// 		}
-				// 	}
-				// }
+				for (const auto & pair : wrapped_cell_pairs) {
+					for (uint32_t i = cell_begin[pair.c1]; i < cell_begin[pair.c1+1]; ++i) {
+						for (uint32_t j = cell_begin[pair.c2]; j < cell_begin[pair.c2+1]; ++j) {
+							auto & p1 = particles[i];
+							auto & p2 = particles[j];
+
+							const vec3 diff = p2.position - p1.position + pair.shift;
+
+							auto force_variant = force_table->get_type_force(p1.type, p2.type);
+							vec3 force = std::visit( [&]<typename F>(F const& ff) {
+								constexpr env::FieldMask fields = F::fields;
+								auto pv1 = env::ParticleView<fields, U>{this->get_fetcher_by_index(i)};
+								auto pv2 = env::ParticleView<fields, U>{this->get_fetcher_by_index(j)};
+								return ff(pv1, pv2, diff);
+							}, force_variant);
+
+							p1.force += force;
+							p2.force -= force;
+						}
+					}
+				}
 			}
 
 			std::vector<size_t> collect_indices_in_region(const env::Box & region) {

@@ -12,6 +12,18 @@
 namespace april::force::internal {
 
 
+    // temporary helper until the use of variant is eliminated
+    template<typename T>
+    struct variant_fields_helper;
+
+    template<typename... TForces>
+    struct variant_fields_helper<std::variant<TForces...>> {
+        static constexpr env::FieldMask value = (env::FieldOf<TForces> | ... | env::Field::none);
+    };
+
+    template<typename TVariant>
+    inline constexpr env::FieldMask all_fields_of_v = variant_fields_helper<TVariant>::value;
+
     template<IsForceVariant ForceVariant>
     class ForceTable {
         using TypeInteraction = TypeInteraction<ForceVariant>;
@@ -19,6 +31,9 @@ namespace april::force::internal {
         using IdMap = std::unordered_map<env::ParticleID, env::ParticleID>;
         using TypeMap = std::unordered_map<env::ParticleType, env::ParticleType>;
     public:
+
+        // static constexpr env::FieldMask fields =
+        //     env::Field::state | env::Field::position | env::Field::id | env::Field::type;
 
         ForceTable(
             std::vector<TypeInteraction> type_interactions,
@@ -33,12 +48,12 @@ namespace april::force::internal {
         }
 
         // template<env::IsUserData U1, env::IsUserData U2>
-        // [[nodiscard]] vec3 evaluate(const env::ParticleView<U1>& p1, const env::ParticleView<U2>& p2) const {
+        // [[nodiscard]] vec3 evaluate(const env::ParticleView<fields, U1>& p1, const env::ParticleView<fields, U2>& p2) const {
         //     return evaluate(p1, p2, p2.position - p1.position); // dist vector points from p1 to p2
         // }
-        //
+
         // template<env::IsUserData U1, env::IsUserData U2>
-        // [[nodiscard]] vec3 evaluate(const env::ParticleView<U1>& p1, const env::ParticleView<U2>& p2, const vec3& r) const {
+        // [[nodiscard]] vec3 evaluate(const env::ParticleView<fields, U1>& p1, const env::ParticleView<fields, U2>& p2, const vec3& r) const {
         //     auto & tF = get_type_force(p1.type, p2.type);
         //     vec3 force = std::visit([&](auto const& f){ return f(p1,p2,r); }, tF);
         //
@@ -50,7 +65,8 @@ namespace april::force::internal {
         //
         //     return force;
         // }
-        //
+
+
         [[nodiscard]] double get_max_cutoff() const {
             return max_cutoff;
         }

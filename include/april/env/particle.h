@@ -251,8 +251,9 @@ namespace april::env {
 	// Immutable reference to particle data, intended for read-only access (e.g., monitors).
 	template<FieldMask M, IsUserData UserDataT>
 	struct ParticleView {
-		template<IsConstFetcher Fetcher>
-		explicit ParticleView(const Fetcher& f)
+		template<class F>
+		requires IsConstFetcher<std::remove_cvref_t<F>> || IsMutableFetcher<std::remove_cvref_t<F>>
+		explicit ParticleView(F && f)
 		   : force        ( init_field<const vec3&, 		Field::force,		M>([&]()-> const vec3&{ return f.force(); }) )
 		   , position     ( init_field<const vec3&, 		Field::position,	M>([&]()-> const vec3&{ return f.position(); }) )
 		   , velocity     ( init_field<const vec3&, 		Field::velocity,	M>([&]()-> const vec3&{ return f.velocity(); }) )

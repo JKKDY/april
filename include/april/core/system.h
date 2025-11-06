@@ -151,24 +151,6 @@ namespace april::core {
 		}
 
 
-
-		// // get read access to all internal particles based on their state. Useful for snapshots and analysis.
-		// template<env::FieldMask M>
-		// [[nodiscard]] std::vector<ParticleView<M>> export_particles(env::ParticleState state = env::ParticleState::ALL) {
-		// 	std::vector<ParticleView<M>> particles;
-		// 	if (container.dispatch_particle_count() == 0) {
-		// 		return {};
-		// 	}
-		// 	particles.reserve(index_end() - index_start() + 1);
-		// 	for (auto i = index_start(); i < index_end(); ++i) {
-		// 		auto & p = get_particle_by_index(i);
-		// 		if (static_cast<int>(p.state & state))
-		// 			particles.emplace_back(p);
-		// 	}
-		// 	return particles;
-		// }
-
-
 	private:
 		// private constructor since System should only be creatable through build_system(...)
 		System(

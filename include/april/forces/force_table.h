@@ -57,6 +57,9 @@ namespace april::force::internal {
             return max_cutoff;
         }
 
+        [[nodiscard]] bool has_id_force(const env::ParticleID a, const env::ParticleID b) const noexcept{
+            return a < n_ids && b < n_ids;
+        }
 
         ForceVariant & get_type_force(const env::ParticleType a, const env::ParticleType b) noexcept {
             return type_forces[type_index(a, b)];

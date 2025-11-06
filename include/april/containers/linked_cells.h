@@ -129,7 +129,7 @@ namespace april::container {
 							auto & p2 = particles[j];
 
 							auto force_variant = force_table->get_type_force(p1.type, p2.type);
-							vec3 force = std::visit( [&]<typename F>(F const& ff) {
+							const vec3 force = std::visit( [&]<typename F>(F const& ff) {
 								constexpr env::FieldMask fields = F::fields;
 								auto pv1 = env::ParticleView<fields, U>{this->get_fetcher_by_index(i)};
 								auto pv2 = env::ParticleView<fields, U>{this->get_fetcher_by_index(j)};
@@ -138,6 +138,18 @@ namespace april::container {
 
 							p1.force += force;
 							p2.force -= force;
+
+							if (force_table->has_id_force(p1.id, p2.id)) {
+								auto iF = force_table->get_id_force(p1.id, p2.id);
+								const vec3 iforce = std::visit( [&]<typename F>(F const& ff) {
+									constexpr env::FieldMask fields = F::fields;
+									auto pv1 = env::ParticleView<fields, U>{this->get_fetcher_by_index(i)};
+									auto pv2 = env::ParticleView<fields, U>{this->get_fetcher_by_index(j)};
+									return ff(pv1, pv2, p2.position - p1.position);
+								}, iF);
+								p1.force += iforce;
+								p2.force -= iforce;
+							}
 						}
 					}
 				}
@@ -159,6 +171,18 @@ namespace april::container {
 
 							p1.force += force;
 							p2.force -= force;
+
+							if (force_table->has_id_force(p1.id, p2.id)) {
+								auto iF = force_table->get_id_force(p1.id, p2.id);
+								const vec3 iforce = std::visit( [&]<typename F>(F const& ff) {
+									constexpr env::FieldMask fields = F::fields;
+									auto pv1 = env::ParticleView<fields, U>{this->get_fetcher_by_index(i)};
+									auto pv2 = env::ParticleView<fields, U>{this->get_fetcher_by_index(j)};
+									return ff(pv1, pv2, p2.position - p1.position);
+								}, iF);
+								p1.force += iforce;
+								p2.force -= iforce;
+							}
 						}
 					}
 				}
@@ -182,6 +206,18 @@ namespace april::container {
 
 							p1.force += force;
 							p2.force -= force;
+
+							if (force_table->has_id_force(p1.id, p2.id)) {
+								auto iF = force_table->get_id_force(p1.id, p2.id);
+								const vec3 iforce = std::visit( [&]<typename F>(F const& ff) {
+									constexpr env::FieldMask fields = F::fields;
+									auto pv1 = env::ParticleView<fields, U>{this->get_fetcher_by_index(i)};
+									auto pv2 = env::ParticleView<fields, U>{this->get_fetcher_by_index(j)};
+									return ff(pv1, pv2, p2.position - p1.position);
+								}, iF);
+								p1.force += iforce;
+								p2.force -= iforce;
+							}
 						}
 					}
 				}

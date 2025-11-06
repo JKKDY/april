@@ -20,8 +20,9 @@ namespace april::force {
 		epsilon(epsilon_), sigma(sigma_), sigma2(sigma * sigma) {}
 
 
-		template<env::IsUserData U1, env::IsUserData U2>
-		vec3 operator()(const env::ParticleView<fields, U1>&, const env::ParticleView<fields, U2>&, const vec3& r) const noexcept {
+		// template<env::IsUserData U1, env::IsUserData U2>
+		template<env::IsConstFetcher F>
+		vec3 operator()(const F &, const F &, const vec3& r) const noexcept {
 			const double r2 = r.norm_squared();
 			if (cutoff > 0.0 && r2 > cutoff * cutoff)
 				return vec3{0.0, 0.0, 0.0};

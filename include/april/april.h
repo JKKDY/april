@@ -71,7 +71,7 @@ namespace april {
 	using boundary::Open;
 	using boundary::Periodic;
 	using boundary::Reflective;
-	using boundary::Repulsive;
+	// using boundary::Repulsive;
 
 	// Forces
 	using force::forces;

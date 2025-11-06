@@ -148,6 +148,10 @@ namespace april::container {
 				return self.get_fetcher_by_index(index);
 			}
 
+			ConstFetcher get_const_fetcher_by_index(size_t index) noexcept {
+				return std::as_const(*this).dispatch_get_fetcher_by_index(index);
+			}
+
 		    size_t dispatch_index_start(this auto&& self) {
 		        static_assert(
 		            requires { { self.index_start() } -> std::same_as<size_t>; },

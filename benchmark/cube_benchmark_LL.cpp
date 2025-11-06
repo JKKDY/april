@@ -65,6 +65,7 @@ int main() {
 	env.set_boundaries(Reflective(), all_faces);
 
 	constexpr auto container = LinkedCells(r_cut);
+//	constexpr auto container = DirectSum();
 	auto system = build_system(env, container);
 
 	constexpr double dt = 0.0002;

@@ -18,8 +18,8 @@ namespace april::force {
 		: Force(cutoff), k(strength), r0(equilibrium) {}
 
 
-		template<env::IsUserData U1, env::IsUserData U2>
-		vec3 operator()(const env::ParticleView<fields, U1>& , const env::ParticleView<fields, U2>& , const vec3& r) const noexcept {
+        template<env::IsConstFetcher F>
+		vec3 operator()(const F& , const F& , const vec3& r) const noexcept {
 			const double dist = r.norm();
 			if (dist > cutoff) return {};
 			const double magnitude = k * (dist - r0) / dist; // F = -k * (dist - r0) * (r / dist)

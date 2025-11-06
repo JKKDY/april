@@ -9,6 +9,7 @@ namespace april::boundary {
 
 		Open(): Boundary(-1, false, false, false) {}
 
-		template<env::IsUserData UserData>
-		void apply(env::ParticleRef<fields, UserData> &, const env::Box &, const Face) const noexcept {}	};
+		template<env::IsMutableFetcher F>
+	    void apply(F &&, const env::Box &, const Face) const noexcept {}
+	};
 }

@@ -33,24 +33,24 @@ namespace april::force::internal {
             compute_max_cutoff();
         }
 
-        // template<env::IsUserData U1, env::IsUserData U2>
-        // [[nodiscard]] vec3 evaluate(const env::ParticleView<fields, U1>& p1, const env::ParticleView<fields, U2>& p2) const {
-        //     return evaluate(p1, p2, p2.position - p1.position); // dist vector points from p1 to p2
-        // }
+        template<env::IsConstFetcher F>
+        [[nodiscard]] vec3 evaluate(const F & p1, const F & p2) const {
+            return evaluate(p1, p2, p2.position() - p1.position()); // dist vector points from p1 to p2
+        }
 
-        // template<env::IsUserData U1, env::IsUserData U2>
-        // [[nodiscard]] vec3 evaluate(const env::ParticleView<fields, U1>& p1, const env::ParticleView<fields, U2>& p2, const vec3& r) const {
-        //     auto & tF = get_type_force(p1.type, p2.type);
-        //     vec3 force = std::visit([&](auto const& f){ return f(p1,p2,r); }, tF);
-        //
-        //     // check if both particles even have any individual interactions defined for them
-        //     if (p1.id < n_ids && p2.id < n_ids) {
-        //         auto & iF = get_id_force(p1.id, p2.id);
-        //         force += std::visit([&](auto const& f){ return f(p1,p2,r); }, iF);
-        //     }
-        //
-        //     return force;
-        // }
+        template<env::IsConstFetcher F>
+        [[nodiscard]] vec3 evaluate(const F & p1, const F & p2, const vec3& r) const {
+            auto & tF = get_type_force(p1.type(), p2.type());
+            vec3 force = std::visit([&](auto const& f){ return f(p1,p2,r); }, tF);
+
+            // check if both particles even have any individual interactions defined for them
+            if (p1.id() < n_ids && p2.id() < n_ids) {
+                auto & iF = get_id_force(p1.id(), p2.id());
+                force += std::visit([&](auto const& f){ return f(p1,p2,r); }, iF);
+            }
+
+            return force;
+        }
 
 
         [[nodiscard]] double get_max_cutoff() const {

@@ -12,8 +12,8 @@ namespace april::force {
 		NoForce(): Force(0) {}
 
 
-		template<env::IsUserData U1, env::IsUserData U2>
-		vec3 operator()(env::ParticleView<fields, U1>, env::ParticleView<fields, U2>, const vec3&) const noexcept {
+        template<env::IsConstFetcher F>
+		vec3 operator()(const F &, const F &, const vec3&) const noexcept {
 			return vec3{0.0, 0.0, 0.0};
 		}
 

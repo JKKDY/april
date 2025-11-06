@@ -8,9 +8,9 @@ namespace april::boundary {
 		static constexpr env::FieldMask fields = to_field_mask(env::Field::state);
 		Absorb(): Boundary(-1, false, false, false) {}
 
-		template<env::IsUserData UserData>
-		void apply(env::ParticleRef<fields, UserData> p, const env::Box &, const Face) const noexcept{
-			p.state = env::ParticleState::DEAD;
+        template<env::IsMutableFetcher F>
+		void apply(F && p, const env::Box &, const Face) const noexcept{
+			p.state() = env::ParticleState::DEAD;
 		}
 	};
 }

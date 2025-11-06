@@ -148,8 +148,8 @@ namespace april::env {
 	concept IsMutableFetcher =
 	std::is_copy_constructible_v<F> &&
 	std::is_move_constructible_v<F> &&
-	requires { typename F::user_data_t; } &&
-	IsUserData<typename F::user_data_t> &&
+	requires { typename  std::remove_reference_t<F>::user_data_t; } &&
+	IsUserData<typename  std::remove_reference_t<F>::user_data_t> &&
 	requires(F f) {
 		{ f.force() }         -> std::same_as<vec3&>;
 		{ f.position() }      -> std::same_as<vec3&>;
@@ -160,13 +160,15 @@ namespace april::env {
 		{ f.state() }         -> std::same_as<ParticleState&>;
 		{ f.type() }          -> std::same_as<ParticleType&>;
 		{ f.id() }            -> std::same_as<ParticleID&>;
-		{ f.user_data() }     -> std::same_as<typename F::user_data_t&>;
+		{ f.user_data() }     -> std::same_as<typename std::remove_reference_t<F>::user_data_t&>;
 	};
 
 	template<typename F>
 	concept IsConstFetcher =
-	requires { typename F::user_data_t; } &&
-	IsUserData<typename F::user_data_t> &&
+	std::is_copy_constructible_v<F> &&
+	std::is_move_constructible_v<F> &&
+	requires { typename std::remove_reference_t<F>::user_data_t; } &&
+	IsUserData<typename std::remove_reference_t<F>::user_data_t> &&
 	requires(const F cf) {
 		{ cf.position() }    -> std::same_as<const vec3&>;
 		{ cf.velocity() }    -> std::same_as<const vec3&>;
@@ -177,7 +179,7 @@ namespace april::env {
 		{ cf.state() }       -> std::same_as<ParticleState>;
 		{ cf.type() }        -> std::same_as<ParticleType>;
 		{ cf.id() }          -> std::same_as<ParticleID>;
-		{ cf.user_data() }   -> std::same_as<const typename F::user_data_t&>;
+		{ cf.user_data() }   -> std::same_as<const typename  std::remove_reference_t<F>::user_data_t&>;
 	};
 
 

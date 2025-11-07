@@ -7,10 +7,11 @@ using namespace april;
 struct ConstantForce final : force::Force {
 	vec3 v;
 
-	ConstantForce(double x, double y, double z, double cutoff = -1)
+	ConstantForce(const double x, const double y, const double z, const double cutoff = -1)
 	: Force(cutoff), v{x,y,z} {}
 
-	[[nodiscard]] vec3 eval(const env::internal::Particle&, const env::internal::Particle&, const vec3&) const noexcept {
+	template<env::IsConstFetcher F>
+	vec3 operator()(const F&, const F&, const vec3&) const noexcept {
 		return v;
 	}
 

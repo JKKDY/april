@@ -1,12 +1,13 @@
 #include <gtest/gtest.h>
 #include "april/april.h"
+#include "utils.h"
 
 using namespace april;
 
-using PID = env::internal::ParticleID;
 
-inline env::internal::Particle make_particle(const vec3& pos, const vec3& vel = {0,0,0}) {
-	env::internal::Particle p;
+
+inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& pos, const vec3& vel = {0,0,0}) {
+	env::internal::ParticleRecord<env::NoUserData> p;
 	p.id = 0;
 	p.position = pos + vel;
 	p.old_position = pos;
@@ -16,6 +17,7 @@ inline env::internal::Particle make_particle(const vec3& pos, const vec3& vel = 
 	return p;
 }
 
+
 // Direct Application Tests
 TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 	const Periodic periodic;
@@ -23,7 +25,8 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 
 	// Particle just beyond +X boundary
 	auto p = make_particle({10.2, 5.0, 5.0});
-	periodic.apply(p, box, Face::XPlus);
+	auto pf = env::internal::ParticleRecordFetcher(p);
+	periodic.apply(pf, box, Face::XPlus);
 
 	EXPECT_NEAR(p.position.x, 0.2, 1e-12);
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);
@@ -36,7 +39,8 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 
 	// Particle just beyond -X boundary
 	auto p = make_particle({-0.3, 5.0, 5.0});
-	periodic.apply(p, box, Face::XMinus);
+	auto pf = env::internal::ParticleRecordFetcher(p);
+	periodic.apply(pf, box, Face::XMinus);
 
 	EXPECT_NEAR(p.position.x, 9.7, 1e-12);
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);
@@ -70,7 +74,8 @@ TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 
 	for (size_t i = 0; i < faces.size(); ++i) {
 		auto p = make_particle(start_positions[i]);
-		periodic.apply(p, box, faces[i]);
+		auto pf = env::internal::ParticleRecordFetcher(p);
+		periodic.apply(pf, box, faces[i]);
 		EXPECT_NEAR(p.position.x, expected[i].x, 1e-12);
 		EXPECT_NEAR(p.position.y, expected[i].y, 1e-12);
 		EXPECT_NEAR(p.position.z, expected[i].z, 1e-12);
@@ -98,10 +103,11 @@ TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 	env::Domain domain({0,0,0}, {10,10,10});
 
 	auto compiled = boundary::internal::compile_boundary(variant, env::Box::from_domain(domain), Face::ZPlus);
-	env::internal::Particle p = make_particle({5,5,10.2});
+	auto p = make_particle({5,5,10.2});
+	auto pf = env::internal::ParticleRecordFetcher(p);
 	env::Box box({0,0,0}, {10,10,10});
 
-	compiled.apply(p, box, Face::ZPlus);
+	compiled.apply(pf, box, Face::ZPlus);
 
 	EXPECT_NEAR(p.position.z, 0.2, 1e-12)
 		<< "Periodic boundary should wrap Z+ back into domain.";
@@ -123,12 +129,12 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// One particle near each face moving outward
-	env.add_particle({.id=0, .type=0, .position={0.4,5,5},  .velocity={-1,0,0}, .mass=1, .state=ParticleState::ALIVE}); // X−
-	env.add_particle({.id=1, .type=0, .position={9.6,5,5},  .velocity={+1,0,0}, .mass=1, .state=ParticleState::ALIVE}); // X+
-	env.add_particle({.id=2, .type=0, .position={5,0.4,5},  .velocity={0,-1,0}, .mass=1, .state=ParticleState::ALIVE}); // Y−
-	env.add_particle({.id=3, .type=0, .position={5,9.6,5},  .velocity={0,+1,0}, .mass=1, .state=ParticleState::ALIVE}); // Y+
-	env.add_particle({.id=4, .type=0, .position={5,5,0.4},  .velocity={0,0,-1}, .mass=1, .state=ParticleState::ALIVE}); // Z−
-	env.add_particle({.id=5, .type=0, .position={5,5,9.6},  .velocity={0,0,+1}, .mass=1, .state=ParticleState::ALIVE}); // Z+
+	env.add_particle(make_particle(0, {0.4,5,5}, {-1,0,0}, 1, ParticleState::ALIVE, 0)); // X−
+	env.add_particle(make_particle(0, {9.6,5,5}, {+1,0,0}, 1, ParticleState::ALIVE, 1)); // X+
+	env.add_particle(make_particle(0, {5,0.4,5}, {0,-1,0}, 1, ParticleState::ALIVE, 2)); // Y−
+	env.add_particle(make_particle(0, {5,9.6,5}, {0,+1,0}, 1, ParticleState::ALIVE, 3)); // Y+
+	env.add_particle(make_particle(0, {5,5,0.4}, {0,0,-1}, 1, ParticleState::ALIVE, 4)); // Z−
+	env.add_particle(make_particle(0, {5,5,9.6}, {0,0,+1}, 1, ParticleState::ALIVE, 5)); // Z+
 
 	// Enable periodic boundaries on all faces
 	env.set_boundaries(Periodic(), all_faces);
@@ -137,11 +143,8 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 	auto sys = build_system(env, TypeParam(), &mappings);
 
 	// Simulate one integration step: move each particle outside its face
-	for (auto pid = sys.index_start(); pid < sys.index_end(); ++pid) {
-		auto& p = sys.get_particle_by_index(pid);
-		p.old_position = p.position;
-		p.position = p.old_position + p.velocity;
-	}
+	simulate_single_step(sys);
+
 
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
@@ -158,7 +161,8 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 
 	for (int uid = 0; uid < 6; ++uid) {
 		auto iid = mappings.id_map.at(uid);
-		const auto& p = sys.get_particle_by_index(iid);
+		const auto p = get_particle(sys, iid);
+
 		EXPECT_NEAR(p.position.x, expected[iid].x, 1e-12);
 		EXPECT_NEAR(p.position.y, expected[iid].y, 1e-12);
 		EXPECT_NEAR(p.position.z, expected[iid].z, 1e-12);
@@ -173,22 +177,20 @@ TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinu
 	env.add_force(NoForce{}, to_type(0));
 
 	// Single particle heading out +X
-	env.add_particle({.id=0, .type=0, .position={9.8,5,5}, .velocity={+1,0,0}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle(make_particle(0, {9.8,5,5}, {+1,0,0}, 1, ParticleState::ALIVE, 0));
 	env.set_boundaries(Periodic(), all_faces);
 
 	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
-	for (auto pid = sys.index_start(); pid < sys.index_end(); ++pid) {
-		auto& p = sys.get_particle_by_index(pid);
-		p.old_position = p.position;
-		p.position = p.old_position + p.velocity; // simulate step crossing X+
-	}
+	simulate_single_step(sys);
+
 
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
 
-	const auto& p = sys.get_particle_by_index(mappings.id_map.at(0));
+	const auto p = get_particle(sys, mappings.id_map.at(0));
+
 	EXPECT_NEAR(p.position.x, 0.8, 1e-12)
 		<< "Particle crossing +X should reappear at +0.8 within the domain.";
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);

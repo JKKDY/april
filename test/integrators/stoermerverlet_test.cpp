@@ -3,9 +3,11 @@
 
 #include "april/april.h"
 #include "orbit_monitor.h"
+#include "utils.h"
 
 using namespace april;
 
+constexpr env::FieldMask all_fields = to_field_mask(env::Field::all);
 
 TEST(StoermerVerletTest,ConstructionTest) {
 
@@ -22,7 +24,8 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	StoermerVerlet integrator(system);
 	integrator.run_steps(0.1, 10);
 
-	for (auto & p : system.export_particles()) {
+	for (size_t i = system.index_start(); i < system.index_end(); i++) {
+		auto p = system.get_particle_by_index<all_fields>(i);
 		EXPECT_EQ(p.position, vec3(0,0,0));
 		EXPECT_EQ(p.velocity, vec3(0,0,0));
 	}
@@ -42,10 +45,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	StoermerVerlet integrator(system);
 	integrator.run_steps(1, 1);
 
-	std::vector<ParticleView> particles;
-	for (auto & p : system.export_particles()) {
-		particles.push_back(p);
-	}
+	auto particles = export_particles(system);
 
 	auto p1 =  particles[0].mass == 1 ? particles[0] : particles[1];
 	auto p2 =  particles[0].mass == 2 ? particles[0] : particles[1];
@@ -77,10 +77,7 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	StoermerVerlet integrator(system);
 	integrator.run_steps(0.1, 1);
 
-	std::vector<ParticleView> particles;
-	for (auto & p : system.export_particles()) {
-		particles.push_back(p);
-	}
+	auto particles = export_particles(system);
 
 	constexpr double f_mag = 1.0/2/2;
 
@@ -120,10 +117,7 @@ TEST(StoermerVerletTest, OrbitTest) {
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for(0.001, T);
 
-	std::vector<ParticleView> particles;
-	for (auto & p : system.export_particles()) {
-		particles.push_back(p);
-	}
+	auto particles = export_particles(system);
 
 	auto p1 =  particles[0].mass == m ? particles[0] : particles[1];
 	auto p2 =  particles[0].mass == M ? particles[0] : particles[1];
@@ -180,10 +174,7 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 		EXPECT_NEAR(system.time(), T, 0.005);
 	}
 
-	std::vector<ParticleView> particles;
-	for (auto & p : system.export_particles()) {
-		particles.push_back(p);
-	}
+	auto particles = export_particles(system);
 
 	auto p1 =  particles[0].mass == m ? particles[0] : particles[1];
 	auto p2 =  particles[0].mass == M ? particles[0] : particles[1];

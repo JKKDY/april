@@ -1,13 +1,16 @@
 #include <gtest/gtest.h>
 #include "april/april.h"
 
+#include "utils.h"
 using namespace april;
 
-using PID = env::internal::ParticleID;
+
+
+using PID = ParticleID;
 
 // simple helper to make a dummy particle
-static env::internal::Particle make_alive_particle() {
-	env::internal::Particle p;
+static env::internal::ParticleRecord<env::NoUserData> make_alive_particle() {
+	env::internal::ParticleRecord<env::NoUserData> p;
 	p.id = 0;
 	p.position = {5.0, 5.0, 5.0};
 	p.velocity = {0,0,0};
@@ -22,7 +25,8 @@ TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 	const env::Box box {{0,0,0}, {10,10,10}};
 
 	auto p = make_alive_particle();
-	absorb.apply(p, box, Face::XPlus);
+	auto pf = env::internal::ParticleRecordFetcher(p);
+	absorb.apply(pf, box, Face::XPlus);
 
 	EXPECT_EQ(p.state, env::ParticleState::DEAD)
 		<< "Absorb boundary should mark particle as DEAD";
@@ -49,9 +53,10 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 	auto compiled = boundary::internal::compile_boundary(absorb, env::Box::from_domain(domain), Face::XPlus);
 
 	auto p = make_alive_particle();
+	auto pf = env::internal::ParticleRecordFetcher(p);
 	env::Box box{{0,0,0}, {10,10,10}};
 
-	compiled.apply(p, box, Face::XPlus);
+	compiled.apply(pf, box, Face::XPlus);
 
 	EXPECT_EQ(p.state, env::ParticleState::DEAD);
 }
@@ -73,7 +78,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, InsideDomain_RemainsAlive) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// Particle in center of domain
-	env.add_particle({.id=0, .type=0, .position={5,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle(make_particle(0, {5,5,5}, {}, 1, ParticleState::ALIVE, 0));
 
 	// Set Absorb on all faces
 	env.set_boundaries(Absorb(), all_faces);
@@ -86,7 +91,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, InsideDomain_RemainsAlive) {
 	sys.apply_boundary_conditions();
 
 	auto id0 = mappings.id_map.at(0);
-	const auto& p = sys.get_particle_by_index(id0);
+	const auto p = get_particle(sys, id0);
 
 	EXPECT_EQ(p.state, ParticleState::ALIVE)
 		<< "Particle inside domain should not be affected by absorbing boundaries.";
@@ -100,12 +105,12 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// Place one particle near each face, moving outward
-	env.add_particle({.id=0, .type=0, .position={0.4,5,5},  .velocity={-1,0,0}, .mass=1, .state=ParticleState::ALIVE}); // X−
-	env.add_particle({.id=1, .type=0, .position={9.6,5,5},  .velocity={+1,0,0}, .mass=1, .state=ParticleState::ALIVE}); // X+
-	env.add_particle({.id=2, .type=0, .position={5,0.4,5},  .velocity={0,-1,0}, .mass=1, .state=ParticleState::ALIVE}); // Y−
-	env.add_particle({.id=3, .type=0, .position={5,9.6,5},  .velocity={0,+1,0}, .mass=1, .state=ParticleState::ALIVE}); // Y+
-	env.add_particle({.id=4, .type=0, .position={5,5,0.4},  .velocity={0,0,-1}, .mass=1, .state=ParticleState::ALIVE}); // Z−
-	env.add_particle({.id=5, .type=0, .position={5,5,9.6},  .velocity={0,0,+1}, .mass=1, .state=ParticleState::ALIVE}); // Z+
+	env.add_particle(make_particle(0, {0.4,5,5}, {-1,0,0}, 1, ParticleState::ALIVE, 0)); // X−
+	env.add_particle(make_particle(0, {9.6,5,5}, {+1,0,0}, 1, ParticleState::ALIVE, 1)); // X+
+	env.add_particle(make_particle(0, {5,0.4,5}, {0,-1,0}, 1, ParticleState::ALIVE, 2)); // Y−
+	env.add_particle(make_particle(0, {5,9.6,5}, {0,+1,0}, 1, ParticleState::ALIVE, 3)); // Y+
+	env.add_particle(make_particle(0, {5,5,0.4}, {0,0,-1}, 1, ParticleState::ALIVE, 4)); // Z−
+	env.add_particle(make_particle(0, {5,5,9.6}, {0,0,+1}, 1, ParticleState::ALIVE, 5)); // Z+
 
 	// Set Absorb on all faces
 	env.set_boundaries(Absorb(), all_faces);
@@ -114,11 +119,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 	auto sys = build_system(env, TypeParam(), &mappings);
 
 	// Simulate one time step: move each particle beyond its face
-	for (auto pid = sys.index_start(); pid < sys.index_end(); ++pid) {
-		auto& p = sys.get_particle_by_index(pid);
-		p.old_position = p.position;
-		p.position = p.old_position + p.velocity; // crosses boundary
-	}
+	simulate_single_step(sys);
 
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
@@ -126,7 +127,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 	// Verify all particles are DEAD
 	for (int uid = 0; uid < 6; ++uid) {
 		auto iid = mappings.id_map.at(uid);
-		const auto& p = sys.get_particle_by_index(iid);
+		const auto p = get_particle(sys, iid);
 		EXPECT_EQ(p.state, ParticleState::DEAD)
 			<< "Particle " << uid << " crossing face " << uid
 			<< " should be marked DEAD by Absorb boundary.";

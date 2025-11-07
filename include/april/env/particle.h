@@ -71,9 +71,9 @@ namespace april::env {
 		ParticleState state{};					// The state of the particle.
 
 		// optional data e.g. if initializing from a simulation snapshot
-		std::optional<vec3> old_position = {};		// previous position of the particle. Useful for applying boundary conditions
-		std::optional<vec3> old_force = {};			// previous force acting on the particle.
-		std::optional<vec3> force = {};				// current force
+		std::optional<vec3> old_position;		// previous position of the particle. Useful for applying boundary conditions
+		std::optional<vec3> old_force;			// previous force acting on the particle.
+		std::optional<vec3> force;				// current force
 
 		std::any user_data {}; // custom user data
 	};
@@ -146,10 +146,8 @@ namespace april::env {
 
 	template<typename F>
 	concept IsMutableFetcher =
-	std::is_copy_constructible_v<F> &&
-	std::is_move_constructible_v<F> &&
-	requires { typename  std::remove_reference_t<F>::user_data_t; } &&
-	IsUserData<typename  std::remove_reference_t<F>::user_data_t> &&
+	requires { typename std::remove_reference_t<F>::user_data_t; } &&
+	IsUserData<typename std::remove_reference_t<F>::user_data_t> &&
 	requires(F f) {
 		{ f.force() }         -> std::same_as<vec3&>;
 		{ f.position() }      -> std::same_as<vec3&>;
@@ -161,12 +159,12 @@ namespace april::env {
 		{ f.type() }          -> std::same_as<ParticleType&>;
 		{ f.id() }            -> std::same_as<ParticleID&>;
 		{ f.user_data() }     -> std::same_as<typename std::remove_reference_t<F>::user_data_t&>;
-	};
+	} &&
+	std::is_copy_constructible_v<F> &&
+	std::is_move_constructible_v<F>;
 
 	template<typename F>
 	concept IsConstFetcher =
-	std::is_copy_constructible_v<F> &&
-	std::is_move_constructible_v<F> &&
 	requires { typename std::remove_reference_t<F>::user_data_t; } &&
 	IsUserData<typename std::remove_reference_t<F>::user_data_t> &&
 	requires(const F cf) {
@@ -180,14 +178,19 @@ namespace april::env {
 		{ cf.type() }        -> std::same_as<ParticleType>;
 		{ cf.id() }          -> std::same_as<ParticleID>;
 		{ cf.user_data() }   -> std::same_as<const typename  std::remove_reference_t<F>::user_data_t&>;
-	};
+	}  &&
+	std::is_copy_constructible_v<F> &&
+	std::is_move_constructible_v<F>;
 
 
 	// Reference to particle data passed to controllers and boundaries that can mutate particle data.
 	template<FieldMask M, IsUserData UserDataT>
 	struct ParticleRef {
 
-		template<IsMutableFetcher F>
+		ParticleRef(const ParticleRef& other) = default;
+		ParticleRef(ParticleRef&& other) = default;
+
+		template<class F>
 		requires IsMutableFetcher<std::remove_cvref_t<F>>
 		explicit ParticleRef(F && f)
 			: force      ( init_field<vec3&,         		Field::force,		M>([&] -> vec3&{ return f.force(); }) )
@@ -217,6 +220,9 @@ namespace april::env {
 	// Restricted reference allowing only the force field to be modified, used for fields.
 	template<FieldMask M, IsUserData UserDataT>
 	struct RestrictedParticleRef {
+
+		RestrictedParticleRef(const RestrictedParticleRef& other) = default;
+		RestrictedParticleRef(RestrictedParticleRef&& other) = default;
 
 		template<IsMutableFetcher F>
 		requires IsMutableFetcher<std::remove_cvref_t<F>>
@@ -253,6 +259,10 @@ namespace april::env {
 	// Immutable reference to particle data, intended for read-only access (e.g., monitors).
 	template<FieldMask M, IsUserData UserDataT>
 	struct ParticleView {
+
+		ParticleView(const ParticleView& other) = default;
+		ParticleView(ParticleView&& other) = default;
+
 		template<class F>
 		requires IsConstFetcher<std::remove_cvref_t<F>> || IsMutableFetcher<std::remove_cvref_t<F>>
 		explicit ParticleView(F && f)

@@ -1,22 +1,25 @@
 #include <gtest/gtest.h>
 #include "april/april.h"
 
+#include "utils.h"
+
 using namespace april;
 
+using ParticleRecord = env::internal::ParticleRecord<env::NoUserData>;
 
 struct TouchSpy final : Boundary {
-	using PID = env::internal::ParticleID;
 
 	// thickness >= 0 → inside slab; < 0 → outside half-space
-	explicit TouchSpy(double thickness, std::vector<PID>* sink)
+	explicit TouchSpy(const double thickness, std::vector<ParticleID>* sink)
 	: Boundary(thickness, false, false, false), sink(sink) {}
 
-	void apply(env::internal::Particle& p, const env::Box &, boundary::Face) const noexcept {
-		if (sink) sink->push_back(p.id);
+	template<env::IsMutableFetcher F>
+	void apply(F & p, const env::Box &, Face) const noexcept {
+		if (sink) sink->push_back(p.id());
 	}
 
 private:
-	std::vector<PID>* sink;
+	std::vector<ParticleID>* sink;
 };
 
 
@@ -33,13 +36,16 @@ TYPED_TEST(BoundaryTestT, InsideSlab_XMinus_AppliesOnlyToSlabParticles) {
 	env.set_extent({10,10,10});
 
 	// Particles: one in the X- slab [0,1], one outside it
-	env.add_particle({.id=0, .type=0, .position={0.4,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
-	env.add_particle({.id=1, .type=0, .position={1.1,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	// env.add_particle({.id=0, .type=0, .position={0.4,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	// env.add_particle({.id=1, .type=0, .position={1.1,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
+
+	env.add_particle(make_particle(0, {0.4,5,5}, {}, 1, ParticleState::ALIVE, 0));
+	env.add_particle(make_particle(0, {1.1,5,5}, {}, 1, ParticleState::ALIVE, 1));
 
 	env.add_force(NoForce{}, to_type(0));
 
 	// External sinks for each face
-	std::vector<env::internal::ParticleID> sxm, sxp, sym, syp, szm, szp;
+	std::vector<ParticleID> sxm, sxp, sym, syp, szm, szp;
 
 	// Set per-face spies (thickness 1.0 on X-, 0 elsewhere)
 	env.set_boundaries(std::array{
@@ -75,12 +81,14 @@ TYPED_TEST(BoundaryTestT, OutsideHalfspace_XPlus_TouchesOnlyActualExiters) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// p0: crosses X+ this step
-	env.add_particle({.id=0, .type=0, .position={9.5,5,5}, .velocity={+2,0,0}, .mass=1, .state=ParticleState::ALIVE});
+	// env.add_particle({.id=0, .type=0, .position={9.5,5,5}, .velocity={+2,0,0}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle(make_particle(0, {9.5,5,5}, {+2,0,0}, 1, ParticleState::ALIVE, 0));
 	// p1: exits via Y+ instead
-	env.add_particle({.id=1, .type=0, .position={5.0,9.5,5}, .velocity={0,+2,0}, .mass=1, .state=ParticleState::ALIVE});
+	// env.add_particle({.id=1, .type=0, .position={5.0,9.5,5}, .velocity={0,+2,0}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle(make_particle(0, {5.0,9.5,5}, {0,+2,0}, 1, ParticleState::ALIVE, 1));
 
 	// external sinks
-	std::vector<env::internal::ParticleID> sxm, sxp, sym, syp, szm, szp;
+	std::vector<ParticleID> sxm, sxp, sym, syp, szm, szp;
 
 	// boundaries: only X+ and Y+ are outside (thickness < 0)
 	env.set_boundaries(std::array{
@@ -95,12 +103,7 @@ TYPED_TEST(BoundaryTestT, OutsideHalfspace_XPlus_TouchesOnlyActualExiters) {
 	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
-	// mark old positions behind where they will move from
-	for (auto pid = sys.index_start(); pid < sys.index_end(); pid++) {
-		env::internal::Particle & p = sys.get_particle_by_index(pid);
-		p.old_position = p.position;
-		p.position = p.old_position + p.velocity; // simulate one step
-	}
+	simulate_single_step(sys);
 
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
@@ -126,10 +129,10 @@ TYPED_TEST(BoundaryTestT, CornerExit_TriggersRelevantFaces) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// One particle moving diagonally out through the X+Y+ edge
-	env.add_particle({.id=42, .type=0, .position={9.7,9.7,5}, .velocity={+1,+1,0}, .mass=1, .state=ParticleState::ALIVE});
-
+	// env.add_particle({.id=42, .type=0, .position={9.7,9.7,5}, .velocity={+1,+1,0}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle(make_particle(0, {9.7,9.7,5}, {+1,+1,0}, 1, ParticleState::ALIVE, 42));
 	// sinks
-	std::vector<env::internal::ParticleID> sxm, sxp, sym, syp, szm, szp;
+	std::vector<ParticleID> sxm, sxp, sym, syp, szm, szp;
 
 	// outside boundaries on X+ and Y+ only
 	env.set_boundaries(std::array{
@@ -144,12 +147,8 @@ TYPED_TEST(BoundaryTestT, CornerExit_TriggersRelevantFaces) {
 	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
-	// mark old positions behind where they will move from
-	for (auto pid = sys.index_start(); pid < sys.index_end(); ++pid) {
-		env::internal::Particle & p = sys.get_particle_by_index(pid);
-		p.old_position = p.position;
-		p.position = p.old_position + p.velocity; // simulate one step
-	}
+	simulate_single_step(sys);
+
 
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
@@ -177,11 +176,12 @@ TYPED_TEST(BoundaryTestT, InsideCorner_TouchesAllOverlappingFaces) {
 
 	// Place a particle inside the corner region (X−, Y−, Z−)
 	// so it's within all three inside slabs of thickness=1.
-	env.add_particle({.id=0, .type=0, .position={0.5,0.5,0.5},
-			 .velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	// env.add_particle({.id=0, .type=0, .position={0.5,0.5,0.5},
+	// 		 .velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle(make_particle(0, {0.5,0.5,0.5}, {}, 1, ParticleState::ALIVE, 0));
 
 	// External sinks for each face
-	std::vector<env::internal::ParticleID> sxm, sxp, sym, syp, szm, szp;
+	std::vector<ParticleID> sxm, sxp, sym, syp, szm, szp;
 
 	// Inside slabs on all faces (thickness=1)
 	env.set_boundaries(std::array{
@@ -219,10 +219,10 @@ TYPED_TEST(BoundaryTestT, NearCornerExit_TriggersCorrectFace) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// One particle moving diagonally through the +z face but ending up in the overlap region of the +x,+y,+z boundaries
-	env.add_particle({.id=42, .type=0, .position={9.7,9.7,9.8}, .velocity={1,1,1}, .mass=1, .state=ParticleState::ALIVE});
+	env.add_particle(make_particle(0, {9.7,9.7,9.8}, {1,1,1}, 1, ParticleState::ALIVE, 42));
 
 	// sinks
-	std::vector<env::internal::ParticleID> sxm, sxp, sym, syp, szm, szp;
+	std::vector<ParticleID> sxm, sxp, sym, syp, szm, szp;
 
 	// outside boundaries on X+ and Y+ only
 	env.set_boundaries(std::array{
@@ -237,12 +237,8 @@ TYPED_TEST(BoundaryTestT, NearCornerExit_TriggersCorrectFace) {
 	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
-	// mark old positions behind where they will move from
-	for (auto pid = sys.index_start(); pid < sys.index_end(); ++pid) {
-		env::internal::Particle & p = sys.get_particle_by_index(pid);
-		p.old_position = p.position;
-		p.position = p.old_position + p.velocity; // simulate one step
-	}
+	simulate_single_step(sys);
+
 
 	sys.register_all_particle_movements();
 	sys.apply_boundary_conditions();
@@ -267,15 +263,14 @@ TYPED_TEST(BoundaryTestT, InsideSlab_AllFaces_OneParticleEach) {
 
 	// Six particles, one for each face region.
 	// Positions are clearly inside their slabs (thickness = 1)
-	env.add_particle({.id=0, .type=0, .position={0.5, 5, 5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // X−
-	env.add_particle({.id=1, .type=0, .position={9.5, 5, 5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // X+
-	env.add_particle({.id=2, .type=0, .position={5, 0.5, 5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Y−
-	env.add_particle({.id=3, .type=0, .position={5, 9.5, 5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Y+
-	env.add_particle({.id=4, .type=0, .position={5, 5, 0.5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Z−
-	env.add_particle({.id=5, .type=0, .position={5, 5, 9.5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Z+
-
+	env.add_particle(make_particle(0, {0.5, 5, 5}, {}, 1, ParticleState::ALIVE, 0)); // X−
+	env.add_particle(make_particle(0, {9.5, 5, 5}, {}, 1, ParticleState::ALIVE, 1)); // X+
+	env.add_particle(make_particle(0, {5, 0.5, 5}, {}, 1, ParticleState::ALIVE, 2)); // Y−
+	env.add_particle(make_particle(0, {5, 9.5, 5}, {}, 1, ParticleState::ALIVE, 3)); // Y+
+	env.add_particle(make_particle(0, {5, 5, 0.5}, {}, 1, ParticleState::ALIVE, 4)); // Z−
+	env.add_particle(make_particle(0, {5, 5, 9.5}, {}, 1, ParticleState::ALIVE, 5)); // Z+
 	// External sinks for each face
-	std::vector<env::internal::ParticleID> sxm, sxp, sym, syp, szm, szp;
+	std::vector<ParticleID> sxm, sxp, sym, syp, szm, szp;
 
 	// Assign spies: thickness 1.0 for all faces
 	env.set_boundaries(std::array{

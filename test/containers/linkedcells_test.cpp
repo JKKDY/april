@@ -8,23 +8,22 @@ using testing::Eq;
 #include "april/april.h"
 #include "orbit_monitor.h"
 #include "constant_force.h"
+#include "utils.h"
 
 // TODO tests for get_particle_by_id
 using namespace april;
 
 
-
 TEST(LinkedCellsTest, SingleParticle_NoForce) {
     Environment e (forces<NoForce>);
-    e.add_particle(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
+	e.add_particle(make_particle(0, {1,2,3}, {}, 1, ParticleState::ALIVE, 0));
 	e.add_force(NoForce(), to_type(0));
-
 	e.set_extent({4,4,4});
 
 	auto sys = build_system(e, LinkedCells(4));
     sys.update_forces();
 
-    auto const& out = sys.export_particles();
+    auto const& out = export_particles(sys);
     ASSERT_EQ(out.size(), 1u);
     EXPECT_EQ(out[0].force, vec3(0,0,0));
 }
@@ -33,14 +32,14 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
     Environment e(forces<ConstantForce>);
 	e.set_extent({2,2,2});
 	e.set_origin({0,0,0});
-	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add_particle(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
+	e.add_particle(make_particle(7, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
+	e.add_particle(make_particle(7, {1.5,0,0}, {}, 2, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
 	auto sys = build_system(e, LinkedCells(2));
 	sys.update_forces();
 
-    auto const& out = sys.export_particles();
+    auto const& out = export_particles(sys);
     ASSERT_EQ(out.size(), 2u);
 
 	auto & p1 = out[0].mass == 1 ? out[0] : out[1];
@@ -55,14 +54,14 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 	Environment e(forces<ConstantForce>);
 	e.set_extent({2,1,1});
 	e.set_origin({0,0,0});
-	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-	e.add_particle(Particle{.id = 1, .type = 7, .position={1.5,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
+	e.add_particle(make_particle(7, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
+	e.add_particle(make_particle(7, {1.5,0,0}, {}, 2, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
 	auto sys = build_system(e, LinkedCells(1));
 	sys.update_forces();
 
-	auto const& out = sys.export_particles();
+    auto const& out = export_particles(sys);
 	ASSERT_EQ(out.size(), 2u);
 
 	auto & p1 = out[0].mass == 1 ? out[0] : out[1];
@@ -77,13 +76,13 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 	Environment e(forces<ConstantForce>);
 	e.set_extent({2,1,0.5});
 	e.set_origin({0,0,0});
-	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-	e.add_particle(Particle{.id = 1, .type = 7, .position={1.5,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
+	e.add_particle(make_particle(7, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
+	e.add_particle(make_particle(7, {1,0,0}, {}, 1, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
 	auto sys = build_system(e, LinkedCells(0.5));
 	sys.update_forces();
-	auto const& out = sys.export_particles();
+    auto const& out = export_particles(sys);
 	ASSERT_EQ(out.size(), 2u);
 
 	auto & p1 = out[0].mass == 1 ? out[0] : out[1];
@@ -95,9 +94,8 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 
 TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
     Environment e(forces<NoForce, ConstantForce>);
-    e.add_particle(Particle{.id = 42, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add_particle(Particle{.id = 99, .type = 0, .position={0,1,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-
+	e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 42));
+	e.add_particle(make_particle(0, {0,1,0}, {}, 1, ParticleState::ALIVE, 99));
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
 	e.auto_domain(2);
@@ -105,7 +103,7 @@ TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
 	auto sys = build_system(e, LinkedCells());
 	sys.update_forces();
 
-    auto const& out = sys.export_particles();
+    auto const& out = export_particles(sys);
     ASSERT_EQ(out.size(), 2u);
 
 	EXPECT_EQ(out[0].force, -out[1].force);
@@ -121,8 +119,9 @@ TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 
     e.set_extent({10,10,10});
 
-	e.add_particle(Particle{.id = 0, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add_particle(Particle{.id = 1, .type = 1, .position={2,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
+	e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
+	e.add_particle(make_particle(1, {2,0,0}, {}, 2, ParticleState::ALIVE, 1));
+
 
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(NoForce(), to_type(1));
@@ -132,7 +131,7 @@ TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 	auto sys = build_system(e, LinkedCells());
 	sys.update_forces();
 
-	auto const& out = sys.export_particles();
+    auto const& out = export_particles(sys);
     // find each
     const auto& pa = (out[0].mass == 1 ? out[0] : out[1]);
     const auto& pb = (out[1].mass == 2 ? out[1] : out[0]);
@@ -154,8 +153,10 @@ TEST(LinkedCellsTest, OrbitTest) {
 	constexpr double T = 2 * 3.14159265359 * v / R;
 
 	Environment env (forces<PowerLaw>);
-	env.add_particle({0,R,0}, {v, 0, 0}, m);
-	env.add_particle({0,0,0}, {0, 0, 0}, M);
+
+	env.add_particle(make_particle(0, {0,R,0}, {v, 0, 0}, m));
+	env.add_particle(make_particle(0, {0,0,0}, {0, 0, 0}, M));
+
 	env.add_force(PowerLaw(G), to_type(0));
 
 	env.set_origin({-1.5*v,-1.5*v,0});
@@ -168,10 +169,7 @@ TEST(LinkedCellsTest, OrbitTest) {
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for(0.001, T);
 
-	std::vector<ParticleView> particles;
-	for (auto & p : sys.export_particles()) {
-		particles.push_back(p);
-	}
+	auto particles = export_particles(sys);
 
 	auto p1 =  particles[0].mass == m ? particles[0] : particles[1];
 	auto p2 =  particles[0].mass == M ? particles[0] : particles[1];
@@ -222,7 +220,7 @@ TEST(LinkedCellsTest, CollectIndicesInRegion) {
             env::Domain region({0.1, 0.1, 0.1}, {0.9, 0.9, 0.9});
             auto indices = sys.collect_indices_in_region(region);
             ASSERT_EQ(indices.size(), 1u);
-            auto p = sys.export_particles()[indices[0]];
+	        auto p = export_particles(sys)[indices[0]];
             EXPECT_EQ(p.position.x, 0.25);
             EXPECT_EQ(p.position.y, 0.25);
             EXPECT_EQ(p.position.z, 0.25);
@@ -245,7 +243,7 @@ TEST(LinkedCellsTest, CollectIndicesInRegion) {
         	std::unordered_set inside (indices.begin(), indices.end());
 
         	for (size_t idx = sys.index_start(); idx < sys.index_end(); idx++) {
-				env::internal::Particle & p = sys.get_particle_by_index(idx);
+				auto p = get_particle(sys, idx);
         		bool in_region = (p.position.x >= 1.5 && p.position.x <= 4.5) &&
 					(p.position.y >= 1.5 && p.position.y <= 4.5) &&
 					(p.position.z >= 1.5 && p.position.z <= 4.5);
@@ -272,20 +270,20 @@ struct DummyPeriodicBoundary final : Boundary {
 	DummyPeriodicBoundary()
 	: Boundary(0.0, false, true, false ) {}
 
-	void apply(env::internal::Particle&, const env::Box&, Face) const noexcept {}
+	template<env::IsMutableFetcher F>
+	void apply(F &&, const env::Box &, const Face) const noexcept {}
 };
 
 TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 	// Iterate over several cell sizes (smaller, medium, larger than extent/2)
 	for (double cell_size_hint : {1.0, 3.3, 9.9}) {
 		Environment e(forces<Harmonic>, boundaries<DummyPeriodicBoundary>);
-
 		e.set_origin({0,0,0});
 		e.set_extent({10,10,10}); // domain box 10x10x10
 
 		// Two particles, near opposite faces along x
-		e.add_particle(Particle{.id=0, .type=0, .position={0.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
-		e.add_particle(Particle{.id=1, .type=0, .position={9.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+		e.add_particle(make_particle(0, {0.5, 5, 5}, {}, 1, ParticleState::ALIVE, 0));
+		e.add_particle(make_particle(0, {9.5, 5, 5}, {}, 1, ParticleState::ALIVE, 1));
 
 		// Simple harmonic force
 		e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));
@@ -297,11 +295,11 @@ TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 		auto sys = build_system(e, LinkedCells(cell_size_hint), &mapping);
 		sys.update_forces();
 
-		auto const& out = sys.export_particles();
+		auto const& out = export_particles(sys);
 		ASSERT_EQ(out.size(), 2u);
 
-		auto p1 = sys.get_particle_by_id(mapping.id_map[0]);
-		auto p2 = sys.get_particle_by_id(mapping.id_map[1]);
+		auto p1 = get_particle(sys, mapping.id_map[0]);
+		auto p2 = get_particle(sys, mapping.id_map[1]);
 
 		// They should feel equal and opposite forces due to wrapping
 		EXPECT_EQ(p1.force, -p2.force);
@@ -320,8 +318,8 @@ TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
 		e.set_extent({10,10,10});
 
 		// Particles at opposite corners
-		e.add_particle(Particle{.id=0, .type=0, .position={0.5, 0.5, 0.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
-		e.add_particle(Particle{.id=1, .type=0, .position={9.5, 9.5, 9.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+		e.add_particle(make_particle(0, {0.5, 0.5, 0.5}, {}, 1, ParticleState::ALIVE, 0));
+		e.add_particle(make_particle(0, {9.5, 9.5, 9.5}, {}, 1, ParticleState::ALIVE, 1));
 
 		e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));
 
@@ -336,11 +334,11 @@ TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
 		auto sys = build_system(e, LinkedCells(cell_size_hint), &mapping);
 		sys.update_forces();
 
-		auto const& out = sys.export_particles();
+		auto const& out = export_particles(sys);
 		ASSERT_EQ(out.size(), 2u);
 
-		auto p1 = sys.get_particle_by_id(mapping.id_map[0]);
-		auto p2 = sys.get_particle_by_id(mapping.id_map[1]);
+		auto p1 = get_particle(sys, mapping.id_map[0]);
+		auto p2 = get_particle(sys, mapping.id_map[1]);
 
 		// Forces must be equal and opposite
 		EXPECT_EQ(p1.force, -p2.force);

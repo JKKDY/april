@@ -20,75 +20,59 @@ template<typename T> static T read_binary(std::ifstream& in) {
 }
 
 // helper to create dummy particle
-static env::internal::Particle make_particle(env::internal::ParticleType type, env::internal::ParticleID id, vec3 pos={0,0,0}, ParticleState state= ParticleState::ALIVE) {
-	return {
-		/* id          */ id,
-		/* position    */ pos,
-		/* velocity    */ vec3{0,0,0},
-		/* mass        */ 1.0,
-		/* type        */ type,
-		/* state       */ state
-		};
+using ParticleRec =  env::internal::ParticleRecord<env::NoUserData>;
+static ParticleRec make_particle_rec(ParticleType type, ParticleID id, vec3 pos={0,0,0}, ParticleState state= ParticleState::ALIVE) {
+	ParticleRec rec;
+	rec.id = id,
+	rec.position = pos,
+	rec.velocity = vec3{0,0,0},
+	rec.mass = 1.0,
+	rec.type = type,
+	rec.state = state;
+	return rec;
 }
 
+using namespace april;
+using namespace april::env;
 
-
-class DummyContext final : public SystemContext {
+class DummySystem {
 public:
-    using ParticleView = env::ParticleView;
-    using ParticleRef  = env::ParticleRef;
-    using ParticleID   = env::internal::ParticleID;
+	using user_data_t = NoUserData;
+	template<FieldMask M> using ParticleRef         = ParticleRef<M, user_data_t>;
+	template<FieldMask M> using ParticleView        = ParticleView<M, user_data_t>;
+	template<FieldMask M> using RestrictedParticleRef = RestrictedParticleRef<M, user_data_t>;
 
-    explicit DummyContext(const size_t step = 0, const double time = 0.0,
-                          std::vector<ParticleView> particles = {})
-        : step_(step), time_(time), particles_(std::move(particles)) {}
-	env::Domain dummy_domain = {{0, 0, 0}, {1, 1, 1}};
-    // ---- Core information ----
-    [[nodiscard]] env::Domain domain() const noexcept override {
-        return dummy_domain;
-    }
+	explicit DummySystem(
+		size_t step,
+		double time,
+		std::vector<ParticleRec> particle_data
+	) : particles(std::move(particle_data)), step_(step), time_(time)
+	{}
 
-	[[nodiscard]] env::Box box() const noexcept override {
-    	return env::Box::from_domain(dummy_domain);
-    }
+	// mock data
+	std::vector<ParticleRec> particles;
+	size_t step_ = 0;
+	double time_ = 0.0;
+	Box sim_box = {{0,0,0}, {1,1,1}};
 
-    [[nodiscard]] double time() const noexcept override { return time_; }
-    [[nodiscard]] size_t step() const noexcept override { return step_; }
+	// Implement minimal API for read-only tests
+	[[nodiscard]] size_t index_start() const noexcept { return 0; }
+	[[nodiscard]] size_t index_end() const noexcept { return particles.size(); }
+	[[nodiscard]] size_t size(ParticleState = ParticleState::ALL) const noexcept { return particles.size(); }
+	[[nodiscard]] size_t step() const noexcept { return step_; }
+	[[nodiscard]] double time() const noexcept { return time_; }
+	[[nodiscard]] Box box() const noexcept { return sim_box; }
 
-    // ---- Particle access / modification ----
-    [[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Box&) const override { return {}; }
-    [[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Domain&) const override { return {}; }
-    void register_particle_movement(ParticleID) override {}
-    void register_all_particle_movements() override {}
+	template<FieldMask M>
+	[[nodiscard]] ParticleView<M> get_particle_by_index(const size_t index) const noexcept {
+		const ParticleRec& record = particles.at(index);
+		internal::ConstParticleRecordFetcher fetcher(record);
+		return ParticleView<M>(fetcher);
+	}
 
-    // ---- ID and index access ----
-
-    [[nodiscard]] ParticleID id_start() const noexcept override { return 0; }
-    [[nodiscard]] ParticleID id_end() const noexcept override { return 0; }
-
-
-    [[nodiscard]] size_t index_start() const noexcept override { return 0; }
-    [[nodiscard]] size_t index_end() const noexcept override { return particles_.size(); }
-
-    // helper for test data
-    [[nodiscard]] const std::vector<ParticleView>& particles() const noexcept { return particles_; }
-
-	[[nodiscard]] ParticleView get_particle_by_index(const size_t idx) const noexcept override {
-    	return particles_[idx];
-    }
-
-	[[nodiscard]] size_t size() const noexcept override {return particles_.size();}
-	[[nodiscard]] size_t size(ParticleState ) const noexcept override {return particles_.size();}
-
-private:
-	[[nodiscard]] ParticleRef get_particle_by_id(ParticleID) noexcept override { std::unreachable(); }
-	[[nodiscard]] ParticleView get_particle_by_id(ParticleID) const noexcept override { std::unreachable(); }
-	[[nodiscard]] ParticleRef get_particle_by_index(size_t) noexcept override { std::unreachable();}
-
-    size_t step_;
-    double time_;
-    std::vector<ParticleView> particles_;
+	const SystemContext<DummySystem> ctx = SystemContext<DummySystem>(*this);
 };
+
 
 
 
@@ -110,11 +94,11 @@ protected:
 
 // TEST 1: Header only, zero particles
 TEST_F(BinaryOutputTest, EmptyFileContainsOnlyHeader) {
-	std::vector<ParticleView> empty;
+	std::vector<ParticleRec> empty;
 	BinaryOutput out(Trigger::always(), dir.string(), base);
 
-	DummyContext ctx(0, 0.0, empty);
-	out.record(ctx);
+	DummySystem sys(0, 0.0, empty);
+	out.record(sys.ctx);
 
 	auto path = dir / (base + "_00000.bin");
 	ASSERT_TRUE(fs::exists(path));
@@ -146,12 +130,12 @@ TEST_F(BinaryOutputTest, EmptyFileContainsOnlyHeader) {
 
 // TEST 2: Single particle record
 TEST_F(BinaryOutputTest, SingleParticle) {
-	auto p = make_particle(5, 2, vec3{1,2,3}, ParticleState::ALIVE);
-	std::vector v {ParticleView(p)};
+	auto p = make_particle_rec(5, 2, vec3{1,2,3}, ParticleState::ALIVE);
+	std::vector v {ParticleRec(p)};
 	BinaryOutput out(Trigger::always(), dir.string(), base);
 
-	DummyContext ctx(1, 0.0, v);
-	out.record(ctx);
+	DummySystem sys(1, 0.0, v);
+	out.record(sys.ctx);
 
 	auto path = dir / (base + "_00001.bin");
 	std::ifstream in{path, std::ios::binary};
@@ -175,14 +159,14 @@ TEST_F(BinaryOutputTest, SingleParticle) {
 
 // TEST 3: Multiple particle records
 TEST_F(BinaryOutputTest, MultipleParticles) {
-	auto p1 = make_particle(1, 0, vec3{0,0,0}, ParticleState::DEAD);
-	auto p2 = make_particle(2, 1, vec3{4,5,6}, ParticleState::ALIVE);
-	auto p3 = make_particle(3, 2, vec3{7,8,9}, ParticleState::PASSIVE);
-	std::vector v {ParticleView(p1),ParticleView(p2),ParticleView(p3)};
+	auto p1 = make_particle_rec(1, 0, vec3{0,0,0}, ParticleState::DEAD);
+	auto p2 = make_particle_rec(2, 1, vec3{4,5,6}, ParticleState::ALIVE);
+	auto p3 = make_particle_rec(3, 2, vec3{7,8,9}, ParticleState::PASSIVE);
+	std::vector v {ParticleRec(p1),ParticleRec(p2),ParticleRec(p3)};
 	BinaryOutput out(Trigger::always(), dir.string(), base);
 
-	DummyContext ctx(2, 0.0, v);
-	out.record(ctx);
+	DummySystem sys(2, 0.0, v);
+	out.record(sys.ctx);
 
 	auto path = dir / (base + "_00002.bin");
 	std::ifstream in{path, std::ios::binary};

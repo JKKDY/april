@@ -27,7 +27,7 @@ namespace april::boundary {
 
 			AP_ASSERT(particle.position()[ax] >= domain_box.min[ax] && particle.position()[ax] <= domain_box.max[ax],
 				"particle outside of domain on reflected axis! \n\tface:"  + std::to_string(face_to_int(face)) +
-				"\n\t" + particle.position().to_string() + "  old pos: " + particle().old_position.to_string() );
+				"\n\t" + particle.position().to_string() + "  old pos: " + particle.old_position().to_string() );
 		}
 	};
 }

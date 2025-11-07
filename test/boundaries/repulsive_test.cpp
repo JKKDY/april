@@ -1,11 +1,10 @@
 #include <gtest/gtest.h>
 #include "april/april.h"
 
+#include "utils.h"
+
 using namespace april;
 
-using PID = env::internal::ParticleID;
-
-// Dummy test force. always returns constant value within cutoff
 struct ConstantForce {
 	double value;
 	double rc;
@@ -13,18 +12,19 @@ struct ConstantForce {
 		: value(value), rc(rc) {}
 
 	[[nodiscard]] double cutoff() const noexcept { return rc; }
-	[[nodiscard]] double apply(const env::internal::Particle&, const double dist) const noexcept {
+
+	template<env::IsMutableFetcher F>
+	[[nodiscard]] double apply(F && , const double dist) const noexcept {
 		return (dist <= rc) ? value : 0.0;
 	}
 };
 
-
-inline env::internal::Particle make_particle(const vec3& pos) {
-	env::internal::Particle p;
+inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& pos) {
+	env::internal::ParticleRecord<env::NoUserData> p;
 	p.id = 0;
 	p.position = pos;
-	p.velocity = {0,0,0};
 	p.force = {0,0,0};
+	p.velocity = {0,0,0};
 	p.mass = 1.0;
 	p.state = ParticleState::ALIVE;
 	return p;
@@ -35,10 +35,11 @@ TEST(RepulsiveBoundaryTest, Apply_AddsInwardForce) {
 	ConstantForce f{5.0, 10.0};
 	const Repulsive rep(f);
 
-	env::internal::Particle p = make_particle({9.5,5,5});
+	auto p = make_particle({9.5,5,5});
+	auto pf = env::internal::ParticleRecordFetcher(p);
 	const env::Box box({0,0,0}, {10,10,10});
 
-	rep.apply(p, box, Face::XPlus);
+	rep.apply(pf, box, Face::XPlus);
 
 	EXPECT_NEAR(p.force.x, -5.0, 1e-12);
 	EXPECT_NEAR(p.force.y,  0.0, 1e-12);
@@ -46,7 +47,7 @@ TEST(RepulsiveBoundaryTest, Apply_AddsInwardForce) {
 
 	// X- face should push opposite direction
 	p.force = {0,0,0};
-	rep.apply(p, box, Face::XMinus);
+	rep.apply(pf, box, Face::XMinus);
 	EXPECT_NEAR(p.force.x, +5.0, 1e-12);
 }
 
@@ -71,10 +72,11 @@ TEST(RepulsiveBoundaryTest, CompiledBoundary_Apply_AddsInwardForce) {
 
 	auto compiled = boundary::internal::compile_boundary(variant, env::Box::from_domain(domain), Face::YMinus);
 
-	env::internal::Particle p = make_particle({5,0.3,5});
+	auto p = make_particle({5,0.3,5});
+	auto pf = env::internal::ParticleRecordFetcher(p);
 	const env::Box box({0,0,0}, {10,10,10});
 
-	compiled.apply(p, box, Face::YMinus);
+	compiled.apply(pf, box, Face::YMinus);
 
 	EXPECT_NEAR(p.force.y, +2.0, 1e-12)
 		<< "Force on Y- face should push inward (+Y direction).";
@@ -98,12 +100,12 @@ TYPED_TEST(RepulsiveBoundarySystemTestT, EachFace_AppliesInwardForce) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// Particles near each face
-	env.add_particle({.id=0, .type=0, .position={0.5,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // X-
-	env.add_particle({.id=1, .type=0, .position={9.5,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // X+
-	env.add_particle({.id=2, .type=0, .position={5,0.5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Y-
-	env.add_particle({.id=3, .type=0, .position={5,9.5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Y+
-	env.add_particle({.id=4, .type=0, .position={5,5,0.5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Z-
-	env.add_particle({.id=5, .type=0, .position={5,5,9.5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE}); // Z+
+	env.add_particle(make_particle(0, {0.5,5,5}, {}, 1, ParticleState::ALIVE, 0)); // X-
+	env.add_particle(make_particle(0, {9.5,5,5}, {}, 1, ParticleState::ALIVE, 1)); // X+
+	env.add_particle(make_particle(0, {5,0.5,5}, {}, 1, ParticleState::ALIVE, 2)); // Y-
+	env.add_particle(make_particle(0, {5,9.5,5}, {}, 1, ParticleState::ALIVE, 3)); // Y+
+	env.add_particle(make_particle(0, {5,5,0.5}, {}, 1, ParticleState::ALIVE, 4)); // Z-
+	env.add_particle(make_particle(0, {5,5,9.5}, {}, 1, ParticleState::ALIVE, 5)); // Z+
 
 	env.set_boundaries(std::array{
 		Repulsive(f), Repulsive(f),
@@ -127,7 +129,7 @@ TYPED_TEST(RepulsiveBoundarySystemTestT, EachFace_AppliesInwardForce) {
 
 	for (int uid = 0; uid < 6; ++uid) {
 		auto iid = mappings.id_map.at(uid);
-		const auto& p = sys.get_particle_by_index(iid);
+		const auto p = get_particle(sys, iid);
 		EXPECT_NEAR(p.force.x, expected[iid].x, 1e-12);
 		EXPECT_NEAR(p.force.y, expected[iid].y, 1e-12);
 		EXPECT_NEAR(p.force.z, expected[iid].z, 1e-12);

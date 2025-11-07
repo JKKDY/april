@@ -370,10 +370,9 @@ Additional Features:
   - [ ] Boris Pusher
 - [ ] Barnes–Hut container
 - [ ] SOA & SIMD support
-- [ ] Extendable particles via template parameter (e.g. add charge property)
-- [ ] C++ Modules
+- [x] Extendable particles via template parameter (e.g. add charge property)
+- [ ] ~~C++ Modules~~ (wait for better compiler support)
 - [ ] more build feedback from `build_system` (e.g. spatial partition parameters) 
-- [ ] Documentation
 - [ ] Continuous integration
 - [ ] python binding
 `````

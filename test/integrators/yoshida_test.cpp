@@ -1,3 +1,4 @@
+#include <utils.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -22,7 +23,7 @@ TEST(Yoshida4Test,ConstructionTest) {
 	Yoshida4 integrator(system);
 	integrator.run_steps(0.1, 10);
 
-	for (auto & p : system.export_particles()) {
+	for (auto & p : export_particles(system)) {
 		EXPECT_EQ(p.position, vec3(0,0,0));
 		EXPECT_EQ(p.velocity, vec3(0,0,0));
 	}
@@ -42,10 +43,7 @@ TEST(Yoshida4Test, SingleStepNoForceTest) {
 	Yoshida4 integrator(system);
 	integrator.run_steps(1, 1);
 
-	std::vector<ParticleView> particles;
-	for (auto & p : system.export_particles()) {
-		particles.push_back(p);
-	}
+	auto particles = export_particles(system);
 
 	auto p1 =  particles[0].mass == 1 ? particles[0] : particles[1];
 	auto p2 =  particles[0].mass == 2 ? particles[0] : particles[1];
@@ -77,10 +75,7 @@ TEST(Yoshida4Test, SingleStepWithForceTest) {
 	Yoshida4 integrator(system);
 	integrator.run_steps(0.1, 1);
 
-	std::vector<ParticleView> particles;
-	for (auto & p : system.export_particles()) {
-		particles.push_back(p);
-	}
+	auto particles = export_particles(system);
 
 	constexpr double f_mag = 1.0/2/2;
 
@@ -129,10 +124,7 @@ TEST(Yoshida4Test, OrbitTest) {
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for(0.001, T);
 
-	std::vector<ParticleView> particles;
-	for (auto & p : system.export_particles()) {
-		particles.push_back(p);
-	}
+	auto particles = export_particles(system);
 
 	auto p1 =  particles[0].mass == m ? particles[0] : particles[1];
 	auto p2 =  particles[0].mass == M ? particles[0] : particles[1];
@@ -189,10 +181,7 @@ TEST(Yoshida4Test, OrbitTestSplitRuns) {
 		EXPECT_NEAR(system.time(), T, 0.005);
 	}
 
-	std::vector<ParticleView> particles;
-	for (auto & p : system.export_particles()) {
-		particles.push_back(p);
-	}
+	auto particles = export_particles(system);
 
 	auto p1 =  particles[0].mass == m ? particles[0] : particles[1];
 	auto p2 =  particles[0].mass == M ? particles[0] : particles[1];

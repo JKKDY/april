@@ -1,14 +1,12 @@
 #include <gtest/gtest.h>
 #include "april/april.h"
+#include "utils.h"
 
 using namespace april;
 
-using PID = env::internal::ParticleID;
-
-
 // simple helper to make a dummy particle
-inline env::internal::Particle make_particle(const vec3& pos, const vec3& vel) {
-	env::internal::Particle p;
+inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& pos, const vec3& vel = {0,0,0}) {
+	env::internal::ParticleRecord<env::NoUserData> p;
 	p.id = 0;
 	p.position = pos + vel;
 	p.old_position = pos;
@@ -25,7 +23,8 @@ TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
 
 	// heading out X+. Intersection at {10, 5, 5}
 	auto p = make_particle({9.5,4.5,4.5}, {2,2,2});
-	reflective.apply(p, box, Face::XPlus);
+	auto pf = env::internal::ParticleRecordFetcher(p);
+	reflective.apply(pf, box, Face::XPlus);
 
 	EXPECT_TRUE(box.contains(p.position));
 	EXPECT_EQ(p.position.x, 8.5);
@@ -61,7 +60,8 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPositi
 	auto p = make_particle({9.8,5,5}, {+1,0,0});
 	env::Box box{{0,0,0}, {10,10,10}};
 
-	compiled.apply(p, box, Face::XPlus);
+	auto pf = env::internal::ParticleRecordFetcher(p);
+	compiled.apply(pf, box, Face::XPlus);
 
 	EXPECT_TRUE(box.contains(p.position));
 	EXPECT_EQ(p.position.x, 9.2);
@@ -88,12 +88,12 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
     env.add_force(NoForce{}, to_type(0));
 
     // One particle near each face moving outward
-    env.add_particle({.id=0, .type=0, .position={0.4,5,5},  .velocity={-1,0,0}, .mass=1, .state=ParticleState::ALIVE}); // X−
-    env.add_particle({.id=1, .type=0, .position={9.6,5,5},  .velocity={+1,0,0}, .mass=1, .state=ParticleState::ALIVE}); // X+
-    env.add_particle({.id=2, .type=0, .position={5,0.4,5},  .velocity={0,-1,0}, .mass=1, .state=ParticleState::ALIVE}); // Y−
-    env.add_particle({.id=3, .type=0, .position={5,9.6,5},  .velocity={0,+1,0}, .mass=1, .state=ParticleState::ALIVE}); // Y+
-    env.add_particle({.id=4, .type=0, .position={5,5,0.4},  .velocity={0,0,-1}, .mass=1, .state=ParticleState::ALIVE}); // Z−
-    env.add_particle({.id=5, .type=0, .position={5,5,9.6},  .velocity={0,0,+1}, .mass=1, .state=ParticleState::ALIVE}); // Z+
+	env.add_particle(make_particle(0, {0.4,5,5}, {-1,0,0}, 1, ParticleState::ALIVE, 0)); // X−
+	env.add_particle(make_particle(0, {9.6,5,5}, {+1,0,0}, 1, ParticleState::ALIVE, 1)); // X+
+	env.add_particle(make_particle(0, {5,0.4,5}, {0,-1,0}, 1, ParticleState::ALIVE, 2)); // Y−
+	env.add_particle(make_particle(0, {5,9.6,5}, {0,+1,0}, 1, ParticleState::ALIVE, 3)); // Y+
+	env.add_particle(make_particle(0, {5,5,0.4}, {0,0,-1}, 1, ParticleState::ALIVE, 4)); // Z−
+	env.add_particle(make_particle(0, {5,5,9.6}, {0,0,+1}, 1, ParticleState::ALIVE, 5)); // Z+
 
 	env.set_boundaries(Reflective(), all_faces);
 
@@ -102,11 +102,8 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
     auto sys = build_system(env, TypeParam(), &mappings);
 
     // simulate one step
-    for (auto pid = sys.index_start(); pid < sys.index_end(); ++pid) {
-        auto& p = sys.get_particle_by_index(pid);
-        p.old_position = p.position;
-        p.position = p.old_position + p.velocity;
-    }
+	simulate_single_step(sys);
+
 
     sys.register_all_particle_movements();
     sys.apply_boundary_conditions();
@@ -133,7 +130,8 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
 
     for (int uid = 0; uid < 6; ++uid) {
         auto iid = mappings.id_map.at(uid);
-    	env::internal::Particle & p = sys.get_particle_by_index(iid);
+
+    	const auto p = get_particle(sys, iid);
 
     	EXPECT_EQ(p.position.x, expected_pos[iid].x);
     	EXPECT_EQ(p.position.y, expected_pos[iid].y);

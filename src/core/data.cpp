@@ -47,15 +47,15 @@ namespace april::env::internal {
 
 					ids.push_back(id);
 
-					Particle p = {
-						.id = id++,
-						.type = cuboid.type_idx,
-						.position = cuboid.origin + vec3(x * width, y * width, z * width),
-						.velocity = cuboid.mean_velocity,
-						.mass = cuboid.particle_mass,
-						.state = cuboid.particle_state,
-						.user_data = cuboid.user_data
-					};
+					Particle p;
+
+					p.id = id++;
+					p.type		= cuboid.type_idx;
+					p.position	= cuboid.origin + vec3(x * width, y * width, z * width);
+					p.velocity	= cuboid.mean_velocity;
+					p.mass		= cuboid.particle_mass;
+					p.state		= cuboid.particle_state;
+					p.user_data	= cuboid.user_data;
 					p.velocity += cuboid.thermal_velocity(p.position);
 
 					add_particle_impl(data, p);
@@ -102,15 +102,14 @@ namespace april::env::internal {
 
                     ids.push_back(id);
 
-                	Particle p =  {
-                        .id = id++,
-                        .type = sphere.type_idx,
-                        .position = sphere.center + pos,
-                        .velocity = sphere.mean_velocity,
-                        .mass = sphere.particle_mass,
-                        .state = sphere.particle_state,
-                		.user_data = sphere.user_data
-                    };
+                	Particle p;
+                    p.id = id++;
+                    p.type = sphere.type_idx;
+                    p.position = sphere.center + pos;
+                    p.velocity = sphere.mean_velocity;
+                    p.mass = sphere.particle_mass;
+                    p.state = sphere.particle_state;
+                	p.user_data = sphere.user_data;
                 	p.velocity += sphere.thermal_velocity(p.position);
 
                     add_particle_impl(data, p);

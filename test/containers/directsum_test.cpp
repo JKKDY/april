@@ -6,36 +6,35 @@ using testing::Eq;
 
 #include "april/april.h"
 #include "constant_force.h"
+#include "utils.h"
 
 using namespace april;
-
-// A tiny force that returns a constant vector and mixes by summing
 
 
 TEST(DirectSumTest, SingleParticle_NoForce) {
     Environment e (forces<NoForce>);
-    e.add_particle(Particle{.id = 0, .type = 0, .position={1,2,3},.velocity={0,0,0}, .mass=1.0, .state=ParticleState::ALIVE});
+	e.add_particle(make_particle(0, {1,2,3}, {}, 1, ParticleState::ALIVE, 0));
 	e.add_force(NoForce(), to_type(0));
 	e.set_extent(1,1,1);
 
 	auto sys = build_system(e, DirectSum());
     sys.update_forces();
 
-    auto const& out = sys.export_particles();
+    auto const& out = export_particles(sys);
     ASSERT_EQ(out.size(), 1u);
     EXPECT_EQ(out[0].force, vec3(0,0,0));
 }
 
 TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
     Environment e (forces<ConstantForce>);
-	e.add_particle(Particle{.id = 0, .type = 7, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add_particle(Particle{.id = 1, .type = 7, .position={1,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	e.add_particle(make_particle(7, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
+	e.add_particle(make_particle(7, {1,0,0}, {}, 1, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 	e.set_extent(1,1,1);
 
 	auto sys = build_system(e, DirectSum());
     sys.update_forces();
-    auto const& out = sys.export_particles();
+    auto const& out = export_particles(sys);
 
     ASSERT_EQ(out.size(), 2u);
     // both should see the same force vector
@@ -50,8 +49,8 @@ TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
 
 TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
     Environment e (forces<ConstantForce, NoForce>);
-    e.add_particle(Particle{.id = 42, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add_particle(Particle{.id = 99, .type = 0, .position={0,1,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
+	e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 42));
+	e.add_particle(make_particle(0, {0,1,0}, {}, 1, ParticleState::ALIVE, 99));
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
 	e.set_extent(1,1,1);
@@ -59,7 +58,7 @@ TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
 	auto sys = build_system(e, DirectSum());
 	sys.update_forces();
 
-    auto const& out = sys.export_particles();
+    auto const& out = export_particles(sys);
     ASSERT_EQ(out.size(), 2u);
 
 	EXPECT_EQ(out[0].force, -out[1].force);
@@ -74,8 +73,10 @@ TEST(DirectSumTest, TwoParticles_InverseSquare) {
 	Environment e (forces<PowerLaw, NoForce>);
 
 	e.set_extent({10,10,10});
-	e.add_particle(Particle{.id = 0, .type = 0, .position={0,0,0},.velocity={}, .mass=1, .state=ParticleState::ALIVE});
-    e.add_particle(Particle{.id = 1, .type = 1, .position={2,0,0},.velocity={}, .mass=2, .state=ParticleState::ALIVE});
+
+	e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
+	e.add_particle(make_particle(1, {2,0,0}, {}, 2, ParticleState::ALIVE, 1));
+
 
 	e.add_force(NoForce(), to_type(0));
 	e.add_force(NoForce(), to_type(1));
@@ -84,7 +85,7 @@ TEST(DirectSumTest, TwoParticles_InverseSquare) {
 	auto sys = build_system(e, DirectSum());
     sys.update_forces();
 
-    auto const& out = sys.export_particles();
+    auto const& out = export_particles(sys);
     // find each
     const auto& pa = (out[0].mass == 1 ? out[0] : out[1]);
     const auto& pb = (out[1].mass == 2 ? out[1] : out[0]);
@@ -120,7 +121,7 @@ TEST(DirectSumTest, CollectIndicesInRegion) {
         env::Domain region({0.1, 0.1, 0.1}, {0.9, 0.9, 0.9});
         auto indices = sys.collect_indices_in_region(env::Box::from_domain(region));
         ASSERT_EQ(indices.size(), 1u);
-        auto p = sys.export_particles()[indices[0]];
+        auto p = export_particles(sys)[indices[0]];
         EXPECT_EQ(p.position.x, 0.25);
         EXPECT_EQ(p.position.y, 0.25);
         EXPECT_EQ(p.position.z, 0.25);
@@ -143,7 +144,7 @@ TEST(DirectSumTest, CollectIndicesInRegion) {
         std::unordered_set inside (indices.begin(), indices.end());
 
         for (size_t idx = sys.index_start(); idx < sys.index_end(); idx++) {
-			env::internal::Particle & p = sys.get_particle_by_index(idx);
+			auto p = get_particle(sys, idx);
         	bool in_region = (p.position.x >= 1.5 && p.position.x <= 4.5) &&
 				(p.position.y >= 1.5 && p.position.y <= 4.5) &&
 				(p.position.z >= 1.5 && p.position.z <= 4.5);
@@ -170,7 +171,8 @@ struct DummyPeriodicBoundary final : Boundary {
 	DummyPeriodicBoundary()
 	: Boundary(0.0, false, true, false ) {}
 
-	void apply(env::internal::Particle&, const env::Box&, Face) const noexcept {}
+	template<env::IsMutableFetcher F>
+	void apply(F &&, const env::Box &, const Face) const noexcept {}
 };
 
 TEST(DirectSumTest, PeriodicForceWrap_X) {
@@ -180,8 +182,8 @@ TEST(DirectSumTest, PeriodicForceWrap_X) {
 	e.set_extent({10,10,10}); // domain box 10x10x10
 
 	// Two particles, near opposite faces along x
-	e.add_particle(Particle{.id=0, .type=0, .position={0.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
-	e.add_particle(Particle{.id=1, .type=0, .position={9.5, 5, 5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+	e.add_particle(make_particle(0, {0.5, 5, 5}, {}, 1, ParticleState::ALIVE, 0));
+	e.add_particle(make_particle(0, {9.5, 5, 5}, {}, 1, ParticleState::ALIVE, 1));
 
 	e.add_force(Harmonic(1, 0, 2), to_type(0)); // simple directional force
 	e.set_boundaries(DummyPeriodicBoundary(), {Face::XMinus, Face::XPlus});
@@ -190,11 +192,11 @@ TEST(DirectSumTest, PeriodicForceWrap_X) {
 	auto sys = build_system(e, DirectSum(),&mapping); // DirectSum container
 	sys.update_forces();
 
-	auto const& out = sys.export_particles();
+	const auto out = export_particles(sys);
 	ASSERT_EQ(out.size(), 2u);
 
-	auto p1 = sys.get_particle_by_id(mapping.id_map[0]);
-	auto p2 = sys.get_particle_by_id(mapping.id_map[1]);
+	auto p1 = get_particle(sys, mapping.id_map[0]);
+	auto p2 = get_particle(sys, mapping.id_map[1]);
 
 	// They should feel equal and opposite forces due to wrapping
 	EXPECT_EQ(p1.force, -p2.force);
@@ -210,8 +212,8 @@ TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 	e.set_extent({10, 10, 10});
 
 	// Particles placed in diagonally opposite corners
-	e.add_particle(Particle{.id=0, .type=0, .position={0.5, 0.5, 0.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
-	e.add_particle(Particle{.id=1, .type=0, .position={9.5, 9.5, 9.5}, .velocity={}, .mass=1.0, .state=ParticleState::ALIVE});
+	e.add_particle(make_particle(0, {0.5, 0.5, 0.5}, {}, 1, ParticleState::ALIVE, 0));
+	e.add_particle(make_particle(0, {9.5, 9.5, 9.5}, {}, 1, ParticleState::ALIVE, 1));
 
 	// Hooke-like spring with k=1, r0=0, cutoff=2
 	e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));
@@ -227,11 +229,11 @@ TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 	auto sys = build_system(e, DirectSum(), &mapping);
 	sys.update_forces();
 
-	auto const& out = sys.export_particles();
+	auto const& out = export_particles(sys);
 	ASSERT_EQ(out.size(), 2u);
 
-	auto p1 = sys.get_particle_by_id(mapping.id_map[0]);
-	auto p2 = sys.get_particle_by_id(mapping.id_map[1]);
+	auto p1 = get_particle(sys, mapping.id_map[0]);
+	auto p2 = get_particle(sys, mapping.id_map[1]);
 
 	// In a 10x10x10 domain with full wrapping,
 	// the wrapped displacement should be (-1, -1, -1) for p1->p2.

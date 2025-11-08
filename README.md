@@ -3,8 +3,7 @@
 
 **APRIL is a compact, modular C++23 library for particle-based simulations with the goal to combine usability and high performance.**
 
-It provides an expressive, easy-to-use API with clear setup path and extensible interfaces - with zero-cost abstractions in hot paths.  
-The design emphasizes modularity, plug-and-play components, and modern C++ (concepts, TMP, CRTP-style dispatch).
+It provides an expressive, easy-to-use API with clear setup path and extensible interfaces - with zero-cost abstractions in hot paths. The design emphasizes modularity, plug-and-play components, and modern C++ (concepts, TMP, CRTP-style dispatch).
 
 > **Status**: Core architecture complete.  
 > **Next**: expanded tests, SoA containers, internal SIMD API, and OpenMP parallelism.

@@ -15,15 +15,15 @@ namespace april::force::internal {
 
     template<IsForceVariant ForceVariant>
     class ForceTable {
-        using TypeInteraction = TypeInteraction<ForceVariant>;
-        using IdInteraction = IdInteraction<ForceVariant>;
+        using Type_Interaction = TypeInteraction<ForceVariant>;
+        using Id_Interaction = IdInteraction<ForceVariant>;
         using IdMap = std::unordered_map<env::ParticleID, env::ParticleID>;
         using TypeMap = std::unordered_map<env::ParticleType, env::ParticleType>;
     public:
 
         ForceTable(
-            std::vector<TypeInteraction> type_interactions,
-            std::vector<IdInteraction> id_interactions,
+            std::vector<Type_Interaction> type_interactions,
+            std::vector<Id_Interaction> id_interactions,
             const TypeMap & usr_types_to_impl_types,
             const IdMap & usr_ids_to_impl_ids
         ) {
@@ -97,7 +97,7 @@ namespace april::force::internal {
 
 
 
-        void build_type_forces(std::vector<TypeInteraction>& type_infos, const TypeMap & type_map)
+        void build_type_forces(std::vector<Type_Interaction>& type_infos, const TypeMap & type_map)
         {
             // collect unique particle types to define types map size (implementation types are dense [0, N-1])
             std::unordered_set<env::ParticleType> particle_types;
@@ -141,7 +141,7 @@ namespace april::force::internal {
         }
 
 
-        void build_id_forces(std::vector<IdInteraction>& id_infos, const IdMap & id_map)
+        void build_id_forces(std::vector<Id_Interaction>& id_infos, const IdMap & id_map)
         {
             // collect particle ids to define ids map size (implementation ids are dense [0, M-1])
             std::unordered_set<env::ParticleID> ids;

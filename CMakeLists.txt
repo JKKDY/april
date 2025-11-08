@@ -24,7 +24,19 @@ function(set_target_build_flags target_name)
 
             # Release → -O3
             # GCC/Clang
-            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang>>:-O3 -DNDEBUG -march=native -ffast-math>
+            $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang>>:
+            -Ofast
+            -march=native           # Uses all CPU features available locally.
+            -ffast-math
+#            -flto                   # Link-time optimization
+#            -fomit-frame-pointer
+#            -finline-functions
+#            -funroll-loops
+#            -fno-plt
+#            -fvectorize
+#            -fslp-vectorize
+            >
+
             # MSVC
             $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:
             /O2           # optimize for speed
@@ -35,7 +47,6 @@ function(set_target_build_flags target_name)
             /Oi           # intrinsic functions
             /Ot           # favor fast code
             /Ob3          # aggressive inlining
-            /DNDEBUG
             >
 
             # Debug → -O0 -g

@@ -1,16 +1,19 @@
 # APRIL -  A Particle Runtime Interaction Library
 
-APRIL is a small, modular C++ library for particle-based simulations.
-It aims to combine high performance with an easy-to-use and expressive API. The library emphasizes clear architecture, plug-and-play components, and modern C++ features (concepts, CRTP-style dispatch).
-> Status: A large portion of the foundational features are in place; Next TODOs: Some QoL & optimization updates and further tests before finally implementing parallelism via OpenMP
 
+**APRIL is a compact, modular C++23 library for particle-based simulations with the goal to combine usability and high performance.**
+It provides an expressive, easy-to-use API with clear setup path and extensible interfaces - with zero-cost abstractions in hot paths.  
+The design emphasizes modularity, plug-and-play components, and modern C++ (concepts, TMP, CRTP-style dispatch).
+
+> **Status**: Core architecture complete.  
+> **Next**: expanded tests, SoA containers, internal SIMD API, and OpenMP parallelism.
 
 ## Core Features
 
 - **Modular design**: seamlessly swap, extend or create your own components: (inter particles) **forces**, **containers** (force calculators), **boundary conditions**, **controllers** (e.g. Thermostats), **Force fields**, **integrators**, and **monitors**.
 - **Modern C++**: concepts for compile-time interface checking; CRTP & template-meta programing for maximum performance; Variants for run time flexibility.
 - **Ergonomic setup**: clear setup path. Special care was taken to minimize template verbosity with automatic template deduction (CTAD).
-- **Declarative and imperative APIs**: supports both a **fluent, declarative style** (`.with_*()`) for concise setup and a **traditional imperative style** (`add_*()`, `set_*()`) for explicit configuration.
+- **Zero-cost, type-safe particle access**: Views expose only the fields needed (e.g. position, velocity, force) with **compile-time safety** (no runtime checks and thus no overhead; unused fields are eliminated)
 - **Tested core**: GoogleTest suite covering interactions, containers, boundary conditions, integrator steps, binary I/O, and utilities.
 - **Small animation script**: a Python helper to quickly preview simulation output.
 
@@ -96,7 +99,7 @@ Optional observers with custom invocation policies (Triggers). They’re the pri
 - Interactions can be specified by type pair or by particle id pair; missing cross-type entries are derived via a mix function.
 - BinaryOutput writes a compact, versioned binary format (positions as float, plus type/id/state) suitable for lightweight analysis or visualization.
 - Defaults (e.g., automatic domain extent/origin) are provided, but can always be overridden explicitly.
-
+- Internal particle access highly optimized; internal views expose only the required fields (e.g., position, force) with compile-time guarantees; no runtime overhead, unused fields are eliminated at compile time.
 
 ## Usage (minimal example)
 ```c++
@@ -143,29 +146,42 @@ Benchmarks were conducted for **10 000 integration steps** on a **single CPU thr
 - LAMMPS: 22 Jul 2025
 - HOOMD: v5.3.1 (via WSL)
   
-For comparison, both **“parity”** and **“production”** configurations were used. Parity mode disables optimizations such as Verlet buffers to match APRIL’s linked cells implementation, to provide
+For comparison, both **“parity”** and **“production”** configurations were used. Parity mode disables optimizations such as Verlet buffers to approximately match APRIL’s linked cells implementation, to provide
 a more direct comparison. Production mode corresponds to each library’s standard tuned settings.
 
 ![Linked Cells benchmark](benchmark/results/bench_LC.png)
 
-APRIL’s linked-cell implementation achieves higher performance than HOOMD in parity configuration, which is expected given HOOMD’s primary focus on GPU execution. Compared to LAMMPS in parity configuration, APRIL shows a modest advantage of a few percent. Production runs of LAMMPS and HOOMD achieve greater throughput by employing neighbor list buffering.
+| Particles | APRIL LinkedCells | LAMMPS Parity LC | LAMMPS Production LC | HOOMD Parity LC | HOOMD Production LC |
+| --------- | ----------------: | ---------------: | -------------------: | --------------: | ------------------: |
+| 8000      |            57.764 |           62.782 |               23.965 |         196.574 |              42.475 |
+| 4500      |            31.367 |           33.130 |               12.548 |         104.548 |              23.148 |
+| 2250      |            14.139 |           14.859 |                5.561 |          48.699 |              10.406 |
+| 1000      |             4.527 |            5.608 |                2.102 |          18.591 |               4.107 |
+
+APRIL’s linked-cell implementation achieves higher performance than HOOMD in parity configuration, which is expected given HOOMD’s primary focus on GPU execution. Compared to LAMMPS in parity configuration, APRIL shows a slight advantage of a few percent.
+Production runs of LAMMPS and HOOMD achieve greater throughput by employing neighbor list buffering.
+Overall, this is a promising result for APRILS performance potential as it currently does not employ any further optimization techniques (SoA storage, SIMD, neighbor list buffering).
+
 
 ## Extending APRIL
 
-APRIL’s components are designed to be easy to implement and drop in. In the following the majority of nested namespaces inside april are omitted for brevity. 
+APRIL’s components are designed to be easy to extend and swap in and out. Each new component inherits from a CRTP (with C++23 syntax) base class and inherits missing methods. 
+In the following the majority of nested namespaces inside april are omitted for brevity. 
 
 
 ### Custom force
 
 Forces determine the pair wise interactions between particles. 
-Implement the call operator and a `mix` rule (used to derive cross-type interactions) and provide a `cutoff_radius`:
+Implement the call `eval` and a `mix` rule (used to derive cross-type interactions). The `eval` method takes in two `ConstFetchers` provide particle data on demand.
 
 ```c++
 struct MyForce : Force{
-    using Force::Force;
+    using Force::Force; // or define your own constructor
     
-    vec3 eval(const impl::Particle& a, const impl::Particle& b, const vec3& r_ab) const noexcept {
-        // your force logic here                
+    template<env::IsConstFetcher F>
+    vec3 eval(const F& a, const F& b, const vec3& r) const noexcept {
+        // your force logic here   
+        // fields can be accessed with a.position(), b.velocity() ..             
     }
     
     MyForce mix(const MyForce& other) const noexcept {
@@ -193,8 +209,10 @@ struct MyBoundary final : Boundary {
                  /*force_wrap*/  false,
                  /*may_change_particle_position*/ true) {}
                  
-    void apply(env::internal::Particle& p, const env::Box& box, boundary::Face face) const noexcept {
-        // your boundary logic here          
+    template<env::IsMutableFetcher F>
+    void apply(F && p, const env::Box& box, boundary::Face face) const noexcept {
+        // your boundary logic here    
+        // fields can be accessed & mutated with p.position(), p.velocity() ..                   
     }
 }
 ```
@@ -207,15 +225,19 @@ Inherit from `Controller` to create a controller with custom logic:
 
 ```C++
 struct MyController final : Controller {
+    static consexpr env::FieldMask fields = 
+
     using Controller::Controller; // or define your own constructor
     
     // optional. called once at the beginning of the simulation
-    void init(SimulationContext & ctx) {
+    template<class S>
+    void init(core::SystemContext<S> & ctx){
         // your custom initilization logic here
     }
     
     // required. called every time should_trigger(ctx) evaluates to true 
-    void apply(SimulationContext & ctx) {
+    template<class S>
+    void apply(core::SystemContext<S> & ctx) {
         // your custom controller logic here
     }
 }
@@ -229,22 +251,24 @@ To implement a custom force field inherit from `Field`:
 ```C++
 struct MyField final : Field {
     using Controller::Controller; // or define your own constructor
-    
+
     // optional. called once at the beginning of the simulation
     void init(const SimulationContext & ctx) {
         // your custom initilization logic here
     }
     
-    // optional. called during every integration step
-    void update(const SimulationContext & ctx) {
-        // your custom update logic here
-        // can be used e.g. for temporal dependence
-    }
-    
     // required. called during every integration step
-    void apply(env::RestrictedParticleRef particle) const {
+    template<env::IsUserData U>
+    void apply(const env::RestrictedParticleRef<fields, U> & particle) const {
         // your custom force field logic here 
         // only particle.force can be modified. All other attributes are read only
+   }
+    
+    // optional. called during every integration step
+    template<class S>
+    void update(const core::SystemContext<S> & ctx) {
+        // your custom update logic here
+        // can be used e.g. for temporal dependence
     }
 }
 ```
@@ -259,9 +283,11 @@ To create a custom container inherit from `Container<Config, Env>`and provide th
 - register_all_particle_movements
 - register_particle_movement
 - calculate_forces
-- get_particle_by_id, id_start, id_end
 - id_to_index
-- get_particle_by_index (optional), index_start, index_end
+- get_fetcher_by_id (optional, const & non const), 
+- id_start, id_end
+- get_particle_by_index (const & non const(), 
+- index_start, index_end
 - particle_count
 - collect_indices_in_region
 
@@ -283,15 +309,11 @@ class MyContainerImpl final : public Container<MyContainer, Env> {
 public:
     using Base::Base; // forward config. To access config data use this->cfg.
 	
-    void build(const std::vector<internal::Particle> & particles) { ... }
+    void build(const std::vector<internal::ParticleRecord> & particles) { ... }
     void calculate_forces() { ... }
     
-    // provide stable id-based access and sequential index-based access
-    internal::Particle& get_particle_by_id(internal::ParticleID id) noexcept { /* ... */ }
-    internal::Particle& get_particle_by_index(size_t idx) noexcept { /* ... */ }
-
-    size_t particle_count() const { ... }
-    
+    // provide all other methods like stable and non stable particle access,
+    // regional queries and update signalers
     ...
 };
 ```
@@ -302,7 +324,7 @@ Usage:
 auto system = build_system(env, MyContainer());
 ```
 
-You can derive from `container::ContiguousContainer<Config, Env>` to reuse storage and id/index utilities. ContiguousContainer stores particles in a single contiguous vector.
+You can derive from `container::ContiguousContainer<Config, Env>` to reuse storage and id/index utilities. ContiguousContainer stores particles data in a single contiguous vector.
 
 ### Custom integrator
 
@@ -335,7 +357,8 @@ class MyMonitor : public Monitor {
 public:
     explicit MyMonitor(Trigger trigger) : Monitor(std::move(trigger)) {}
 
-    void record(const SimulationContext & sys) {
+	template<class S>
+    void record(const core::SystemContext<S> & ctx) {
         // emit logs, write files, aggregate stats, etc.
         // use the SimulationContext to query state, particles, etc. 
     }
@@ -371,7 +394,7 @@ Additional Features:
 - [ ] Barnes–Hut container
 - [ ] SOA & SIMD support
 - [x] Extendable particles via template parameter (e.g. add charge property)
-- [ ] ~~C++ Modules~~ (wait for better compiler support)
+- [ ] ~~C++ Modules~~ (wait for more widespread compiler support)
 - [ ] more build feedback from `build_system` (e.g. spatial partition parameters) 
 - [ ] Continuous integration
 - [ ] python binding

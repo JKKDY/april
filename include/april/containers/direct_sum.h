@@ -93,14 +93,6 @@ namespace april::container {
 						vec3 dr = p2.position - p1.position;
 						dr = minimum_image<PX, PY, PZ>(dr, L);
 
-						// auto force = self->force_table->get_type_force(p1.type, p2.type);
-						// vec3 f = std::visit( [&]<typename F>(F const& ff) {
-						// 	constexpr env::FieldMask fields = F::fields;
-						// 	auto pv1 = env::ParticleView<fields, U>{self->get_fetcher_by_index(i)};
-						// 	auto pv2 = env::ParticleView<fields, U>{self->get_fetcher_by_index(j)};
-						// 	return ff(pv1, pv2, dr);
-						// }, force);
-
 						auto pv1 = std::as_const(*self).get_fetcher_by_index(i);
 						auto pv2 = std::as_const(*self).get_fetcher_by_index(j);
 						vec3 f = self->force_table->evaluate(pv1, pv2, dr);

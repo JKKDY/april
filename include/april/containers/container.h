@@ -236,10 +236,10 @@ namespace april::container {
 			typename C::user_type_t>;
 	} && requires {
 		// Check impl<force_table_t, user_type_t> resolves to this container type
-		std::same_as<C, typename C::config_type_t::template impl<typename C::force_table_t, typename C::user_type_t>>;
+		requires std::same_as<C, typename C::config_type_t::template impl<typename C::force_table_t, typename C::user_type_t>>;
 	} && requires {
 		// check that C is a derivative of Container
-		std::derived_from<C, Container<
+		requires std::derived_from<C, Container<
 			typename C::config_type_t,
 			typename C::force_table_t,
 			typename C::user_type_t,

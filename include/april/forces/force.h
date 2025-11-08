@@ -108,7 +108,7 @@ namespace april::force {
             static constexpr env::FieldMask fields = to_field_mask(env::Field::none);
 
 		    template<env::IsConstFetcher F>
-            vec3 operator()(const F&, const F&, const vec3&) const noexcept {
+            vec3 eval(const F&, const F&, const vec3&) const noexcept {
                 AP_ASSERT(false, "NullForce should never be executed");
                 std::unreachable();
             }

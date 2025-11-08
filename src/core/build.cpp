@@ -153,7 +153,7 @@ namespace april::core::internal {
 		validate_no_duplicates(type_pairs, "type interaction");
 
 		// check if types are valid i.e. if there are any particles with that type
-		for (const auto [type1, type2] : type_pairs) {
+		for (const auto & [type1, type2] : type_pairs) {
 			if (!user_types.contains(type1))
 				throw std::invalid_argument(
 					"Specified interacting particle type does not exist: " + std::to_string(type1));
@@ -167,7 +167,7 @@ namespace april::core::internal {
 		std::unordered_set<ParticleType> types_without_interaction;
 		types_without_interaction.insert(user_types.begin(), user_types.end());
 
-		for (const auto [a,b] : type_pairs) {
+		for (const auto & [a,b] : type_pairs) {
 			if (a == b and types_without_interaction.contains(a)) {
 				types_without_interaction.erase(a);
 			}
@@ -188,7 +188,7 @@ namespace april::core::internal {
 		validate_no_duplicates(id_pairs, "ID interaction");
 
 		// check if interaction arguments (ids/types) are valid
-		for (const auto [id1, id2]  : id_pairs) {
+		for (const auto & [id1, id2]  : id_pairs) {
 
 			// check if types are valid
 			if (!user_ids.contains(id1) || !user_ids.contains(id2)) {
@@ -269,7 +269,7 @@ namespace april::core::internal {
 
 		// collect all ids involved in an id-to-id interaction
 		std::unordered_set<ParticleID> interacting_ids;
-		for (const auto [id1, id2] : id_pairs) {
+		for (const auto & [id1, id2] : id_pairs) {
 			interacting_ids.insert(id1);
 			interacting_ids.insert(id2);
 		}

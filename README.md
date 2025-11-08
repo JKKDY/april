@@ -143,7 +143,7 @@ Benchmarks were conducted for **10 000 integration steps** on a **single CPU thr
 **System:** simple cubic lattice of varying size (1000–8000 particles).  
 **Hardware:** Windows 10, Intel Core i7-11370H @ 3.30 GHz.  
 **Compilers / Versions:**
-- APRIL: Clang (via WSL)
+- APRIL: Clang 18.1.3 (via WSL)
 - LAMMPS: 22 Jul 2025
 - HOOMD: v5.3.1 (via WSL)
   

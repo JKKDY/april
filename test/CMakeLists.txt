@@ -1,6 +1,5 @@
 enable_testing()
 
-# Use GTest from vcpkg
 include(FetchContent)
 
 FetchContent_Declare(

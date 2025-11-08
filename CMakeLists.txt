@@ -66,6 +66,7 @@ function(set_target_build_flags target_name)
     target_link_libraries(${target_name}
             PRIVATE
             $<$<CXX_COMPILER_ID:GNU,Clang>:stdc++fs stdc++>
+            $<$<CXX_COMPILER_ID:GNU,Clang>:m pthread>
             $<$<CXX_COMPILER_ID:MSVC>:advapi32> # MSVC needs this for filesystem
     )
 endfunction()

@@ -29,12 +29,10 @@ function(set_target_build_flags target_name)
             -march=native           # Uses all CPU features available locally.
             -ffast-math
 #            -flto                   # Link-time optimization
-#            -fomit-frame-pointer
-#            -finline-functions
-#            -funroll-loops
-#            -fno-plt
-#            -fvectorize
-#            -fslp-vectorize
+            -fomit-frame-pointer
+            -finline-functions
+            -funroll-loops
+            -fno-plt
             >
 
             # MSVC
@@ -63,6 +61,12 @@ function(set_target_build_flags target_name)
     target_link_options(${target_name} PRIVATE
         $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:GNU>>:-pg>
         $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:Clang>>:-pg>
+    )
+
+    target_link_libraries(${target_name}
+            PRIVATE
+            $<$<CXX_COMPILER_ID:GNU,Clang>:stdc++fs stdc++>
+            $<$<CXX_COMPILER_ID:MSVC>:advapi32> # MSVC needs this for filesystem
     )
 endfunction()
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <concepts>
-#include "april/particle/particle_fields.h"
+#include "april/particle/fields.h"
 
 namespace april::field {
 

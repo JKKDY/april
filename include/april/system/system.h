@@ -1,6 +1,6 @@
 #pragma once
 
-#include "april/particle/particle_fields.h"
+#include "april/particle/fields.h"
 #include "april/forces/force.h"
 #include "april/env/environment.h"
 #include "april/containers/container.h"

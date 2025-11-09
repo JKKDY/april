@@ -1,7 +1,7 @@
 #pragma once
 
 #include "april/fields/field.h"
-#include "april/particle/particle_fields.h"
+#include "april/particle/fields.h"
 
 namespace april::field {
 	struct UniformField final : Field {

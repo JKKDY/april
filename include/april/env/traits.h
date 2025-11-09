@@ -1,8 +1,8 @@
 #pragma once
 
 #include "april/env/data.h"
-#include "april/particle/particle_fields.h"
-#include "april/particle/particle_defs.h"
+#include "april/particle/fields.h"
+#include "april/particle/defs.h"
 
 #include "april/forces/force.h"
 #include "april/forces/force_table.h"

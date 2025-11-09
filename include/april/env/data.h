@@ -10,7 +10,7 @@
 #include "april/boundaries/boundary.h"
 #include "april/controllers/controller.h"
 #include "april/fields/field.h"
-#include "april/particle/particle_descriptors.h"
+#include "april/particle/descriptors.h"
 
 namespace april::env {
     template<force::IsForcePack FPack,
@@ -65,9 +65,4 @@ namespace april::env::internal {
     auto get_env_data(const Environment<FPack, BPack, CPack, FFPack, ParticleData>& env) {
         return env.data;
     }
-
-    void add_particle_impl(EnvironmentCommonData& data, const Particle& particle);
-    std::vector<ParticleID> add_cuboid_particles_impl(EnvironmentCommonData& data, const ParticleCuboid& cuboid);
-    std::vector<ParticleID> add_sphere_particles_impl(EnvironmentCommonData& data, const ParticleSphere& sphere);
-
 }

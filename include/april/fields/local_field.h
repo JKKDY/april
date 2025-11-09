@@ -2,7 +2,7 @@
 
 #include "april/system/context.h"
 #include "april/fields/field.h"
-#include "april/particle/particle_fields.h"
+#include "april/particle/fields.h"
 
 namespace april::field {
 	struct LocalForceField  final : Field {

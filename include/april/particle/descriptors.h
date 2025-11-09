@@ -2,7 +2,7 @@
 #include <any>
 
 #include "april/common.h"
-#include "april/particle/particle_defs.h"
+#include "april/particle/defs.h"
 
 
 namespace april::env {
@@ -65,6 +65,11 @@ namespace april::env {
 
 	inline const auto ZERO_THERMAL_V = [](const vec3&) {return vec3{}; };
 
+    template<typename T>
+    concept IsParticleGenerator = requires (T x) {
+        {x.to_particles()} -> std::same_as<std::vector<Particle>>;
+    };
+
     struct ParticleCuboid {
         vec3 origin;
         vec3 mean_velocity;
@@ -112,6 +117,35 @@ namespace april::env {
         }
         [[nodiscard]] ParticleCuboid& with_data(const std::any & data) noexcept {
             user_data = data; return *this;
+        }
+
+        [[nodiscard]] std::vector<Particle> to_particles() const {
+            if (distance == 0) {
+                throw std::logic_error("Cuboid inter-particle distance is set to 0!");
+            }
+            std::vector<Particle> particles;
+            particles.reserve(particle_count.x * particle_count.y * particle_count.z);
+
+            for (unsigned int x = 0; x < particle_count.x; ++x) {
+                for (unsigned int y = 0; y < particle_count.y; ++y) {
+                    for (unsigned int z = 0; z < particle_count.z; ++z) {
+                        Particle p;
+
+                        p.id = std::nullopt;
+                        p.type		= type_idx;
+                        p.position	= origin + vec3(x * distance, y * distance, z * distance);
+                        p.velocity	= mean_velocity;
+                        p.mass		= particle_mass;
+                        p.state		= particle_state;
+                        p.user_data	= user_data;
+                        p.velocity += thermal_velocity(p.position);
+
+                        particles.push_back(p);
+                    }
+                }
+            }
+
+            return particles;
         }
     };
 
@@ -166,6 +200,51 @@ namespace april::env {
         }
         [[nodiscard]] ParticleSphere& with_data(const std::any & data) noexcept {
             user_data = data; return *this;
+        }
+        [[nodiscard]] std::vector<Particle> to_particles() const {
+            if (distance == 0) {
+                throw std::logic_error("Sphere inter-particle distance is set to 0");
+            }
+
+
+            const vec3 radii = {
+                std::max(radii.x, distance),
+                std::max(radii.y, distance),
+                std::max(radii.z, distance)
+            };
+            const double ellipsoid_volume = 4.0/3.0*3.14*radii.x*radii.y*radii.z;
+
+            std::vector<Particle> particles;
+            particles.reserve(static_cast<size_t>(ellipsoid_volume / (distance*distance*distance)));
+
+            for (int x = -static_cast<int>(radii.x/distance); x < static_cast<int>(radii.x/distance); ++x) {
+                for (int y = -static_cast<int>(radii.y/distance); y < static_cast<int>(radii.y/distance); ++y) {
+                    for (int z = -static_cast<int>(radii.z/distance); z < static_cast<int>(radii.z/distance); ++z) {
+
+                        const vec3 pos = {x * distance, y * distance, z * distance};
+                        const vec3 pos_sq = pos * pos;
+
+                        // if not in ellipsoid skip
+                        if (pos_sq.x/(radii.x*radii.x) +
+                            pos_sq.y/(radii.y*radii.y) +
+                            pos_sq.z/(radii.z*radii.z) >= 1) continue;
+
+                        Particle p;
+                        p.id        = std::nullopt;
+                        p.type      = type_idx;
+                        p.position  = center + pos;
+                        p.velocity  = mean_velocity;
+                        p.mass      = particle_mass;
+                        p.state     = particle_state;
+                        p.user_data = user_data;
+                        p.velocity += thermal_velocity(p.position);
+
+                        particles.push_back(p);
+                    }
+                }
+            }
+
+            return particles;
         }
     };
 

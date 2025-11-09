@@ -11,8 +11,8 @@
 #include "april/controllers/controller.h"
 #include "april/fields/field.h"
 #include "april/env/traits.h"
-#include "april/particle/particle_descriptors.h"
-#include "april/particle/particle_defs.h"
+#include "april/particle/descriptors.h"
+#include "april/particle/defs.h"
 
 
 namespace april::env {
@@ -66,7 +66,17 @@ namespace april::env {
 
         // Single particle
         void add_particle(const Particle& particle) {
-            internal::add_particle_impl(data, particle);
+            if (particle.id.has_value() && data.user_particle_ids.contains(particle.id.value())) {
+                throw std::invalid_argument("specified id is not unique");
+            }
+
+            data.particles.push_back(particle);
+
+            if (particle.id.has_value()) {
+                data.user_particle_ids.insert(particle.id.value());
+            }
+
+            data.user_particle_types.insert(particle.type);
         }
 
         // Single particle
@@ -88,14 +98,10 @@ namespace april::env {
             for (auto & p : particles)  add_particle(p);
         }
 
-        // Cuboid
-        std::vector<ParticleID> add_particles(const ParticleCuboid& cuboid) {
-            return internal::add_cuboid_particles_impl(data, cuboid);
-        }
-
-        // Sphere
-        std::vector<ParticleID> add_particles(const ParticleSphere& sphere) {
-            return internal::add_sphere_particles_impl(data, sphere);
+        // Multi particle Initializer
+        template<IsParticleGenerator T>
+        void add_particles(const T& initializer) {
+            add_particles(initializer.to_particles());
         }
 
         // --- Add Forces ---

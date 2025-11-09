@@ -1,5 +1,5 @@
 #include "april/system/build.h"
-#include "april/particle/particle_descriptors.h"
+#include "april/particle/descriptors.h"
 
 #include <algorithm>
 

@@ -1,6 +1,6 @@
 #pragma once
 #include "april/env/environment.h"
-#include "april/particle/particle_fields.h"
+#include "april/particle/fields.h"
 
 #include "april/boundaries/boundary.h"
 #include "april/boundaries/absorb.h"

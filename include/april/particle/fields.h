@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "april/common.h"
-#include "april/particle/particle_defs.h"
+#include "april/particle/defs.h"
 
 
 namespace april::env {

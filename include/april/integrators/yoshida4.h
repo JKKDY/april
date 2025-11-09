@@ -1,7 +1,7 @@
 #pragma once
 #include "april/integrators/integrator.h"
 #include "april/system/system.h"
-#include "april/particle/particle_fields.h"
+#include "april/particle/fields.h"
 #include "april/monitors/monitor.h"
 
 namespace april::integrator {

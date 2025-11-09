@@ -1,74 +1,22 @@
 #pragma once
 
 #include <vector>
-#include <functional>
 #include <limits>
 #include <any>
 
 #include "april/common.h"
 #include "april/env/domain.h"
-#include "april/env/particle.h"
 #include "april/forces/force.h"
 #include "april/boundaries/boundary.h"
 #include "april/controllers/controller.h"
 #include "april/fields/field.h"
 #include "april/env/traits.h"
-#include "april/env/pack_utils.h"
+#include "april/particle/particle_descriptors.h"
+#include "april/particle/particle_defs.h"
 
 
 namespace april::env {
     inline const auto MARGIN_DONT_CARE = vec3(std::numeric_limits<double>::max());
-    inline const auto ZERO_THERMAL_V = [](const vec3&) {return vec3{}; };
-
-    struct ParticleCuboid {
-        vec3 origin;
-        vec3 mean_velocity;
-        uint3 particle_count;
-        double distance;
-        double particle_mass;
-        ParticleType type_idx;
-        std::any user_data;
-        std::function<vec3(const vec3&)> thermal_velocity = ZERO_THERMAL_V;
-        ParticleState particle_state = ParticleState::ALIVE;
-
-        // fluent setters
-        [[nodiscard]] ParticleCuboid& at(const vec3& p) noexcept;
-        [[nodiscard]] ParticleCuboid& velocity(const vec3& v) noexcept;
-        [[nodiscard]] ParticleCuboid& count(const uint3& n) noexcept;
-        [[nodiscard]] ParticleCuboid& spacing(double d) noexcept;
-        [[nodiscard]] ParticleCuboid& mass(double m) noexcept;
-        [[nodiscard]] ParticleCuboid& type(int t) noexcept;
-        [[nodiscard]] ParticleCuboid& thermal(std::function<vec3(const vec3&)> tv);
-        [[nodiscard]] ParticleCuboid& state(ParticleState s) noexcept;
-        [[nodiscard]] ParticleCuboid& with_data(const std::any & data) noexcept;
-    };
-
-
-    struct ParticleSphere {
-        vec3 center;
-        vec3 mean_velocity;
-        vec3 radii;  // for true sphere set all equal
-        double distance;  // packing spacing
-        double particle_mass;
-        ParticleType type_idx;
-        std::any user_data;
-        std::function<vec3(const vec3&)> thermal_velocity = ZERO_THERMAL_V;
-        ParticleState particle_state = ParticleState::ALIVE;
-
-        // fluent setters
-        [[nodiscard]] ParticleSphere& at(const vec3& c) noexcept;
-        [[nodiscard]] ParticleSphere& velocity(const vec3& v) noexcept;
-        [[nodiscard]] ParticleSphere& radius_xyz(const vec3& r) noexcept;
-        [[nodiscard]] ParticleSphere& radius(double r) noexcept;   // convenience: uniform
-        [[nodiscard]] ParticleSphere& spacing(double d) noexcept;
-        [[nodiscard]] ParticleSphere& mass(double m) noexcept;
-        [[nodiscard]] ParticleSphere& type(int t) noexcept;
-        [[nodiscard]] ParticleSphere& thermal(std::function<vec3(const vec3&)> tv);
-        [[nodiscard]] ParticleSphere& state(ParticleState s) noexcept;
-        [[nodiscard]] ParticleSphere& with_data(const std::any & data) noexcept;
-
-    };
-
 
 
     struct to_type { ParticleType type; };

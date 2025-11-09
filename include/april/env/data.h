@@ -6,11 +6,11 @@
 
 #include "april/common.h"
 #include "april/env/domain.h"
-#include "april/env/particle.h"
 #include "april/forces/force.h"
 #include "april/boundaries/boundary.h"
 #include "april/controllers/controller.h"
 #include "april/fields/field.h"
+#include "april/particle/particle_descriptors.h"
 
 namespace april::env {
     template<force::IsForcePack FPack,

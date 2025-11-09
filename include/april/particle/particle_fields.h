@@ -4,80 +4,13 @@
 #include <type_traits>
 #include <cstdint>
 #include <sstream>
-#include <any>
 #include <utility>
 
 #include "april/common.h"
+#include "april/particle/particle_defs.h"
 
 
 namespace april::env {
-	enum class ParticleState : uint8_t {
-		ALIVE      = 1u << 0, // Moves, exerts and experiences forces
-		DEAD       = 1u << 1, // Inactive; no movement or interaction
-		PASSIVE    = 1u << 2, // Moves, experiences forces but exerts none
-		STATIONARY = 1u << 3, // Exerts forces but does not move or respond
-		EXERTING   = ALIVE | STATIONARY, // Can exert forces on others
-		MOVABLE    = ALIVE | PASSIVE,    // Can move (may or may not exert forces)
-		ALL        = 0b11111111  // Matches all states
-	};
-
-
-	// Bitwise OR
-	inline ParticleState operator|(ParticleState a, ParticleState b) {
-		return static_cast<ParticleState>(
-			static_cast<unsigned int>(a) | static_cast<unsigned int>(b)
-		);
-	}
-
-	// Bitwise AND
-	inline ParticleState operator&(ParticleState a, ParticleState b) {
-		return static_cast<ParticleState>(
-			static_cast<unsigned int>(a) & static_cast<unsigned int>(b)
-		);
-	}
-
-	// Bitwise NOT
-	inline ParticleState operator~(ParticleState a) {
-		return static_cast<ParticleState>(
-			~static_cast<unsigned int>(a)
-		);
-	}
-
-	// OR-assignment
-	inline ParticleState& operator|=(ParticleState& a, const ParticleState b) {
-		a = a | b;
-		return a;
-	}
-
-	// AND-assignment
-	inline ParticleState& operator&=(ParticleState& a, const ParticleState b) {
-		a = a & b;
-		return a;
-	}
-
-
-	using ParticleType = uint16_t;
-	using ParticleID = uint32_t;
-
-	// user facing declaration with optional fields and non typed field for user data
-	struct Particle {
-		std::optional<ParticleID> id;			// The id of the particle.
-		ParticleType type = 0;  				// The type of the particle.
-
-		vec3 position;      					// The position of the particle.
-		vec3 velocity;      					// The velocity of the particle.
-
-		double mass{};        					// The mass of the particle.
-		ParticleState state{};					// The state of the particle.
-
-		// optional data e.g. if initializing from a simulation snapshot
-		std::optional<vec3> old_position;		// previous position of the particle. Useful for applying boundary conditions
-		std::optional<vec3> old_force;			// previous force acting on the particle.
-		std::optional<vec3> force;				// current force
-
-		std::any user_data {}; // custom user data
-	};
-
 
 	using FieldMask = uint32_t;
 
@@ -112,26 +45,6 @@ namespace april::env {
 	template<FieldMask M, Field F>
 	inline constexpr bool has_field_v = (M & to_field_mask(F)) != 0;
 
-
-	template <typename T>
-	concept IsUserData =
-		std::default_initializable<T> &&
-		std::is_trivially_copyable_v<T> &&
-		std::is_trivially_destructible_v<T> &&
-		std::is_standard_layout_v<T> &&
-		(!std::is_polymorphic_v<T>);
-
-
-	struct NoUserData {};
-
-	// used to tell the environment what user data will be used
-	template<typename Data = NoUserData>
-	struct ParticleData {
-		using user_data_t = Data;
-	};
-
-	template<typename Data = NoUserData>
-	inline constexpr ParticleData<Data> particle_data {};
 
 
 

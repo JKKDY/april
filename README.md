@@ -113,8 +113,8 @@ int main() {
 	// constructor requires type information on, at run time, usable components
 	// possible template packs are: forces, boundaries, fields, controllers
     auto env = Environment (forces<InverseSquare>, boundaries<Outflow>)
-        .with_particle(/*pos*/ {0,0,0}, /*vel*/ {0,0,0}, /*mass*/ 1.0, /*type*/0)   // Sun
-        .with_particle(/*pos*/ {1,0,0}, /*vel*/ {0,1,0},/*mass*/ 1e-5, /*type*/0)   // Planet
+        .with_particle(Particle().at(1,0,0).with_velocity(0,0,0).with_mass(1.0).as_type(0))   // Sun
+        .with_particle(Particle().at(1,0,0).with_velocity(0,1,0).with_mass(1e-5).as_type(0))   // Planet
         .with_force(InverseSquare(), to_type(0))                                    // gravity for type 0
         .with_boundaries(Outflow(), all_faces);                                     // all faces open
 

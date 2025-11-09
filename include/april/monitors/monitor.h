@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include "april/core/context.h"
+#include "april/system/context.h"
 #include "april/shared/trigger.h"
 
 namespace april::monitor {

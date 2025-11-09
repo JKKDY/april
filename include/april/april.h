@@ -1,6 +1,6 @@
 #pragma once
 #include "april/env/environment.h"
-#include "april/env/particle.h"
+#include "april/particle/particle_fields.h"
 
 #include "april/boundaries/boundary.h"
 #include "april/boundaries/absorb.h"
@@ -36,9 +36,9 @@
 #include "april/integrators/stoermer_verlet.h"
 #include "april/integrators/yoshida4.h"
 
-#include "april/core/build.h"
-#include "april/core/system.h"
-#include "april/core/context.h"
+#include "april/system/build.h"
+#include "april/system/system.h"
+#include "april/system/context.h"
 
 
 #define APRIL_API

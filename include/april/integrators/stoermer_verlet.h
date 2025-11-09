@@ -1,9 +1,8 @@
 #pragma once
 #include "april/integrators/integrator.h"
-#include "april/core/system.h"
-#include "april/env/particle.h"
+#include "april/system/system.h"
+#include "april/particle/particle_fields.h"
 #include "april/monitors/monitor.h"
-#include "april/defaults.h"
 
 namespace april::integrator {
 
@@ -56,11 +55,6 @@ namespace april::integrator {
 	template<class Sys, class... Ms>
 	StoermerVerlet(Sys&, monitor::MonitorPack<Ms...>)
 		-> StoermerVerlet<Sys, monitor::MonitorPack<Ms...>>;
-
-	// Deduction guide so user can write StoermerVerlet(sys)
-	template<class Sys>
-	StoermerVerlet(Sys&)
-		-> StoermerVerlet<Sys, DefaultMonitors>;
 
 	// Deduction guide so user can write StoermerVerlet(sys, m1, m2, m3)
 	template<class Sys, class... Ms>

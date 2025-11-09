@@ -1,5 +1,6 @@
 #pragma once
 
+#include "april/particle/particle_fields.h"
 #include "april/containers/container.h"
 
 namespace april::container {

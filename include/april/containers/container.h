@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 
-#include "april/env/particle.h"
+#include "april/particle/particle_fields.h"
 #include "april/env/domain.h"
 
 

@@ -1,4 +1,6 @@
-#include "april/core/build.h"
+#include "april/system/build.h"
+#include "april/particle/particle_descriptors.h"
+
 #include <algorithm>
 
 namespace april::core::internal {

@@ -1,7 +1,7 @@
 #pragma once
 #include <concepts>
 
-#include "april/core/system.h"
+#include "april/system/system.h"
 #include "april/monitors/monitor.h"
 #include "april/common.h"
 
@@ -20,10 +20,6 @@ namespace april::integrator {
 		{}
 
 		explicit Integrator(Sys& s, monitor::MonitorPack<TMonitors...>) : sys(s) {}
-
-		explicit Integrator(Sys& s, TMonitors... mons) : sys(s) {
-			(this->add_monitor(std::move(mons)), ...);
-		}
 
 		template<typename T> requires same_as_any<T, TMonitors...>
 		void add_monitor(T monitor) {

@@ -5,8 +5,8 @@
 #include <memory>
 #include <iostream>
 #include <vector>
-#include "april/core/system.h"
-#include "april/env/particle.h"
+#include "april/system/system.h"
+#include "april/particle/particle_fields.h"
 #include "april/env/environment.h"
 #include "april/containers/container.h"
 #include "april/env/domain.h"

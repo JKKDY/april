@@ -3,7 +3,7 @@
 #include <functional>
 #include <unordered_set>
 
-#include "april/env/particle.h"
+#include "april/particle/particle_fields.h"
 #include "april/forces/force.h"
 #include "april/forces/no_force.h"
 #include "april/common.h"

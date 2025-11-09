@@ -5,7 +5,7 @@
 #include <utility>
 
 #include "april/common.h"
-#include "april/env/particle.h"
+#include "april/particle/particle_fields.h"
 
 
 namespace april::force {

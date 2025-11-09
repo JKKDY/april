@@ -91,6 +91,4 @@ namespace april::core {
 			env.fields
 		);
 	}
-
-
 }

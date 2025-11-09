@@ -1,10 +1,8 @@
 # top level 
 
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.28)
 project(April LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 message(STATUS "CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 
@@ -94,12 +92,28 @@ function(enable_sanitizer_if_dbg target_name)
     endif()
 endfunction()
 
-
-
 add_compile_options(${GLOBAL_OPT_FLAGS})
 
+
+# Define the Header-Only Library
+file(GLOB_RECURSE APRIL_HEADERS CONFIGURE_DEPENDS
+        "${PROJECT_SOURCE_DIR}/include/april/*.h"
+        "${PROJECT_SOURCE_DIR}/include/april/*.hpp"
+)
+add_library(April INTERFACE)  # define april as an interface library
+target_sources(April INTERFACE ${APRIL_HEADERS})  # add headers to the target so IDEs can see them
+
+# Tell targets that link to April where to find the headers
+target_include_directories(April INTERFACE
+        ${PROJECT_SOURCE_DIR}/include
+)
+target_compile_features(April INTERFACE cxx_std_23) # targets must use C++23
+
+# group headers in IDE
+source_group(TREE "${PROJECT_SOURCE_DIR}/include" PREFIX "Header Files" FILES ${APRIL_HEADERS})
+
+
 # Include subdirectories
-add_subdirectory(src)
 add_subdirectory(examples)
 add_subdirectory(test)
 add_subdirectory(benchmark)

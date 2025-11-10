@@ -1,0 +1,120 @@
+name: C++ CI
+
+# Triggers the workflow on push or pull request events
+# targeting the main or master branch.
+# Also allows for manual triggering from the GitHub UI.
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build_and_test:
+    # Name the job with its matrix configuration for clarity
+    name: ${{ matrix.name }}
+    
+    # Use the operating system from the matrix
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      # Don't cancel all jobs if one fails
+      fail-fast: false
+
+      # Define the explicit configurations you want to test
+      matrix:
+        include:
+          # --- Linux (C++23 Capable Runner) ---
+          - name: Linux (GCC 14, Debug)
+            os: ubuntu-24.04
+            build_type: Debug
+            cxx: g++-14
+            cc: gcc-14
+
+          - name: Linux (GCC 14, Release)
+            os: ubuntu-24.04
+            build_type: Release
+            cxx: g++-14
+            cc: gcc-14
+            
+          - name: Linux (Clang 18, Debug)
+            os: ubuntu-24.04
+            build_type: Debug
+            cxx: clang++-18
+            cc: clang-18
+
+          - name: Linux (Clang 18, Release)
+            os: ubuntu-24.04
+            build_type: Release
+            cxx: clang++-18
+            cc: clang-18
+
+          # --- Windows (MSVC) ---
+          - name: Windows (MSVC, Debug)
+            os: windows-latest
+            build_type: Debug
+
+          - name: Windows (MSVC, Release)
+            os: windows-latest
+            build_type: Release
+
+          # --- macOS (AppleClang) ---
+          - name: macOS (Clang, Debug)
+            os: macos-latest
+            build_type: Debug
+            
+          - name: macOS (Clang, Release)
+            os: macos-latest
+            build_type: Release
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install C++23 compilers (Linux)
+        # This step only runs on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          # Use the PPA for the latest GCC toolchain
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-14 g++-14
+          
+          # Use the official LLVM script for the latest Clang
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
+
+      - name: Set C/C++ Compilers
+        # This step only runs on Linux to set the specific compilers
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
+          echo "CXX=${{ matrix.cxx }}" >> $GITHUB_ENV
+
+      - name: Configure CMake
+        # Use your standard CMake command.
+        # -S . (source dir) -B build (build dir)
+        # -DCMAKE_BUILD_TYPE gets the value from the matrix
+        shell: bash
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+
+      - name: Build
+        # This command builds all targets (tests, examples, benchmarks)
+        # --config is necessary for multi-config generators like MSVC
+        # -j 2 runs the build on 2 cores to speed it up
+        shell: bash
+        run: cmake --build build --config ${{ matrix.build_type }} -j 2
+
+      - name: Run Tests
+        # Runs the tests.
+        # We 'cd' into the build directory for portability, as you suggested.
+        # --output-on-failure is critical for debugging
+        # --build-config is necessary for MSVC
+        shell: bash
+        run: |
+          cd build
+          ctest --output-on-failure --build-config ${{ matrix.build_type }}

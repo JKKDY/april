@@ -32,6 +32,10 @@ jobs:
             cxx: g++-14
             cc: gcc-14
 
+          - name: List files in workspace
+            shell: bash
+            run: ls -laR
+
           - name: Linux (GCC 14, Release)
             os: ubuntu-24.04
             build_type: Release

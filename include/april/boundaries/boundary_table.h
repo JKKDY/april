@@ -1,6 +1,7 @@
 #pragma once
 
 #include <variant>
+#include <algorithm>
 
 #include "april/boundaries/boundary.h"
 

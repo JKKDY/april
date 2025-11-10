@@ -41,8 +41,6 @@
 #include "april/system/context.h"
 
 
-#define APRIL_API
-
 namespace april {
 
 	// Environment

@@ -1,15 +1,11 @@
-# Shared common code for examples
-add_library(example_common STATIC common/utils.cpp)
-target_include_directories(example_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/common)
-target_link_libraries(example_common PUBLIC April)
-set_target_properties(example_common PROPERTIES FOLDER "examples/common")
+
 
 function(add_example target_name source_file folder_name)
     add_executable(${target_name} ${source_file})
-    target_link_libraries(${target_name} PRIVATE example_common)
     target_compile_definitions(${target_name} PRIVATE PROJECT_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     set_target_properties(${target_name} PROPERTIES FOLDER "examples/${folder_name}")
 
+    target_link_libraries(${target_name} PRIVATE April)
     set_target_build_flags(${target_name})
     enable_sanitizer_if_dbg(${target_name})
 endfunction()

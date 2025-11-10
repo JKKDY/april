@@ -157,7 +157,7 @@ TEST(LinkedCellsTest, OrbitTest) {
 	env.add_particle(make_particle(0, {0,R,0}, {v, 0, 0}, m));
 	env.add_particle(make_particle(0, {0,0,0}, {0, 0, 0}, M));
 
-	env.add_force(PowerLaw(G), to_type(0));
+	env.add_force(PowerLaw(2, G), to_type(0));
 
 	env.set_origin({-1.5*v,-1.5*v,0});
 	env.set_extent({3*v,3*v,1});
@@ -242,13 +242,13 @@ TEST(LinkedCellsTest, CollectIndicesInRegion) {
 
         	std::unordered_set inside (indices.begin(), indices.end());
 
-        	for (size_t idx = sys.index_start(); idx < sys.index_end(); idx++) {
-				auto p = get_particle(sys, idx);
+        	for (size_t id = sys.id_start(); id < sys.id_end(); id++) {
+				auto p = get_particle(sys, id);
         		bool in_region = (p.position.x >= 1.5 && p.position.x <= 4.5) &&
 					(p.position.y >= 1.5 && p.position.y <= 4.5) &&
 					(p.position.z >= 1.5 && p.position.z <= 4.5);
 
-        		if (inside.contains(idx)) {
+        		if (inside.contains(id)) {
         			EXPECT_TRUE(in_region);
         		} else {
         			EXPECT_FALSE(in_region);
@@ -298,14 +298,14 @@ TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 		auto const& out = export_particles(sys);
 		ASSERT_EQ(out.size(), 2u);
 
-		auto p1 = get_particle(sys, mapping.id_map[0]);
-		auto p2 = get_particle(sys, mapping.id_map[1]);
+		auto p1 = get_particle_by_id(sys, mapping.id_map[0]);
+		auto p2 = get_particle_by_id(sys, mapping.id_map[1]);
 
 		// They should feel equal and opposite forces due to wrapping
 		EXPECT_EQ(p1.force, -p2.force);
 
-		EXPECT_NEAR(p1.force.x, -1.0, 1e-12);
-		EXPECT_NEAR(p2.force.x,  1.0, 1e-12);
+		EXPECT_NEAR(p1.force.x, 1.0, 1e-12);
+		EXPECT_NEAR(p2.force.x, -1.0, 1e-12);
 	}
 }
 
@@ -337,19 +337,19 @@ TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
 		auto const& out = export_particles(sys);
 		ASSERT_EQ(out.size(), 2u);
 
-		auto p1 = get_particle(sys, mapping.id_map[0]);
-		auto p2 = get_particle(sys, mapping.id_map[1]);
+		auto p1 = get_particle_by_id(sys, mapping.id_map[0]);
+		auto p2 = get_particle_by_id(sys, mapping.id_map[1]);
 
 		// Forces must be equal and opposite
 		EXPECT_EQ(p1.force, -p2.force);
 
-		EXPECT_NEAR(p1.force.x, -1.0, 1e-12);
-		EXPECT_NEAR(p1.force.y, -1.0, 1e-12);
-		EXPECT_NEAR(p1.force.z, -1.0, 1e-12);
+		EXPECT_NEAR(p1.force.x, 1.0, 1e-12);
+		EXPECT_NEAR(p1.force.y, 1.0, 1e-12);
+		EXPECT_NEAR(p1.force.z, 1.0, 1e-12);
 
-		EXPECT_NEAR(p2.force.x,  1.0, 1e-12);
-		EXPECT_NEAR(p2.force.y,  1.0, 1e-12);
-		EXPECT_NEAR(p2.force.z,  1.0, 1e-12);
+		EXPECT_NEAR(p2.force.x, -1.0, 1e-12);
+		EXPECT_NEAR(p2.force.y, -1.0, 1e-12);
+		EXPECT_NEAR(p2.force.z, -1.0, 1e-12);
 	}
 }
 

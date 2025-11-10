@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <unordered_set>
+#include <array>
 
 #include "april/common.h"
 #include "april/env/domain.h"

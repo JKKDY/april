@@ -27,6 +27,27 @@ typename System::ParticleRec get_particle(System& sys, size_t index) {
 }
 
 template<core::IsSystem System>
+typename System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
+	constexpr auto all_fields = to_field_mask(env::Field::all);
+
+	auto p_ref = sys.template get_particle_by_id<all_fields>(id);
+
+	typename System::ParticleRec rec;
+	rec.id          = p_ref.id;
+	rec.type        = p_ref.type;
+	rec.position    = p_ref.position;
+	rec.velocity    = p_ref.velocity;
+	rec.force       = p_ref.force;
+	rec.old_position = p_ref.old_position;
+	rec.old_force   = p_ref.old_force;
+	rec.state       = p_ref.state;
+	rec.mass        = p_ref.mass;
+	rec.user_data   = p_ref.user_data;
+
+	return rec;
+}
+
+template<core::IsSystem System>
 std::vector<typename System::ParticleRec> export_particles(System& sys) {
 	std::vector<typename System::ParticleRec> records;
 	records.reserve(sys.index_end() - sys.index_start());

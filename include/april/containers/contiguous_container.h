@@ -24,7 +24,7 @@ namespace april::container {
 			this->particles = std::vector(particles);
 			indices.resize(particles.size());
 			for (size_t i = 0; i < particles.size(); i++) {
-				const auto id = static_cast<size_t>(this->particles[i].id);
+				const auto id = static_cast<size_t>(particles[i].id);
 				indices[id] = i;
 			}
 			this->is_built = true;

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cxxabi.h>
 #include <typeinfo>
 #include <algorithm>
 #include <unordered_set>
@@ -9,6 +8,29 @@
 #include "april/common.h"
 #include "april/forces/force.h"
 #include "april/particle/descriptors.h"
+
+
+#ifdef _MSC_VER
+template<typename T>
+std::string demangled_type_name() {
+	return typeid(T).name();
+}
+#else
+
+#include <cxxabi.h>
+#include <cstdlib> // For std::free
+
+template<typename T>
+		std::string demangled_type_name() {
+	int status = 0;
+	const std::unique_ptr<char, void(*)(void*)> demangled{
+		abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, &status),
+		std::free
+	};
+	return (status == 0) ? demangled.get() : typeid(T).name();
+}
+#endif
+
 
 namespace april::core::internal {
 	// ---- Particle Validation ----
@@ -207,16 +229,6 @@ namespace april::core::internal {
 		auto id_map = create_id_map(user_ids, id_pairs);
 
 		return std::pair{type_map, id_map};
-	}
-
-	template<typename T>
-		std::string demangled_type_name() {
-		int status = 0;
-		const std::unique_ptr<char, void(*)(void*)> demangled{
-			abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, &status),
-			std::free
-		};
-		return (status == 0) ? demangled.get() : typeid(T).name();
 	}
 
 	template <env::IsUserData UserData>

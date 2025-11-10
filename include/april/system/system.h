@@ -16,12 +16,12 @@ namespace april::core {
 	class System;
 
 
-	template <class Cont, env::IsEnvironment Env>
-	requires container::IsContainerDecl<Cont, typename Env::traits>
-	System<Cont, typename Env::traits> build_system(
-		const Env & environment,
-		const Cont& container,
-		BuildInfo* build_info = nullptr
+	template <class Container, env::IsEnvironment EnvT>
+	requires container::IsContainerDecl<Container, typename EnvT::traits>
+	System<Container, typename EnvT::traits> build_system(
+		const EnvT & environment,
+		const Container& container,
+		BuildInfo * build_info = nullptr
 	);
 
 

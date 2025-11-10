@@ -4,12 +4,48 @@ cmake_minimum_required(VERSION 3.28)
 project(April LANGUAGES CXX)
 
 
-message(STATUS "CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
-
-
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
+
+
+message(STATUS "CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
+message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} (${CMAKE_CXX_COMPILER})")
+
+
+
+# Define the Header-Only Library
+file(GLOB_RECURSE APRIL_HEADERS CONFIGURE_DEPENDS
+        "${PROJECT_SOURCE_DIR}/include/april/*.h"
+        "${PROJECT_SOURCE_DIR}/include/april/*.hpp"
+)
+add_library(April INTERFACE)  # define april as an interface library
+target_sources(April INTERFACE ${APRIL_HEADERS})  # add headers to the target so IDEs can see them
+
+# Tell targets that link to April where to find the headers
+target_include_directories(April INTERFACE
+        ${PROJECT_SOURCE_DIR}/include
+)
+target_compile_features(April INTERFACE cxx_std_23) # targets must use C++23
+
+
+
+set_target_properties(April PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+)
+
+get_target_property(APRIL_CXX_STANDARD April CXX_STANDARD)
+if(APRIL_CXX_STANDARD)
+    message(STATUS "C++ Standard: ${APRIL_CXX_STANDARD}")
+else()
+    message(STATUS "C++ Standard: Not set on target (check target_compile_features)")
+endif()
+
+
+# group headers in IDE
+source_group(TREE "${PROJECT_SOURCE_DIR}/include" PREFIX "Header Files" FILES ${APRIL_HEADERS})
+
 
 # === Warnings, optimization ===
 function(set_target_build_flags target_name)
@@ -23,7 +59,7 @@ function(set_target_build_flags target_name)
             # Release → -O3
             # GCC/Clang
             $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang>>:
-            -Ofast
+            -O3
             -march=native           # Uses all CPU features available locally.
             -ffast-math
 #            -flto                   # Link-time optimization
@@ -35,7 +71,7 @@ function(set_target_build_flags target_name)
 
             # MSVC
             $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:
-            /O2           # optimize for speed
+            /Ox           # optimize for speed
             /GL           # whole program optimization (LTCG)
             /fp:fast      # fast-math (matches -ffast-math spirit)
             /arch:AVX2    # enable AVX2 on x64
@@ -59,13 +95,6 @@ function(set_target_build_flags target_name)
     target_link_options(${target_name} PRIVATE
         $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:GNU>>:-pg>
         $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:Clang>>:-pg>
-    )
-
-    target_link_libraries(${target_name}
-            PRIVATE
-            $<$<CXX_COMPILER_ID:GNU,Clang>:stdc++fs stdc++>
-            $<$<CXX_COMPILER_ID:GNU,Clang>:m pthread>
-            $<$<CXX_COMPILER_ID:MSVC>:advapi32> # MSVC needs this for filesystem
     )
 endfunction()
 
@@ -92,30 +121,13 @@ function(enable_sanitizer_if_dbg target_name)
     endif()
 endfunction()
 
-add_compile_options(${GLOBAL_OPT_FLAGS})
-
-
-# Define the Header-Only Library
-file(GLOB_RECURSE APRIL_HEADERS CONFIGURE_DEPENDS
-        "${PROJECT_SOURCE_DIR}/include/april/*.h"
-        "${PROJECT_SOURCE_DIR}/include/april/*.hpp"
-)
-add_library(April INTERFACE)  # define april as an interface library
-target_sources(April INTERFACE ${APRIL_HEADERS})  # add headers to the target so IDEs can see them
-
-# Tell targets that link to April where to find the headers
-target_include_directories(April INTERFACE
-        ${PROJECT_SOURCE_DIR}/include
-)
-target_compile_features(April INTERFACE cxx_std_23) # targets must use C++23
-
-# group headers in IDE
-source_group(TREE "${PROJECT_SOURCE_DIR}/include" PREFIX "Header Files" FILES ${APRIL_HEADERS})
 
 
 # Include subdirectories
 add_subdirectory(examples)
 add_subdirectory(test)
 add_subdirectory(benchmark)
+
+
 
 

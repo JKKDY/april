@@ -143,13 +143,13 @@ TEST(DirectSumTest, CollectIndicesInRegion) {
 
         std::unordered_set inside (indices.begin(), indices.end());
 
-        for (size_t idx = sys.index_start(); idx < sys.index_end(); idx++) {
-			auto p = get_particle(sys, idx);
+        for (size_t id = sys.id_start(); id < sys.id_end(); id++) {
+			auto p = get_particle(sys, id);
         	bool in_region = (p.position.x >= 1.5 && p.position.x <= 4.5) &&
 				(p.position.y >= 1.5 && p.position.y <= 4.5) &&
 				(p.position.z >= 1.5 && p.position.z <= 4.5);
 
-        	if (inside.contains(idx)) {
+        	if (inside.contains(id)) {
         		EXPECT_TRUE(in_region);
         	} else {
         		EXPECT_FALSE(in_region);
@@ -195,13 +195,13 @@ TEST(DirectSumTest, PeriodicForceWrap_X) {
 	const auto out = export_particles(sys);
 	ASSERT_EQ(out.size(), 2u);
 
-	auto p1 = get_particle(sys, mapping.id_map[0]);
-	auto p2 = get_particle(sys, mapping.id_map[1]);
+	auto p1 = get_particle_by_id(sys, mapping.id_map[0]);
+	auto p2 = get_particle_by_id(sys, mapping.id_map[1]);
 
 	// They should feel equal and opposite forces due to wrapping
 	EXPECT_EQ(p1.force, -p2.force);
-	EXPECT_EQ(p1.force.x, -1.0);
-	EXPECT_EQ(p2.force.x, 1.0);
+	EXPECT_EQ(p1.force.x, 1.0);
+	EXPECT_EQ(p2.force.x, -1.0);
 }
 
 
@@ -232,8 +232,8 @@ TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 	auto const& out = export_particles(sys);
 	ASSERT_EQ(out.size(), 2u);
 
-	auto p1 = get_particle(sys, mapping.id_map[0]);
-	auto p2 = get_particle(sys, mapping.id_map[1]);
+	auto p1 = get_particle_by_id(sys, mapping.id_map[0]);
+	auto p2 = get_particle_by_id(sys, mapping.id_map[1]);
 
 	// In a 10x10x10 domain with full wrapping,
 	// the wrapped displacement should be (-1, -1, -1) for p1->p2.
@@ -243,13 +243,13 @@ TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 	EXPECT_EQ(p1.force, -p2.force);
 
 	// Check that the direction is consistent with wrapped displacement
-	EXPECT_EQ(p1.force.x, -1.0);
-	EXPECT_EQ(p1.force.y, -1.0);
-	EXPECT_EQ(p1.force.z, -1.0);
+	EXPECT_EQ(p1.force.x, 1.0);
+	EXPECT_EQ(p1.force.y, 1.0);
+	EXPECT_EQ(p1.force.z, 1.0);
 
-	EXPECT_EQ(p2.force.x,  1.0);
-	EXPECT_EQ(p2.force.y,  1.0);
-	EXPECT_EQ(p2.force.z,  1.0);
+	EXPECT_EQ(p2.force.x, -1.0);
+	EXPECT_EQ(p2.force.y, -1.0);
+	EXPECT_EQ(p2.force.z, -1.0);
 }
 
 

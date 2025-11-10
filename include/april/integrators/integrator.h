@@ -70,7 +70,7 @@ namespace april::integrator {
 			return self;
 		}
 
-		auto&& for_steps(this auto&& self, double num_steps) {
+		auto&& for_steps(this auto&& self, size_t num_steps) {
 			self.set_steps(num_steps);
 			return self;
 		}
@@ -112,7 +112,7 @@ namespace april::integrator {
 		}
 
 		// Integrate for explicit number of steps
-		auto&& run_steps(this auto&& self, double delta_t, std::size_t num_steps) {
+		auto&& run_steps(this auto&& self, double delta_t, size_t num_steps) {
 			return self.with_dt(delta_t).for_steps(num_steps).run();
 		}
 

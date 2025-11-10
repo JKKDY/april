@@ -106,16 +106,16 @@ namespace april::env {
 		template<class F>
 		requires IsMutableFetcher<std::remove_cvref_t<F>>
 		explicit ParticleRef(F && f)
-			: force      ( init_field<vec3&,         		Field::force,		M>([&] -> vec3&{ return f.force(); }) )
-			, position   ( init_field<vec3&,         		Field::position,	M>([&] -> vec3&{ return f.position(); }) )
-			, velocity   ( init_field<vec3&,         		Field::velocity,	M>([&] -> vec3&{ return f.velocity(); }) )
-			, old_position(init_field<vec3&,         		Field::old_position,M>([&] -> vec3&{ return f.old_position(); }) )
-			, old_force  ( init_field<vec3&,         		Field::old_force, 	M>([&] -> vec3&{ return f.old_force(); }) )
-			, mass       ( init_field<double&,       		Field::mass,      	M>([&] -> double&{ return f.mass(); }) )
-			, state      ( init_field<ParticleState&,		Field::state,     	M>([&] -> ParticleState&{ return f.state(); }) )
-			, type       ( init_field<const ParticleType, 	Field::type,		M>([&] -> ParticleType{ return f.type(); }) )
-			, id         ( init_field<const ParticleID,   	Field::id,			M>([&] -> ParticleID{ return f.id(); }) )
-			, user_data  ( init_field<UserDataT&,			Field::user_data,	M>([&] -> UserDataT&{ return f.user_data(); }) )
+			: force      ( init_field<vec3&,         		Field::force,		M>([&]() -> vec3&{ return f.force(); }) )
+			, position   ( init_field<vec3&,         		Field::position,	M>([&]() -> vec3&{ return f.position(); }) )
+			, velocity   ( init_field<vec3&,         		Field::velocity,	M>([&]() -> vec3&{ return f.velocity(); }) )
+			, old_position(init_field<vec3&,         		Field::old_position,M>([&]() -> vec3&{ return f.old_position(); }) )
+			, old_force  ( init_field<vec3&,         		Field::old_force, 	M>([&]() -> vec3&{ return f.old_force(); }) )
+			, mass       ( init_field<double&,       		Field::mass,      	M>([&]() -> double&{ return f.mass(); }) )
+			, state      ( init_field<ParticleState&,		Field::state,     	M>([&]() -> ParticleState&{ return f.state(); }) )
+			, type       ( init_field<const ParticleType, 	Field::type,		M>([&]() -> ParticleType{ return f.type(); }) )
+			, id         ( init_field<const ParticleID,   	Field::id,			M>([&]() -> ParticleID{ return f.id(); }) )
+			, user_data  ( init_field<UserDataT&,			Field::user_data,	M>([&]() -> UserDataT&{ return f.user_data(); }) )
 		{}
 
 		[[no_unique_address]] field_type_t<vec3&, Field::force, M> force;

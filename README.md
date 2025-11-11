@@ -1,11 +1,10 @@
 # APRIL -  A Particle Runtime Interaction Library
 
 [![C++ CI](https://github.com/JKKDY/april/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/JKKDY/april/actions/workflows/cmake-multi-platform.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/YourUser/April/blob/main/LICENSE.md)
-[![C++ Standard](https://img.shields.io/badge/C++-23-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B23)
-[![Platforms](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](https://github.com/YourUser/April/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/JKKDY/April/blob/main/LICENSE.md)
+[![Platforms](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](https://github.com/JKKDY/April/actions)
 
-**APRIL is a compact, modular, header-only C++23 library for particle-based simulations with the goal to combine usability and high performance.**
+APRIL is a compact, modular, header-only C++23 library for particle-based simulations with the goal to combine usability and high performance.
 
 It provides an expressive, easy-to-use API with clear setup path and extensible interfaces - with zero-cost abstractions in hot paths. The design emphasizes modularity, plug-and-play components, and modern C++ (concepts, TMP, CRTP-style dispatch).
 
@@ -34,19 +33,37 @@ It provides an expressive, easy-to-use API with clear setup path and extensible 
 
 **Requirements:**
 - C++23-capable compiler (e.g. gcc-14, clang 18)
-- CMake ≥ 3.28
+- CMake ≥ 3.28 (only for examples, tests, benchmarks)
 - (Dev) GoogleTest for running the test suite
 
-**Build Guide:**
-From the project root run:
-```bash
-cmake -S . -B build
-cmake --build build -j
-```
+**Usage**
+Since APRIL is a header-only library, simply copy the headers and include `#include <april/april.h>`. You can automate this process in cmake with ``FetchContent``:
+````CMake
+# declare you project
+include(FetchContent)
 
-To run tests use
+FetchContent_Declare(
+  april
+  GIT_REPOSITORY https://github.com/yourname/april.git
+  GIT_TAG        main
+)
+FetchContent_MakeAvailable(april)
+
+````
+to your ``CMakeLists.txt`` 
+
+
+**Build Guide (examples, benchmarks, tests):**
+To build all targets, from the project root run:
+````bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --config Debug
+````
+
+To run tests:
 ```bash
-ctest --test-dir build --output-on-failure
+cd build
+ctest --output-on-failure --build-config Debug
 ```
 
 ## Architecture
@@ -389,16 +406,32 @@ Foundational:
 - [x] Boundaries & boundary conditions
 - [x] Controllers: e.g. thermostats
 - [x] Force fields, including time-dependent fields
+
+Performance: 
+- [ ] SOA
+- [ ] SIMD support
+- [ ] Verlet neighbour lists
 - [ ] Parallelism
+- [ ] Particle force declarations at compile time
+
+Features: 
+- [x] Yoshida4
+- [ ] Boris Pusher
+- [ ] Barnes–Hut container
+- [ ] VTU output
 
 Additional Features: 
-- [ ] More integrators: 
-  - [x] Yoshida4
-  - [ ] Boris Pusher
-- [ ] Barnes–Hut container
-- [ ] SOA & SIMD support
 - [x] Extendable particles via template parameter (e.g. add charge property)
 - [ ] ~~C++ Modules~~ (wait for more widespread compiler support)
 - [ ] more build feedback from `build_system` (e.g. spatial partition parameters) 
-- [ ] Continuous integration
-- [ ] python binding
+
+Project:
+- [x] Continuous integration
+- [ ] Docs
+- [ ] Python Binding
+
+[//]: # (Far Future:)
+[//]: # (- [ ] GPU kernels)
+[//]: # (- [ ] ML potentials)
+[//]: # (- [ ] Hybrid containers &#40;different containers for different particle types&#41;)
+[//]: # (- [ ] Run time container switching via policy)

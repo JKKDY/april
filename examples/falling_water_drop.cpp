@@ -19,10 +19,10 @@ int main() {
 
 	auto drop = ParticleSphere()
 		.at({150,150,0})
-		.radius_xyz({20, 20, 0})
+		.radius_xyz({10, 10, 0})
 		.mass(1.0)
 		.spacing(1)
-		.type(0);
+		.type(1);
 
 	auto thermostat = VelocityScalingThermostat(0.5,
 		controller::TemperatureNotSet,
@@ -39,6 +39,7 @@ int main() {
 
 	env.with_extent(303,180, 0)
 		.with_force(LennardJones(1, 1.2), to_type(0))
+		.with_force(LennardJones(1, 1), to_type(1))
 		.with_particles(liquid)
 		.with_particles(drop)
 		.with_boundaries(Reflective(), all_faces)

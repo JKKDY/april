@@ -41,7 +41,7 @@ target_link_libraries(test_april PRIVATE
 
 set_target_build_flags(test_april)
 enable_sanitizer_if_dbg(test_april)
-
+enable_coverage(test_april)
 
 
 # Discover GTest tests

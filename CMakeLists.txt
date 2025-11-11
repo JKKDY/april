@@ -3,6 +3,7 @@
 cmake_minimum_required(VERSION 3.28)
 project(April LANGUAGES CXX)
 
+option(APRIL_ENABLE_COVERAGE "Enable code coverage flags (disables sanitizers in Debug)" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
@@ -101,6 +102,11 @@ endfunction()
 
 # === Sanitizer ===
 function(enable_sanitizer_if_dbg target_name)
+    if(APRIL_ENABLE_COVERAGE)
+        message(STATUS "Skipping sanitizers for target ${target_name} because coverage is enabled.")
+        return()
+    endif()
+
     if (NOT CMAKE_BUILD_TYPE MATCHES "Debug")
         message(STATUS "Skipping AddressSanitizer for target ${target_name} because build type is not Debug.")
         return()
@@ -132,6 +138,28 @@ function(enable_sanitizer_if_dbg target_name)
         endif()
     elseif (MSVC)
         message(WARNING "Skipping AddressSanitizer on MSVC for target ${target_name} to avoid LNK2038 mismatches. Enable full sanitized build instead if desired.")
+    endif()
+endfunction()
+
+
+# === Coverage ===
+function(enable_coverage target_name)
+    if(NOT APRIL_ENABLE_COVERAGE)
+        return()
+    endif()
+
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        message(STATUS "Enabling coverage flags for target ${target_name}")
+        target_compile_options(${target_name}
+                PRIVATE
+                --coverage
+        )
+        target_link_options(${target_name}
+                PRIVATE
+                --coverage
+        )
+    else()
+        message(WARNING "Coverage is only supported on GCC and Clang. Skipping for ${target_name}.")
     endif()
 endfunction()
 

@@ -1,5 +1,9 @@
 # APRIL -  A Particle Runtime Interaction Library
 
+[![C++ CI](https://github.com/JKKDY/april/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/JKKDY/april/actions/workflows/cmake-multi-platform.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/YourUser/April/blob/main/LICENSE.md)
+[![C++ Standard](https://img.shields.io/badge/C++-23-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B23)
+[![Platforms](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](https://github.com/YourUser/April/actions)
 
 **APRIL is a compact, modular, header-only C++23 library for particle-based simulations with the goal to combine usability and high performance.**
 

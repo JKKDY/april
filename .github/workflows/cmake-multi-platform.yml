@@ -97,15 +97,8 @@ jobs:
           echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
           echo "CXX=${{ matrix.cxx }}" >> $GITHUB_ENV
 
-      - name: List all files in checkout
-        shell: bash
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Listing all files recursively..."
-          ls -laR
-
       - name: Configure CMake
-        # Use your standard CMake command.
+        # Use standard CMake command.
         # -S . (source dir) -B build (build dir)
         # -DCMAKE_BUILD_TYPE gets the value from the matrix
         shell: bash

@@ -107,21 +107,36 @@ function(enable_sanitizer_if_dbg target_name)
     endif()
 
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-        message(STATUS "Enabling AddressSanitizer + UBSan + Leak for target ${target_name} (GCC/Clang, Debug build)")
-        target_compile_options(${target_name}
-                PRIVATE
-                -fsanitize=address,undefined,leak -fno-omit-frame-pointer
-        )
-        target_link_options(${target_name}
-                PRIVATE
-                -fsanitize=address,undefined,leak
-        )
+        if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+            # AppleClang does not support LeakSanitizer
+            message(STATUS "Enabling AddressSanitizer + UBSan for target ${target_name} (AppleClang, Debug build)")
+            target_compile_options(${target_name}
+                    PRIVATE
+                    -fsanitize=address,undefined -fno-omit-frame-pointer
+            )
+            target_link_options(${target_name}
+                    PRIVATE
+                    -fsanitize=address,undefined
+            )
+        else()
+            # Linux (GCC or standard LLVM Clang)
+            message(STATUS "Enabling AddressSanitizer + UBSan + Leak for target ${target_name} (GCC/Clang, Debug build)")
+            target_compile_options(${target_name}
+                    PRIVATE
+                    -fsanitize=address,undefined,leak -fno-omit-frame-pointer
+            )
+            target_link_options(${target_name}
+                    PRIVATE
+                    -fsanitize=address,undefined,leak
+            )
+        endif()
     elseif (MSVC)
         message(WARNING "Skipping AddressSanitizer on MSVC for target ${target_name} to avoid LNK2038 mismatches. Enable full sanitized build instead if desired.")
     endif()
 endfunction()
 
 
+enable_testing()
 
 # Include subdirectories
 add_subdirectory(examples)

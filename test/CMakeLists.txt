@@ -1,4 +1,4 @@
-enable_testing()
+#enable_testing()
 
 include(FetchContent)
 
@@ -7,6 +7,8 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/google/googletest.git
         GIT_TAG v1.16.0
 )
+
+set(gtest_build_shared_libs OFF CACHE BOOL "Build GTest as static")
 FetchContent_MakeAvailable(googletest)
 
 add_executable(test_april
@@ -45,3 +47,4 @@ enable_sanitizer_if_dbg(test_april)
 # Discover GTest tests
 include(GoogleTest)
 gtest_discover_tests(test_april)
+set_target_properties(test_april PROPERTIES GTEST_DISCOVER_TESTS_MODE PRE_TEST)

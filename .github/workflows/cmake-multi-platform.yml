@@ -5,9 +5,9 @@ name: C++ CI
 # Also allows for manual triggering from the GitHub UI.
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -31,10 +31,6 @@ jobs:
             build_type: Debug
             cxx: g++-14
             cc: gcc-14
-
-          - name: List files in workspace
-            shell: bash
-            run: ls -laR
 
           - name: Linux (GCC 14, Release)
             os: ubuntu-24.04
@@ -75,7 +71,9 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
-
+        with:
+          submodules: 'recursive'
+          
       - name: Install C++23 compilers (Linux)
         # This step only runs on Linux
         if: runner.os == 'Linux'

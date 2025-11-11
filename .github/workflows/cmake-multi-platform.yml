@@ -120,7 +120,6 @@ jobs:
 
       - name: Run Tests
         # Runs the tests.
-        # We 'cd' into the build directory for portability, as you suggested.
         # --output-on-failure is critical for debugging
         # --build-config is necessary for MSVC
         shell: bash

@@ -206,28 +206,27 @@ namespace april::env {
                 throw std::logic_error("Sphere inter-particle distance is set to 0");
             }
 
-
-            const vec3 radii = {
+            const vec3 eff_radii = {
                 std::max(radii.x, distance),
                 std::max(radii.y, distance),
                 std::max(radii.z, distance)
             };
-            const double ellipsoid_volume = 4.0/3.0*3.14*radii.x*radii.y*radii.z;
+            const double ellipsoid_volume = 4.0/3.0*3.14*eff_radii.x*eff_radii.y*eff_radii.z;
 
             std::vector<Particle> particles;
             particles.reserve(static_cast<size_t>(ellipsoid_volume / (distance*distance*distance)));
 
-            for (int x = -static_cast<int>(radii.x/distance); x < static_cast<int>(radii.x/distance); ++x) {
-                for (int y = -static_cast<int>(radii.y/distance); y < static_cast<int>(radii.y/distance); ++y) {
-                    for (int z = -static_cast<int>(radii.z/distance); z < static_cast<int>(radii.z/distance); ++z) {
+            for (int x = -static_cast<int>(eff_radii.x/distance); x < static_cast<int>(eff_radii.x/distance); ++x) {
+                for (int y = -static_cast<int>(eff_radii.y/distance); y < static_cast<int>(eff_radii.y/distance); ++y) {
+                    for (int z = -static_cast<int>(eff_radii.z/distance); z < static_cast<int>(eff_radii.z/distance); ++z) {
 
                         const vec3 pos = {x * distance, y * distance, z * distance};
                         const vec3 pos_sq = pos * pos;
 
                         // if not in ellipsoid skip
-                        if (pos_sq.x/(radii.x*radii.x) +
-                            pos_sq.y/(radii.y*radii.y) +
-                            pos_sq.z/(radii.z*radii.z) >= 1) continue;
+                        if (pos_sq.x/(eff_radii.x*eff_radii.x) +
+                            pos_sq.y/(eff_radii.y*eff_radii.y) +
+                            pos_sq.z/(eff_radii.z*eff_radii.z) >= 1) continue;
 
                         Particle p;
                         p.id        = std::nullopt;

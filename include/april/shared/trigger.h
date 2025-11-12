@@ -111,6 +111,10 @@ namespace april::shared {
 		static Trigger when(const std::function<bool(const TriggerContext&)>& pred) {
 			return Trigger{pred};
 		}
+		// for convenience during e.g. debugging
+		static Trigger never() {
+			return Trigger{[](const TriggerContext&) { return false; }};
+		}
 
 
 
@@ -142,3 +146,5 @@ namespace april::shared {
 		TriggerFn fn_;
 	};
 }
+
+// Todo: implement optional CRTP based triggers for more performance

@@ -21,7 +21,7 @@ TEST(Yoshida4Test,ConstructionTest) {
 	auto system = build_system(env, algo);
 
 	Yoshida4 integrator(system);
-	integrator.run_steps(0.1, 10);
+	integrator.run_for_steps(0.1, 10);
 
 	for (auto & p : export_particles(system)) {
 		EXPECT_EQ(p.position, vec3(0,0,0));
@@ -41,7 +41,7 @@ TEST(Yoshida4Test, SingleStepNoForceTest) {
 	auto system = build_system(env, algo);
 
 	Yoshida4 integrator(system);
-	integrator.run_steps(1, 1);
+	integrator.run_for_steps(1, 1);
 
 	auto particles = export_particles(system);
 
@@ -73,7 +73,7 @@ TEST(Yoshida4Test, SingleStepWithForceTest) {
 	auto system = build_system(env, algo);
 
 	Yoshida4 integrator(system);
-	integrator.run_steps(0.1, 1);
+	integrator.run_for_steps(0.1, 1);
 
 	auto particles = export_particles(system);
 
@@ -122,7 +122,7 @@ TEST(Yoshida4Test, OrbitTest) {
 
 	Yoshida4 integrator(system, monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
-	integrator.run_for(0.001, T);
+	integrator.run_for_duration(0.001, T);
 
 	auto particles = export_particles(system);
 
@@ -170,14 +170,14 @@ TEST(Yoshida4Test, OrbitTestSplitRuns) {
 	{
 		Yoshida4 integrator(system, monitor::monitors<OrbitMonitor>);
 		integrator.add_monitor(OrbitMonitor(v, R));
-		integrator.run_for(0.001, T/2);
+		integrator.run_for_duration(0.001, T/2);
 		EXPECT_NEAR(system.time(), T/2, 0.005);
 	}
 
 	{
 		Yoshida4 integrator(system, monitor::monitors<OrbitMonitor>);
 		integrator.add_monitor(OrbitMonitor(v, R));
-		integrator.run_for(0.001, T/2);
+		integrator.run_for_duration(0.001, T/2);
 		EXPECT_NEAR(system.time(), T, 0.005);
 	}
 

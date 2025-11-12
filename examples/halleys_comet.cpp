@@ -24,6 +24,6 @@ int main() {
 		.with_monitor(BinaryOutput(Trigger::every(50), dir_path.string()))
 		.with_monitor(ProgressBar(Trigger::every(50)))
 		.with_monitor(Benchmark())
-		.run_for(0.014, 1000);
+		.run_for_duration(0.014, 1000);
 }
 

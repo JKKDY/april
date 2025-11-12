@@ -1,3 +1,5 @@
+package kokkos
+
 # ---- Parameters (match APRIL benchmark) ----
 units       lj
 atom_style  atomic

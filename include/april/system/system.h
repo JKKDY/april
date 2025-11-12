@@ -7,6 +7,9 @@
 #include "april/env/domain.h"
 #include "april/system/context.h"
 
+
+// TODO: add deleter callbacks to detect if system goes out of scope too early (e.g. prior to integrator.run)
+
 namespace april::core {
 
 	struct BuildInfo;
@@ -59,7 +62,7 @@ namespace april::core {
 
 		[[nodiscard]] size_t size(const env::ParticleState = env::ParticleState::ALL) const noexcept {
 			// return container.size(state);
-			// TODO implement this method properly
+			// TODO implement this method (system::size) properly
 			return index_end() - index_start();
 		}
 

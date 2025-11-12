@@ -107,12 +107,12 @@ namespace april::integrator {
 			return self;
 		}
 
-		auto&& run_for(this auto&& self, double delta_t, const double duration) {
+		auto&& run_for_duration(this auto&& self, double delta_t, const double duration) {
 			return self.with_dt(delta_t).for_duration(duration).run();
 		}
 
 		// Integrate for explicit number of steps
-		auto&& run_steps(this auto&& self, double delta_t, size_t num_steps) {
+		auto&& run_for_steps(this auto&& self, double delta_t, size_t num_steps) {
 			return self.with_dt(delta_t).for_steps(num_steps).run();
 		}
 

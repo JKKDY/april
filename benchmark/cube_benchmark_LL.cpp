@@ -74,7 +74,7 @@ int main() {
 	StoermerVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 	integrator.add_monitor(Benchmark());
 	integrator.add_monitor(ProgressBar(Trigger::every(200)));
-	integrator.run_steps(dt, steps);
+	integrator.run_for_steps(dt, steps);
 
 	// integrator.add_monitor(BinaryOutput(50, dir_path));
 	// integrator.add_monitor(ExitMonitor(origin, extent));

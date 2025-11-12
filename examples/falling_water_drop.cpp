@@ -25,8 +25,8 @@ int main() {
 		.type(1);
 
 	auto thermostat = VelocityScalingThermostat(0.5,
-		controller::TemperatureNotSet,
-		controller::TemperatureNotSet,
+		controller::temperature_not_set,
+		controller::temperature_not_set,
 		Trigger::every(1000));
 
 	auto gravity = UniformField({0, -12.44, 0});

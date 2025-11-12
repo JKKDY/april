@@ -167,7 +167,7 @@ TEST(LinkedCellsTest, OrbitTest) {
 
 	StoermerVerlet integrator(sys, monitor::monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
-	integrator.run_for(0.001, T);
+	integrator.run_for_duration(0.001, T);
 
 	auto particles = export_particles(sys);
 

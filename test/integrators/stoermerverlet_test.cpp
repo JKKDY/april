@@ -22,7 +22,7 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
-	integrator.run_steps(0.1, 10);
+	integrator.run_for_steps(0.1, 10);
 
 	for (size_t i = system.index_start(); i < system.index_end(); i++) {
 		auto p = system.get_particle_by_index<all_fields>(i);
@@ -43,7 +43,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
-	integrator.run_steps(1, 1);
+	integrator.run_for_steps(1, 1);
 
 	auto particles = export_particles(system);
 
@@ -75,7 +75,7 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	auto system = build_system(env, algo);
 
 	StoermerVerlet integrator(system);
-	integrator.run_steps(0.1, 1);
+	integrator.run_for_steps(0.1, 1);
 
 	auto particles = export_particles(system);
 
@@ -115,7 +115,7 @@ TEST(StoermerVerletTest, OrbitTest) {
 
 	StoermerVerlet integrator(system, monitor::monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
-	integrator.run_for(0.001, T);
+	integrator.run_for_duration(0.001, T);
 
 	auto particles = export_particles(system);
 
@@ -163,14 +163,14 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	{
 		StoermerVerlet integrator(system, monitor::monitors<OrbitMonitor>);
 		integrator.add_monitor(OrbitMonitor(v, R));
-		integrator.run_for(0.001, T/2);
+		integrator.run_for_duration(0.001, T/2);
 		EXPECT_NEAR(system.time(), T/2, 0.005);
 	}
 
 	{
 		StoermerVerlet integrator(system, monitor::monitors<OrbitMonitor>);
 		integrator.add_monitor(OrbitMonitor(v, R));
-		integrator.run_for(0.001, T/2);
+		integrator.run_for_duration(0.001, T/2);
 		EXPECT_NEAR(system.time(), T, 0.005);
 	}
 

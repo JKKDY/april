@@ -25,6 +25,8 @@ add_executable(test_april
         boundaries/periodic_test.cpp
         boundaries/repulsive_test.cpp
         boundaries/reflective_test.cpp
+        controllers/apply_controller_test.cpp
+        controllers/thermostat_test.cpp
 )
 
 target_include_directories(test_april PRIVATE

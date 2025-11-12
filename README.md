@@ -37,7 +37,8 @@ It provides an expressive, easy-to-use API with clear setup path and extensible 
 - CMake ≥ 3.28 (only for examples, tests, benchmarks)
 - (Dev) GoogleTest for running the test suite
 
-**Usage**
+**Usage:**
+
 Since APRIL is a header-only library, simply copy the headers and include `#include <april/april.h>`. You can automate this process in cmake with ``FetchContent``:
 ````CMake
 # declare you project
@@ -45,16 +46,15 @@ include(FetchContent)
 
 FetchContent_Declare(
   april
-  GIT_REPOSITORY https://github.com/yourname/april.git
+  GIT_REPOSITORY https://github.com/JKKDY/april.git
   GIT_TAG        main
 )
 FetchContent_MakeAvailable(april)
 
 ````
-to your ``CMakeLists.txt`` 
-
 
 **Build Guide (examples, benchmarks, tests):**
+
 To build all targets, from the project root run:
 ````bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug

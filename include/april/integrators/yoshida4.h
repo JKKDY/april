@@ -26,6 +26,8 @@ namespace april::integrator {
 
 
 		void stoermer_verlet_step(double delta_t) const {
+			sys.update_all_components();
+
 			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
 				auto p = sys.template get_particle_by_index<pos_upd_fields>(i);
 				if (static_cast<int>(p.state & State::MOVABLE)) {

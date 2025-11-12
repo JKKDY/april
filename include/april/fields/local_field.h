@@ -9,12 +9,12 @@ namespace april::field {
 		static constexpr env::FieldMask fields = env::Field::position | env::Field::force;
 
 		LocalForceField(const vec3 & force_dir, const env::Domain & domain, const double start_time, const double stop_time):
-		force(force_dir), region(env::Box::from_domain(domain)), start(start_time), stop(stop_time), active(false) {}
+		force(force_dir), region(env::Box::from_domain(domain)), start(start_time), stop(stop_time), active(start_time == 0) {}
 
 
 		template<env::IsUserData U>
 		void apply(const env::RestrictedParticleRef<fields, U> & particle) const {
-			if (!active && region.contains(particle.position))
+			if (active && region.contains(particle.position))
 				particle.force += force;
 		}
 

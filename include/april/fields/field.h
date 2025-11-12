@@ -7,6 +7,7 @@ namespace april::field {
 
 	class Field {
 	public:
+		// TODO add filters for region, types and ids
 
 		template<class S>
 		void dispatch_init(this auto&& self, const core::SystemContext<S> & sys) {

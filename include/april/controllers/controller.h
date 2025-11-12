@@ -24,6 +24,13 @@ namespace april::controller  {
 		}
 
 		template<class S>
+		void dispatch_update(this auto&& self, const core::SystemContext<S> & sys) {
+			if constexpr ( requires { self.update(sys); }) {
+				self.update(sys);
+			}
+		}
+
+		template<class S>
 		void dispatch_apply(this auto&& self, core::SystemContext<S> & sys) {
 			static_assert(
 				requires { self.apply(sys); },

@@ -25,6 +25,8 @@ namespace april::integrator {
 			env::Field::state | env::Field::velocity | env::Field::force | env::Field::mass | env::Field::old_force;
 
 		void integration_step() const {
+			sys.update_all_components();
+
 			// position update
 			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
 				auto p = sys.template get_particle_by_index<pos_upd_fields>(i);

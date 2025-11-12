@@ -99,6 +99,8 @@ namespace april::core {
 
 		void apply_force_fields();
 
+		void update_all_components();
+
 
 
 		[[nodiscard]] SysContext & context() { return system_context; }
@@ -323,9 +325,16 @@ namespace april::core {
 				field.template dispatch_apply<user_data_t>(restricted);
 			}
 		});
+	}
 
+	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
+	void System<C, Traits>::update_all_components() {
 		fields.for_each_item([this](auto & field) {
 			field.template dispatch_update<System>(system_context);
+		});
+
+		controllers.for_each_item([this](auto & controller) {
+			controller.template dispatch_update<System>(system_context);
 		});
 	}
 }

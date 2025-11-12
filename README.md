@@ -9,8 +9,8 @@ APRIL is a compact, modular, header-only C++23 library for particle-based simula
 It provides an expressive, easy-to-use API with clear setup path and extensible interfaces - with zero-cost abstractions in hot paths. The design emphasizes modularity, plug-and-play components, and modern C++ (concepts, TMP, CRTP-style dispatch).
 
 > **Status**: Core architecture complete.  
-> **Next (near term)**: expanded tests, python bindings
-> **Next (medium term)**: SoA containers, internal SIMD API, Verlet neighbour buffers.
+> **Next (near term)**: expanded tests, python bindings.   
+> **Next (medium term)**: SoA containers, internal SIMD API, Verlet neighbour buffers.  
 
 ## Core Features
 
@@ -441,3 +441,4 @@ Project:
 
 [//]: # (To explore? )
 [//]: # (- [ ] relativistic simulations)
+[//]: # (- [ ] replicating particles + active matter)

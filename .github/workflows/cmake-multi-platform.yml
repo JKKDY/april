@@ -119,3 +119,76 @@ jobs:
         run: |
           cd build
           ctest --output-on-failure --build-config ${{ matrix.build_type }}
+
+
+  coverage:
+    # This job will be named "Coverage (Clang 18)"
+    name: Coverage (Clang 18)
+    runs-on: ubuntu-24.04
+
+    # ensures that coverage only runs IF all build_and_test jobs succeed
+    needs: build_and_test
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Install Clang 18
+        # We only need Clang for this job
+        shell: bash
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
+
+      - name: Configure CMake (with Coverage)
+        shell: bash
+        run: |
+          # Note the build dir name and the new -DAPRIL_ENABLE_COVERAGE=ON
+          cmake -S . -B build-coverage \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DAPRIL_ENABLE_COVERAGE=ON
+
+      - name: Build
+        shell: bash
+        run: cmake --build build-coverage -j 2
+
+      - name: Run Tests (Generate .profraw)
+        shell: bash
+        run: |
+          # set the absolute path
+          export LLVM_PROFILE_FILE="$(pwd)/build-coverage/test_april-%p.profraw"
+          
+          # Run CTest from within the build directory
+          cd build-coverage
+          ctest --output-on-failure
+          
+          # Return to root for next steps
+          cd ..
+
+      - name: Merge Profile Data
+        shell: bash
+        run: |
+          llvm-profdata-18 merge -sparse \
+            build-coverage/*.profraw -o build-coverage/coverage.profdata
+
+      - name: Generate Coverage Report (lcov format)
+        shell: bash
+        run: |
+          # This step generates a single 'lcov.info' file.
+          llvm-cov-18 export -format=lcov \
+            "build-coverage/test/test_april" \
+            -instr-profile=build-coverage/coverage.profdata \
+            -ignore-filename-regex="test/|external/|build-coverage/" \
+            > build-coverage/coverage.lcov
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./build-coverage/coverage.lcov
+          fail_ci_if_error: true # Fails the CI check if upload fails

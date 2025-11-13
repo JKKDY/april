@@ -148,16 +148,25 @@ function(enable_coverage target_name)
         return()
     endif()
 
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-        message(STATUS "Enabling coverage flags for target ${target_name}")
-        target_compile_options(${target_name}
-                PRIVATE
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(STATUS "Enabling LLVM coverage flags for target ${target_name}")
+        target_compile_options(${target_name} PRIVATE
+                -fprofile-instr-generate
+                -fcoverage-mapping
+        )
+        target_link_options(${target_name} PRIVATE
+                -fprofile-instr-generate
+        )
+
+    elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+        message(STATUS "Enabling GCC coverage flags for target ${target_name}")
+        target_compile_options(${target_name} PRIVATE
                 --coverage
         )
-        target_link_options(${target_name}
-                PRIVATE
+        target_link_options(${target_name} PRIVATE
                 --coverage
         )
+
     else()
         message(WARNING "Coverage is only supported on GCC and Clang. Skipping for ${target_name}.")
     endif()

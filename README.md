@@ -14,10 +14,10 @@ It provides an expressive, easy-to-use API with clear setup path and extensible 
 
 ## Core Features
 
-- **Modular design**: seamlessly swap, extend or create your own components: (inter particles) **forces**, **containers** (force calculators), **boundary conditions**, **controllers** (e.g. Thermostats), **Force fields**, **integrators**, and **monitors**.
-- **Modern C++**: concepts for compile-time interface checking; CRTP & template-meta programing for maximum performance; Variants for run time flexibility.
-- **Ergonomic setup**: clear setup path. Special care was taken to minimize template verbosity with automatic template deduction (CTAD).
-- **Zero-cost, type-safe particle access**: Views expose only the fields needed (e.g. position, velocity, force) with **compile-time safety** (no runtime checks and thus no overhead; unused fields are eliminated)
+- **Modular design**: seamlessly swap, extend or create your own components: **forces** (between particles), **containers** (particle data storage, force updaters), **boundary conditions**, **controllers** (e.g. Thermostats, Barostats), **Force fields**, **integrators**, and **monitors** (e.g. diagnostics, snapshots).
+- **Modern C++**: concepts for compile-time interface checking; CRTP & template-meta programing for maximum performance; Variants for run-time flexibility.
+- **Ergonomic setup**: clear setup path. Special care was taken to minimize template verbosity in the user-facing API with automatic template deduction (CTAD).
+- **Zero-cost, type-safe particle access**: Views expose only the fields needed (e.g. position, velocity, force) with compile-time safety (no runtime checks and thus no overhead; unused fields are eliminated at compile time)
 - **Tested core**: GoogleTest suite covering interactions, containers, boundary conditions, integrator steps, binary I/O, and utilities.
 - **Small animation script**: a Python helper to quickly preview simulation output.
 
@@ -26,8 +26,8 @@ It provides an expressive, easy-to-use API with clear setup path and extensible 
 - **Boundary conditions**: Periodic, Repulsive (uses a force), Reflective, Absorbing and Open boundary conditions
 - **(Force) Fields**: Uniform (global & constant) field, local field (optionally time dependent)
 - **Controllers**: a simple velocity scaling thermostat
-- **Containers**: `DirectSum` (all-pairs) and `LinkedCells` (cell lists).
-- **Monitors**: binary snapshots, terminal diagnostics, progress bar, and a simple benchmark.
+- **Containers**: `DirectSum` (all-pairs) and `LinkedCells` (cell lists)
+- **Monitors**: binary snapshots, terminal diagnostics, progress bar, and a simple benchmark
 - **Integrators**: Størmer–Verlet, Yoshida4
 
 ## Getting Started
@@ -41,7 +41,6 @@ It provides an expressive, easy-to-use API with clear setup path and extensible 
 
 Since APRIL is a header-only library, simply copy the headers and include `#include <april/april.h>`. You can automate this process in cmake with ``FetchContent``:
 ````CMake
-# declare you project
 include(FetchContent)
 
 FetchContent_Declare(
@@ -50,7 +49,6 @@ FetchContent_Declare(
   GIT_TAG        main
 )
 FetchContent_MakeAvailable(april)
-
 ````
 
 **Build Guide (examples, benchmarks, tests):**
@@ -103,11 +101,11 @@ The following diagram shows the typical flow of a program using APRIL:
 ```
 
 - **Environment** \
-Defines the simulation setup. In other words it contains all relevant physics: particles, simulation domain (origin/extent), boundary conditions, force fields, controllers and the list of interactions (by **type pair** or **id pair**).
+Defines the simulation setup. In other words it contains all relevant physics: particles, simulation domain (origin/extent), boundary conditions, force fields, controllers and the list of interactions (by type pair and id pair).
 - **System** \
 Materializes the environment: maps user IDs/types to dense internals, builds interaction tables, finalizes the domain, and wires everything together.
 - **Container** \
-Owns internal particle storage/indices and computes pairwise forces (e.g., **DirectSum**, **LinkedCells**). It’s injected with the interaction manager built by the system.
+Owns and manages access to internal particle storage data; computes pairwise forces (e.g., **DirectSum**, **LinkedCells**) between particles.
 - **Integrator** \
 Advances the state in time. On each step it updates positions/velocities and asks the system to refresh forces.
 - **Monitors** \
@@ -117,11 +115,12 @@ Optional observers with custom invocation policies (Triggers). They’re the pri
 - The entire public API is collected in april/april.h, so users normally only need a single include.
 - Clear separation of user-facing vs. internal API: users work with declarative structs (e.g., `Environment`, `Particle`, container config structs) which are then used to build the internal representations. This keeps the public API ergonomic and stable while allowing optimized internal implementations.
 - Concepts enforce component interfaces at compile time (IsForce, IsMonitor, IsBoundary, IsSystem, ..) for better error handling.
-- Environment → System → Integrator is the central workflow. Systems always delegate force evaluation to a chosen Container.
 - Interactions can be specified by type pair or by particle id pair; missing cross-type entries are derived via a mix function.
 - BinaryOutput writes a compact, versioned binary format (positions as float, plus type/id/state) suitable for lightweight analysis or visualization.
 - Defaults (e.g., automatic domain extent/origin) are provided, but can always be overridden explicitly.
-- Internal particle access highly optimized; internal views expose only the required fields (e.g., position, force) with compile-time guarantees; no runtime overhead, unused fields are eliminated at compile time.
+- Internal particle access abstracted from underlying storage with particle-views and -references. Only required fields are exposed (e.g., position, force).  Unused fields are eliminated at compile time
+- Component types are declared in the environments constructor via template paramater packs (e.g. forces<Force1, Force2, ...>). Environment constructor can take in any permutation of any set of packs
+- Additional user-defined-particle data is defined by passing in `particle_data<MyDataType>` to the environment constructor. During declaration phase data is added into a std::any field in the particle declarator; During the build phase this is converted to `MyDataType` 
 
 ## Usage (minimal example)
 ```c++
@@ -133,11 +132,11 @@ int main() {
     // 1) Define an environment: particles + force types + boundary types
 	// constructor requires type information on, at run time, usable components
 	// possible template packs are: forces, boundaries, fields, controllers
-    auto env = Environment (forces<InverseSquare>, boundaries<Outflow>)
+    auto env = Environment (forces<InverseSquare>, boundaries<Open>)
         .with_particle(Particle().at(1,0,0).with_velocity(0,0,0).with_mass(1.0).as_type(0))   // Sun
         .with_particle(Particle().at(1,0,0).with_velocity(0,1,0).with_mass(1e-5).as_type(0))   // Planet
         .with_force(InverseSquare(), to_type(0))                                    // gravity for type 0
-        .with_boundaries(Outflow(), all_faces);                                     // all faces open
+        .with_boundaries(Open(), all_faces);                                     	// all faces open
 
     // 2) Choose a container (force calculator) and build a system
     auto container = DirectSum();
@@ -183,7 +182,6 @@ a more direct comparison. Production mode corresponds to each library’s standa
 APRIL’s linked-cell implementation achieves higher performance than HOOMD in parity configuration, which is expected given HOOMD’s primary focus on GPU execution. Compared to LAMMPS in parity configuration, APRIL shows a slight advantage of a few percent.
 Production runs of LAMMPS and HOOMD achieve greater throughput by employing neighbor list buffering.
 Overall, this is a promising result for APRILS performance potential as it currently does not employ any further optimization techniques (SoA storage, SIMD, neighbor list buffering).
-
 
 ## Extending APRIL
 
@@ -247,14 +245,19 @@ Inherit from `Controller` to create a controller with custom logic:
 
 ```C++
 struct MyController final : Controller {
-    static consexpr env::FieldMask fields = 
-
     using Controller::Controller; // or define your own constructor
     
     // optional. called once at the beginning of the simulation
     template<class S>
     void init(core::SystemContext<S> & ctx){
-        // your custom initilization logic here
+        // your custom initialization logic here
+    }
+
+ 	// optional. called at the start of every integration step
+    template<class S>
+    void update(const core::SystemContext<S> & ctx) {
+        // your custom update logic here
+        // can be used e.g. for temporal dependence
     }
     
     // required. called every time should_trigger(ctx) evaluates to true 
@@ -272,33 +275,36 @@ To implement a custom force field inherit from `Field`:
 
 ```C++
 struct MyField final : Field {
-    using Controller::Controller; // or define your own constructor
+	// set the particle fields you want to access
+    static constexpr env::FieldMask fields = Field::force | Field::position | ...;
+
+    using Field::Field; // or define your own constructor
 
     // optional. called once at the beginning of the simulation
     void init(const SimulationContext & ctx) {
-        // your custom initilization logic here
+        // your custom initialization logic here
     }
     
-    // required. called during every integration step
-    template<env::IsUserData U>
-    void apply(const env::RestrictedParticleRef<fields, U> & particle) const {
-        // your custom force field logic here 
-        // only particle.force can be modified. All other attributes are read only
-   }
-    
-    // optional. called during every integration step
+    // optional. called at the start of every integration step
     template<class S>
     void update(const core::SystemContext<S> & ctx) {
         // your custom update logic here
         // can be used e.g. for temporal dependence
     }
+
+ 	// required. called during every integration step
+    template<env::IsUserData U>
+    void apply(const env::RestrictedParticleRef<fields, U> & particle) const {
+        // your custom force field logic here 
+        // only particle.force can be modified. All other attributes are read only
+   }
 }
 ```
 
 
 ### Custom container
 
-Containers are the most complex classes to implement as they are the backbone of the simulation. 
+Containers are the most complex classes to implement as they are the backbone of the simulation. They must support access to particle data, force updates and region queries.
 To create a custom container inherit from `Container<Config, Env>`and provide the following functions: 
 
 - build
@@ -313,21 +319,31 @@ To create a custom container inherit from `Container<Config, Env>`and provide th
 - particle_count
 - collect_indices_in_region
 
-Additionally provide a struct pointing to the containers type. This is passed into the `Config` template parameter as well as into  `build_system(...).`
+Alos provide a struct pointing to the container's type. This is passed into the `Config` template parameter as well as into  `build_system(...).`. It allows for defered instantiation, such that the user does not need to specify template parameters manually.
+
+Additionally define two classes `MutableFetcher` and `ConstFetcher` which satisfy the `env::IsMutableFetcher` and `env::IsConstFetcher` concepts. These classes provide on demand access to particle data and are used to initialize particle views and references. 
 
 ```c++
 template <class Env> class MyContainerImpl; // forward declaration
 
-struct MyContainer { // User facing declaration
-    // requires the following field for the compiler
+struct MyContainerDecl { // User facing declaration
+    // point to the actual implementation type
 	template<class  Env> using impl = MyContainerImpl<Env>;
 	... // optional user config data here
 };
 
-template <class Env>
-class MyContainerImpl final : public Container<MyContainer, Env> {
+struct MutableFetcher {
+	...
+}
+
+struct ConstFetcher {
+	...
+}
+
+template <class FT, class U>
+class MyContainerImpl final : public Container<MyContainerDecl, FT, U, MutableFetcher, ConstFetcher> {
     using Base = Container<MyContainerCfg, Env>;
-    using Particle = typename Base::Particle;
+	using Base::cfg;  // access data in the user facing declaration with cfg.
 public:
     using Base::Base; // forward config. To access config data use this->cfg.
 	
@@ -346,7 +362,7 @@ Usage:
 auto system = build_system(env, MyContainer());
 ```
 
-You can derive from `container::ContiguousContainer<Config, Env>` to reuse storage and id/index utilities. ContiguousContainer stores particles data in a single contiguous vector.
+You can derive from `container::ContiguousContainer<Config, Env>` to reuse storage and id, index & fetcher utilities. ContiguousContainer stores particles data in a single contiguous vector (AoS).
 
 ### Custom integrator
 
@@ -438,7 +454,8 @@ Project:
 [//]: # (- [ ] Run time container switching via policy)
 [//]: # (- [ ] Rigid bodies / constraints)
 
-
 [//]: # (To explore? )
 [//]: # (- [ ] relativistic simulations)
 [//]: # (- [ ] replicating particles + active matter)
+[//]: # (- [ ] communication "bridges"/"pipes" between components) 
+[//]: # (- [ ] econophysics style simulations) 

@@ -44,9 +44,6 @@ namespace april::container {
 			using MutableFetcher = MF;
 			using ConstFetcher = CF;
 
-			// template<env::FieldMask M> using ParticleView = env::ParticleView<M, U>;
-			// template<env::FieldMask M> using ParticleRef = env::ParticleRef<M, U>;
-
 			ContainerInterface() = default;
 
 			// user hook to initialize the container

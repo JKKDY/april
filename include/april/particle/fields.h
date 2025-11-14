@@ -104,7 +104,8 @@ namespace april::env {
 		ParticleRef(ParticleRef&& other) = default;
 
 		template<class F>
-		requires IsMutableFetcher<std::remove_cvref_t<F>>
+		requires IsMutableFetcher<std::remove_cvref_t<F>> &&
+			(!std::same_as<std::remove_cvref_t<F>, ParticleRef>)
 		explicit ParticleRef(F && f)
 			: force      ( init_field<vec3&,         		Field::force,		M>([&]() -> vec3&{ return f.force(); }) )
 			, position   ( init_field<vec3&,         		Field::position,	M>([&]() -> vec3&{ return f.position(); }) )
@@ -138,7 +139,8 @@ namespace april::env {
 		RestrictedParticleRef(RestrictedParticleRef&& other) = default;
 
 		template<IsMutableFetcher F>
-		requires IsMutableFetcher<std::remove_cvref_t<F>>
+		requires IsMutableFetcher<std::remove_cvref_t<F>> &&
+			(!std::same_as<std::remove_cvref_t<F>, RestrictedParticleRef>)
 		explicit RestrictedParticleRef(F && f) // forwarding reference
 			: force        ( f.force() )
 			, position     ( init_field<const vec3&,		Field::position,	M>([&]()-> const vec3&{ return f.position(); }) )
@@ -177,7 +179,8 @@ namespace april::env {
 		ParticleView(ParticleView&& other) = default;
 
 		template<class F>
-		requires IsConstFetcher<std::remove_cvref_t<F>> || IsMutableFetcher<std::remove_cvref_t<F>>
+		requires (IsConstFetcher<std::remove_cvref_t<F>> || IsMutableFetcher<std::remove_cvref_t<F>>) &&
+			(!std::same_as<std::remove_cvref_t<F>, ParticleView>)
 		explicit ParticleView(F && f)
 		   : force        ( init_field<const vec3&, 		Field::force,		M>([&]()-> const vec3&{ return f.force(); }) )
 		   , position     ( init_field<const vec3&, 		Field::position,	M>([&]()-> const vec3&{ return f.position(); }) )

@@ -46,7 +46,8 @@ namespace april::env {
 
         // accepts any subset & order of packs
         template<class... Args>
-        requires (internal::is_any_pack_v<std::remove_cvref_t<Args>> && ...)
+        requires (internal::is_any_pack_v<std::remove_cvref_t<Args>> && ...) &&
+            (!std::same_as<std::remove_cvref_t<Args>, Environment> && ...) // make sonarqube shut up about perfect forwarding
         explicit Environment(Args&&...)
             : Environment(
                 internal::get_pack_t<force::ForcePack, Args...>{},

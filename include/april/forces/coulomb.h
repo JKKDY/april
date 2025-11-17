@@ -10,7 +10,7 @@ namespace april::force {
 	struct Coulomb : Force{
 		double coulomb_constant;
 
-		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = -1.0)
+		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = no_cutoff)
 			: Force(cutoff), coulomb_constant(coulomb_const) {}
 
 		template<env::IsConstFetcher F>
@@ -19,7 +19,7 @@ namespace april::force {
 		}
 		vec3 operator()(const F & p1, const F & p2, const vec3& r) const noexcept {
 			const double r2 = r.norm_squared();
-			if (has_cutoff() && r2 > cutoff*cutoff) return {};
+			if (r2 > cutoff2) return {};
 
 			const double inv_r = 1.0 / std::sqrt(r2);
 			const double mag = coulomb_constant * p1.user_data().charge * p2.user_data().charge * inv_r * inv_r;

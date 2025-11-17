@@ -3,6 +3,7 @@
 #include <variant>
 #include <concepts>
 #include <utility>
+#include <limits>
 
 #include "april/common.h"
 #include "april/particle/fields.h"
@@ -10,10 +11,13 @@
 
 namespace april::force {
 
+    constexpr double no_cutoff = std::numeric_limits<double>::infinity();
+
     struct Force {
         double cutoff;
+        double cutoff2;
 
-        explicit Force(const double cutoff): cutoff(cutoff) {}
+        explicit Force(const double cutoff): cutoff(cutoff), cutoff2(cutoff*cutoff) {}
 
         template<env::IsConstFetcher F>
         vec3 operator()(this const auto & self, const F & p1, const F & p2, const vec3 & r) {
@@ -42,7 +46,7 @@ namespace april::force {
 
 
         [[nodiscard]] bool has_cutoff() const {
-            return cutoff >= 0;
+            return cutoff != no_cutoff;
         }
     };
 

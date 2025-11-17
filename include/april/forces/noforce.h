@@ -8,7 +8,6 @@
 namespace april::force {
 	// No-op force: always returns zero vector and mixes to itself.
 	struct NoForce : Force{
-		// Negative cutoff_radius means "no cutoff"
 		NoForce(): Force(0) {}
 
 

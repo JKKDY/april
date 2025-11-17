@@ -24,7 +24,7 @@ namespace april::force {
 		template<env::IsConstFetcher F>
 		vec3 operator()(const F &, const F &, const vec3& r) const noexcept {
 			const double r2 = r.norm_squared();
-			if (cutoff > 0.0 && r2 > cutoff * cutoff)
+			if (r2 > cutoff2)
 				return vec3{0.0, 0.0, 0.0};
 
 			const double inv_r2 = 1.0 / r2;

@@ -14,14 +14,14 @@ namespace april::force {
 		double k; // Spring constant
 		double r0; // Equilibrium distance
 
-		Harmonic(const double strength, const double equilibrium, const double cutoff = -1)
+		Harmonic(const double strength, const double equilibrium, const double cutoff = no_cutoff)
 		: Force(cutoff), k(strength), r0(equilibrium) {}
 
 
         template<env::IsConstFetcher F>
 		vec3 operator()(const F& , const F& , const vec3& r) const noexcept {
 			const double dist = r.norm();
-			if (dist > cutoff) return {};
+			if (cutoff > 0 && dist > cutoff) return {};
 			const double magnitude = k * (dist - r0) / dist; // F = -k * (dist - r0) * (r / dist)
 			return -magnitude * r;
 		}
@@ -30,8 +30,7 @@ namespace april::force {
 			// Arithmetic average of k and r0; carry max cutoff
 			const double mixed_k = 0.5 * (k + other.k);
 			const double mixed_r0 = 0.5 * (r0 + other.r0);
-			Harmonic h(mixed_k, mixed_r0);
-			h.cutoff = std::max(cutoff, other.cutoff);
+			const Harmonic h(mixed_k, mixed_r0, std::max(cutoff, other.cutoff));
 			return h;
 		}
 	};

@@ -12,8 +12,8 @@
 #include "april/forces/force.h"
 #include "april/forces/harmonic.h"
 #include "april/forces/gravity.h"
-#include "april/forces/lennard_jones.h"
-#include "april/forces/no_force.h"
+#include "april/forces/lennardjones.h"
+#include "april/forces/noforce.h"
 
 #include "april/controllers/controller.h"
 #include "april/controllers/thermostat.h"

@@ -11,13 +11,13 @@ namespace april::force {
     struct Gravity : Force{
         double grav_constant;
 
-        explicit Gravity(const double grav_const = 1.0, const double cutoff = -1.0)
+        explicit Gravity(const double grav_const = 1.0, const double cutoff = no_cutoff)
             : Force(cutoff), grav_constant(grav_const) {}
 
         template<env::IsConstFetcher F>
         vec3 operator()(const F & p1, const F & p2, const vec3& r) const noexcept {
             const double r2 = r.norm_squared();
-            if (has_cutoff() && r2 > cutoff*cutoff) return {};
+            if (r2 > cutoff2) return {};
 
             const double inv_r = 1.0 / std::sqrt(r2);
             const double mag = grav_constant * p1.mass() * p2.mass() * inv_r * inv_r;

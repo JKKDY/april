@@ -33,6 +33,7 @@ add_executable(test_april
         particle/particle_test.cpp
         particle/particle_fields_test.cpp
         particle/particle_generators_test.cpp
+        forces/forces_test.cpp
 )
 
 target_include_directories(test_april PRIVATE

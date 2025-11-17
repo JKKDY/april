@@ -5,7 +5,7 @@
 
 #include "april/particle/fields.h"
 #include "april/forces/force.h"
-#include "april/forces/no_force.h"
+#include "april/forces/noforce.h"
 #include "april/common.h"
 
 

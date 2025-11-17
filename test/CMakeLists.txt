@@ -14,7 +14,7 @@ FetchContent_MakeAvailable(googletest)
 add_executable(test_april
         test_april.cpp
         system_test.cpp
-        interaction_test.cpp
+        forces/interaction_test.cpp
         containers/directsum_test.cpp
         output_test.cpp
         integrators/stoermerverlet_test.cpp
@@ -30,6 +30,9 @@ add_executable(test_april
         fields/uniform_field_test.cpp
         fields/local_field_test.cpp
         fields/apply_field_test.cpp
+        particle/particle_test.cpp
+        particle/particle_fields_test.cpp
+        particle/particle_generators_test.cpp
 )
 
 target_include_directories(test_april PRIVATE

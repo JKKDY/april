@@ -3,7 +3,7 @@
 #include <utility>
 #include "april/common.h"
 #include "april/env/domain.h"
-#include "april/particle/descriptors.h"
+#include "april/particle/generators.h"
 
 
 namespace april::core::internal {

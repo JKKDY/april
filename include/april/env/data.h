@@ -11,7 +11,7 @@
 #include "april/boundaries/boundary.h"
 #include "april/controllers/controller.h"
 #include "april/fields/field.h"
-#include "april/particle/descriptors.h"
+#include "april/particle/generators.h"
 
 namespace april::env {
     template<force::IsForcePack FPack,

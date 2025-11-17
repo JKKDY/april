@@ -53,12 +53,12 @@ namespace april::env {
 
 
 	template <typename T>
-		concept IsUserData =
-			std::default_initializable<T> &&
-			std::is_trivially_copyable_v<T> &&
-			std::is_trivially_destructible_v<T> &&
-			std::is_standard_layout_v<T> &&
-			(!std::is_polymorphic_v<T>);
+	concept IsUserData =
+		std::default_initializable<T> &&
+		std::is_trivially_copyable_v<T> &&
+		std::is_trivially_destructible_v<T> &&
+		std::is_standard_layout_v<T> &&
+		(!std::is_polymorphic_v<T>);
 
 
 	struct NoUserData {};

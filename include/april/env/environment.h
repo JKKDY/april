@@ -11,7 +11,7 @@
 #include "april/controllers/controller.h"
 #include "april/fields/field.h"
 #include "april/env/traits.h"
-#include "april/particle/descriptors.h"
+#include "april/particle/generators.h"
 #include "april/particle/defs.h"
 
 
@@ -101,8 +101,8 @@ namespace april::env {
 
         // Multi particle Initializer
         template<IsParticleGenerator T>
-        void add_particles(const T& initializer) {
-            add_particles(initializer.to_particles());
+        void add_particles(const T& generator) {
+            add_particles(generator.to_particles());
         }
 
         // --- Add Forces ---

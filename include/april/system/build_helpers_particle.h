@@ -7,7 +7,7 @@
 
 #include "april/common.h"
 #include "april/forces/force.h"
-#include "april/particle/descriptors.h"
+#include "april/particle/generators.h"
 
 
 #ifdef _MSC_VER

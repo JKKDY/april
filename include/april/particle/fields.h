@@ -30,10 +30,11 @@ namespace april::env {
 	};
 
 	constexpr FieldMask to_field_mask(Field f) { return static_cast<FieldMask>(f); }
+	constexpr FieldMask operator+(Field f) { return static_cast<FieldMask>(f); }
 
-	constexpr FieldMask operator|(const Field a, const Field b) { return to_field_mask(a) | to_field_mask(b); }
-	constexpr FieldMask operator|(const FieldMask m, const Field f) { return m | to_field_mask(f); }
-	constexpr FieldMask operator|(const Field a, const FieldMask m) { return to_field_mask(a) | m; }
+	constexpr FieldMask operator|(const Field a, const Field b) { return +a | +b; }
+	constexpr FieldMask operator|(const FieldMask m, const Field f) { return m | +f;}
+	constexpr FieldMask operator|(const Field a, const FieldMask m) { return +a | m; }
 
 
 	template<class T>
@@ -44,7 +45,6 @@ namespace april::env {
 
 	template<FieldMask M, Field F>
 	inline constexpr bool has_field_v = (M & to_field_mask(F)) != 0;
-
 
 
 

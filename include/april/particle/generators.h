@@ -63,7 +63,7 @@ namespace april::env {
             user_data = data; return *this;
         }
 
-        std::vector<Particle> to_particles() const {
+        [[nodiscard]] std::vector<Particle> to_particles() const {
             if (distance == 0) {
                 throw std::logic_error("Cuboid inter-particle distance is set to 0!");
             }
@@ -145,7 +145,7 @@ namespace april::env {
         ParticleSphere& with_data(const std::any & data) noexcept {
             user_data = data; return *this;
         }
-        std::vector<Particle> to_particles() const {
+        [[nodiscard]] std::vector<Particle> to_particles() const {
             if (distance == 0) {
                 throw std::logic_error("Sphere inter-particle distance is set to 0");
             }

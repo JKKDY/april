@@ -68,7 +68,8 @@ TEST(ParticleGeneratorTest, CuboidErrorZeroDistance) {
     ParticleCuboid gen;
     gen.count(1, 1, 1).spacing(0.0); // Set distance to 0
 
-    EXPECT_THROW(gen.to_particles(), std::logic_error);
+
+    EXPECT_THROW({const auto _ = gen.to_particles();}, std::logic_error);
 }
 
 
@@ -124,7 +125,7 @@ TEST(ParticleGeneratorTest, SphereErrorZeroDistance) {
     ParticleSphere gen;
     gen.radius(1.0).spacing(0.0); // Set distance to 0
 
-    EXPECT_THROW(gen.to_particles(), std::logic_error);
+    EXPECT_THROW({const auto _ = gen.to_particles();}, std::logic_error);
 }
 
 TEST(ParticleGeneratorTest, Sphere2DGeneration) {
@@ -161,16 +162,16 @@ TEST(ParticleGeneratorTest, Sphere2DGeneration) {
 
 // --- Common Feature Tests ---
 TEST(ParticleGeneratorTest, ThermalVelocity) {
-    auto gen = ParticleCuboid()
-        .at(5, 5, 5)
-       .velocity(1, 1, 1) // mean velocity
-       .count(1, 1, 1)
-       .spacing(1.0)
-       .mass(1.0);
-
     // thermal function: v_thermal = position
     auto thermal_fn = [](const vec3& pos) { return pos; };
-    gen.thermal(thermal_fn);
+
+    auto gen = ParticleCuboid()
+        .at(5, 5, 5)
+        .velocity(1, 1, 1) // mean velocity
+        .count(1, 1, 1)
+        .spacing(1.0)
+        .mass(1.0)
+        .thermal(thermal_fn);
 
     std::vector<Particle> particles = gen.to_particles();
 
@@ -178,7 +179,7 @@ TEST(ParticleGeneratorTest, ThermalVelocity) {
     
     // check default thermal (should be zero)
     ParticleCuboid gen_default;
-    gen_default.count(1,1,1).velocity(1,1,1);
+    gen_default.count(1,1,1).velocity(1,1,1).spacing(1.0);
     auto p_default = gen_default.to_particles().front();
     EXPECT_EQ(p_default.velocity, vec3(1,1,1)); // velocity = mean + 0
 

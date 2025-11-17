@@ -1,0 +1,35 @@
+#pragma once
+
+#include <cmath>
+
+#include "april/common.h"
+#include "april/particle/fields.h"
+#include "april/forces/force.h"
+
+
+namespace april::force {
+    struct Gravity : Force{
+        double grav_constant;
+
+        explicit Gravity(const double grav_const = 1.0, const double cutoff = -1.0)
+            : Force(cutoff), grav_constant(grav_const) {}
+
+        template<env::IsConstFetcher F>
+        vec3 operator()(const F & p1, const F & p2, const vec3& r) const noexcept {
+            const double r2 = r.norm_squared();
+            if (has_cutoff() && r2 > cutoff*cutoff) return {};
+
+            const double inv_r = 1.0 / std::sqrt(r2);
+            const double mag = grav_constant * p1.mass() * p2.mass() * inv_r * inv_r;
+
+            return mag * inv_r * r;  // Force vector pointing along +r
+        }
+
+        [[nodiscard]] Gravity mix(Gravity const& other) const noexcept {
+            // Arithmetic average of pre-factor and cutoff
+            const double mixed_factor = 0.5 * (grav_constant + other.grav_constant);
+            const double mixed_cutoff = 0.5 * (cutoff + other.cutoff);
+            return Gravity(static_cast<uint8_t>(std::round(mixed_factor)), mixed_cutoff);
+        }
+    };
+}

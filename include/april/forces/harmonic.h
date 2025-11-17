@@ -4,13 +4,13 @@
 
 #include "april/common.h"
 #include "april/particle/fields.h"
+#include "april/forces/force.h"
+
 
 
 namespace april::force {
 	// Harmonic spring force (Hooke's law). k: spring constant; r0: equilibrium distance.
 	struct Harmonic : Force{
-		static constexpr env::FieldMask fields = to_field_mask(env::Field::none);
-
 		double k; // Spring constant
 		double r0; // Equilibrium distance
 

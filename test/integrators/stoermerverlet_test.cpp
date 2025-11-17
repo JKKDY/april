@@ -64,10 +64,10 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 
 
 TEST(StoermerVerletTest, SingleStepWithForceTest) {
-	Environment env (forces<PowerLaw>);
+	Environment env (forces<Gravity>);
 	env.add_particle({-1,0,0}, {}, 1 );
 	env.add_particle({1,0,0}, {}, 1);
-	env.add_force(PowerLaw(2, 1), to_type(0));
+	env.add_force(Gravity(), to_type(0));
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
@@ -103,10 +103,10 @@ TEST(StoermerVerletTest, OrbitTest) {
 	constexpr double v = G * M / R;
 	constexpr double T = 2 * 3.14159265359 * v / R;
 
-	Environment env (forces<PowerLaw>);
+	Environment env (forces<Gravity>);
 	env.add_particle({0,0,0}, {0, 0, 0}, M);
 	env.add_particle({0,R,0}, {v, 0, 0}, m);
-	env.add_force(PowerLaw(2, G), to_type(0));
+	env.add_force(Gravity(G), to_type(0));
 	env.set_extent(vec3{R,R,R}*4);
 	env.set_origin(vec3{-R,-R,-R} * 2);
 
@@ -150,10 +150,10 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	constexpr double v = G * M / R;
 	constexpr double T = 2 * 3.14159265359 * v / R;
 
-	Environment env (forces<PowerLaw>);
+	Environment env (forces<Gravity>);
 	env.add_particle({0,0,0}, {0, 0, 0}, M);
 	env.add_particle({0,R,0}, {v, 0, 0}, m);
-	env.add_force(PowerLaw(2, G), to_type(0));
+	env.add_force(Gravity(G), to_type(0));
 	env.set_extent(vec3{R,R,R}*4);
 	env.set_origin(vec3{-R,-R,-R} * 2);
 

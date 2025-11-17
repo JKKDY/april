@@ -56,7 +56,7 @@ TEST(ParticleTest, FluentSettersAndChaining) {
     ASSERT_TRUE(p.force.has_value());
     EXPECT_EQ(p.force.value(), test_force);
 
-    ASSERT_NO_THROW(std::any_cast<std::string>(p.user_data));
+    ASSERT_NO_THROW({auto _ = std::any_cast<std::string>(p.user_data);});
     EXPECT_EQ(std::any_cast<std::string>(p.user_data), "hello");
 }
 

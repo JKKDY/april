@@ -37,7 +37,7 @@ TEST(ParticleGeneratorTest, CuboidHappyPath) {
     EXPECT_EQ(p_first.mass, 1.2);
     EXPECT_EQ(p_first.type, 7);
     EXPECT_EQ(p_first.state, ParticleState::ALIVE);
-    ASSERT_NO_THROW(std::any_cast<std::string>(p_first.user_data));
+    ASSERT_NO_THROW({auto _ = std::any_cast<std::string>(p_first.user_data);});
     EXPECT_EQ(std::any_cast<std::string>(p_first.user_data), "cuboid_test");
 
     // Check last particle (at max coordinate)
@@ -102,7 +102,7 @@ TEST(ParticleGeneratorTest, SphereHappyPathOneParticle) {
     EXPECT_EQ(p.mass, 5.0);
     EXPECT_EQ(p.type, 3);
     EXPECT_EQ(p.state, ParticleState::ALIVE);
-    ASSERT_NO_THROW(std::any_cast<std::string>(p.user_data));
+    ASSERT_NO_THROW({auto _ = std::any_cast<std::string>(p.user_data); });
     EXPECT_EQ(std::any_cast<std::string>(p.user_data), "sphere_test");
 }
 

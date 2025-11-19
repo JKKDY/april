@@ -67,8 +67,127 @@ namespace april::core {
 		}
 
 		// call to update all pairwise forces between particles
+
+		enum class BatchSymmetry : uint8_t {
+			symmetric,
+			asymmetric
+		};
+
+		enum class BatchRegion : uint8_t {
+			boundary,
+			inner
+		};
+
+		template<BatchRegion Region>
+		struct AsymmetricBatch {
+			static constexpr BatchSymmetry symmetry = BatchSymmetry::asymetric;
+			static constexpr BatchRegion region = Region;
+			static constexpr bool parallelize_inner = false;
+			static constexpr bool atomic_force_update = false;
+
+			std::pair<env::ParticleType, env::ParticleType> types;
+
+			std::span<size_t> type1_indices;
+			std::span<size_t> type2_indices;
+		};
+
+		template<BatchRegion Region>
+		struct SymmetricBatch {
+			static constexpr BatchSymmetry symmetry = BatchSymmetry::symmetric;
+			static constexpr BatchRegion region = Region;
+
+			std::pair<env::ParticleType, env::ParticleType> types;
+			std::span<size_t> type_indices;
+		};
+
+		struct NoBCP {
+			template<class T>
+			constexpr T operator()(T&& v) const noexcept {
+				return std::forward<T>(v);   // identity
+			}
+		};
+
 		void update_forces() {
-			container.dispatch_calculate_forces();
+			container.prepare_batches();
+
+			auto update_batch = [&]<typename BCP>(const auto& batch, BCP && apply_bcp) {
+				auto [t1, t2] = batch.types;
+				force_table.dispatch(t1, t2, [&] <force::IsForce F> (F && force) {
+
+					auto update_force = [&](size_t index1, size_t index2) __attribute__((always_inline)) {
+						auto && p1 = container.get_particle_by_index(index1);
+						auto && p2 = container.get_particle_by_index(index2);
+
+						vec3 diff;
+						if constexpr (std::is_same_v<std::decay_t<BCP>, NoBCP>) {
+							diff = p2.position - p1.position;     // no correction
+						} else {
+							diff = apply_bcp(p2.position - p1.position);
+						}
+
+						const vec3 f = force(p1, p2, diff);
+
+						if constexpr (batch.atomic_force_update) {
+							throw std::logic_error("atomic update (& parallelization) not implemented");
+						} else {
+							p1.force += f;
+							p2.force -= f;
+						}
+					};
+
+					auto parallel_loop_symmetric = [&]() {
+						throw std::logic_error("parallelization not implemented");
+					};
+
+					auto parallel_loop_asymmetric = [&]() {
+						throw std::logic_error("parallelization not implemented");
+					};
+
+					auto loop_symmetric_serial = [&]() {
+						for (size_t i = 0; i < batch.type_indices.size(); ++i) {
+							for (size_t j = i + 1; j < batch.type_indices.size(); ++j) {
+								update_force(batch.type_indices[i], batch.type_indices[j]);
+							}
+						}
+					};
+
+					auto loop_asymmetric_serial = [&]() {
+						for (size_t i = 0; i < batch.type1_indices.size(); ++i) {
+							for (size_t j = 0; j < batch.type2_indices.size(); ++j) {
+								update_force(batch.type1_indices[i], batch.type2_indices[j]);
+							}
+						}
+					};
+
+					if constexpr (batch.parallelize_inner) {
+						 if constexpr (batch.symmetry == BatchSymmetry::symmetric)
+							 parallel_loop_symmetric();
+						 else
+							 parallel_loop_asymmetric();
+					} else {
+						if constexpr (batch.symmetry == BatchSymmetry::symmetric)
+							loop_symmetric_serial();
+						else
+							loop_asymmetric_serial();
+					}
+				});
+			};
+
+			container.for_each_batch(update_batch);
+
+
+
+			// for type1, type2, force in force_table.force():
+			// 	container.prepare_batch(type1, type2) // maybe some prepation phase? though this makes it also a little awkward splitting it up into two steps idk
+			// 	force.compute( // force or force table idk
+			// 		[container](F && f) { // F is the concrete force object
+			// 			for p1, p2 in container.batch:  // force can just iterate over the entire batch
+			// 				force = f.eval(p1, p2)
+			// 				// particle.force updates ...
+			// 		}
+			//
+			// 	)
+
 		}
 
 

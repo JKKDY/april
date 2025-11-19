@@ -71,9 +71,9 @@ int main() {
 	constexpr double dt = 0.0002;
 	constexpr int steps  = 10000;
 
-	StoermerVerlet integrator(system, monitors<Benchmark, ProgressBar>);
+	StoermerVerlet integrator(system, monitors<Benchmark>);
 	integrator.add_monitor(Benchmark());
-	integrator.add_monitor(ProgressBar(Trigger::every(200)));
+//	integrator.add_monitor(ProgressBar(Trigger::every(200)));
 	integrator.run_for_steps(dt, steps);
 
 	// integrator.add_monitor(BinaryOutput(50, dir_path));

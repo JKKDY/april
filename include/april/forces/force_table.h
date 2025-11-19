@@ -3,6 +3,7 @@
 #include <functional>
 #include <unordered_set>
 
+#include "lennardjones.h"
 #include "april/particle/fields.h"
 #include "april/forces/force.h"
 #include "april/forces/noforce.h"
@@ -10,7 +11,6 @@
 
 
 namespace april::force::internal {
-
 
 
     template<IsForceVariant ForceVariant>
@@ -31,15 +31,43 @@ namespace april::force::internal {
             build_id_forces(id_interactions, usr_ids_to_impl_ids);
             validate_force_tables();
             compute_max_cutoff();
+
+            std::visit([this]<typename T0>(T0 && arg) {
+                using T = std::decay_t<T0>;
+
+                if constexpr (std::is_same_v<T, NoForce>) {
+                    std::get<std::vector<NoForce>>(forces).push_back(arg);
+                }
+                else if constexpr (std::is_same_v<T, LennardJones>) {
+                    std::get<std::vector<LennardJones>>(forces).push_back(arg);
+                }
+            }, type_forces[0]);
+
+            force_handles.push_back(ForceHandle{1,0});
         }
+
+        // constexpr size_t force_classes_count = 2;
+
+
+        struct ForceHandle {
+            const size_t class_idx;
+            const size_t object_idx;
+        };
+        std::vector<ForceHandle> force_handles;
+        std::tuple<std::vector<NoForce>, std::vector<LennardJones>> forces;
+
 
         template<env::IsConstFetcher F>
         [[nodiscard]] vec3 evaluate(const F & p1, const F & p2) const {
             return evaluate(p1, p2, p2.position() - p1.position()); // dist vector points from p1 to p2
         }
 
+        LennardJones LJ_force = LennardJones(5, 1);
+
+
+
         template<env::IsConstFetcher F>
-        [[nodiscard]] vec3 evaluate(const F & p1, const F & p2, const vec3& r) const {
+        [[nodiscard]] vec3 evaluate(const F & p1, const F & p2 , const vec3& r) const {
             auto & tF = get_type_force(p1.type(), p2.type());
             vec3 force = std::visit([&](auto const& f){ return f(p1,p2,r); }, tF);
 
@@ -47,6 +75,7 @@ namespace april::force::internal {
             if (p1.id() < n_ids && p2.id() < n_ids) {
                 auto & iF = get_id_force(p1.id(), p2.id());
                 force += std::visit([&](auto const& f){ return f(p1,p2,r); }, iF);
+
             }
 
             return force;

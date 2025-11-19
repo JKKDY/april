@@ -22,12 +22,8 @@ namespace april::force {
 
 		// template<env::IsUserData U1, env::IsUserData U2>
 		template<env::IsConstFetcher F>
-		vec3 operator()(const F &, const F &, const vec3& r) const noexcept {
-			const double r2 = r.norm_squared();
-			if (r2 > cutoff2)
-				return vec3{0.0, 0.0, 0.0};
-
-			const double inv_r2 = 1.0 / r2;
+		vec3 eval(const F &, const F &, const vec3& r) const noexcept {
+			const double inv_r2 = 1.0 / r.norm_squared();
 			const double sigma_r2 = sigma2 * inv_r2;
 			const double sigma_r6 = sigma_r2 * sigma_r2 * sigma_r2;
 			const double sigma_r12 = sigma_r6 * sigma_r6;

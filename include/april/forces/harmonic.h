@@ -19,9 +19,8 @@ namespace april::force {
 
 
         template<env::IsConstFetcher F>
-		vec3 operator()(const F& , const F& , const vec3& r) const noexcept {
+		vec3 eval(const F& , const F& , const vec3& r) const noexcept {
 			const double dist = r.norm();
-			if (cutoff > 0 && dist > cutoff) return {};
 			const double magnitude = k * (dist - r0) / dist; // F = -k * (dist - r0) * (r / dist)
 			return -magnitude * r;
 		}

@@ -203,7 +203,7 @@ namespace april::container {
 		using user_type_t = U;
 		using force_table_t = ForceTable;
 		using mutable_fetcher_t = MF;
-		using const_fetcher = CF;
+		using const_fetcher_t = CF;
 
 		Container(const CFG & config,
 		  const internal::ContainerFlags & flags,
@@ -225,7 +225,7 @@ namespace april::container {
 		typename C::force_table_t;
 		typename C::user_type_t;
 		typename C::mutable_fetcher_t;
-		typename C::const_fetcher;
+		typename C::const_fetcher_t;
 	} && requires {
 		// Check config_type_t defines an impl template taking (force_table_t, user_type_t)
 		typename C::config_type_t::template impl<
@@ -241,13 +241,14 @@ namespace april::container {
 			typename C::force_table_t,
 			typename C::user_type_t,
 			typename C::mutable_fetcher_t,
-			typename C::const_fetcher
+			typename C::const_fetcher_t
 		>>;
 	};
 
 
 	template<typename ContainerDecl, typename Traits> concept IsContainerDecl =
-		env::internal::IsEnvironmentTraits<Traits> &&
+		env::internal::IsEnvironmentTraits<Traits>
+	&&
 	requires {
 		typename ContainerDecl::template impl<typename Traits::force_table_t, typename Traits::user_data_t>;
 	} &&

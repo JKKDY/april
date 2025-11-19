@@ -17,11 +17,8 @@ namespace april::force {
 		requires requires {
 			{ F::user_data_t::charge } -> std::convertible_to<double>;
 		}
-		vec3 operator()(const F & p1, const F & p2, const vec3& r) const noexcept {
-			const double r2 = r.norm_squared();
-			if (r2 > cutoff2) return {};
-
-			const double inv_r = 1.0 / std::sqrt(r2);
+		vec3 eval(const F & p1, const F & p2, const vec3& r) const noexcept {
+			const double inv_r = 1.0 / r.norm();
 			const double mag = coulomb_constant * p1.user_data().charge * p2.user_data().charge * inv_r * inv_r;
 
 			return mag * inv_r * r;  // Force vector pointing along +r

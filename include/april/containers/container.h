@@ -74,21 +74,29 @@ namespace april::container {
 				self.register_particle_movement(idx);
 			}
 
-			// calculate inter-particle forces
-			void dispatch_calculate_forces(this auto&& self) {
-		        static_assert(
-		            requires { self.calculate_forces(); },
-		            "Container subclass must implement: void calculate_forces()"
-		        );
-		        self.calculate_forces();
-		    }
+			void dispatch_prepare_force_update(this auto&& self) {
+				static_assert(
+				   requires { self.prepare_force_update(); },
+				   "Container subclass must implement: void prepare_force_update()"
+				);
+				return self.prepare_force_update();
+			}
+
+			template<typename F>
+			void dispatch_for_each_batch(this auto&& self, F && func) {
+				static_assert(
+				   requires { self.for_each_batch(func); },
+				   "Container subclass must implement: void for_each_batch(F && func)"
+			    );
+				self.for_each_batch(func);
+			}
 
 
 			size_t dispatch_id_to_index(this auto&& self, ParticleID id) {
 				static_assert(
 				   requires { { self.id_to_index(id) } -> std::same_as<size_t>; },
 				   "Container subclass must implement: void id_to_index(id)"
-			   );
+			    );
 				return self.id_to_index(id);
 			}
 
@@ -196,49 +204,40 @@ namespace april::container {
 	} // namespace internal
 
 
-	template<typename CFG, class ForceTable, env::IsUserData U, env::IsMutableFetcher MF, env::IsConstFetcher CF>
+	template<typename CFG, env::IsUserData U, env::IsMutableFetcher MF, env::IsConstFetcher CF>
 	class Container : public internal::ContainerInterface<U, MF, CF> {
 	public:
 		using config_type_t = CFG;
 		using user_type_t = U;
-		using force_table_t = ForceTable;
 		using mutable_fetcher_t = MF;
 		using const_fetcher_t = CF;
 
-		Container(const CFG & config,
-		  const internal::ContainerFlags & flags,
-		  const env::Box & box,
-		  ForceTable * force_table)
-		: cfg(config), flags(flags), domain(box), force_table(force_table) {}
+		Container(const CFG & config, const internal::ContainerFlags & flags, const env::Box & box)
+			: cfg(config), flags(flags), domain(box) {}
 
 	protected:
 		CFG cfg;
 		const internal::ContainerFlags flags;
 		env::Box domain;
-		ForceTable * force_table{};
 	};
 
 
 	template<typename C> concept IsContainer =
 	requires {
 		typename C::config_type_t;
-		typename C::force_table_t;
 		typename C::user_type_t;
 		typename C::mutable_fetcher_t;
 		typename C::const_fetcher_t;
 	} && requires {
 		// Check config_type_t defines an impl template taking (force_table_t, user_type_t)
-		typename C::config_type_t::template impl<
-			typename C::force_table_t,
-			typename C::user_type_t>;
+		typename C::config_type_t::template impl<typename C::user_type_t>;
 	} && requires {
 		// Check impl<force_table_t, user_type_t> resolves to this container type
-		requires std::same_as<C, typename C::config_type_t::template impl<typename C::force_table_t, typename C::user_type_t>>;
+		requires std::same_as<C, typename C::config_type_t::template impl<typename C::user_type_t>>;
 	} && requires {
 		// check that C is a derivative of Container
 		requires std::derived_from<C, Container<
 			typename C::config_type_t,
-			typename C::force_table_t,
 			typename C::user_type_t,
 			typename C::mutable_fetcher_t,
 			typename C::const_fetcher_t
@@ -250,8 +249,8 @@ namespace april::container {
 		env::internal::IsEnvironmentTraits<Traits>
 	&&
 	requires {
-		typename ContainerDecl::template impl<typename Traits::force_table_t, typename Traits::user_data_t>;
+		typename ContainerDecl::template impl<typename Traits::user_data_t>;
 	} &&
-		IsContainer<typename ContainerDecl::template impl<typename Traits::force_table_t, typename Traits::user_data_t>>;
+		IsContainer<typename ContainerDecl::template impl<typename Traits::user_data_t>>;
 
 } // namespace april::container

@@ -112,7 +112,6 @@ namespace april::force {
         // internal placeholder only
         struct ForceSentinel : Force {
             ForceSentinel() : Force(-1.0) {}
-            static constexpr env::FieldMask fields = to_field_mask(env::Field::none);
 
 		    template<env::IsConstFetcher F>
             vec3 eval(const F&, const F&, const vec3&) const noexcept {

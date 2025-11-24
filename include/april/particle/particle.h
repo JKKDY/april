@@ -14,7 +14,7 @@ namespace april::env {
         vec3 velocity;      					// The velocity of the particle.
 
         double mass{};        					// The mass of the particle.
-        ParticleState state{};					// The state of the particle.
+        ParticleState state = ParticleState::ALIVE;	// The state of the particle.
 
         // optional data e.g. if initializing from a simulation snapshot
         std::optional<vec3> old_position;		// previous position of the particle. Useful for applying boundary conditions

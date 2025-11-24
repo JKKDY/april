@@ -20,7 +20,7 @@ int main() {
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
-	auto integrator = Yoshida4(system, monitors<BinaryOutput, ProgressBar, Benchmark>)
+	auto integrator = Yoshida4(system, monitors<BinaryOutput, ProgressBar, Benchmark, TerminalOutput>)
 		.with_monitor(BinaryOutput(Trigger::every(50), dir_path.string()))
 		.with_monitor(ProgressBar(Trigger::every(50)))
 		.with_monitor(Benchmark())

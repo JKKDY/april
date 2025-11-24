@@ -6,9 +6,11 @@
 #include "april/containers/container.h"
 #include "april/env/domain.h"
 #include "april/system/context.h"
+#include "april/containers/batch.h"
 
 
 // TODO: add deleter callbacks to detect if system goes out of scope too early (e.g. prior to integrator.run)
+
 
 namespace april::core {
 
@@ -36,7 +38,7 @@ namespace april::core {
 		using ForceTable     	= typename Traits::force_table_t;
 		using BoundaryTable  	= typename Traits::boundary_table_t;
 
-		using Container      	= typename C::template impl<typename Traits::force_table_t, typename  Traits::user_data_t>;
+		using Container      	= typename C::template impl<typename Traits::user_data_t>;
 		using ContainerFlags 	= container::internal::ContainerFlags;
 		using TypeInteraction	= force::internal::TypeInteraction<typename Traits::force_variant_t>;
 		using IdInteraction	 	= force::internal::IdInteraction<typename Traits::force_variant_t>;
@@ -67,71 +69,35 @@ namespace april::core {
 		}
 
 		// call to update all pairwise forces between particles
-
-		enum class BatchSymmetry : uint8_t {
-			symmetric,
-			asymmetric
-		};
-
-		enum class BatchRegion : uint8_t {
-			boundary,
-			inner
-		};
-
-		template<BatchRegion Region>
-		struct AsymmetricBatch {
-			static constexpr BatchSymmetry symmetry = BatchSymmetry::asymetric;
-			static constexpr BatchRegion region = Region;
-			static constexpr bool parallelize_inner = false;
-			static constexpr bool atomic_force_update = false;
-
-			std::pair<env::ParticleType, env::ParticleType> types;
-
-			std::span<size_t> type1_indices;
-			std::span<size_t> type2_indices;
-		};
-
-		template<BatchRegion Region>
-		struct SymmetricBatch {
-			static constexpr BatchSymmetry symmetry = BatchSymmetry::symmetric;
-			static constexpr BatchRegion region = Region;
-
-			std::pair<env::ParticleType, env::ParticleType> types;
-			std::span<size_t> type_indices;
-		};
-
-		struct NoBCP {
-			template<class T>
-			constexpr T operator()(T&& v) const noexcept {
-				return std::forward<T>(v);   // identity
-			}
-		};
-
 		void update_forces() {
-			container.prepare_batches();
+			container.dispatch_prepare_force_update();
+			// container.prepare_batches();
 
-			auto update_batch = [&]<typename BCP>(const auto& batch, BCP && apply_bcp) {
+			auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
 				auto [t1, t2] = batch.types;
-				force_table.dispatch(t1, t2, [&] <force::IsForce F> (F && force) {
+				force_table.dispatch(t1, t2, [&] <force::IsForce ForceT> (const ForceT & force) {
 
 					auto update_force = [&](size_t index1, size_t index2) __attribute__((always_inline)) {
-						auto && p1 = container.get_particle_by_index(index1);
-						auto && p2 = container.get_particle_by_index(index2);
+						auto && p1 = container.dispatch_get_fetcher_by_index(index1);
+						auto && p2 = container.dispatch_get_fetcher_by_index(index2);
 
 						vec3 diff;
-						if constexpr (std::is_same_v<std::decay_t<BCP>, NoBCP>) {
-							diff = p2.position - p1.position;     // no correction
+						if constexpr (std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
+							diff = p2.position() - p1.position();     // no correction
 						} else {
-							diff = apply_bcp(p2.position - p1.position);
+							diff = apply_bcp(p2.position() - p1.position());
 						}
 
-						const vec3 f = force(p1, p2, diff);
+						const vec3 f = force(
+							env::internal::ConstParticleRecordFetcher(p1),
+							env::internal::ConstParticleRecordFetcher(p2),
+							diff);
 
-						if constexpr (batch.atomic_force_update) {
-							throw std::logic_error("atomic update (& parallelization) not implemented");
+						if constexpr (batch.parallelize_inner) {
+							throw std::logic_error("parallelization not implemented");
 						} else {
-							p1.force += f;
-							p2.force -= f;
+							p1.force() += f;
+							p2.force() -= f;
 						}
 					};
 
@@ -143,51 +109,39 @@ namespace april::core {
 						throw std::logic_error("parallelization not implemented");
 					};
 
-					auto loop_symmetric_serial = [&]() {
-						for (size_t i = 0; i < batch.type_indices.size(); ++i) {
-							for (size_t j = i + 1; j < batch.type_indices.size(); ++j) {
-								update_force(batch.type_indices[i], batch.type_indices[j]);
+					auto loop_symmetric_serial = [&](const auto& batch_in) {
+						for (size_t i = 0; i < batch_in.type_indices.size(); ++i) {
+							for (size_t j = i + 1; j < batch_in.type_indices.size(); ++j) {
+								update_force(batch_in.type_indices[i], batch_in.type_indices[j]);
 							}
 						}
 					};
 
-					auto loop_asymmetric_serial = [&]() {
-						for (size_t i = 0; i < batch.type1_indices.size(); ++i) {
-							for (size_t j = 0; j < batch.type2_indices.size(); ++j) {
-								update_force(batch.type1_indices[i], batch.type2_indices[j]);
+					auto loop_asymmetric_serial = [&](const auto& batch_in) {
+						for (size_t i = 0; i < batch_in.type1_indices.size(); ++i) {
+							for (size_t j = 0; j < batch_in.type2_indices.size(); ++j) {
+								update_force(batch_in.type1_indices[i], batch_in.type2_indices[j]);
 							}
 						}
 					};
 
 					if constexpr (batch.parallelize_inner) {
-						 if constexpr (batch.symmetry == BatchSymmetry::symmetric)
-							 parallel_loop_symmetric();
+						 if constexpr (batch.symmetry == container::BatchSymmetry::symmetric)
+							 parallel_loop_symmetric(batch);
 						 else
-							 parallel_loop_asymmetric();
+							 parallel_loop_asymmetric(batch);
 					} else {
-						if constexpr (batch.symmetry == BatchSymmetry::symmetric)
-							loop_symmetric_serial();
+						if constexpr (batch.symmetry == container::BatchSymmetry::symmetric)
+							loop_symmetric_serial(batch);
+						else if constexpr (batch.symmetry == container::BatchSymmetry::asymmetric)
+							loop_asymmetric_serial(batch);
 						else
-							loop_asymmetric_serial();
+							throw std::logic_error("batch.symmetry has invalid type");
 					}
 				});
 			};
 
-			container.for_each_batch(update_batch);
-
-
-
-			// for type1, type2, force in force_table.force():
-			// 	container.prepare_batch(type1, type2) // maybe some prepation phase? though this makes it also a little awkward splitting it up into two steps idk
-			// 	force.compute( // force or force table idk
-			// 		[container](F && f) { // F is the concrete force object
-			// 			for p1, p2 in container.batch:  // force can just iterate over the entire batch
-			// 				force = f.eval(p1, p2)
-			// 				// particle.force updates ...
-			// 		}
-			//
-			// 	)
-
+			container.dispatch_for_each_batch(update_batch);
 		}
 
 
@@ -305,7 +259,7 @@ namespace april::core {
 		   const ContainerFlags& flags,
 		   const env::Box& domain
 		) {
-			return Container(cfg, flags, domain, &force_table);
+			return Container(cfg, flags, domain);
 		}
 
 		void build_particles(const std::vector<ParticleRec>& particles) {
@@ -375,12 +329,6 @@ namespace april::core {
 			if (boundary.topology.boundary_thickness >= 0) {
 				for (auto p_idx : particle_ids) {
 
-					// std::visit([&]<typename B>(B const & b) {
-					// 	constexpr env::FieldMask fields = B::fields;
-					// 	env::ParticleRef<fields, typename Traits::user_data_t> p = get_particle_by_index<fields>(p_idx);
-					// 	b.dispatch_apply(p, sim_box, face);
-					// },boundary.boundary_v);
-
 					auto p = container.dispatch_get_fetcher_by_index(p_idx);
 					boundary.apply(p, sim_box, face);
 
@@ -408,11 +356,6 @@ namespace april::core {
 					auto [ax1, ax2] = non_face_axis(face);
 					if (sim_box.max[ax1] >= intersection[ax1] && sim_box.min[ax1] <= intersection[ax1] &&
 						sim_box.max[ax2] >= intersection[ax2] && sim_box.min[ax2] <= intersection[ax2]) {
-						// std::visit([&]<typename B>(B const & b) {
-						// 	constexpr env::FieldMask fields = B::fields;
-						// 	env::ParticleRef<fields, typename Traits::user_data_t> particle = get_particle_by_index<fields>(p_idx);
-						// 	b.dispatch_apply(particle, sim_box, face);
-						// },boundary.boundary_v);
 
 						auto p = container.dispatch_get_fetcher_by_index(p_idx);
 						boundary.apply(p, sim_box, face);

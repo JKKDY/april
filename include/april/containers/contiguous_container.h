@@ -5,12 +5,12 @@
 
 namespace april::container {
 
-	template<typename Config, typename FT, env::IsUserData U>
-	class ContiguousContainer : public Container<Config, FT, U,
+	template<typename Config, env::IsUserData U>
+	class ContiguousContainer : public Container<Config, U,
 	env::internal::ParticleRecordFetcher<U>,
 	env::internal::ConstParticleRecordFetcher<U>> {
 	public:
-		using Base = Container<Config, FT, U,
+		using Base = Container<Config, U,
 		env::internal::ParticleRecordFetcher<U>,
 		env::internal::ConstParticleRecordFetcher<U>>;
 		using typename Base::MutableFetcher;
@@ -18,16 +18,23 @@ namespace april::container {
 		using typename Base::ParticleRecord;
 		using Base::Base;
 
-		void build_storage(const std::vector<ParticleRecord>& particles) {
+		void init_storage(const std::vector<ParticleRecord>& particles) {
 			AP_ASSERT(!is_built, "storage has already been built");
 
 			this->particles = std::vector(particles);
-			indices.resize(particles.size());
+			id_to_index_map.resize(particles.size());
 			for (size_t i = 0; i < particles.size(); i++) {
 				const auto id = static_cast<size_t>(particles[i].id);
-				indices[id] = i;
+				id_to_index_map[id] = i;
 			}
 			this->is_built = true;
+		}
+
+		void prepare_force_update() {
+			for (auto & p : particles) {
+				p.old_force = p.force;
+				p.force = {0,0,0};
+			}
 		}
 
 		[[nodiscard]] MutableFetcher get_fetcher_by_id(const env::ParticleID id) noexcept{
@@ -50,7 +57,7 @@ namespace april::container {
 
 		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
 			AP_ASSERT(is_built, "storage was not built. build_storage must be called");
-			return indices[static_cast<size_t>(id)];
+			return id_to_index_map[static_cast<size_t>(id)];
 		}
 
 		// index for non-stable iteration
@@ -84,11 +91,11 @@ namespace april::container {
 		void swap_particles (uint32_t idx1, uint32_t idx2) {
 			auto id1 = particles[idx1].id, id2 = particles[idx2].id;
 			std::swap(particles[idx1], particles[idx2]);
-			std::swap(indices[id1], indices[id2]);
+			std::swap(id_to_index_map[id1], id_to_index_map[id2]);
 		}
 
 		std::vector<ParticleRecord> particles = {};
-		std::vector<uint32_t> indices; // map id to index
+		std::vector<uint32_t> id_to_index_map; // map id to index
 	private:
 		bool is_built = false;
 	};

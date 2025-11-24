@@ -13,6 +13,7 @@
 namespace april::force::internal {
 
 
+
     template<IsForceVariant ForceVariant>
     class ForceTable {
         using Type_Interaction = TypeInteraction<ForceVariant>;
@@ -64,7 +65,15 @@ namespace april::force::internal {
 
         LennardJones LJ_force = LennardJones(5, 1);
 
-
+        template<typename Func>
+        void dispatch(const env::ParticleType t1, const env::ParticleType t2, Func && func) const {
+            const auto & variant = get_type_force(t1, t2);
+            std::visit([&]<IsForce F>(const F & f) -> void {
+                if constexpr (!std::same_as<F, ForceSentinel>) {
+                    func(f);
+                }
+            }, variant);
+        }
 
         template<env::IsConstFetcher F>
         [[nodiscard]] vec3 evaluate(const F & p1, const F & p2 , const vec3& r) const {

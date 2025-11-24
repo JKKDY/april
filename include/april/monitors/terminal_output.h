@@ -15,11 +15,11 @@ namespace april::monitor {
 
 		template<class S>
 		void record(const core::SystemContext<S> & sys) {
-			std::cout << "step: " << sys.step() <<  "\n";
+			std::cout << "\n ##########  step: " << sys.step() <<  "  ########## \n";
 
 			for (size_t i = sys.index_start(); i < sys.index_end(); ++i) {
 				env::ParticleView p = sys.template get_particle_by_index<fields>(i);
-				std::cout << p.to_string() << "\n";
+				std::cout << env::particle_to_string(p) << "\n";
 			}
 		}
 	};

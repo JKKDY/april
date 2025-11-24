@@ -268,7 +268,7 @@ namespace april::env {
 			ParticleType& type()   { return record.type; }
 			ParticleID& id()       { return record.id; }
 			UserDataT& user_data() { return record.user_data; }
-		private:
+		// private:
 			Record& record;
 		};
 
@@ -278,6 +278,7 @@ namespace april::env {
 			using Record = ParticleRecord<UserDataT>;
 
 			explicit ConstParticleRecordFetcher(const Record& r) : record(r) {}
+			explicit ConstParticleRecordFetcher(const ParticleRecordFetcher<UserDataT> & f) : record(f.record) {}
 
 			[[nodiscard]] const vec3& position() const       	{ return record.position; }
 			[[nodiscard]] const vec3& velocity() const       	{ return record.velocity; }

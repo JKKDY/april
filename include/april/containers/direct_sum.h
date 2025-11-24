@@ -1,50 +1,80 @@
 #pragma once
 
 #include "april/containers/contiguous_container.h"
-
+#include "april/containers/batch.h"
 
 namespace april::container {
 
+
+
 	namespace internal {
-		template <class FT, class U> class DirectSum;
+		template <class U> class DirectSum;
 	}
 
 	struct DirectSum {
-		template<typename FT, class U> using impl = internal::DirectSum<FT, U>;
+		template<class U> using impl = internal::DirectSum<U>;
 	};
 
 	namespace internal {
-		template <class FT, class U>
-		class DirectSum final : public ContiguousContainer<container::DirectSum, FT, U> {
-			using Base = ContiguousContainer<container::DirectSum, FT, U>;
+		template <class U>
+		class DirectSum final : public ContiguousContainer<container::DirectSum, U> {
+			struct AsymmetricBatch {
+				static constexpr auto symmetry = BatchSymmetry::asymmetric;
+				static constexpr auto region = BatchRegion::boundary;
+				static constexpr bool parallelize_inner = false;
+
+				std::pair<env::ParticleType, env::ParticleType> types{};
+
+				std::vector<size_t> type1_indices{};
+				std::vector<size_t> type2_indices{};
+			};
+
+			struct SymmetricBatch {
+				static constexpr auto symmetry = BatchSymmetry::symmetric;
+				static constexpr auto region = BatchRegion::boundary;
+				static constexpr bool parallelize_inner = false;
+
+				std::pair<env::ParticleType, env::ParticleType> types;
+				std::vector<size_t> type_indices;
+			};
+
+			using Base = ContiguousContainer<container::DirectSum, U>;
 			using typename Base::ParticleRecord;
 			using typename Base::ParticleID;
-			using Base::force_table;
 			using Base::particles;
 			using Base::domain;
 			using Base::flags;
+			using Base::id_to_index_map;
+
 		public:
 			using Base::Base;
 
-			void build(const std::vector<ParticleRecord> & particles) {
-				this->build_storage(particles);
+			void build(const std::vector<ParticleRecord> & particlesIn) {
+				this->init_storage(particlesIn);
 
-				const int mode = (flags.periodic_x ? 4 : 0)
-					 | (flags.periodic_y ? 2 : 0)
-					 | (flags.periodic_z ? 1 : 0);
-				kernel = kernel_LUT[mode];
-			}
+				std::sort(particles.begin(),particles.end(),
+					[](const auto& a, const auto& b) {
+						return a.type < b.type;
+					});
 
-
-			void calculate_forces()  {
-				for (auto & particle : particles) {
-					particle.old_force = particle.force;
-					particle.force = {};
+				for (size_t i = 0; i < particles.size(); i++) {
+					const auto id = static_cast<size_t>(particles[i].id);
+					id_to_index_map[id] = i;
 				}
 
-				if (particles.size() < 2) return;
-				kernel(this);
+				build_batches();
+
+				// const int mode = (flags.periodic_x ? 4 : 0) | (flags.periodic_y ? 2 : 0) | (flags.periodic_z ? 1 : 0);
+
 			}
+
+
+			template<typename F>
+			void for_each_batch(F && f) {
+				for (const auto & batch : monoid_batches) f(batch, NoBatchBCP());
+				for (const auto & batch : dual_batches) f(batch, NoBatchBCP());
+			}
+
 
 			std::vector<size_t> collect_indices_in_region(const env::Box & region) {
 				std::vector<size_t> ret;
@@ -63,11 +93,55 @@ namespace april::container {
 			void register_particle_movement(size_t) {}
 
 		private:
-			using KernelFn = void(*)(DirectSum*) noexcept;
-			KernelFn kernel = nullptr;
 
-			template<bool P> static constexpr int IMIN  = P ? -1 : 0;
-			template<bool P> static constexpr int IMAX  = P ?  1 : 0;
+			std::vector<SymmetricBatch> monoid_batches;
+			std::vector<AsymmetricBatch> dual_batches;
+
+			void build_batches() {
+				std::unordered_map<env::ParticleType, std::pair<size_t, size_t>> type_ranges;
+				if (particles.empty()) return;
+
+				size_t start = 0;
+				auto current_type = particles[0].type;
+
+				for (size_t i = 0; i < particles.size(); i++) {
+					auto & p = particles[i];
+					if (current_type != p.type) {
+						type_ranges[i] = {start, i};
+						start = i;
+
+						current_type = p.type;
+					}
+				}
+				type_ranges[current_type] = {start, this->particles.size()}; // last batch
+				const env::ParticleType n_types = current_type + 1;
+
+				auto fill_range = [&](const env::ParticleType type) {
+					const auto range = type_ranges[type];
+
+					std::vector<size_t> indices;
+					indices.reserve(range.second - range.first);
+					for (size_t i = range.first; i < range.second; i++) indices.push_back(i);
+					return indices;
+				};
+
+				for (env::ParticleType type = 0; type < n_types; type++) {
+					SymmetricBatch batch;
+					batch.types = {type, type};
+					batch.type_indices = fill_range(type);
+					monoid_batches.push_back(batch);
+				}
+
+				for (env::ParticleType t1 = 0; t1 < n_types; t1++) {
+					for (env::ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
+						AsymmetricBatch batch;
+						batch.types = {t1, t2};
+						batch.type1_indices = fill_range(t1);
+						batch.type2_indices = fill_range(t2);
+						dual_batches.push_back(batch);
+					}
+				}
+			}
 
 			template<bool PX, bool PY, bool PZ>
 			static vec3 minimum_image(vec3 dr, const vec3& L) noexcept {
@@ -76,43 +150,6 @@ namespace april::container {
 				if constexpr (PZ) dr.z -= L.z * std::round(dr.z / L.z);
 				return dr;
 			}
-
-			template<bool PX, bool PY, bool PZ>
-			static void kernel_impl(DirectSum* self) noexcept {
-				const auto N = self->particles.size();
-				const vec3& L = self->domain.extent;
-
-				for (size_t i = 0; i + 1 < N; ++i) {
-					auto& p1 = self->particles[i];
-					if (p1.state == env::ParticleState::DEAD) continue;
-
-					for (size_t j = i + 1; j < N; ++j) {
-						auto& p2 = self->particles[j];
-						if (p2.state == env::ParticleState::DEAD) continue;
-
-						vec3 dr = p2.position - p1.position;
-						dr = minimum_image<PX, PY, PZ>(dr, L);
-
-						auto pv1 = std::as_const(*self).get_fetcher_by_index(i);
-						auto pv2 = std::as_const(*self).get_fetcher_by_index(j);
-						vec3 f = self->force_table->evaluate(pv1, pv2, dr);
-
-						p1.force += f;
-						p2.force -= f; // Newton’s 3rd law
-					}
-				}
-			}
-
-			static constexpr KernelFn kernel_LUT[8] = {
-				&kernel_impl<false,false,false>, // no periodicity
-				&kernel_impl<false,false,true >, // periodic Z
-				&kernel_impl<false,true ,false>, // periodic Y
-				&kernel_impl<false,true ,true >, // periodic YZ
-				&kernel_impl<true ,false,false>, // periodic X
-				&kernel_impl<true ,false,true >, // periodic XZ
-				&kernel_impl<true ,true ,false>, // periodic XY
-				&kernel_impl<true ,true ,true >  // periodic XYZ
-			};
 		};
 	}
 }

@@ -13,7 +13,6 @@
 
 
 namespace april::core {
-
 	struct BuildInfo;
 
 	template <class C, env::internal::IsEnvironmentTraits Traits>
@@ -74,8 +73,7 @@ namespace april::core {
 			// container.prepare_batches();
 
 			auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
-				auto [t1, t2] = batch.types;
-				force_table.dispatch(t1, t2, [&] <force::IsForce ForceT> (const ForceT & force) {
+				auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
 
 					auto update_force = [&](size_t index1, size_t index2) __attribute__((always_inline)) {
 						auto && p1 = container.dispatch_get_fetcher_by_index(index1);
@@ -138,7 +136,10 @@ namespace april::core {
 						else
 							throw std::logic_error("batch.symmetry has invalid type");
 					}
-				});
+				};
+
+				auto [t1, t2] = batch.types;
+				force_table.dispatch(t1, t2, apply_batch_update);
 			};
 
 			container.dispatch_for_each_batch(update_batch);

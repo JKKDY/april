@@ -12,9 +12,11 @@ namespace april::container {
 		asymmetric
 	};
 
-	enum class BatchRegion : uint8_t {
-		boundary,
-		inner
+	template<BatchSymmetry sym, bool parallelize>
+	struct BatchBase {
+		static constexpr auto symmetry = sym;
+		static constexpr bool parallelize_inner = parallelize;
+		std::pair<env::ParticleType, env::ParticleType> types{};
 	};
 
 	// Base constraints common to all batches
@@ -22,7 +24,6 @@ namespace april::container {
 	concept IsBatchBase = requires(const T& b) {
 		// Must have static constexpr configuration flags
 		{ T::symmetry } -> std::convertible_to<BatchSymmetry>;
-		{ T::region } -> std::convertible_to<BatchRegion>;
 		{ T::parallelize_inner } -> std::convertible_to<bool>;
 
 		// Must have type pair

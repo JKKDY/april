@@ -22,7 +22,7 @@ namespace april::force {
 
 		// template<env::IsUserData U1, env::IsUserData U2>
 		template<env::IsConstFetcher F>
-		vec3 eval(const F &, const F &, const vec3& r) const noexcept {
+		__attribute__((always_inline)) inline vec3 eval(const F &, const F &, const vec3& r) const noexcept {
 			const double inv_r2 = 1.0 / r.norm_squared();
 			const double sigma_r2 = sigma2 * inv_r2;
 			const double sigma_r6 = sigma_r2 * sigma_r2 * sigma_r2;

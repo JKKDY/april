@@ -6,7 +6,8 @@ using namespace april;
 namespace fs = std::filesystem;
 
 
-static constexpr int NX = 10, NY = 10, NZ = 10;
+
+static constexpr int NX = 15, NY = 15, NZ = 10;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 5.0;
@@ -50,9 +51,6 @@ int main() {
 	integrator.add_monitor(Benchmark());
 	integrator.add_monitor(ProgressBar(Trigger::every(200)));
 	integrator.run_for_steps(dt, steps);
-
-	// integrator.add_monitor(BinaryOutput(50, dir_path));
-	// integrator.add_monitor(ExitMonitor(origin, extent));
 
 	std::cout << "Particles: " << NX * NY * NZ << "\n"
 			 << "Steps: " << steps << "\n"

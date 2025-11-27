@@ -44,8 +44,8 @@ namespace april::integrator {
 			// velocity update
 			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
 				auto p = sys.template get_particle_by_index<vel_upd_fields>(i);
-				if (static_cast<int>(p.state & State::MOVABLE)) {
 					p.velocity += dt / 2 / p.mass * (p.force + p.old_force);
+				if (static_cast<int>(p.state & State::MOVABLE)) {
 				}
 			}
 

@@ -18,24 +18,13 @@ namespace april::container {
 	namespace internal {
 		template <class U>
 		class DirectSum final : public ContiguousContainer<container::DirectSum, U> {
-			struct AsymmetricBatch {
-				static constexpr auto symmetry = BatchSymmetry::asymmetric;
-				static constexpr auto region = BatchRegion::boundary;
-				static constexpr bool parallelize_inner = false;
-
-				std::pair<env::ParticleType, env::ParticleType> types{};
-
+			struct AsymmetricBatch : BatchBase<BatchSymmetry::asymmetric, true>{
 				std::vector<size_t> type1_indices{};
 				std::vector<size_t> type2_indices{};
 			};
 
-			struct SymmetricBatch {
-				static constexpr auto symmetry = BatchSymmetry::symmetric;
-				static constexpr auto region = BatchRegion::boundary;
-				static constexpr bool parallelize_inner = false;
-
-				std::pair<env::ParticleType, env::ParticleType> types;
-				std::vector<size_t> type_indices;
+			struct SymmetricBatch : BatchBase<BatchSymmetry::symmetric, true>{
+				std::vector<size_t> type_indices {};
 			};
 
 			using Base = ContiguousContainer<container::DirectSum, U>;
@@ -49,35 +38,65 @@ namespace april::container {
 		public:
 			using Base::Base;
 
+			ParticleRecord & get_particle(size_t idx) {
+				return particles[idx];
+			}
+
 			void build(const std::vector<ParticleRecord> & particlesIn) {
 				this->init_storage(particlesIn);
 
+				// sort particles by type to create contiguous blocks
 				std::sort(particles.begin(),particles.end(),
 					[](const auto& a, const auto& b) {
 						return a.type < b.type;
 					});
 
+				// Rebuild ID map after sort
 				for (size_t i = 0; i < particles.size(); i++) {
 					const auto id = static_cast<size_t>(particles[i].id);
 					id_to_index_map[id] = i;
 				}
 
 				build_batches();
-
-				// const int mode = (flags.periodic_x ? 4 : 0) | (flags.periodic_y ? 2 : 0) | (flags.periodic_z ? 1 : 0);
-
 			}
 
 
 			template<typename F>
 			void for_each_batch(F && f) {
-				for (const auto & batch : monoid_batches) f(batch, NoBatchBCP());
-				for (const auto & batch : dual_batches) f(batch, NoBatchBCP());
+				// periodicity flags to jump table index
+				const int mode = (flags.periodic_x ? 4 : 0) |
+							  (flags.periodic_y ? 2 : 0) |
+							  (flags.periodic_z ? 1 : 0);
+
+				// trampoline lambda
+				auto run_with_mode = [&]<bool PX, bool PY, bool PZ>() {
+					auto bcp = [L=domain.extent](const vec3& dr) {
+						return minimum_image<PX, PY, PZ>(dr, L);
+					};
+
+					for (const auto & batch : monoid_batches) f(batch, bcp);
+					for (const auto & batch : dual_batches) f(batch, bcp);
+				};
+
+				// jump table
+				switch(mode) {
+				case 0: run_with_mode.template operator()<false, false, false>(); break;
+				case 1: run_with_mode.template operator()<false, false, true >(); break;
+				case 2: run_with_mode.template operator()<false, true , false>(); break;
+				case 3: run_with_mode.template operator()<false, true , true >(); break;
+				case 4: run_with_mode.template operator()<true , false, false>(); break;
+				case 5: run_with_mode.template operator()<true , false, true >(); break;
+				case 6: run_with_mode.template operator()<true , true , false>(); break;
+				case 7: run_with_mode.template operator()<true , true , true >(); break;
+				default: std::unreachable();
+				}
 			}
 
 
 			std::vector<size_t> collect_indices_in_region(const env::Box & region) {
 				std::vector<size_t> ret;
+
+				// TODO estimate number of particles in region
 				// ret.reserve(static_cast<size_t>(size));
 
 				for (size_t i = 0; i < particles.size(); i++) {
@@ -125,6 +144,7 @@ namespace april::container {
 					return indices;
 				};
 
+				// create a batch for each particle type
 				for (env::ParticleType type = 0; type < n_types; type++) {
 					SymmetricBatch batch;
 					batch.types = {type, type};
@@ -132,6 +152,7 @@ namespace april::container {
 					monoid_batches.push_back(batch);
 				}
 
+				// create a batch for each distinct pair of particle types
 				for (env::ParticleType t1 = 0; t1 < n_types; t1++) {
 					for (env::ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
 						AsymmetricBatch batch;

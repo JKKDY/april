@@ -75,10 +75,7 @@ namespace april::core {
 			auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
 				auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
 
-					auto update_force = [&](size_t index1, size_t index2) __attribute__((always_inline)) {
-						auto && p1 = container.dispatch_get_fetcher_by_index(index1);
-						auto && p2 = container.dispatch_get_fetcher_by_index(index2);
-
+					auto update_force = [&](auto & p1, auto & p2) __attribute__((always_inline)) {
 						vec3 diff;
 						if constexpr (std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
 							diff = p2.position() - p1.position();     // no correction
@@ -107,18 +104,26 @@ namespace april::core {
 						throw std::logic_error("parallelization not implemented");
 					};
 
-					auto loop_symmetric_serial = [&](const auto& batch_in) {
+					auto loop_symmetric_serial = [&](const auto& batch_in) __attribute__((always_inline)) {
 						for (size_t i = 0; i < batch_in.type_indices.size(); ++i) {
+							auto && p1 = container.dispatch_get_fetcher_by_index(batch_in.type_indices[i]);
+
 							for (size_t j = i + 1; j < batch_in.type_indices.size(); ++j) {
-								update_force(batch_in.type_indices[i], batch_in.type_indices[j]);
+								auto && p2 = container.dispatch_get_fetcher_by_index(batch_in.type_indices[j]);
+
+								update_force(p1, p2);
 							}
 						}
 					};
 
-					auto loop_asymmetric_serial = [&](const auto& batch_in) {
+					auto loop_asymmetric_serial = [&](const auto& batch_in) __attribute__((always_inline)) {
 						for (size_t i = 0; i < batch_in.type1_indices.size(); ++i) {
+							auto && p1 = container.dispatch_get_fetcher_by_index(batch_in.type1_indices[i]);
+
 							for (size_t j = 0; j < batch_in.type2_indices.size(); ++j) {
-								update_force(batch_in.type1_indices[i], batch_in.type2_indices[j]);
+								auto && p2 = container.dispatch_get_fetcher_by_index(batch_in.type2_indices[j]);
+
+								update_force(p1, p2);
 							}
 						}
 					};

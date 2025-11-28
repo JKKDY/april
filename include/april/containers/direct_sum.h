@@ -4,9 +4,6 @@
 #include "april/containers/batch.h"
 
 namespace april::container {
-
-
-
 	namespace internal {
 		template <class U> class DirectSum;
 	}
@@ -18,6 +15,14 @@ namespace april::container {
 	namespace internal {
 		template <class U>
 		class DirectSum final : public ContiguousContainer<container::DirectSum, U> {
+			using Base = ContiguousContainer<container::DirectSum, U>;
+			using typename Base::ParticleRecord;
+			using typename Base::ParticleID;
+			using Base::particles;
+			using Base::domain;
+			using Base::flags;
+			using Base::id_to_index_map;
+
 			struct AsymmetricBatch : BatchBase<BatchSymmetry::asymmetric, true>{
 				std::vector<size_t> type1_indices{};
 				std::vector<size_t> type2_indices{};
@@ -26,14 +31,6 @@ namespace april::container {
 			struct SymmetricBatch : BatchBase<BatchSymmetry::symmetric, true>{
 				std::vector<size_t> type_indices {};
 			};
-
-			using Base = ContiguousContainer<container::DirectSum, U>;
-			using typename Base::ParticleRecord;
-			using typename Base::ParticleID;
-			using Base::particles;
-			using Base::domain;
-			using Base::flags;
-			using Base::id_to_index_map;
 
 		public:
 			using Base::Base;

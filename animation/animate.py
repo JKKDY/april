@@ -114,7 +114,7 @@ if __name__ == "__main__":
     sandbox = "sandbox"
     waterdrop = "falling_water_drop"
 
-    vis = ParticleVisualizer(f"../output/{halley_comet}")
+    vis = ParticleVisualizer(f"../output/{two_body_collision}")
     app.run()
 
     # for f in list_bin_files("../output/two_body_collision"):

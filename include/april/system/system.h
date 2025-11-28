@@ -250,30 +250,16 @@ namespace april::core {
 			  system_context(*this),
 			  trig_context(*this)
 		{
-			build_particles(particles);
-			init_controllers();
-			init_fields();
+			container.dispatch_build(particles);
+			controllers.for_each_item([&](auto& c) { c.dispatch_init(context()); });
+			fields.for_each_item([&](auto& f) { f.dispatch_init(context()); });
+
 		}
 
-		Container make_container(
-		   const C& cfg,
-		   const ContainerFlags& flags,
-		   const env::Box& domain
-		) {
+		Container make_container(const C& cfg, const ContainerFlags& flags, const env::Box& domain) {
 			return Container(cfg, flags, domain);
 		}
 
-		void build_particles(const std::vector<ParticleRec>& particles) {
-			container.dispatch_build(particles);
-		}
-
-		void init_controllers() {
-			controllers.for_each_item([&](auto& c) { c.dispatch_init(context()); });
-		}
-
-		void init_fields() {
-			fields.for_each_item([&](auto& f) { f.dispatch_init(context()); });
-		}
 
 		env::Box simulation_box;
 		BoundaryTable boundary_table;

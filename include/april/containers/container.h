@@ -19,6 +19,7 @@ namespace april::container {
 			bool particle_deletable;	// particles can be deleted during run time
 		};
 
+
 		/// Containers must implement the following functions:
 		///   build();
 		///   register_all_particle_movements()
@@ -213,10 +214,10 @@ namespace april::container {
 		using const_fetcher_t = CF;
 
 		Container(const CFG & config, const internal::ContainerFlags & flags, const env::Box & box)
-			: cfg(config), flags(flags), domain(box) {}
+			: config(config), flags(flags), domain(box) {}
 
 	protected:
-		CFG cfg;
+		CFG config;
 		const internal::ContainerFlags flags;
 		env::Box domain;
 	};

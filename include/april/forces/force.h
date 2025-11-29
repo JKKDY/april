@@ -20,14 +20,11 @@ namespace april::force {
         explicit Force(const double cutoff): cutoff(cutoff), cutoff2(cutoff*cutoff) {}
 
         template<env::IsConstFetcher F>
-        __attribute__((always_inline)) inline vec3 operator()(this const auto & self, const F & p1, const F & p2, const vec3 & r) {
+        vec3 operator()(this const auto & self, const F & p1, const F & p2, const vec3 & r) {
             static_assert(
                 requires { {self.eval(p1, p2, r)} -> std::same_as<vec3>; },
                 "Force must implement eval(env::internal::Particle, env::internal::Particle, const vec3&)"
             );
-
-            const double r2 = r.norm_squared();
-            if (r2 > self.cutoff2) return {};
 
             return self.eval(p1,p2,r);
         }

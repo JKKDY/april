@@ -45,7 +45,7 @@ int main() {
 	auto system = build_system(env, container);
 
 	constexpr double dt = 0.0002;
-	constexpr int steps  = 10000;
+	constexpr int steps  = 5000;
 
 	StoermerVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 	integrator.add_monitor(Benchmark());

@@ -4,6 +4,14 @@
 
 #include "april/shared/vec3.hpp"
 
+/// Cross-compiler force-inline
+#if defined(_MSC_VER)
+#   define AP_FORCE_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+#   define AP_FORCE_INLINE inline __attribute__((always_inline))
+#else
+#   define AP_FORCE_INLINE inline
+#endif
 
 
 namespace april {

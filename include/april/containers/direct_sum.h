@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ranges>
+
 #include "april/containers/contiguous_container.h"
 #include "april/containers/batch.h"
 
@@ -23,13 +25,13 @@ namespace april::container {
 			using Base::flags;
 			using Base::id_to_index_map;
 
-			struct AsymmetricBatch : BatchBase<BatchSymmetry::asymmetric, true>{
-				std::vector<size_t> type1_indices{};
-				std::vector<size_t> type2_indices{};
+			struct AsymmetricBatch : BatchBase<BatchSymmetry::asymmetric, false>{
+				std::ranges::iota_view<size_t, size_t> type1_indices{};
+				std::ranges::iota_view<size_t, size_t> type2_indices{};
 			};
 
-			struct SymmetricBatch : BatchBase<BatchSymmetry::symmetric, true>{
-				std::vector<size_t> type_indices {};
+			struct SymmetricBatch : BatchBase<BatchSymmetry::symmetric, false>{
+				std::ranges::iota_view<size_t, size_t> type_indices {};
 			};
 
 		public:
@@ -114,7 +116,7 @@ namespace april::container {
 			std::vector<AsymmetricBatch> dual_batches;
 
 			void build_batches() {
-				std::unordered_map<env::ParticleType, std::pair<size_t, size_t>> type_ranges;
+				std::unordered_map<env::ParticleType, std::ranges::iota_view<size_t, size_t>> type_ranges;
 				if (particles.empty()) return;
 
 				size_t start = 0;
@@ -132,20 +134,11 @@ namespace april::container {
 				type_ranges[current_type] = {start, this->particles.size()}; // last batch
 				const env::ParticleType n_types = current_type + 1;
 
-				auto fill_range = [&](const env::ParticleType type) {
-					const auto range = type_ranges[type];
-
-					std::vector<size_t> indices;
-					indices.reserve(range.second - range.first);
-					for (size_t i = range.first; i < range.second; i++) indices.push_back(i);
-					return indices;
-				};
-
 				// create a batch for each particle type
 				for (env::ParticleType type = 0; type < n_types; type++) {
 					SymmetricBatch batch;
 					batch.types = {type, type};
-					batch.type_indices = fill_range(type);
+					batch.type_indices = type_ranges[type];
 					monoid_batches.push_back(batch);
 				}
 
@@ -154,8 +147,8 @@ namespace april::container {
 					for (env::ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
 						AsymmetricBatch batch;
 						batch.types = {t1, t2};
-						batch.type1_indices = fill_range(t1);
-						batch.type2_indices = fill_range(t2);
+						batch.type1_indices = type_ranges[t1];
+						batch.type2_indices = type_ranges[t2];
 						dual_batches.push_back(batch);
 					}
 				}

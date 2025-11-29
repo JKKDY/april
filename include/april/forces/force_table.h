@@ -32,30 +32,7 @@ namespace april::force::internal {
             build_id_forces(id_interactions, usr_ids_to_impl_ids);
             validate_force_tables();
             compute_max_cutoff();
-
-            std::visit([this]<typename T0>(T0 && arg) {
-                using T = std::decay_t<T0>;
-
-                if constexpr (std::is_same_v<T, NoForce>) {
-                    std::get<std::vector<NoForce>>(forces).push_back(arg);
-                }
-                else if constexpr (std::is_same_v<T, LennardJones>) {
-                    std::get<std::vector<LennardJones>>(forces).push_back(arg);
-                }
-            }, type_forces[0]);
-
-            force_handles.push_back(ForceHandle{1,0});
         }
-
-        // constexpr size_t force_classes_count = 2;
-
-
-        struct ForceHandle {
-            const size_t class_idx;
-            const size_t object_idx;
-        };
-        std::vector<ForceHandle> force_handles;
-        std::tuple<std::vector<NoForce>, std::vector<LennardJones>> forces;
 
 
         template<env::IsConstFetcher F>
@@ -69,25 +46,10 @@ namespace april::force::internal {
         void dispatch(const env::ParticleType t1, const env::ParticleType t2, Func && func) const {
             const auto & variant = get_type_force(t1, t2);
             std::visit([&]<IsForce F>(const F & f) -> void {
-                if constexpr (!std::same_as<F, ForceSentinel>) {
+                if constexpr (!std::same_as<F, ForceSentinel> && !std::same_as<F, NoForce>) {
                     func(f);
                 }
             }, variant);
-        }
-
-        template<env::IsConstFetcher F>
-        [[nodiscard]] vec3 evaluate(const F & p1, const F & p2 , const vec3& r) const {
-            auto & tF = get_type_force(p1.type(), p2.type());
-            vec3 force = std::visit([&](auto const& f){ return f(p1,p2,r); }, tF);
-
-            // check if both particles even have any individual interactions defined for them
-            if (p1.id() < n_ids && p2.id() < n_ids) {
-                auto & iF = get_id_force(p1.id(), p2.id());
-                force += std::visit([&](auto const& f){ return f(p1,p2,r); }, iF);
-
-            }
-
-            return force;
         }
 
 

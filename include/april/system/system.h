@@ -67,15 +67,17 @@ namespace april::core {
 			return index_end() - index_start();
 		}
 
+		force::LennardJones LJ = force::LennardJones(3,1);
+
 		// call to update all pairwise forces between particles
 		void update_forces() {
 			container.dispatch_prepare_force_update();
 			// container.prepare_batches();
 
 			auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
-				auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
+				auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT &) {
 
-					auto update_force = [&](auto & p1, auto & p2) __attribute__((always_inline)) {
+					auto update_force = [&](auto & p1, auto & p2) {
 						vec3 diff;
 						if constexpr (std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
 							diff = p2.position() - p1.position();     // no correction
@@ -83,28 +85,30 @@ namespace april::core {
 							diff = apply_bcp(p2.position() - p1.position());
 						}
 
-						const vec3 f = force(
-							env::internal::ConstParticleRecordFetcher(p1),
-							env::internal::ConstParticleRecordFetcher(p2),
-							diff);
+						if (diff.norm_squared() < 3) {
+							const vec3 f = LJ.eval(
+								env::internal::ConstParticleRecordFetcher(p1),
+								env::internal::ConstParticleRecordFetcher(p2),
+								diff);
 
-						if constexpr (batch.parallelize_inner) {
-							throw std::logic_error("parallelization not implemented");
-						} else {
-							p1.force() += f;
-							p2.force() -= f;
+							if constexpr (batch.parallelize_inner) {
+								throw std::logic_error("parallelization not implemented");
+							} else {
+								p1.force() += f;
+								p2.force() -= f;
+							}
 						}
 					};
 
-					auto parallel_loop_symmetric = [&]() {
+					auto parallel_loop_symmetric = [&](const auto&) {
 						throw std::logic_error("parallelization not implemented");
 					};
 
-					auto parallel_loop_asymmetric = [&]() {
+					auto parallel_loop_asymmetric = [&](const auto&) {
 						throw std::logic_error("parallelization not implemented");
 					};
 
-					auto loop_symmetric_serial = [&](const auto& batch_in) __attribute__((always_inline)) {
+					auto loop_symmetric_serial = [&](const auto& batch_in) {
 						for (size_t i = 0; i < batch_in.type_indices.size(); ++i) {
 							auto && p1 = container.dispatch_get_fetcher_by_index(batch_in.type_indices[i]);
 
@@ -116,7 +120,7 @@ namespace april::core {
 						}
 					};
 
-					auto loop_asymmetric_serial = [&](const auto& batch_in) __attribute__((always_inline)) {
+					auto loop_asymmetric_serial = [&](const auto& batch_in) {
 						for (size_t i = 0; i < batch_in.type1_indices.size(); ++i) {
 							auto && p1 = container.dispatch_get_fetcher_by_index(batch_in.type1_indices[i]);
 

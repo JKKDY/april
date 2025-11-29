@@ -119,12 +119,11 @@ namespace april::container::internal {
 
 			// 2. neighbor cells
 			// neighbor_cell_pairs contains pre-calculated valid pairs
-			for (const auto& pair : neighbor_cell_pairs) {
-				for (size_t t1 = 0; t1 < n_types; ++t1) {
-					auto range1 = get_indices(pair.c1, t1);
-					if (range1.empty()) continue;
-
-					for (size_t t2 = 0; t2 < n_types; ++t2) {
+			for (size_t t1 = 0; t1 < n_types; ++t1) {
+				for (size_t t2 = 0; t2 < n_types; ++t2) {
+					for (const auto& pair : neighbor_cell_pairs) {
+						auto range1 = get_indices(pair.c1, t1);
+						if (range1.empty()) continue;
 						auto range2 = get_indices(pair.c2, t2);
 						if (range2.empty()) continue;
 
@@ -139,27 +138,27 @@ namespace april::container::internal {
 			}
 
 			// 3. wrapped cell pairs (only if periodic bcp enabled)
-			for (const auto& pair : wrapped_cell_pairs) {
-				// define bcp (shift) function
-				auto bcp = [&pair](const vec3& diff) { return diff + pair.shift; };
-
-				for (size_t t1 = 0; t1 < n_types; ++t1) {
-					auto range1 = get_indices(pair.c1, t1);
-					if (range1.empty()) continue;
-
-					for (size_t t2 = 0; t2 < n_types; ++t2) {
-						auto range2 = get_indices(pair.c2, t2);
-						if (range2.empty()) continue;
-
-						AsymmetricBatch batch;
-						batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-						batch.type1_indices = range1;
-						batch.type2_indices = range2;
-
-						func(batch, bcp);
-					}
-				}
-			}
+			// for (const auto& pair : wrapped_cell_pairs) {
+			// 	// define bcp (shift) function
+			// 	auto bcp = [&pair](const vec3& diff) { return diff + pair.shift; };
+			//
+			// 	for (size_t t1 = 0; t1 < n_types; ++t1) {
+			// 		auto range1 = get_indices(pair.c1, t1);
+			// 		if (range1.empty()) continue;
+			//
+			// 		for (size_t t2 = 0; t2 < n_types; ++t2) {
+			// 			auto range2 = get_indices(pair.c2, t2);
+			// 			if (range2.empty()) continue;
+			//
+			// 			AsymmetricBatch batch;
+			// 			batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
+			// 			batch.type1_indices = range1;
+			// 			batch.type2_indices = range2;
+			//
+			// 			func(batch, bcp);
+			// 		}
+			// 	}
+			// }
 		}
 
 

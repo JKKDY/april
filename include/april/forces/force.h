@@ -14,6 +14,7 @@ namespace april::force {
     constexpr double no_cutoff = std::numeric_limits<double>::max();
 
     struct Force {
+        // TODO: should this/can this be const?
         double cutoff;
         double cutoff2;
 

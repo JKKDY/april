@@ -25,13 +25,14 @@ namespace april::container {
 			using Base::flags;
 			using Base::id_to_index_map;
 
-			struct AsymmetricBatch : BatchBase<BatchSymmetry::asymmetric, false>{
-				std::ranges::iota_view<size_t, size_t> type1_indices{};
-				std::ranges::iota_view<size_t, size_t> type2_indices{};
+			// TODO: once parallelization has been added change the policy to BatchParallelPolicy::inner
+			struct AsymmetricBatch : SerialBatch<BatchSymmetry::Asymmetric>{
+				std::ranges::iota_view<size_t, size_t> indices1{};
+				std::ranges::iota_view<size_t, size_t> indices2{};
 			};
 
-			struct SymmetricBatch : BatchBase<BatchSymmetry::symmetric, false>{
-				std::ranges::iota_view<size_t, size_t> type_indices {};
+			struct SymmetricBatch : SerialBatch<BatchSymmetry::Symmetric>{
+				std::ranges::iota_view<size_t, size_t> indices {};
 			};
 
 		public:
@@ -73,8 +74,8 @@ namespace april::container {
 						return minimum_image<PX, PY, PZ>(dr, L);
 					};
 
-					for (const auto & batch : monoid_batches) f(batch, bcp);
-					for (const auto & batch : dual_batches) f(batch, bcp);
+					for (const auto & batch : symmetric_batches) f(batch, bcp);
+					for (const auto & batch : asymmetric_batches) f(batch, bcp);
 				};
 
 				// jump table
@@ -112,8 +113,8 @@ namespace april::container {
 
 		private:
 
-			std::vector<SymmetricBatch> monoid_batches;
-			std::vector<AsymmetricBatch> dual_batches;
+			std::vector<SymmetricBatch> symmetric_batches;
+			std::vector<AsymmetricBatch> asymmetric_batches;
 
 			void build_batches() {
 				std::unordered_map<env::ParticleType, std::ranges::iota_view<size_t, size_t>> type_ranges;
@@ -138,8 +139,8 @@ namespace april::container {
 				for (env::ParticleType type = 0; type < n_types; type++) {
 					SymmetricBatch batch;
 					batch.types = {type, type};
-					batch.type_indices = type_ranges[type];
-					monoid_batches.push_back(batch);
+					batch.indices = type_ranges[type];
+					symmetric_batches.push_back(batch);
 				}
 
 				// create a batch for each distinct pair of particle types
@@ -147,9 +148,9 @@ namespace april::container {
 					for (env::ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
 						AsymmetricBatch batch;
 						batch.types = {t1, t2};
-						batch.type1_indices = type_ranges[t1];
-						batch.type2_indices = type_ranges[t2];
-						dual_batches.push_back(batch);
+						batch.indices1 = type_ranges[t1];
+						batch.indices2 = type_ranges[t2];
+						asymmetric_batches.push_back(batch);
 					}
 				}
 			}

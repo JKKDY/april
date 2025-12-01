@@ -57,13 +57,24 @@ namespace april::container::internal {
 			const vec3 shift = {};
 		};
 
-		struct AsymmetricBatch : BatchBase<BatchSymmetry::asymmetric, false> {
-			std::ranges::iota_view<size_t, size_t> type1_indices;
-			std::ranges::iota_view<size_t, size_t> type2_indices;
+		struct AsymmetricChunk {
+			std::ranges::iota_view<size_t, size_t> indices1;
+			std::ranges::iota_view<size_t, size_t> indices2;
 		};
 
-		struct SymmetricBatch : BatchBase<BatchSymmetry::symmetric, false> {
-			std::ranges::iota_view<size_t, size_t> type_indices;
+		struct SymmetricChunk {
+			std::ranges::iota_view<size_t, size_t> indices;
+		};
+
+		struct AsymmetricBatch : SerialBatch<BatchSymmetry::Asymmetric> {
+			std::ranges::iota_view<size_t, size_t> indices1;
+			std::ranges::iota_view<size_t, size_t> indices2;
+			// std::vector<AsymmetricChunk> chunks;
+		};
+
+		struct SymmetricBatch : SerialBatch<BatchSymmetry::Symmetric> {
+			std::ranges::iota_view<size_t, size_t> indices;
+			// std::vector<SymmetricChunk> chunks;
 		};
 
 	public:
@@ -99,7 +110,7 @@ namespace april::container::internal {
 
 					SymmetricBatch batch;
 					batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t1)};
-					batch.type_indices = range1;
+					batch.indices = range1;
 					func(batch, NoBatchBCP{});
 
 					for (size_t t2 = t1 + 1; t2 < n_types; ++t2) {
@@ -108,8 +119,8 @@ namespace april::container::internal {
 
 						AsymmetricBatch abatch;
 						abatch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-						abatch.type1_indices = range1;
-						abatch.type2_indices = range2;
+						abatch.indices1 = range1;
+						abatch.indices2 = range2;
 
 						func(abatch, NoBatchBCP{});
 					}
@@ -129,8 +140,8 @@ namespace april::container::internal {
 
 						AsymmetricBatch batch;
 						batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-						batch.type1_indices = range1;
-						batch.type2_indices = range2;
+						batch.indices1 = range1;
+						batch.indices2 = range2;
 
 						func(batch, NoBatchBCP{});
 					}
@@ -138,27 +149,27 @@ namespace april::container::internal {
 			}
 
 			// 3. wrapped cell pairs (only if periodic bcp enabled)
-			// for (const auto& pair : wrapped_cell_pairs) {
-			// 	// define bcp (shift) function
-			// 	auto bcp = [&pair](const vec3& diff) { return diff + pair.shift; };
-			//
-			// 	for (size_t t1 = 0; t1 < n_types; ++t1) {
-			// 		auto range1 = get_indices(pair.c1, t1);
-			// 		if (range1.empty()) continue;
-			//
-			// 		for (size_t t2 = 0; t2 < n_types; ++t2) {
-			// 			auto range2 = get_indices(pair.c2, t2);
-			// 			if (range2.empty()) continue;
-			//
-			// 			AsymmetricBatch batch;
-			// 			batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-			// 			batch.type1_indices = range1;
-			// 			batch.type2_indices = range2;
-			//
-			// 			func(batch, bcp);
-			// 		}
-			// 	}
-			// }
+			for (const auto& pair : wrapped_cell_pairs) {
+				// define bcp (shift) function
+				auto bcp = [&pair](const vec3& diff) { return diff + pair.shift; };
+
+				for (size_t t1 = 0; t1 < n_types; ++t1) {
+					auto range1 = get_indices(pair.c1, t1);
+					if (range1.empty()) continue;
+
+					for (size_t t2 = 0; t2 < n_types; ++t2) {
+						auto range2 = get_indices(pair.c2, t2);
+						if (range2.empty()) continue;
+
+						AsymmetricBatch batch;
+						batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
+						batch.indices1 = range1;
+						batch.indices2 = range2;
+
+						func(batch, bcp);
+					}
+				}
+			}
 		}
 
 

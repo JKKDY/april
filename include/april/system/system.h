@@ -67,83 +67,117 @@ namespace april::core {
 			return index_end() - index_start();
 		}
 
-		force::LennardJones LJ = force::LennardJones(3,1);
-
 		// call to update all pairwise forces between particles
 		void update_forces() {
-			container.dispatch_prepare_force_update();
-			// container.prepare_batches();
-
 			auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
-				auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT &) {
+				auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
+					using Sym = container::BatchSymmetry;
+					using Par = container::ParallelPolicy;
+					using Upd = container::UpdatePolicy;
 
+					// PHYSICS KERNEL
 					auto update_force = [&](auto & p1, auto & p2) {
 						vec3 diff;
+
 						if constexpr (std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
-							diff = p2.position() - p1.position();     // no correction
+							diff = p2.position() - p1.position();
 						} else {
 							diff = apply_bcp(p2.position() - p1.position());
 						}
 
-						if (diff.norm_squared() < 3) {
-							const vec3 f = LJ.eval(
-								env::internal::ConstParticleRecordFetcher(p1),
-								env::internal::ConstParticleRecordFetcher(p2),
-								diff);
+						if (diff.norm_squared() > force.cutoff2) {
+							return;
+						}
 
-							if constexpr (batch.parallelize_inner) {
-								throw std::logic_error("parallelization not implemented");
+						// TODO change to use Restricted Refs instead of fetchers
+						const vec3 f = force(
+							env::internal::ConstParticleRecordFetcher(p1),
+							env::internal::ConstParticleRecordFetcher(p2),
+							diff);
+
+						if constexpr (batch.update_policy == Upd::Atomic) {
+							throw std::logic_error("atomic force update not implemented yet");
+						} else {
+							p1.force() += f;
+							p2.force() -= f;
+						}
+					};
+
+
+					// INNER LOOP
+					auto run_symmetric_parallel = [&](const auto&) {
+						throw std::logic_error("parallelization not implemented");
+					};
+
+					auto run_asymmetric_parallel = [&](const auto&) {
+						throw std::logic_error("parallelization not implemented");
+					};
+
+					auto run_symmetric_serial = [&](const auto& batch_item) {
+						for (size_t i = 0; i < batch_item.indices.size(); ++i) {
+							auto && p1 = container.dispatch_get_fetcher_by_index(batch_item.indices[i]);
+
+							for (size_t j = i + 1; j < batch_item.indices.size(); ++j) {
+								auto && p2 = container.dispatch_get_fetcher_by_index(batch_item.indices[j]);
+
+								update_force(p1, p2);
+							}
+						}
+					};
+
+					auto run_asymmetric_serial = [&](const auto& batch_item) {
+						for (size_t i = 0; i < batch_item.indices1.size(); ++i) {
+							auto && p1 = container.dispatch_get_fetcher_by_index(batch_item.indices1[i]);
+
+							for (size_t j = 0; j < batch_item.indices2.size(); ++j) {
+								auto && p2 = container.dispatch_get_fetcher_by_index(batch_item.indices2[j]);
+
+								update_force(p1, p2);
+							}
+						}
+					};
+
+
+					// INNER LOOP DISPATCHING
+					auto run_symmetric_inner_loop = [&](const auto& batch_item){
+						if constexpr (batch.parallel_policy == Par::InnerLoop) {
+							run_symmetric_parallel(batch_item);
+						} else {
+							run_symmetric_serial(batch_item);
+						}
+					};
+
+					auto run_asymmetric_inner_loop = [&](const auto& batch_item){
+						if constexpr (batch.parallel_policy == Par::InnerLoop) {
+							run_asymmetric_parallel(batch_item);
+						} else {
+							run_asymmetric_serial(batch_item);
+						}
+					};
+
+
+					// OUTER LOOP GENERIC STRATEGY
+					auto execute_strategy = [&](auto&& run_inner) {
+						if constexpr (container::IsChunkedBatch<Batch>) {
+							// Chunked Path
+							if constexpr (batch.parallel_policy == Par::Chunks) {
+								throw std::logic_error("parallelized chunked processing not implemented yet");
 							} else {
-								p1.force() += f;
-								p2.force() -= f;
+								for (const auto & chunk : batch.chunks) {
+									run_inner(chunk);
+								}
 							}
+						} else {
+							run_inner(batch);
 						}
 					};
 
-					auto parallel_loop_symmetric = [&](const auto&) {
-						throw std::logic_error("parallelization not implemented");
-					};
 
-					auto parallel_loop_asymmetric = [&](const auto&) {
-						throw std::logic_error("parallelization not implemented");
-					};
-
-					auto loop_symmetric_serial = [&](const auto& batch_in) {
-						for (size_t i = 0; i < batch_in.type_indices.size(); ++i) {
-							auto && p1 = container.dispatch_get_fetcher_by_index(batch_in.type_indices[i]);
-
-							for (size_t j = i + 1; j < batch_in.type_indices.size(); ++j) {
-								auto && p2 = container.dispatch_get_fetcher_by_index(batch_in.type_indices[j]);
-
-								update_force(p1, p2);
-							}
-						}
-					};
-
-					auto loop_asymmetric_serial = [&](const auto& batch_in) {
-						for (size_t i = 0; i < batch_in.type1_indices.size(); ++i) {
-							auto && p1 = container.dispatch_get_fetcher_by_index(batch_in.type1_indices[i]);
-
-							for (size_t j = 0; j < batch_in.type2_indices.size(); ++j) {
-								auto && p2 = container.dispatch_get_fetcher_by_index(batch_in.type2_indices[j]);
-
-								update_force(p1, p2);
-							}
-						}
-					};
-
-					if constexpr (batch.parallelize_inner) {
-						 if constexpr (batch.symmetry == container::BatchSymmetry::symmetric)
-							 parallel_loop_symmetric(batch);
-						 else
-							 parallel_loop_asymmetric(batch);
-					} else {
-						if constexpr (batch.symmetry == container::BatchSymmetry::symmetric)
-							loop_symmetric_serial(batch);
-						else if constexpr (batch.symmetry == container::BatchSymmetry::asymmetric)
-							loop_asymmetric_serial(batch);
-						else
-							throw std::logic_error("batch.symmetry has invalid type");
+					// OUTER LOOP DISPATCHING
+					if constexpr (batch.symmetry == Sym::Symmetric) {
+						execute_strategy(run_symmetric_inner_loop);
+					} else if constexpr (batch.symmetry == Sym::Asymmetric) {
+						execute_strategy(run_asymmetric_inner_loop);
 					}
 				};
 
@@ -151,6 +185,9 @@ namespace april::core {
 				force_table.dispatch(t1, t2, apply_batch_update);
 			};
 
+
+			container.dispatch_prepare_force_update();
+			// container.prepare_batches();
 			container.dispatch_for_each_batch(update_batch);
 		}
 

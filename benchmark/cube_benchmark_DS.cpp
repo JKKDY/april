@@ -10,7 +10,7 @@ namespace fs = std::filesystem;
 static constexpr int NX = 15, NY = 15, NZ = 10;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
-static constexpr double epsilon = 5.0;
+static constexpr double epsilon = 3.0;
 static constexpr double r_cut = 3 * sigma;
 
 // Grid physical span
@@ -45,11 +45,11 @@ int main() {
 	auto system = build_system(env, container);
 
 	constexpr double dt = 0.0002;
-	constexpr int steps  = 5000;
+	constexpr int steps  = 10000;
 
 	StoermerVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 	integrator.add_monitor(Benchmark());
-	integrator.add_monitor(ProgressBar(Trigger::every(200)));
+//	integrator.add_monitor(ProgressBar(Trigger::every(200)));
 	integrator.run_for_steps(dt, steps);
 
 	std::cout << "Particles: " << NX * NY * NZ << "\n"

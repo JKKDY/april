@@ -46,7 +46,7 @@ int main() {
 		.with_controller(thermostat)
 		.with_field(gravity);
 
-	auto container = LinkedCells();
+	auto container = LinkedCells(3);
 	auto system = build_system(env, container);
 
 	auto integrator = StoermerVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)

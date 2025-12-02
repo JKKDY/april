@@ -9,6 +9,7 @@ endfunction()
 
 add_benchmark(cube_benchmarkLL cube_benchmark_LL.cpp cube_benchmarkLL)
 add_benchmark(cube_benchmarkDS cube_benchmark_DS.cpp cube_benchmarkDS)
-add_benchmark(no_overhead_DS no_overhead_DS.cpp no_overhead_DS)
-add_benchmark(no_overhead_DS_AOS no_overhead_DS_AOS.cpp no_overhead_DS_AOS)
 
+add_benchmark(no_overhead_DS_SOA baseline_DS_SOA.cpp no_overhead_DS_SOA)
+add_benchmark(baseline_DS_AOS baseline_DS_AOS.cpp baseline_DS_AOS)
+add_benchmark(baseline_DS_SIMD baseline_DS_SIMD.cpp baseline_DS_SIMD)

@@ -243,7 +243,7 @@ namespace april::core {
 							diff = apply_bcp(p2.position() - p1.position());
 						}
 
-						if (diff.norm_squared() > force.cutoff2) {
+						if (diff.norm_squared() > force.cutoff2()) {
 							return;
 						}
 

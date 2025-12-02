@@ -25,7 +25,7 @@ namespace april::force {
         [[nodiscard]] Gravity mix(Gravity const& other) const noexcept {
             // Arithmetic average of pre-factor and cutoff
             const double mixed_factor = 0.5 * (grav_constant + other.grav_constant);
-            const double mixed_cutoff = 0.5 * (cutoff + other.cutoff);
+            const double mixed_cutoff = 0.5 * (cutoff() + other.cutoff());
             return Gravity(static_cast<uint8_t>(std::round(mixed_factor)), mixed_cutoff);
         }
     };

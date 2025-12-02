@@ -29,7 +29,7 @@ namespace april::force {
 			// Arithmetic average of k and r0; carry max cutoff
 			const double mixed_k = 0.5 * (k + other.k);
 			const double mixed_r0 = 0.5 * (r0 + other.r0);
-			const Harmonic h(mixed_k, mixed_r0, std::max(cutoff, other.cutoff));
+			const Harmonic h(mixed_k, mixed_r0, std::max(cutoff(), other.cutoff()));
 			return h;
 		}
 	};

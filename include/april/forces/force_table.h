@@ -196,7 +196,7 @@ namespace april::force::internal {
         void compute_max_cutoff() {
             // get the max cutoff distance
             auto cutoff_of = [](auto const& v){
-                return std::visit([](auto const& f){ return f.cutoff; }, v);
+                return std::visit([](auto const& f){ return f.cutoff(); }, v);
             };
 
             max_cutoff = 0.0;

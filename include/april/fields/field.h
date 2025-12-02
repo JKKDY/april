@@ -7,7 +7,7 @@ namespace april::field {
 
 	class Field {
 	public:
-		// TODO add filters for region, types and ids
+		// TODO add filters for region, types and ids. Right now dispatch apply is applied to everything
 
 		template<class S>
 		void dispatch_init(this auto&& self, const core::SystemContext<S> & sys) {

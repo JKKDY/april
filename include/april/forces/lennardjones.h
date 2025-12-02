@@ -37,7 +37,7 @@ namespace april::force {
 			// Lorentz-Berthelot mixing rules
 			const double mixed_epsilon = std::sqrt(epsilon * other.epsilon);
 			const double mixed_sigma = 0.5 * (sigma + other.sigma);
-			const double mixed_cutoff = std::sqrt(cutoff * other.cutoff);
+			const double mixed_cutoff = std::sqrt(cutoff() * other.cutoff());
 			return {mixed_epsilon, mixed_sigma, mixed_cutoff};
 		}
 	private:

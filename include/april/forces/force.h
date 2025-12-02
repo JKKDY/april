@@ -14,11 +14,7 @@ namespace april::force {
     constexpr double no_cutoff = std::numeric_limits<double>::max();
 
     struct Force {
-        // TODO: should this/can this be const?
-        double cutoff;
-        double cutoff2;
-
-        explicit Force(const double cutoff): cutoff(cutoff), cutoff2(cutoff*cutoff) {}
+        explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
         template<env::IsConstFetcher F>
         vec3 operator()(this const auto & self, const F & p1, const F & p2, const vec3 & r) {
@@ -45,10 +41,20 @@ namespace april::force {
             return self.mix(other);
         }
 
-
-        [[nodiscard]] bool has_cutoff() const {
-            return cutoff != no_cutoff;
+        [[nodiscard]] bool has_cutoff() const noexcept{
+            return cutoff() != no_cutoff;
         }
+
+        [[nodiscard]] double cutoff() const noexcept{
+            return force_cutoff;
+        }
+        [[nodiscard]] double cutoff2() const noexcept{
+            return force_cutoff2;
+        }
+
+    private:
+        double force_cutoff;
+        double force_cutoff2;
     };
 
 

@@ -97,6 +97,10 @@ namespace april::env {
 					  (p.z >= min.z && p.z <= max.z);
 			}
 
+			[[nodiscard]] double volume() const noexcept {
+				return extent.x * extent.y * extent.z;
+			}
+
 			const vec3 min;
 			const vec3 max;
 			const vec3 extent;

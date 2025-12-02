@@ -96,8 +96,17 @@ namespace april::container {
 			std::vector<size_t> collect_indices_in_region(const env::Box & region) {
 				std::vector<size_t> ret;
 
-				// TODO estimate number of particles in region
-				// ret.reserve(static_cast<size_t>(size));
+				const double domain_vol = domain.volume();
+				const double region_vol = region.volume();
+
+				if (domain_vol > 1e-9) { // Avoid division by zero
+					const double ratio = region_vol / domain_vol;
+
+					// Apply 1.1x safety factor because distributions are rarely perfectly uniform
+					// Clamp to particles.size() to avoid over-reservation
+					const auto est = static_cast<size_t>(particles.size() * ratio * 1.1);
+					ret.reserve(std::min(est, particles.size()));
+				}
 
 				for (size_t i = 0; i < particles.size(); i++) {
 					if (region.contains(particles[i].position) && particles[i].state != env::ParticleState::DEAD) {

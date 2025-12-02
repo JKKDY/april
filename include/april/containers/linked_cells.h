@@ -206,7 +206,7 @@ namespace april::container::internal {
 			assign_particles_to_cells();
 		}
 
-		void register_particle_movement(size_t) {
+		void register_particle_movement(const std::vector<size_t> &) {
 			assign_particles_to_cells();
 		}
 

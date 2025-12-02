@@ -66,13 +66,17 @@ namespace april::container {
 				self.register_all_particle_movements();
 			}
 
-			// update container internals by scanning one particle for its movement
-			void dispatch_register_particle_movement(this auto&& self, size_t idx) {
+			// update container internals by scanning select particles for their movements
+			void dispatch_register_particle_movement(this auto&& self, const std::vector<size_t> & indices) {
 				static_assert(
-					requires { self.register_particle_movement(idx); },
+					requires { self.register_particle_movement(indices); },
 					"Container subclass must implement: void register_particle_movements()"
 				);
-				self.register_particle_movement(idx);
+				self.register_particle_movement(indices);
+			}
+
+			void dispatch_register_particle_movement(const size_t idx) {
+				dispatch_register_particle_movement(std::vector{idx});
 			}
 
 			void dispatch_prepare_force_update(this auto&& self) {
@@ -205,6 +209,7 @@ namespace april::container {
 	} // namespace internal
 
 
+	// TODO why is container Inference separate from Container? I think we can merge these two
 	template<typename CFG, env::IsUserData U, env::IsMutableFetcher MF, env::IsConstFetcher CF>
 	class Container : public internal::ContainerInterface<U, MF, CF> {
 	public:

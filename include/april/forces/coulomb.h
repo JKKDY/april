@@ -8,6 +8,8 @@
 
 namespace april::force {
 	struct Coulomb : Force{
+		static constexpr env::FieldMask fields = +env::Field::user_data;
+
 		double coulomb_constant;
 
 		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = no_cutoff)
@@ -17,9 +19,10 @@ namespace april::force {
 		requires requires {
 			{ F::user_data_t::charge } -> std::convertible_to<double>;
 		}
-		vec3 eval(const F & p1, const F & p2, const vec3& r) const noexcept {
+		template<env::IsUserData U>
+		vec3 eval(const env::ParticleView<fields, U> & p1, const env::ParticleView<fields, U> & p2, const vec3& r) const noexcept {
 			const double inv_r = 1.0 / r.norm();
-			const double mag = coulomb_constant * p1.user_data().charge * p2.user_data().charge * inv_r * inv_r;
+			const double mag = coulomb_constant * p1.user_data.charge * p2.user_data.charge * inv_r * inv_r;
 
 			return mag * inv_r * r;  // Force vector pointing along +r
 		}

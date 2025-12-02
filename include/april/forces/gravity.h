@@ -9,15 +9,17 @@
 
 namespace april::force {
     struct Gravity : Force{
+        static constexpr env::FieldMask fields = +env::Field::mass;
+
         double grav_constant;
 
         explicit Gravity(const double grav_const = 1.0, const double cutoff = no_cutoff)
             : Force(cutoff), grav_constant(grav_const) {}
 
-        template<env::IsConstFetcher F>
-        vec3 eval(const F & p1, const F & p2, const vec3& r) const noexcept {
+        template<env::IsUserData U>
+        vec3 eval(const env::ParticleView<fields, U> & p1, const env::ParticleView<fields, U> & p2, const vec3& r) const noexcept {
             const double inv_r = 1.0 / r.norm();
-            const double mag = grav_constant * p1.mass() * p2.mass() * inv_r * inv_r;
+            const double mag = grav_constant * p1.mass * p2.mass * inv_r * inv_r;
 
             return mag * inv_r * r;  // Force vector pointing along +r
         }

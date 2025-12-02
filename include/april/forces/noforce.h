@@ -8,11 +8,13 @@
 namespace april::force {
 	// No-op force: always returns zero vector and mixes to itself.
 	struct NoForce : Force{
+		static constexpr env::FieldMask fields = +env::Field::none;
+
 		NoForce(): Force(0) {}
 
 
-        template<env::IsConstFetcher F>
-		vec3 operator()(const F &, const F &, const vec3&) const noexcept {
+		template<env::IsUserData U>
+		vec3 eval(const env::ParticleView<fields, U> &, const env::ParticleView<fields, U> &, const vec3&) const noexcept {
 			return vec3{0.0, 0.0, 0.0};
 		}
 

@@ -16,14 +16,45 @@ namespace april::force {
     struct Force {
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
-        template<env::IsConstFetcher F>
-        vec3 operator()(this const auto & self, const F & p1, const F & p2, const vec3 & r) {
+        template<class F, env::IsUserData U>
+        vec3 operator()(this const F & self, const env::ParticleView<F::fields, U> & p1, const env::ParticleView<F::fields, U> & p2, const vec3 & r) {
             static_assert(
                 requires { {self.eval(p1, p2, r)} -> std::same_as<vec3>; },
                 "Force must implement eval(env::internal::Particle, env::internal::Particle, const vec3&)"
             );
 
             return self.eval(p1,p2,r);
+        }
+
+        template<env::FieldMask IncomingMask, env::IsUserData U>
+        vec3 operator()(this const auto& self,
+                const env::ParticleView<IncomingMask, U> & p1,
+                const env::ParticleView<IncomingMask, U> & p2,
+                const vec3 & r) {
+
+            static_assert(
+                requires { {self.eval(p1, p2, r)} -> std::same_as<vec3>; },
+                "Force must implement eval(env::internal::Particle, env::internal::Particle, const vec3&)"
+            );
+
+
+            using Derived = std::remove_cvref_t<decltype(self)>;
+
+            // check for fields requirements
+            static_assert(
+                requires { Derived::fields; },
+                "Force subclass must define 'static constexpr env::FieldMask fields'"
+            );
+
+            constexpr env::FieldMask Required = Derived::fields;
+
+            // check for
+            static_assert(
+                (IncomingMask & Required) == Required,
+                "ParticleView is missing required fields for this Force."
+            );
+
+            return self.eval(p1, p2, r);
         }
 
         auto mix_forces(this const auto& self, const auto & other) {
@@ -115,10 +146,12 @@ namespace april::force {
 
         // internal placeholder only
         struct ForceSentinel : Force {
+            static constexpr env::FieldMask fields = +env::Field::none;
+
             ForceSentinel() : Force(-1.0) {}
 
-		    template<env::IsConstFetcher F>
-            vec3 eval(const F&, const F&, const vec3&) const noexcept {
+            template<env::IsUserData U>
+            vec3 eval(const env::ParticleView<fields, U> &, const env::ParticleView<fields, U> &, const vec3&) const noexcept {
                 AP_ASSERT(false, "NullForce should never be executed");
                 std::unreachable();
             }

@@ -232,6 +232,7 @@ namespace april::core {
 					using Sym = container::BatchSymmetry;
 					using Par = container::ParallelPolicy;
 					using Upd = container::UpdatePolicy;
+					constexpr env::FieldMask fields = ForceT::fields;
 
 					// PHYSICS KERNEL
 					auto update_force = [&](auto & p1, auto & p2) {
@@ -249,8 +250,8 @@ namespace april::core {
 
 						// TODO change to use Restricted Refs instead of fetchers
 						const vec3 f = force(
-							env::internal::ConstParticleRecordFetcher(p1),
-							env::internal::ConstParticleRecordFetcher(p2),
+							env::ParticleView<fields, user_data_t>(p1),
+							env::ParticleView<fields, user_data_t>(p2),
 							diff);
 
 						if constexpr (batch.update_policy == Upd::Atomic) {

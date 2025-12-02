@@ -11,6 +11,8 @@
 namespace april::force {
 	// Harmonic spring force (Hooke's law). k: spring constant; r0: equilibrium distance.
 	struct Harmonic : Force{
+		static constexpr env::FieldMask fields = +env::Field::none;
+
 		double k; // Spring constant
 		double r0; // Equilibrium distance
 
@@ -18,8 +20,8 @@ namespace april::force {
 		: Force(cutoff), k(strength), r0(equilibrium) {}
 
 
-        template<env::IsConstFetcher F>
-		vec3 eval(const F& , const F& , const vec3& r) const noexcept {
+		template<env::IsUserData U>
+		vec3 eval(const env::ParticleView<fields, U> &, const env::ParticleView<fields, U> &, const vec3& r) const noexcept {
 			const double dist = r.norm();
 			const double magnitude = k * (dist - r0) / dist; // F = -k * (dist - r0) * (r / dist)
 			return -magnitude * r;

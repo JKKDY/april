@@ -292,7 +292,7 @@ namespace april::core {
 			  force_table(forces_in),
 			  controllers(controllers_in),
 			  fields(fields_in),
-			  container(make_container(container_cfg, container_flags, domain_in)),
+			  container(Container(container_cfg, container_flags, domain_in)),
 			  system_context(*this),
 			  trig_context(*this)
 		{
@@ -301,11 +301,6 @@ namespace april::core {
 			fields.for_each_item([&](auto& f) { f.dispatch_init(context()); });
 
 		}
-
-		Container make_container(const C& cfg, const ContainerFlags& flags, const env::Box& domain) {
-			return Container(cfg, flags, domain);
-		}
-
 
 		env::Box simulation_box;
 		BoundaryTable boundary_table;

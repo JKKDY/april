@@ -64,17 +64,20 @@ namespace april::container::internal {
 
 		struct SymmetricChunk {
 			std::ranges::iota_view<size_t, size_t> indices;
+
+		};
+
+		struct AsymmetricChunkedBatch : SerialBatch<BatchSymmetry::Asymmetric> {
+			std::vector<AsymmetricChunk> chunks;
+		};
+
+		struct SymmetricChunkedBatch : SerialBatch<BatchSymmetry::Symmetric> {
+			std::vector<SymmetricChunk> chunks;
 		};
 
 		struct AsymmetricBatch : SerialBatch<BatchSymmetry::Asymmetric> {
 			std::ranges::iota_view<size_t, size_t> indices1;
 			std::ranges::iota_view<size_t, size_t> indices2;
-			// std::vector<AsymmetricChunk> chunks;
-		};
-
-		struct SymmetricBatch : SerialBatch<BatchSymmetry::Symmetric> {
-			std::ranges::iota_view<size_t, size_t> indices;
-			// std::vector<SymmetricChunk> chunks;
 		};
 
 	public:
@@ -101,56 +104,82 @@ namespace april::container::internal {
 				return std::ranges::iota_view {start, end};
 			};
 
-			// 1. intra cell
-			// for every cell, we pair every type with itself and every other type
-			for (uint32_t c = 0; c < n_grid_cells; ++c) {
-				for (size_t t1 = 0; t1 < n_types; ++t1) {
-					auto range1 = get_indices(c, t1);
-					if (range1.empty()) continue;
+			// INTRA CELL
+			SymmetricChunkedBatch sym_batch;
+			sym_batch.chunks.reserve(n_grid_cells); // avoid reallocations during push back
 
-					SymmetricBatch batch;
-					batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t1)};
-					batch.indices = range1;
-					func(batch, NoBatchBCP{});
+			for (size_t t = 0; t < n_types; ++t) {
+				sym_batch.types = {static_cast<env::ParticleType>(t), static_cast<env::ParticleType>(t)};
+				sym_batch.chunks.clear(); // reset size to 0 but keep capacity
 
-					for (size_t t2 = t1 + 1; t2 < n_types; ++t2) {
+				for (uint32_t c = 0; c < n_grid_cells; ++c) {
+					auto range = get_indices(c, t);
+					if (range.size() < 2) continue;
+					sym_batch.chunks.push_back({range});
+				}
+
+				if (!sym_batch.chunks.empty()) {
+					func(sym_batch, NoBatchBCP{});
+				}
+			}
+
+			// for every pair of types in each cell
+			AsymmetricChunkedBatch asym_batch;
+			asym_batch.chunks.reserve(n_grid_cells);
+
+			for (size_t t1 = 0; t1 < n_types; ++t1) {
+				for (size_t t2 = t1 + 1; t2 < n_types; ++t2) {
+
+					asym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
+					asym_batch.chunks.clear();
+
+					for (uint32_t c = 0; c < n_grid_cells; ++c) {
+						auto range1 = get_indices(c, t1);
+						if (range1.empty()) continue;
+
 						auto range2 = get_indices(c, t2);
 						if (range2.empty()) continue;
 
-						AsymmetricBatch abatch;
-						abatch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-						abatch.indices1 = range1;
-						abatch.indices2 = range2;
+						asym_batch.chunks.push_back({range1, range2});
+					}
 
-						func(abatch, NoBatchBCP{});
+					if (!asym_batch.chunks.empty()) {
+						func(asym_batch, NoBatchBCP{});
 					}
 				}
 			}
 
-
-			// 2. neighbor cells
+			// NEIGHBOR CELLS
 			// neighbor_cell_pairs contains pre-calculated valid pairs
+			asym_batch.chunks.reserve(neighbor_cell_pairs.size());
+
 			for (size_t t1 = 0; t1 < n_types; ++t1) {
 				for (size_t t2 = 0; t2 < n_types; ++t2) {
+
+					asym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
+					asym_batch.chunks.clear();
+
 					for (const auto& pair : neighbor_cell_pairs) {
 						auto range1 = get_indices(pair.c1, t1);
 						if (range1.empty()) continue;
+
 						auto range2 = get_indices(pair.c2, t2);
 						if (range2.empty()) continue;
 
-						AsymmetricBatch batch;
-						batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-						batch.indices1 = range1;
-						batch.indices2 = range2;
+						asym_batch.chunks.push_back({range1, range2});
+					}
 
-						func(batch, NoBatchBCP{});
+					if (!asym_batch.chunks.empty()) {
+						func(asym_batch, NoBatchBCP{});
 					}
 				}
 			}
 
-			// 3. wrapped cell pairs (only if periodic bcp enabled)
+			// WRAPPED CELL PAIRS
+			// (only if periodic bcp enabled)
 			for (const auto& pair : wrapped_cell_pairs) {
 				// define bcp (shift) function
+				// TODO maybe later implement chunked batching by aggregating wrapped pairs by shift
 				auto bcp = [&pair](const vec3& diff) { return diff + pair.shift; };
 
 				for (size_t t1 = 0; t1 < n_types; ++t1) {

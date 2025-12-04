@@ -13,7 +13,7 @@ struct TouchSpy final : Boundary {
 	explicit TouchSpy(const double thickness, std::vector<ParticleID>* sink)
 	: Boundary(thickness, false, false, false), sink(sink) {}
 
-	template<env::IsMutableFetcher F>
+	template<env::IsFetcher F>
 	void apply(F & p, const env::Box &, Face) const noexcept {
 		if (sink) sink->push_back(p.id());
 	}

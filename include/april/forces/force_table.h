@@ -3,11 +3,8 @@
 #include <functional>
 #include <unordered_set>
 
-#include "lennardjones.h"
-#include "april/particle/fields.h"
 #include "april/forces/force.h"
 #include "april/forces/noforce.h"
-#include "april/common.h"
 
 
 namespace april::force::internal {
@@ -34,13 +31,6 @@ namespace april::force::internal {
             compute_max_cutoff();
         }
 
-
-        template<env::IsConstFetcher F>
-        [[nodiscard]] vec3 evaluate(const F & p1, const F & p2) const {
-            return evaluate(p1, p2, p2.position() - p1.position()); // dist vector points from p1 to p2
-        }
-
-        LennardJones LJ_force = LennardJones(5, 1);
 
         template<typename Func>
         void dispatch(const env::ParticleType t1, const env::ParticleType t2, Func && func) const {

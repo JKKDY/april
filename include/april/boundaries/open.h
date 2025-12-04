@@ -9,7 +9,7 @@ namespace april::boundary {
 
 		Open(): Boundary(-1, false, false, false) {}
 
-		template<env::IsMutableFetcher F>
+		template<env::IsFetcher F>
 	    void apply(F &&, const env::Box &, const Face) const noexcept {}
 	};
 }

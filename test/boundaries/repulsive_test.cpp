@@ -13,7 +13,7 @@ struct ConstantForce {
 
 	[[nodiscard]] double cutoff() const noexcept { return rc; }
 
-	template<env::IsMutableFetcher F>
+	template<env::IsFetcher F>
 	[[nodiscard]] double apply(F && , const double dist) const noexcept {
 		return (dist <= rc) ? value : 0.0;
 	}

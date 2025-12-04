@@ -5,7 +5,7 @@
 
 namespace april::env {
 
- // user facing declaration with optional fields and non typed field for user data
+    // user facing declaration with optional fields and non typed field for user data
     struct Particle {
         std::optional<ParticleID> id;			// The id of the particle.
         ParticleType type = 0;  				// The type of the particle.
@@ -61,4 +61,31 @@ namespace april::env {
         }
     };
 
+
+    namespace internal
+    {
+        // used internally in system. Holds all data of a particle
+        template<IsUserData UserData>
+        struct ParticleRecord {
+            using user_data_t = UserData;
+            ParticleRecord() = default;
+
+            vec3 position;			// current position of the particle.
+            vec3 force;				// current force acting on the particle.
+            vec3 old_position;		// previous position of the particle. Useful for applying boundary conditions
+            vec3 old_force;			// previous force acting on the particle.
+            vec3 velocity;			// current velocity of the particle.
+
+            double mass {};			// mass of the particle.
+            ParticleState state {};	// state of the particle.
+            ParticleID id {};		// id of the particle.
+            ParticleType type {};	// type of the particle.
+
+            UserData user_data; // optional user data
+
+            bool operator==(const ParticleRecord& other) const {
+                return id == other.id;
+            }
+        };
+    }
 }

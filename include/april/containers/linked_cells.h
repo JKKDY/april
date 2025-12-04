@@ -29,14 +29,13 @@ namespace april::container::internal {
 	class LinkedCells final : public ContiguousContainer<container::LinkedCells, U> {
 		using Base = ContiguousContainer<container::LinkedCells, U>;
 		using typename Base::ParticleRecord;
-		using typename Base::ParticleID;
 		using Base::config;
 		using Base::domain;
 		using Base::particles;
 		using Base::swap_particles;
 		using Base::id_to_index_map;
 		using Base::flags;
-		using Base::init_storage;
+		using Base::build_storage;
 
 		enum CellWrapFlag : uint8_t {
 			NO_WRAP = 0,
@@ -84,9 +83,9 @@ namespace april::container::internal {
 		using Base::Base;
 
 		void build(const std::vector<ParticleRecord> & input_particles) {
-			init_storage(input_particles);
+			build_storage(input_particles);
 			setup_cell_grid();
-			assign_particles_to_cells();
+			rebuild_structure();
 			compute_cell_pairs();
 
 			if (flags.infinite_domain) {
@@ -96,7 +95,7 @@ namespace april::container::internal {
 
 
 		template<typename F>
-		void for_each_batch(F && func) {
+		void for_each_interaction_batch(F && func) {
 			auto get_indices = [&](const uint32_t cell, const env::ParticleType type) {
 				const uint32_t bin_idx = bin_index(cell, type);
 				const size_t start = bin_start_indices[bin_idx];
@@ -202,15 +201,43 @@ namespace april::container::internal {
 		}
 
 
-		void register_all_particle_movements() {
-			assign_particles_to_cells();
+		void rebuild_structure() {
+			const size_t num_bins = bin_start_indices.size();
+			std::ranges::fill(bin_start_indices, 0);
+
+			// calculate the index of the first particle in each bin
+			// first store the size of each bin
+			for (const auto & p : particles) {
+				const env::ParticleType type_idx = p.type;
+				const size_t cid = cell_index_from_position(p.position);
+
+				++bin_start_indices[bin_index(cid, type_idx)];
+			}
+
+			// transform "counts" -> "start indices" (index of first particle in bin)
+			uint32_t current_sum = 0;
+			for (size_t i = 0; i < num_bins; ++i) {
+				const uint32_t count = bin_start_indices[i]; // read count
+				bin_start_indices[i] = current_sum;  // write start index
+				current_sum += count;
+			}
+
+			// scatter particles into bins
+			std::ranges::copy(bin_start_indices, write_ptr.begin());
+			for (const auto & p : particles) {
+				const uint32_t cid = cell_index_from_position(p.position);
+				const uint32_t dst = write_ptr[bin_index(cid, p.type)]++;
+
+				tmp_particles[dst] = p;
+				id_to_index_map[p.id] = dst;
+			}
+
+			// ping-pong swap
+			std::swap(particles, tmp_particles);
 		}
 
-		void register_particle_movement(const std::vector<size_t> &) {
-			assign_particles_to_cells();
-		}
 
-		std::vector<size_t> collect_indices_in_region(const env::Box & region) {
+		std::vector<size_t> collect_indices_in_region(const env::Box & region) const {
 			std::vector<uint32_t> cells = get_cells_in_region(region);
 			std::vector<size_t> ret;
 
@@ -295,7 +322,7 @@ namespace april::container::internal {
 
 
 		void compute_cell_pairs() {
-			neighbor_cell_pairs.reserve(cells_per_axis.x * cells_per_axis.y * cells_per_axis.z * 13); // rough estimate
+			neighbor_cell_pairs.reserve(cells_per_axis.x * cells_per_axis.y * cells_per_axis.z * 13); // heuristic
 
 			static const int3 displacements[13] = {
 				{ 1, 0, 0}, { 0, 1, 0}, { 0, 0, 1},
@@ -358,44 +385,9 @@ namespace april::container::internal {
 			}
 		}
 
-		void assign_particles_to_cells() {
-			const size_t num_bins = bin_start_indices.size();
-			std::ranges::fill(bin_start_indices, 0);
-
-			// calculate the index of the first particle in each bin
-			// first store the size of each bin
-			for (const auto & p : particles) {
-				const env::ParticleType type_idx = p.type;
-				const size_t cid = cell_index_from_position(p.position);
-
-				++bin_start_indices[bin_index(cid, type_idx)];
-			}
-
-			// transform "counts" -> "start indices" (index of first particle in bin)
-			uint32_t current_sum = 0;
-			for (size_t i = 0; i < num_bins; ++i) {
-				const uint32_t count = bin_start_indices[i]; // read count
-				bin_start_indices[i] = current_sum;  // write start index
-				current_sum += count;
-			}
-
-			// scatter particles into bins
-			std::ranges::copy(bin_start_indices, write_ptr.begin());
-			for (const auto & p : particles) {
-				const uint32_t cid = cell_index_from_position(p.position);
-				const uint32_t dst = write_ptr[bin_index(cid, p.type)]++;
-
-				tmp_particles[dst] = p;
-				id_to_index_map[p.id] = dst;
-			}
-
-			// ping-pong swap
-			std::swap(particles, tmp_particles);
-		}
-
 
 		// gather all cell ids whose cells have an intersection with the box region
-		std::vector<uint32_t> get_cells_in_region(const env::Box & box) {
+		[[nodiscard]] std::vector<uint32_t> get_cells_in_region(const env::Box & box) const {
 			//  Convert world coords to cell coords (relative to domain origin)
 			const vec3 min = (box.min - domain.min) * inv_cell_size;
 			const vec3 max = (box.max - domain.min) * inv_cell_size;

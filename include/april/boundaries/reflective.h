@@ -9,7 +9,7 @@ namespace april::boundary {
 
 		Reflective(): Boundary(-1, false, false, true) {}
 
-		template<env::IsMutableFetcher F>
+		template<env::IsFetcher F>
 		void apply(F && particle, const env::Box & domain_box, const Face face) const noexcept{
 			const int is_plus = face_sign_pos(face);
 			const int ax = axis_of_face(face);

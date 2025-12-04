@@ -70,7 +70,7 @@ namespace april::core {
 
 
 		[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Box & region) {
-			return container.dispatch_collect_indices_in_region(region);
+			return particle_container.dispatch_collect_indices_in_region(region);
 		}
 
 		[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Domain & region) {
@@ -79,12 +79,11 @@ namespace april::core {
 
 		// call to register particle movements. This may cause container internals to change/be rebuilt
 		void register_all_particle_movements() {
-			container.dispatch_register_all_particle_movements();
+			particle_container.invoke_rebuild_structure();
 		}
 
-		void register_particle_movement(env::ParticleID id) {
-			size_t idx = container.id_to_index(id);
-			container.dispatch_register_particle_movement(idx);
+		void register_particle_movement(std::vector<env::ParticleID> & ids) {
+			particle_container.invoke_notify_moved(ids);
 		}
 
 		// call to update all pairwise forces between particles
@@ -113,44 +112,44 @@ namespace april::core {
 		// Useful for stable iterations and accessing a specific particle
 		template<env::FieldMask M>
 		[[nodiscard]] ParticleRef<M> get_particle_by_id(const env::ParticleID id) noexcept {
-			return ParticleRef<M>(container.dispatch_get_fetcher_by_id(id));
+			return particle_container.template at_id<M>(id);
 		}
 
 		template<env::FieldMask M>
 		[[nodiscard]] ParticleView<M> get_particle_by_id(const env::ParticleID id) const noexcept {
-			return ParticleView<M>(container.dispatch_get_fetcher_by_id(id));
+			return particle_container.template view_id<M>(id);
 		}
 
 		// get the lowest particle id
-		[[nodiscard]] env::ParticleID id_start() const noexcept{
-			return container.dispatch_id_start();
+		[[nodiscard]] env::ParticleID min_id() const noexcept{
+			return particle_container.min_id();
 		}
 
-		// get the highest particle id
-		[[nodiscard]] env::ParticleID id_end() const noexcept {
-			return container.dispatch_id_end();
+		// get the largest particle id
+		[[nodiscard]] env::ParticleID max_id() const noexcept {
+			return particle_container.max_id();
 		}
 
 
 		// get a particle by its container specific id. useful for non-stable (but fast) iteration over particles
 		template<env::FieldMask M>
 		[[nodiscard]] ParticleRef<M> get_particle_by_index(const size_t index) noexcept {
-			return ParticleRef<M>{container.dispatch_get_fetcher_by_index(index)};
+			return particle_container.template at<M>(index);
 		}
 
 		template<env::FieldMask M>
 		[[nodiscard]] ParticleView<M> get_particle_by_index(const size_t index) const noexcept {
-			return ParticleView<M>{container.dispatch_get_fetcher_by_index(index)};
+			return particle_container.template view<M>(index);
 		}
 
-		// get the first particle index (usually 0)
+		// get the first particle index
 		[[nodiscard]] size_t index_start() const noexcept {
-			return container.dispatch_index_start();
+			return 0;
 		}
 
-		// get the last particle index (usually n-1 with n = #particles)
+		// get the last particle index
 		[[nodiscard]] size_t index_end() const noexcept {
-			return container.dispatch_index_end();
+			return particle_container.invoke_particle_count();
 		}
 
 
@@ -160,7 +159,7 @@ namespace april::core {
 		ForceTable force_table;
 		Controllers controllers;
 		Fields fields;
-		Container container;
+		Container particle_container;
 
 		std::vector<size_t> particles_to_update_buffer;
 
@@ -187,11 +186,11 @@ namespace april::core {
 			  force_table(forces_in),
 			  controllers(controllers_in),
 			  fields(fields_in),
-			  container(Container(container_cfg, container_flags, domain_in)),
+			  particle_container(Container(container_cfg, container_flags, container::internal::ContainerHints{}, domain_in)),  // TODO replace container hints with actual input
 			  system_context(*this),
 			  trig_context(*this)
 		{
-			container.dispatch_build(particles);
+			particle_container.invoke_build(particles);
 			controllers.for_each_item([&](auto& c) { c.dispatch_init(context()); });
 			fields.for_each_item([&](auto& f) { f.dispatch_init(context()); });
 
@@ -227,146 +226,148 @@ namespace april::core {
 	// ---- Implementations -----
 	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::update_forces() {
-			auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
-				auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
-					using Sym = container::BatchSymmetry;
-					using Par = container::ParallelPolicy;
-					using Upd = container::UpdatePolicy;
-					constexpr env::FieldMask fields = ForceT::fields;
+		auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
+			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
+				using Sym = container::BatchSymmetry;
+				using Par = container::ParallelPolicy;
+				using Upd = container::UpdatePolicy;
+				// constexpr env::FieldMask fields = ForceT::fields;
+				constexpr env::FieldMask upd_fields = env::Field::force | env::Field::position;
 
-					// PHYSICS KERNEL
-					auto update_force = [&](auto & p1, auto & p2) {
-						vec3 diff;
+				// PHYSICS KERNEL
+				auto update_force = [&](auto & p1, auto & p2) {
+					vec3 diff;
 
-						if constexpr (std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
-							diff = p2.position() - p1.position();
-						} else {
-							diff = apply_bcp(p2.position() - p1.position());
-						}
+					if constexpr (std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
+						diff = p2.position - p1.position;
+					} else {
+						diff = apply_bcp(p2.position - p1.position);
+					}
 
-						if (diff.norm_squared() > force.cutoff2()) {
-							return;
-						}
+					if (diff.norm_squared() > force.cutoff2()) {
+						return;
+					}
 
-						// TODO change to use Restricted Refs instead of fetchers
-						const vec3 f = force(
-							env::ParticleView<fields, user_data_t>(p1),
-							env::ParticleView<fields, user_data_t>(p2),
-							diff);
+					// const vec3 f = force(pv1, pv2, diff);
+					vec3 f = {0,0,0};
 
-						if constexpr (batch.update_policy == Upd::Atomic) {
-							throw std::logic_error("atomic force update not implemented yet");
-						} else {
-							p1.force() += f;
-							p2.force() -= f;
-						}
-					};
-
-
-					// INNER LOOP
-					auto run_symmetric_parallel = [&](const auto&) {
-						throw std::logic_error("parallelization not implemented");
-					};
-
-					auto run_asymmetric_parallel = [&](const auto&) {
-						throw std::logic_error("parallelization not implemented");
-					};
-
-					auto run_symmetric_serial = [&](const auto& batch_item) {
-						for (size_t i = 0; i < batch_item.indices.size(); ++i) {
-							auto && p1 = container.dispatch_get_fetcher_by_index(batch_item.indices[i]);
-
-							for (size_t j = i + 1; j < batch_item.indices.size(); ++j) {
-								auto && p2 = container.dispatch_get_fetcher_by_index(batch_item.indices[j]);
-
-								update_force(p1, p2);
-							}
-						}
-					};
-
-					auto run_asymmetric_serial = [&](const auto& batch_item) {
-						for (size_t i = 0; i < batch_item.indices1.size(); ++i) {
-							auto && p1 = container.dispatch_get_fetcher_by_index(batch_item.indices1[i]);
-
-							for (size_t j = 0; j < batch_item.indices2.size(); ++j) {
-								auto && p2 = container.dispatch_get_fetcher_by_index(batch_item.indices2[j]);
-
-								update_force(p1, p2);
-							}
-						}
-					};
-
-
-					// INNER LOOP DISPATCHING
-					auto run_symmetric_inner_loop = [&](const auto& batch_item){
-						if constexpr (batch.parallel_policy == Par::InnerLoop) {
-							run_symmetric_parallel(batch_item);
-						} else {
-							run_symmetric_serial(batch_item);
-						}
-					};
-
-					auto run_asymmetric_inner_loop = [&](const auto& batch_item){
-						if constexpr (batch.parallel_policy == Par::InnerLoop) {
-							run_asymmetric_parallel(batch_item);
-						} else {
-							run_asymmetric_serial(batch_item);
-						}
-					};
-
-
-					// OUTER LOOP GENERIC STRATEGY
-					auto execute_strategy = [&](auto&& run_inner) {
-						if constexpr (container::IsChunkedBatch<Batch>) {
-							// Chunked Path
-							if constexpr (batch.parallel_policy == Par::Chunks) {
-								throw std::logic_error("parallelized chunked processing not implemented yet");
-							} else {
-								for (const auto & chunk : batch.chunks) {
-									run_inner(chunk);
-								}
-							}
-						} else {
-							run_inner(batch);
-						}
-					};
-
-
-					// OUTER LOOP DISPATCHING
-					if constexpr (batch.symmetry == Sym::Symmetric) {
-						execute_strategy(run_symmetric_inner_loop);
-					} else if constexpr (batch.symmetry == Sym::Asymmetric) {
-						execute_strategy(run_asymmetric_inner_loop);
+					if constexpr (batch.update_policy == Upd::Atomic) {
+						throw std::logic_error("atomic force update not implemented yet");
+					} else {
+						p1.force += f;
+						p2.force -= f;
 					}
 				};
 
-				auto [t1, t2] = batch.types;
-				force_table.dispatch(t1, t2, apply_batch_update);
+
+				// INNER LOOP
+				auto run_symmetric_parallel = [&](const auto&) {
+					throw std::logic_error("parallelization not implemented");
+				};
+
+				auto run_asymmetric_parallel = [&](const auto&) {
+					throw std::logic_error("parallelization not implemented");
+				};
+
+				auto run_symmetric_serial = [&](const auto& batch_item) {
+					for (size_t i = 0; i < batch_item.indices.size(); ++i) {
+						auto && p1 = particle_container.template restricted_at<upd_fields>(batch_item.indices[i]);
+
+						for (size_t j = i + 1; j < batch_item.indices.size(); ++j) {
+							auto && p2 = particle_container.template restricted_at<upd_fields>(batch_item.indices[j]);
+
+							update_force(p1, p2);
+						}
+					}
+				};
+
+				auto run_asymmetric_serial = [&](const auto& batch_item) {
+					for (size_t i = 0; i < batch_item.indices1.size(); ++i) {
+						auto && p1 = particle_container.template restricted_at<upd_fields>(batch_item.indices1[i]);
+
+						for (size_t j = 0; j < batch_item.indices2.size(); ++j) {
+							auto && p2 = particle_container.template restricted_at<upd_fields>(batch_item.indices2[j]);
+
+							update_force(p1, p2);
+						}
+					}
+				};
+
+
+				// INNER LOOP DISPATCHING
+				auto run_symmetric_inner_loop = [&](const auto& batch_item){
+					if constexpr (batch.parallel_policy == Par::InnerLoop) {
+						run_symmetric_parallel(batch_item);
+					} else {
+						run_symmetric_serial(batch_item);
+					}
+				};
+
+				auto run_asymmetric_inner_loop = [&](const auto& batch_item){
+					if constexpr (batch.parallel_policy == Par::InnerLoop) {
+						run_asymmetric_parallel(batch_item);
+					} else {
+						run_asymmetric_serial(batch_item);
+					}
+				};
+
+
+				// OUTER LOOP GENERIC STRATEGY
+				auto execute_strategy = [&](auto&& run_inner) {
+					if constexpr (container::IsChunkedBatch<Batch>) {
+						// Chunked Path
+						if constexpr (batch.parallel_policy == Par::Chunks) {
+							throw std::logic_error("parallelized chunked processing not implemented yet");
+						} else {
+							for (const auto & chunk : batch.chunks) {
+								run_inner(chunk);
+							}
+						}
+					} else {
+						run_inner(batch);
+					}
+				};
+
+				// OUTER LOOP DISPATCHING
+				if constexpr (batch.symmetry == Sym::Symmetric) {
+					execute_strategy(run_symmetric_inner_loop);
+				} else if constexpr (batch.symmetry == Sym::Asymmetric) {
+					execute_strategy(run_asymmetric_inner_loop);
+				}
 			};
 
+			auto [t1, t2] = batch.types;
+			force_table.dispatch(t1, t2, apply_batch_update);
+		};
 
-			container.dispatch_prepare_force_update();
-			// container.prepare_batches();
-			container.dispatch_for_each_batch(update_batch);
-		}
+		auto reset_force = [](auto && p) {
+			p.old_force = p.force;
+			p.force = {};
+		};
+
+		particle_container.template invoke_for_each_particle<env::Field::force | env::Field::old_force>(reset_force);
+		particle_container.invoke_for_each_interaction_batch(update_batch);
+	}
 
 
 	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::apply_boundary_conditions() {
 		using Boundary = boundary::internal::CompiledBoundary<typename Traits::boundary_variant_t>;
 
+		// TODO Boundary should also use batched dispatch
 		auto sim_box = box();
 		particles_to_update_buffer.clear();
 
 		for (boundary::Face face : boundary::all_faces) {
 
 			const Boundary & boundary = boundary_table.get_boundary(face);
-			std::vector<size_t> particle_ids = container.dispatch_collect_indices_in_region(boundary.region);
+			std::vector<size_t> particle_ids = particle_container.invoke_collect_indices_in_region(boundary.region);
 
 			if (boundary.topology.boundary_thickness >= 0) {
 				for (auto p_idx : particle_ids) {
 
-					auto p = container.dispatch_get_fetcher_by_index(p_idx);
+					// auto p = particle_container.at<M>(p_idx);
+					auto p = particle_container.access_fetcher(p_idx);
 					boundary.apply(p, sim_box, face);
 
 					if (boundary.topology.may_change_particle_position) {
@@ -394,7 +395,8 @@ namespace april::core {
 					if (sim_box.max[ax1] >= intersection[ax1] && sim_box.min[ax1] <= intersection[ax1] &&
 						sim_box.max[ax2] >= intersection[ax2] && sim_box.min[ax2] <= intersection[ax2]) {
 
-						auto p = container.dispatch_get_fetcher_by_index(p_idx);
+						// auto p = particle_container.at<M>(p_idx);
+						auto p = particle_container.access_fetcher(p_idx);
 						boundary.apply(p, sim_box, face);
 
 						if (boundary.topology.may_change_particle_position) {
@@ -405,8 +407,7 @@ namespace april::core {
 			}
 		}
 
-		container.dispatch_register_particle_movement(particles_to_update_buffer);
-
+		particle_container.invoke_notify_moved(particles_to_update_buffer);
 	}
 
 	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
@@ -423,7 +424,7 @@ namespace april::core {
 		fields.for_each_item([this]<typename F>(F & field) {
 			for (size_t i = index_start(); i < index_end(); ++i) {
 				constexpr env::FieldMask M = F::fields;
-				RestrictedParticleRef<M> restricted (container.dispatch_get_fetcher_by_id(i));
+				auto restricted = particle_container.template restricted_at<M>(i);
 				field.template dispatch_apply<user_data_t>(restricted);
 			}
 		});

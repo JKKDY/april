@@ -270,7 +270,7 @@ struct DummyPeriodicBoundary final : Boundary {
 	DummyPeriodicBoundary()
 	: Boundary(0.0, false, true, false ) {}
 
-	template<env::IsMutableFetcher F>
+	template<env::IsFetcher F>
 	void apply(F &&, const env::Box &, const Face) const noexcept {}
 };
 

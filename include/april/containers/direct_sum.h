@@ -19,7 +19,7 @@ namespace april::container {
 		class DirectSum final : public ContiguousContainer<container::DirectSum, U> {
 			using Base = ContiguousContainer<container::DirectSum, U>;
 			using typename Base::ParticleRecord;
-			using typename Base::ParticleID;
+			friend Base;
 			using Base::particles;
 			using Base::domain;
 			using Base::flags;
@@ -38,12 +38,9 @@ namespace april::container {
 		public:
 			using Base::Base;
 
-			ParticleRecord & get_particle(size_t idx) {
-				return particles[idx];
-			}
 
 			void build(const std::vector<ParticleRecord> & particlesIn) {
-				this->init_storage(particlesIn);
+				this->build_storage(particlesIn);
 
 				// sort particles by type to create contiguous blocks
 				std::sort(particles.begin(),particles.end(),
@@ -62,7 +59,7 @@ namespace april::container {
 
 
 			template<typename F>
-			void for_each_batch(F && f) {
+			void for_each_interaction_batch(F && f) {
 				// periodicity flags to jump table index
 				const int mode = (flags.periodic_x ? 4 : 0) |
 							  (flags.periodic_y ? 2 : 0) |
@@ -93,17 +90,17 @@ namespace april::container {
 			}
 
 
-			std::vector<size_t> collect_indices_in_region(const env::Box & region) {
+			[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Box & region) const {
 				std::vector<size_t> ret;
 
 				const double domain_vol = domain.volume();
 				const double region_vol = region.volume();
 
-				if (domain_vol > 1e-9) { // Avoid division by zero
+				if (domain_vol > 1e-9) { // avoid division by zero
 					const double ratio = region_vol / domain_vol;
 
-					// Apply 1.1x safety factor because distributions are rarely perfectly uniform
-					// Clamp to particles.size() to avoid over-reservation
+					// apply 1.1x safety factor because distributions are rarely perfectly uniform
+					// clamp to particles.size() to avoid over-reservation
 					const auto est = static_cast<size_t>(particles.size() * ratio * 1.1);
 					ret.reserve(std::min(est, particles.size()));
 				}
@@ -117,8 +114,7 @@ namespace april::container {
 				return ret;
 			}
 
-			void register_all_particle_movements() {}
-			void register_particle_movement(const std::vector<size_t> &) {}
+			void rebuild_structure() {}
 
 		private:
 

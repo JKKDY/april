@@ -7,6 +7,8 @@
 
 #include "april/common.h"
 #include "april/particle/fields.h"
+#include "april/particle/defs.h"
+#include "april/particle/access.h"
 
 
 namespace april::force {

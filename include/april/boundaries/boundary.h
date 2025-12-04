@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <concepts>
 
-#include "april/particle/fields.h"
 
 namespace april::boundary {
 
@@ -81,7 +80,7 @@ namespace april::boundary {
 			topology(thickness, couples_axis, force_wrap, may_change_particle_pos)
 		{}
 
-        template<env::IsMutableFetcher F>
+        template<env::IsFetcher F>
 		void dispatch_apply(this const auto & self, F && particle, const env::Box & domain_box, Face face) noexcept {
 			static_assert(
 			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },
@@ -127,7 +126,7 @@ namespace april::boundary {
 		struct BoundarySentinel : Boundary {
 			BoundarySentinel(): Boundary(-1, false, false, false) {}
 
-			template<env::IsMutableFetcher F>
+			template<env::IsFetcher F>
 			void apply(F &&, const env::Box &, const Face) const noexcept {
 				AP_ASSERT(false, "apply called on null boundary! this should never happen");
 			}

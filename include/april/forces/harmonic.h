@@ -20,8 +20,8 @@ namespace april::force {
 		: Force(cutoff), k(strength), r0(equilibrium) {}
 
 
-		template<env::IsUserData U>
-		vec3 eval(const env::ParticleView<fields, U> &, const env::ParticleView<fields, U> &, const vec3& r) const noexcept {
+		template<env::FieldMask M, env::IsUserData U>
+		vec3 eval(const env::ParticleView<M, U> &, const env::ParticleView<M, U> &, const vec3& r) const noexcept {
 			const double dist = r.norm();
 			const double magnitude = k * (dist - r0) / dist; // F = -k * (dist - r0) * (r / dist)
 			return -magnitude * r;

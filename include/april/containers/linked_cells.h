@@ -28,6 +28,8 @@ namespace april::container::internal {
 	template <class U>
 	class LinkedCells final : public ContiguousContainer<container::LinkedCells, U> {
 		using Base = ContiguousContainer<container::LinkedCells, U>;
+		friend Base;
+
 		using typename Base::ParticleRecord;
 		using Base::config;
 		using Base::domain;

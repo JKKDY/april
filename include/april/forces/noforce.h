@@ -13,8 +13,8 @@ namespace april::force {
 		NoForce(): Force(0) {}
 
 
-		template<env::IsUserData U>
-		vec3 eval(const env::ParticleView<fields, U> &, const env::ParticleView<fields, U> &, const vec3&) const noexcept {
+		template<env::FieldMask M, env::IsUserData U>
+		vec3 eval(const env::ParticleView<M, U> &, const env::ParticleView<M, U> &, const vec3&) const noexcept {
 			return vec3{0.0, 0.0, 0.0};
 		}
 

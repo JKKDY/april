@@ -18,16 +18,6 @@ namespace april::force {
     struct Force {
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
-        template<class F, env::IsUserData U>
-        vec3 operator()(this const F & self, const env::ParticleView<F::fields, U> & p1, const env::ParticleView<F::fields, U> & p2, const vec3 & r) {
-            static_assert(
-                requires { {self.eval(p1, p2, r)} -> std::same_as<vec3>; },
-                "Force must implement eval(env::internal::Particle, env::internal::Particle, const vec3&)"
-            );
-
-            return self.eval(p1,p2,r);
-        }
-
         template<env::FieldMask IncomingMask, env::IsUserData U>
         vec3 operator()(this const auto& self,
                 const env::ParticleView<IncomingMask, U> & p1,
@@ -152,8 +142,8 @@ namespace april::force {
 
             ForceSentinel() : Force(-1.0) {}
 
-            template<env::IsUserData U>
-            vec3 eval(const env::ParticleView<fields, U> &, const env::ParticleView<fields, U> &, const vec3&) const noexcept {
+            template<env::FieldMask M, env::IsUserData U>
+            vec3 eval(const env::ParticleView<M, U> &, const env::ParticleView<M, U> &, const vec3&) const noexcept {
                 AP_ASSERT(false, "NullForce should never be executed");
                 std::unreachable();
             }

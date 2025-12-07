@@ -80,12 +80,28 @@ namespace april::boundary {
 			topology(thickness, couples_axis, force_wrap, may_change_particle_pos)
 		{}
 
-        template<env::IsFetcher F>
-		void dispatch_apply(this const auto & self, F && particle, const env::Box & domain_box, Face face) noexcept {
+		// TODO make this bindable to R-Values
+		template<env::FieldMask IncomingMask, env::IsUserData U>
+		void dispatch_apply(this const auto & self,env::ParticleRef<IncomingMask, U> & particle, const env::Box & domain_box, Face face) noexcept {
 			static_assert(
 			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },
 			   "BoundaryCondition subclass must implement: void dispatch_apply(particle)"
 			);
+
+			using Derived = std::remove_cvref_t<decltype(self)>;
+
+			// check for fields requirements
+			static_assert(
+				requires { Derived::fields; },
+				"Force subclass must define 'static constexpr env::FieldMask fields'"
+			);
+
+			constexpr env::FieldMask Required = Derived::fields;
+
+			static_assert(
+			  (IncomingMask & Required) == Required,
+			  "ParticleView is missing required fields for this Force."
+		  );
 
 			self.apply(particle, domain_box, face);
 		}
@@ -124,10 +140,12 @@ namespace april::boundary {
 	namespace internal {
 
 		struct BoundarySentinel : Boundary {
+			static constexpr env::FieldMask fields = +env::Field::none;
+
 			BoundarySentinel(): Boundary(-1, false, false, false) {}
 
-			template<env::IsFetcher F>
-			void apply(F &&, const env::Box &, const Face) const noexcept {
+			template<env::FieldMask IncomingMask, env::IsUserData U>
+			void apply(env::ParticleRef<IncomingMask, U> &, const env::Box &, const Face) const noexcept {
 				AP_ASSERT(false, "apply called on null boundary! this should never happen");
 			}
 		};

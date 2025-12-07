@@ -20,8 +20,8 @@ namespace april::force {
 		epsilon(epsilon_), sigma(sigma_), sigma2(sigma * sigma) {}
 
 
-		template<env::IsUserData U>
-		vec3 eval(const env::ParticleView<fields, U> &, const env::ParticleView<fields, U> &, const vec3& r) const noexcept {
+		template<env::FieldMask M, env::IsUserData U>
+		vec3 eval(const env::ParticleView<M, U> &, const env::ParticleView<M, U> &, const vec3& r) const noexcept {
 			const double inv_r2 = 1.0 / r.norm_squared();
 			const double sigma_r2 = sigma2 * inv_r2;
 			const double sigma_r6 = sigma_r2 * sigma_r2 * sigma_r2;

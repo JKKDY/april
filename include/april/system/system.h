@@ -248,8 +248,7 @@ namespace april::core {
 						return;
 					}
 
-					// const vec3 f = force(pv1, pv2, diff);
-					vec3 f = {0,0,0};
+					const vec3 f = force(p1.to_view(), p2.to_view(), diff);
 
 					if constexpr (batch.update_policy == Upd::Atomic) {
 						throw std::logic_error("atomic force update not implemented yet");
@@ -352,62 +351,62 @@ namespace april::core {
 
 	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::apply_boundary_conditions() {
-		using Boundary = boundary::internal::CompiledBoundary<typename Traits::boundary_variant_t>;
-
-		// TODO Boundary should also use batched dispatch
-		auto sim_box = box();
-		particles_to_update_buffer.clear();
-
-		for (boundary::Face face : boundary::all_faces) {
-
-			const Boundary & boundary = boundary_table.get_boundary(face);
-			std::vector<size_t> particle_ids = particle_container.invoke_collect_indices_in_region(boundary.region);
-
-			if (boundary.topology.boundary_thickness >= 0) {
-				for (auto p_idx : particle_ids) {
-
-					// auto p = particle_container.at<M>(p_idx);
-					auto p = particle_container.access_fetcher(p_idx);
-					boundary.apply(p, sim_box, face);
-
-					if (boundary.topology.may_change_particle_position) {
-						particles_to_update_buffer.push_back(p_idx);
-					}
-				}
-			} else {
-				for (auto p_idx : particle_ids) {
-					static constexpr env::FieldMask M = env::Field::position | env::Field::old_position;
-					auto particle = get_particle_by_index<M>(p_idx);
-
-					// make sure the particle exited through the current boundary face
-					// solve for intersection of the particles path with the boundary face
-					// with the equation y = t * diff + p where:
-					// diff is the path traveled, p is the particles starting position and y is the face
-					const int ax = axis_of_face(face);
-					const vec3 diff = particle.position - particle.old_position;
-					const double y = diff[ax] < 0 ? sim_box.min[ax] : sim_box.max[ax];
-					const double t = (y - particle.old_position[ax]) / diff[ax];
-
-					const vec3 intersection = t * diff + particle.old_position;
-
-					// and check if that point is on the domains surface
-					auto [ax1, ax2] = non_face_axis(face);
-					if (sim_box.max[ax1] >= intersection[ax1] && sim_box.min[ax1] <= intersection[ax1] &&
-						sim_box.max[ax2] >= intersection[ax2] && sim_box.min[ax2] <= intersection[ax2]) {
-
-						// auto p = particle_container.at<M>(p_idx);
-						auto p = particle_container.access_fetcher(p_idx);
-						boundary.apply(p, sim_box, face);
-
-						if (boundary.topology.may_change_particle_position) {
-							particles_to_update_buffer.push_back(p_idx);
-						}
-					}
-				}
-			}
-		}
-
-		particle_container.invoke_notify_moved(particles_to_update_buffer);
+		// using Boundary = boundary::internal::CompiledBoundary<typename Traits::boundary_variant_t>;
+		//
+		// // TODO Boundary should also use batched dispatch
+		// auto sim_box = box();
+		// particles_to_update_buffer.clear();
+		//
+		// for (boundary::Face face : boundary::all_faces) {
+		//
+		// 	const Boundary & boundary = boundary_table.get_boundary(face);
+		// 	std::vector<size_t> particle_ids = particle_container.invoke_collect_indices_in_region(boundary.region);
+		//
+		// 	if (boundary.topology.boundary_thickness >= 0) {
+		// 		for (auto p_idx : particle_ids) {
+		//
+		// 			// auto p = particle_container.at<M>(p_idx);
+		// 			auto p = particle_container.access_fetcher(p_idx);
+		// 			boundary.apply(p, sim_box, face);
+		//
+		// 			if (boundary.topology.may_change_particle_position) {
+		// 				particles_to_update_buffer.push_back(p_idx);
+		// 			}
+		// 		}
+		// 	} else {
+		// 		for (auto p_idx : particle_ids) {
+		// 			static constexpr env::FieldMask M = env::Field::position | env::Field::old_position;
+		// 			auto particle = get_particle_by_index<M>(p_idx);
+		//
+		// 			// make sure the particle exited through the current boundary face
+		// 			// solve for intersection of the particles path with the boundary face
+		// 			// with the equation y = t * diff + p where:
+		// 			// diff is the path traveled, p is the particles starting position and y is the face
+		// 			const int ax = axis_of_face(face);
+		// 			const vec3 diff = particle.position - particle.old_position;
+		// 			const double y = diff[ax] < 0 ? sim_box.min[ax] : sim_box.max[ax];
+		// 			const double t = (y - particle.old_position[ax]) / diff[ax];
+		//
+		// 			const vec3 intersection = t * diff + particle.old_position;
+		//
+		// 			// and check if that point is on the domains surface
+		// 			auto [ax1, ax2] = non_face_axis(face);
+		// 			if (sim_box.max[ax1] >= intersection[ax1] && sim_box.min[ax1] <= intersection[ax1] &&
+		// 				sim_box.max[ax2] >= intersection[ax2] && sim_box.min[ax2] <= intersection[ax2]) {
+		//
+		// 				// auto p = particle_container.at<M>(p_idx);
+		// 				auto p = particle_container.access_fetcher(p_idx);
+		// 				boundary.apply(p, sim_box, face);
+		//
+		// 				if (boundary.topology.may_change_particle_position) {
+		// 					particles_to_update_buffer.push_back(p_idx);
+		// 				}
+		// 			}
+		// 		}
+		// 	}
+		// }
+		//
+		// particle_container.invoke_notify_moved(particles_to_update_buffer);
 	}
 
 	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>

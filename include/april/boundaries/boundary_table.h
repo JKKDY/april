@@ -29,8 +29,8 @@ namespace april::boundary::internal {
 			region(boundary_region), topology(get_topology(boundary)), boundary_v(boundary) {
 		}
 
-        template<env::IsFetcher F>
-		void apply(F && p, const env::Box & domain_box, const Face face) const noexcept {
+		template<env::FieldMask IncomingMask, env::IsUserData U>
+		void apply(env::ParticleRef<IncomingMask, U> & p, const env::Box & domain_box, const Face face) const noexcept {
 			std::visit([&](const auto& bc) {
 				bc.dispatch_apply(p, domain_box, face);
 			}, boundary_v);

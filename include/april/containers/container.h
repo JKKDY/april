@@ -1,5 +1,8 @@
 #pragma once
+
+#include <bit>
 #include <vector>
+#include <stdexcept>
 
 #include "april/particle/fields.h"
 #include "april/particle/access.h"
@@ -27,58 +30,11 @@ namespace april::container {
 		};
 	}
 
-	/*
-	// -----------------------------------------------------------------------------
-	// REFERENCE CONTAINER IMPLEMENTATION
-	// Copy-paste this to start a new container.
-	// -----------------------------------------------------------------------------
-	class ReferenceContainer {
-	public:
-		using config_type_t     = ...;
-		using user_type_t       = ...;
-		using mutable_fetcher_t = ...;
-		using const_fetcher_t   = ...;
 
-		// --- MANDATORY (Checked by HasContainerOps) ---
-		void build(const std::vector<ParticleRecord>& p);
-		void rebuild_structure();
-
-		size_t particle_count() const;
-		env::ParticleID min_id() const;
-		env::ParticleID max_id() const;
-
-		size_t id_to_index(env::ParticleID id) const;
-		bool contains(env::ParticleID id) const; // Optional but recommended
-
-		// The Fetcher Hook
-		MutableFetcher get_fetcher(size_t index);
-		ConstFetcher   get_fetcher(size_t index) const;
-
-		void add_particle(const ParticleRecord& p);
-		void remove_particle(env::ParticleID id);
-
-		template<typename F> void for_each_particle(F&& func);
-		template<typename F> void for_each_interaction_batch(F&& func);
-
-		std::vector<size_t> collect_indices_in_region(const env::Box& region);
-
-		// --- OPTIONAL OPTIMIZATIONS (Checked via SFINAE / if constexpr) ---
-
-		// 1. Partial Updates (If missing, System falls back to rebuild_structure)
-		void notify_moved(const std::vector<size_t>& indices);
-
-		// 2. Fast ID Fetch (If missing, System uses id_to_index + get_fetcher)
-		MutableFetcher get_fetcher_by_id(env::ParticleID id);
-		ConstFetcher   get_fetcher_by_id(env::ParticleID id) const;
-	};
-	*/
-
-	template<class C, env::IsUserData U, env::IsFetcher F>
+	template<class C, env::IsUserData U>
 	class Container {
-		static_assert(std::same_as<U, typename F::UserDataT>, "U must match MF::user_data_t");
 	public:
 		using ParticleRecord = env::internal::ParticleRecord<U>;
-		using FetcherT = F;
 		using UserDataT = U;
 		using ConfigT = C;
 
@@ -140,7 +96,6 @@ namespace april::container {
 		// ---------
 		// MODIFIERS
 		// ---------
-
 		void invoke_add_particle(this auto&&, const ParticleRecord &) {
 			throw std::logic_error("dispatch_add_particle not implemented yet");
 		}
@@ -156,33 +111,33 @@ namespace april::container {
 		// INDEX ACCESSORS
 		template<env::FieldMask M>
 		[[nodiscard]] auto at(this auto&& self, size_t index) {
-			return env::ParticleRef<M, UserDataT>{ self.access_fetcher(index) };
+			return env::ParticleRef<M, UserDataT>{ self.template access_particle<M>(index) };
 		}
 
 		template<env::FieldMask M>
 		[[nodiscard]] auto view(this const auto& self, size_t index) {
-			return env::ParticleView<M, UserDataT>{ self.access_fetcher(index) };
+			return env::ParticleView<M, UserDataT>{ self.template access_particle<M>(index) };
 		}
 
 		template<env::FieldMask M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t index) {
-			return env::RestrictedParticleRef<M, UserDataT>{ self.access_fetcher(index) };
+			return env::RestrictedParticleRef<M, UserDataT>{ self.template access_particle<M>(index) };
 		}
 
 		// ID ACCESSORS
 		template<env::FieldMask M>
 		[[nodiscard]] auto at_id(this auto&& self, env::ParticleID id) {
-			return env::ParticleRef<M, UserDataT>{ self.access_fetcher_by_id(id) };
+			return env::ParticleRef<M, UserDataT>{ self.template access_particle_id<M>(id) };
 		}
 
 		template<env::FieldMask M>
 		[[nodiscard]] auto view_id(this const auto & self, env::ParticleID id) {
-			return env::ParticleView<M, UserDataT>{ self.access_fetcher_by_id(id) };
+			return env::ParticleView<M, UserDataT>{ self.template access_particle_id<M>(id) };
 		}
 
 		template<env::FieldMask M>
 		[[nodiscard]] auto restricted_at_id(this auto&& self, env::ParticleID id) {
-			return env::RestrictedParticleRef<M, UserDataT>{ self.access_fetcher_by_id(id) };
+			return env::RestrictedParticleRef<M, UserDataT>{ self.template access_particle_id<M>(id) };
 		}
 
 
@@ -217,24 +172,6 @@ namespace april::container {
 			return self.collect_indices_in_region(region);
 		}
 
-		FetcherT access_fetcher(this auto&& self, size_t index) noexcept {
-			static_assert(
-				requires {
-					{ self.get_fetcher(index) } -> std::convertible_to<FetcherT>;
-				},
-				"get_fetcher(index) not implemented or invalid return type"
-			);
-			return self.get_fetcher(index);
-		}
-
-		FetcherT access_fetcher_by_id(this auto&& self, env::ParticleID id) noexcept{
-			if constexpr ( requires { { self.get_fetcher_by_id(id) } -> std::convertible_to<FetcherT>; }) {
-				return self.get_fetcher_by_id(id);
-			} else {
-				size_t idx = self.invoke_id_to_index(id);
-				return self.get_fetcher(idx);
-			}
-		}
 
 	protected:
 		ConfigT config;
@@ -242,10 +179,97 @@ namespace april::container {
 		const internal::ContainerHints hints;
 		env::Box domain;
 
+	private:
 
-		//--------------
-		// DATA FETCHERS
-		//--------------
+		template<env::Field F>
+		auto invoke_get_field_ptr(this auto&& self, size_t i) {
+			return self.template get_field_ptr<F>(i);
+		}
+
+		template<env::Field F>
+		auto invoke_get_field_ptr_id(this auto&& self, env::ParticleID id) {
+			return self.template get_field_ptr_id<F>(id);
+		}
+
+		//------------------------
+		// PARTICLE DATA ACCESSORS
+		//------------------------
+		template<env::FieldMask M>
+		[[nodiscard]] auto access_particle(this auto&& self, const size_t i) {
+
+			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
+			env::ParticleSource<M, U, IsConst> src;
+
+			if constexpr (env::has_field_v<M, env::Field::force>)
+				src.force = self.template invoke_get_field_ptr<env::Field::force>(i);
+			if constexpr (env::has_field_v<M, env::Field::position>)
+				src.position = self.template invoke_get_field_ptr<env::Field::position>(i);
+			if constexpr (env::has_field_v<M, env::Field::velocity>)
+				src.velocity = self.template invoke_get_field_ptr<env::Field::velocity>(i);
+			if constexpr (env::has_field_v<M, env::Field::old_position>)
+				src.old_position = self.template invoke_get_field_ptr<env::Field::old_position>(i);
+			if constexpr (env::has_field_v<M, env::Field::old_force>)
+				src.old_force = self.template invoke_get_field_ptr<env::Field::old_force>(i);
+			if constexpr (env::has_field_v<M, env::Field::mass>)
+				src.mass = self.template invoke_get_field_ptr<env::Field::mass>(i);
+			if constexpr (env::has_field_v<M, env::Field::state>)
+				src.state = self.template invoke_get_field_ptr<env::Field::state>(i);
+			if constexpr (env::has_field_v<M, env::Field::type>)
+				src.type = self.template invoke_get_field_ptr<env::Field::type>(i);
+			if constexpr (env::has_field_v<M, env::Field::id>)
+				src.id = self.template invoke_get_field_ptr<env::Field::id>(i);
+			if constexpr (env::has_field_v<M, env::Field::user_data>)
+				src.user_data = self.template invoke_get_field_ptr<env::Field::user_data>(i);
+
+			return src;
+		}
+
+		template<env::FieldMask M>
+		[[nodiscard]] auto access_particle_id(this auto&& self, const env::ParticleID id) {
+
+		    // Safety check: If Mask is empty, return empty source immediately.
+		    if constexpr (M == 0) return env::ParticleSource<0, U, false>{};
+
+		    // Strategy: We pick the first active field in the Mask to test if 'get_field_ptr_id' exists.
+		    // We cannot check the function "in general" because it is a template.
+		    constexpr auto TestF = static_cast<env::Field>(1 << std::countr_zero(M));
+
+		    // CHECK: Does 'get_field_ptr_id<TestF>(id)' compile?
+		    if constexpr (requires { self.template get_field_ptr_id<TestF>(id); }) {
+
+		        // specialized path (Direct ID Access)
+		        constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
+		        env::ParticleSource<M, U, IsConst> src;
+
+		        if constexpr (env::has_field_v<M, env::Field::force>)
+        			src.force = self.template invoke_get_field_ptr_id<env::Field::force>(id);
+		        if constexpr (env::has_field_v<M, env::Field::position>)
+        			src.position = self.template invoke_get_field_ptr_id<env::Field::position>(id);
+		        if constexpr (env::has_field_v<M, env::Field::velocity>)
+        			src.velocity = self.template invoke_get_field_ptr_id<env::Field::velocity>(id);
+		        if constexpr (env::has_field_v<M, env::Field::old_position>)
+        			src.old_position = self.template invoke_get_field_ptr_id<env::Field::old_position>(id);
+		        if constexpr (env::has_field_v<M, env::Field::old_force>)
+        			src.old_force = self.template invoke_get_field_ptr_id<env::Field::old_force>(id);
+		        if constexpr (env::has_field_v<M, env::Field::mass>)
+        			src.mass = self.template invoke_get_field_ptr_id<env::Field::mass>(id);
+		        if constexpr (env::has_field_v<M, env::Field::state>)
+        			src.state = self.template invoke_get_field_ptr_id<env::Field::state>(id);
+		        if constexpr (env::has_field_v<M, env::Field::type>)
+        			src.type = self.template invoke_get_field_ptr_id<env::Field::type>(id);
+		        if constexpr (env::has_field_v<M, env::Field::id>)
+        			src.id = self.template invoke_get_field_ptr_id<env::Field::id>(id);
+		        if constexpr (env::has_field_v<M, env::Field::user_data>)
+        			src.user_data = self.template invoke_get_field_ptr_id<env::Field::user_data>(id);
+
+		        return src;
+
+		    } else {
+
+		        // fallback path (ID -> Index -> Access)
+		        return self.template access_particle<M>(self.invoke_id_to_index(id));
+		    }
+		}
 	};
 
 
@@ -281,11 +305,10 @@ namespace april::container {
 
 
 	template<typename C> concept IsContainer =
-		// 1. must define types (Config, UserData, Fetcher)
+		// 1. must define types (Config, UserData)
 		requires {
 			typename C::ConfigT;
 			typename C::UserDataT;
-			typename C::FetcherT;
 		} &&
 		// 2. Config must have impl typename pointing to Container type
 		// container must only depend on user data as template argument
@@ -296,8 +319,7 @@ namespace april::container {
 		// 3. Must inherit from the Middleware (Container)
 		std::derived_from<C, Container<
 			typename C::ConfigT,
-			typename C::UserDataT,
-			typename C::FetcherT
+			typename C::UserDataT
 		>> &&
 		// 4. Must implement the Structural Contract
 		HasContainerOps<C>;

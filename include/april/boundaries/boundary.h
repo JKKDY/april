@@ -82,7 +82,7 @@ namespace april::boundary {
 
 		// TODO make this bindable to R-Values
 		template<env::FieldMask IncomingMask, env::IsUserData U>
-		void dispatch_apply(this const auto & self,env::ParticleRef<IncomingMask, U> & particle, const env::Box & domain_box, Face face) noexcept {
+		void invoke_apply(this const auto & self,env::ParticleRef<IncomingMask, U> & particle, const env::Box & domain_box, Face face) noexcept {
 			static_assert(
 			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },
 			   "BoundaryCondition subclass must implement: void dispatch_apply(particle)"

@@ -25,19 +25,25 @@ namespace april::boundary::internal {
 
 	template<IsBoundaryVariant BVariant> class CompiledBoundary{
 	public:
-		CompiledBoundary(const BVariant & boundary, const env::Box & boundary_region):
-			region(boundary_region), topology(get_topology(boundary)), boundary_v(boundary) {
+		CompiledBoundary(const BVariant & boundary, const env::Box & region, const Face face, const env::Box & domain):
+			boundary_region(region),
+			simulation_domain(domain),
+			topology(get_topology(boundary)),
+			face(face), boundary_v(boundary) {
 		}
 
-		template<env::FieldMask IncomingMask, env::IsUserData U>
-		void apply(env::ParticleRef<IncomingMask, U> & p, const env::Box & domain_box, const Face face) const noexcept {
+		template<class Func>
+		void dispatch(Func && func) const noexcept {
 			std::visit([&](const auto& bc) {
-				bc.dispatch_apply(p, domain_box, face);
+				func(bc);
 			}, boundary_v);
 		}
 
-		const env::Box region;
+		const env::Box boundary_region;
+		const env::Box simulation_domain;
 		const Topology topology;
+		const Face face;
+
 	private:
 		const BVariant boundary_v;
 	};
@@ -81,7 +87,7 @@ namespace april::boundary::internal {
 			}
 		}
 
-		return internal::CompiledBoundary<BVariant>(boundary, env::Box{min, max});
+		return internal::CompiledBoundary<BVariant>(boundary, env::Box{min, max}, face, simulation_box);
 	}
 
 
@@ -100,7 +106,7 @@ namespace april::boundary::internal {
 			})
 		{}
 
-		const CompiledBoundary<BVariant> & get_boundary(const Face face) const {
+		const CompiledBoundary<BVariant> &  operator[](const Face face) const {
 			return table[face_to_int(face)];
 		}
 

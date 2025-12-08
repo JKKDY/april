@@ -11,7 +11,7 @@ namespace april::core::internal {
 		auto extract_topologies(const BoundaryTable  & boundaries) {
 		std::vector<boundary::Topology> topologies;
 		for (boundary::Face face : boundary::all_faces) {
-			topologies.push_back(boundaries.get_boundary(face).topology);
+			topologies.push_back(boundaries[face].topology);
 		}
 		return topologies;
 	}

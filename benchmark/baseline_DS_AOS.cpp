@@ -1,10 +1,8 @@
 #include <iostream>
 #include <vector>
-#include <cmath>
 #include <chrono>
 
 #include "april/common.h"
-#include "april/particle/fields.h"
 
 // --- Configuration ---
 static constexpr int NX = 40;
@@ -31,10 +29,9 @@ using april::vec3;
 
 struct Particle {
     vec3 position = {};
-    vec3 old_position = {};
     vec3 force = {};
-    vec3 old_force = {};
     vec3 velocity = {};
+    vec3 old_position = {};
 };
 
 
@@ -53,8 +50,8 @@ struct Particle {
 
 
 int main() {
-    std::cout<< sizeof(Particle) << std::endl;
-    std::cout<< sizeof(april::env::internal::ParticleRecord<april::env::NoUserData>) << std::endl;
+    // std::cout<< sizeof(Particle) << std::endl;
+    // std::cout<< sizeof(april::env::internal::ParticleRecord<april::env::NoUserData>) << std::endl;
 
     // 1. Initialization
     size_t N = NX * NY * NZ;
@@ -88,40 +85,78 @@ int main() {
 
     const auto start_time = std::chrono::high_resolution_clock::now();
 
+     const int TILE = 1024;
+     Particle* __restrict parts = particles.data();
+
     // Simulation Loop
     for (int step = 0; step < STEPS; ++step) {
-
+        // 1. KICK + DRIFT (Standard)
         for (auto & p : particles) {
-            p.old_position = p.position;
-            p.position += DT * p.velocity + (DT * DT) / (2 * MASS) * p.force;
+            p.old_position = p.position; // Actually unused in force loop, but part of struct
+            p.velocity += (DT * 0.5 / MASS) * p.force;
+            p.position += DT * p.velocity;
+            p.force = {0.0, 0.0, 0.0}; // Reset forces
         }
 
-        for (auto & p: particles) {
-            p.old_force = p.force;
-            p.force = {};
-        }
+        // 2. FORCE (Optimized)
+        // Tiled Force Calculation
+        for (size_t i_block = 0; i_block < N; i_block += TILE) {
+            // End index for outer block
+            size_t i_end = std::min((size_t)N, i_block + TILE);
 
+            for (size_t j_block = i_block; j_block < N; j_block += TILE) {
+                // End index for inner block
+                size_t j_end = std::min((size_t)N, j_block + TILE);
 
-        for (size_t i = 0; i < N; ++i) {
-            auto & p1 = particles[i];
+                // Now we process the interactions between these two small blocks
+                for (size_t i = i_block; i < i_end; ++i) {
 
+                    // Optimization from before: Load p1 ONCE
+                    vec3 p1_pos = parts[i].position;
+                    vec3 p1_force_acc = {0.0, 0.0, 0.0};
 
-            for (size_t j = i + 1; j < N; ++j) {
-                auto & p2 = particles[j];
+                    // Careful with the start index to avoid double counting
+                    // If blocks are same, start at i+1. If different, start at beginning of j_block.
+                    size_t j_start = (i_block == j_block) ? i + 1 : j_block;
 
-                vec3 r = p2.position - p1.position;
-                const double r2 = r.norm_squared();
-                if (r2 < R_CUT2){
-                    const vec3 f = force(r);
+                    for (size_t j = j_start; j < j_end; ++j) {
 
-                    p1.force += f;
-                    p2.force -= f;
+                        vec3 r = parts[j].position - p1_pos;
+
+                        // Early Rejection (Manhattan) - Cheap filter
+                        if (std::abs(r.x) > R_CUT || std::abs(r.y) > R_CUT || std::abs(r.z) > R_CUT)
+                            continue;
+
+                        double r2 = r.norm_squared();
+                        if (r2 < R_CUT2) {
+                            // OPTIMIZATION 2: Manual Inline + Common Subexpression Elimination
+                            double r2inv = 1.0 / r2;
+                            double s2 = SIGMA2 * r2inv;
+                            double s6 = s2 * s2 * s2;
+                            double s12 = s6 * s6;
+
+                            // Factor out terms.
+                            // Original: 24 * eps * r2inv * (2*s12 - s6)
+                            double magnitude = 24.0 * EPSILON * r2inv * (2.0 * s12 - s6);
+
+                            vec3 f = -magnitude * r;
+
+                            // OPTIMIZATION 3: Accumulate p1 force in REGISTER
+                            p1_force_acc += f;
+
+                            // We still have to write to p2 memory (random access write),
+                            // but we've eliminated the write for p1.
+                            parts[j].force -= f;
+                        }
+                    }
+                    parts[i].force += p1_force_acc;
                 }
             }
         }
 
+        // 3. KICK (Standard)
         for (auto & p : particles) {
-            p.velocity +=  DT / 2 / MASS * (p.force + p.old_force);
+            p.velocity += (DT * 0.5 / MASS) * p.force;
         }
     }
 

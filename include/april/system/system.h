@@ -305,19 +305,19 @@ namespace april::core {
 
 				// PHYSICS KERNEL
 				auto update_force = [&](auto & p1, auto & p2) {
-					vec3 diff;
+					vec3 r;
 
 					if constexpr (std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
-						diff = p2.position - p1.position;
+						r = p2.position - p1.position;
 					} else {
-						diff = apply_bcp(p2.position - p1.position);
+						r = apply_bcp(p2.position - p1.position);
 					}
 
-					if (diff.norm_squared() > force.cutoff2()) {
+					if (r.norm_squared() > force.cutoff2()) {
 						return;
 					}
 
-					const vec3 f = force(p1.to_view(), p2.to_view(), diff);
+					const vec3 f = force(p1.to_view(), p2.to_view(), r);
 
 					if constexpr (batch.update_policy == Upd::Atomic) {
 						throw std::logic_error("atomic force update not implemented yet");

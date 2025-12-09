@@ -28,13 +28,10 @@ namespace april::integrator {
 			sys.update_all_components();
 
 			// position update
-			for (size_t i = 0; i < sys.size(); ++i) {
-				auto p = sys.template at<pos_upd_fields>(i);
-				if (static_cast<int>(p.state & State::MOVABLE)) {
-					p.old_position = p.position;
-					p.position += dt * p.velocity + (dt*dt) / (2 * p.mass) * p.force;
-				}
-			}
+			sys.template for_each_particle<pos_upd_fields>([&](auto p) {
+				p.old_position = p.position;
+				p.position += dt * p.velocity + (dt*dt) / (2 * p.mass) * p.force;
+			}, State::MOVABLE);
 
 			sys.rebuild_structure();
 			sys.apply_boundary_conditions();
@@ -42,10 +39,9 @@ namespace april::integrator {
 			sys.apply_force_fields();
 
 			// velocity update
-			for (size_t i = 0; i < sys.size(); ++i) {
-				auto p = sys.template at<vel_upd_fields>(i);
+			sys.template for_each_particle<vel_upd_fields>([&](auto p) {
 				p.velocity += dt / 2 / p.mass * (p.force + p.old_force);
-			}
+			}, State::MOVABLE);
 
 			sys.apply_controllers();
 		}

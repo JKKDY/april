@@ -28,25 +28,19 @@ namespace april::integrator {
 		void stoermer_verlet_step(double delta_t) const {
 			sys.update_all_components();
 
-			for (size_t i = 0; i < sys.size(); ++i) {
-				auto p = sys.template at<pos_upd_fields>(i);
-				if (static_cast<int>(p.state & State::MOVABLE)) {
-					p.old_position = p.position;
-					p.position += delta_t * p.velocity + (delta_t*delta_t) / (2 * p.mass) * p.force;
-				}
-			}
+			sys.template for_each_particle<pos_upd_fields>([&](auto p) {
+				p.old_position = p.position;
+				p.position += delta_t * p.velocity + (delta_t*delta_t) / (2 * p.mass) * p.force;
+			}, State::MOVABLE);
 
 			sys.rebuild_structure();
 			sys.apply_boundary_conditions();
 			sys.update_forces();
 			sys.apply_force_fields();
 
-			for (size_t i = 0; i < sys.size(); ++i) {
-				auto p = sys.template at<vel_upd_fields>(i);
-				if (static_cast<int>(p.state & State::MOVABLE)) {
-					p.velocity += delta_t / 2 / p.mass * (p.force + p.old_force);
-				}
-			}
+			sys.template for_each_particle<vel_upd_fields>([&](auto p) {
+				p.velocity += delta_t / 2 / p.mass * (p.force + p.old_force);
+			}, State::MOVABLE);
 
 			sys.apply_controllers();
 		}

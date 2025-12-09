@@ -55,14 +55,19 @@ namespace april::container {
 		// ITERATION
 		// ---------
 		template<env::FieldMask M, typename Func, bool parallelize=false> // TODO restrict callable (invoke_for_each_particle)
-		void invoke_for_each_particle(this auto&& self, Func && func) {
+		void invoke_for_each_particle(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
+			// check if subclass provides implementation
 			if constexpr (requires {self.for_each_particle<M>(func); }) {
-				self.for_each_particle<M>(func);
-			} else if constexpr (parallelize) {
-				throw std::logic_error("parallelization not implemented yet");
-			} else {
+				self.for_each_particle<M>(func, state);
+			}
+			// if not, create default implementation
+			else {
 				for (size_t i = 0; i < self.particle_count(); i++) {
-					func(self.template at<M>(i));
+					constexpr env::FieldMask fields = M | env::Field::state;
+					auto p = self.template at<fields>(i);
+					if (static_cast<int>(p.state & state)) {
+						func(p);
+					}
 				}
 			}
 		}

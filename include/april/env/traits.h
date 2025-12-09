@@ -25,18 +25,18 @@ namespace april::env::internal {
 	boundary::IsBoundary... BCs,
 	controller::IsController... Cs,
 	field::IsField... FFs,
-	IsUserData UserData
+	IsUserData U
 	>
 	struct EnvironmentTraits<
 		force::ForcePack<Fs...>,
 		boundary::BoundaryPack<BCs...>,
 		controller::ControllerPack<Cs...>,
 		field::FieldPack<FFs...>,
-		UserData
+		U
 	>
 	{
 		// Core Packs
-		using FPack_t  = force::ForcePack<Fs...>;
+		using FPackT  = force::ForcePack<Fs...>;
 		using BPack_t  = boundary::BoundaryPack<BCs...>;
 		using CPack_t  = controller::ControllerPack<Cs...>;
 		using FFPack_t = field::FieldPack<FFs...>;
@@ -54,11 +54,11 @@ namespace april::env::internal {
 		using force_table_t    = force::internal::ForceTable<force_variant_t>;
 
 		// particles
-		using UserDataT = UserData;
-		using particle_record_t = ParticleRecord<UserDataT>;
-		template<FieldMask M> using particle_ref_t = ParticleRef<M, UserDataT>;
-		template<FieldMask M> using restricted_particle_ref_t = RestrictedParticleRef<M, UserDataT>;
-		template<FieldMask M> using particle_view_t = ParticleView<M, UserDataT>;
+		using user_data_t = U;
+		using particle_record_t = ParticleRecord<user_data_t>;
+		template<FieldMask M> using particle_ref_t = ParticleRef<M, user_data_t>;
+		template<FieldMask M> using restricted_particle_ref_t = RestrictedParticleRef<M, user_data_t>;
+		template<FieldMask M> using particle_view_t = ParticleView<M, user_data_t>;
 
 		// Environment Data type
 		using environment_data_t = EnvironmentData<

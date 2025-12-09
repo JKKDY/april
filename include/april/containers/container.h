@@ -35,10 +35,10 @@ namespace april::container {
 	class Container {
 	public:
 		using ParticleRecord = env::internal::ParticleRecord<U>;
-		using UserDataT = U;
-		using ConfigT = C;
+		using UserData = U;
+		using Config = C;
 
-		Container(const ConfigT & config,
+		Container(const Config & config,
 			const internal::ContainerFlags & flags,
 			const internal::ContainerHints & hints,
 			const env::Box & box)
@@ -141,34 +141,34 @@ namespace april::container {
 		// ------------------
 		// INDEX ACCESSORS
 		template<env::FieldMask M>
-		[[nodiscard]] auto at(this auto&& self, size_t index) {
-			return env::ParticleRef<M, UserDataT>{ self.template access_particle<M>(index) };
+	[[nodiscard]] auto at(this auto&& self, size_t index) {
+			return env::ParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
 		template<env::FieldMask M>
 		[[nodiscard]] auto view(this const auto& self, size_t index) {
-			return env::ParticleView<M, UserDataT>{ self.template access_particle<M>(index) };
+			return env::ParticleView<M, U>{ self.template access_particle<M>(index) };
 		}
 
 		template<env::FieldMask M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t index) {
-			return env::RestrictedParticleRef<M, UserDataT>{ self.template access_particle<M>(index) };
+			return env::RestrictedParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
 		// ID ACCESSORS
 		template<env::FieldMask M>
 		[[nodiscard]] auto at_id(this auto&& self, env::ParticleID id) {
-			return env::ParticleRef<M, UserDataT>{ self.template access_particle_id<M>(id) };
+			return env::ParticleRef<M, U>{ self.template access_particle_id<M>(id) };
 		}
 
 		template<env::FieldMask M>
 		[[nodiscard]] auto view_id(this const auto & self, env::ParticleID id) {
-			return env::ParticleView<M, UserDataT>{ self.template access_particle_id<M>(id) };
+			return env::ParticleView<M, U>{ self.template access_particle_id<M>(id) };
 		}
 
 		template<env::FieldMask M>
 		[[nodiscard]] auto restricted_at_id(this auto&& self, env::ParticleID id) {
-			return env::RestrictedParticleRef<M, UserDataT>{ self.template access_particle_id<M>(id) };
+			return env::RestrictedParticleRef<M, U>{ self.template access_particle_id<M>(id) };
 		}
 
 
@@ -205,7 +205,7 @@ namespace april::container {
 
 
 	protected:
-		ConfigT config;
+		Config config;
 		const internal::ContainerFlags flags;
 		const internal::ContainerHints hints;
 		env::Box domain;
@@ -308,8 +308,8 @@ namespace april::container {
 	    env::ParticleID id,
 	    size_t index,
 	    const env::Box& region,
-	    const env::internal::ParticleRecord<typename C::UserDataT>& p,
-	    const std::vector<env::internal::ParticleRecord<typename C::UserDataT>>& particles
+	    const env::internal::ParticleRecord<typename C::UserData>& p,
+	    const std::vector<env::internal::ParticleRecord<typename C::UserData>>& particles
 	) {
 	    { c.build(particles) };
 	    { c.rebuild_structure() };
@@ -334,19 +334,19 @@ namespace april::container {
 	template<typename C> concept IsContainer =
 		// 1. must define types (Config, UserData)
 		requires {
-			typename C::ConfigT;
-			typename C::UserDataT;
+			typename C::Config;
+			typename C::UserData;
 		} &&
 		// 2. Config must have impl typename pointing to Container type
 		// container must only depend on user data as template argument
 		requires {
-			typename C::ConfigT::template impl<typename C::UserDataT>;
-			requires std::same_as<C, typename C::ConfigT::template impl<typename C::UserDataT>>;
+			typename C::Config::template impl<typename C::UserData>;
+			requires std::same_as<C, typename C::Config::template impl<typename C::UserData>>;
 		} &&
 		// 3. Must inherit from the Middleware (Container)
 		std::derived_from<C, Container<
-			typename C::ConfigT,
-			typename C::UserDataT
+			typename C::Config,
+			typename C::UserData
 		>> &&
 		// 4. Must implement the Structural Contract
 		HasContainerOps<C>;
@@ -357,8 +357,8 @@ namespace april::container {
 		env::internal::IsEnvironmentTraits<Traits>
 	&&
 	requires {
-		typename ContainerDecl::template impl<typename Traits::UserDataT>;
+		typename ContainerDecl::template impl<typename Traits::user_data_t>;
 	} &&
-		IsContainer<typename ContainerDecl::template impl<typename Traits::UserDataT>>;
+		IsContainer<typename ContainerDecl::template impl<typename Traits::user_data_t>>;
 
 } // namespace april::container

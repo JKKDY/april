@@ -61,23 +61,23 @@ namespace april::env {
     namespace internal
     {
         // used internally in system. Holds all data of a particle
-        template<IsUserData UserData>
+        template<IsUserData U>
         struct ParticleRecord {
-            using user_data_t = UserData;
+            using user_data_t = U;
             ParticleRecord() = default;
 
             vec3 position;			// current position of the particle.
             vec3 force;				// current force acting on the particle.
             vec3 velocity;			// current velocity of the particle.
+            vec3 old_position;		// previous position of the particle. Useful for applying boundary conditions
 
             double mass {};			// mass of the particle.
             ParticleState state {};	// state of the particle.
             ParticleID id {};		// id of the particle.
             ParticleType type {};	// type of the particle.
 
-            [[no_unique_address]] UserData user_data; // optional user data
+            [[no_unique_address]] U user_data; // optional user data
 
-            vec3 old_position;		// previous position of the particle. Useful for applying boundary conditions
             bool operator==(const ParticleRecord& other) const {
                 return id == other.id;
             }

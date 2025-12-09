@@ -21,11 +21,11 @@ namespace april::core {
 	class System;
 
 
-	template <class Container, env::IsEnvironment EnvT>
-	requires container::IsContainerDecl<Container, typename EnvT::traits>
-	System<Container, typename EnvT::traits> build_system(
-		const EnvT & environment,
-		const Container& container,
+	template <class C, env::IsEnvironment E>
+	requires container::IsContainerDecl<C, typename E::traits>
+	System<C, typename E::traits> build_system(
+		const E & environment,
+		const C & container,
 		BuildInfo * build_info = nullptr
 	);
 
@@ -46,19 +46,19 @@ namespace april::core {
 		// ----------------
 		// PUBLIC API TYPES
 		// ----------------
-		using SysContextT = SystemContext<System>;
-		using TrigContextT = shared::TriggerContextImpl<System>;
-		using ContainerT = typename ContainerDecl::template impl<typename Traits::UserDataT>;
-		using ParticleRecT = typename Traits::particle_record_t;
+		using SysContext = SystemContext<System>;
+		using TrigContext = shared::TriggerContextImpl<System>;
+		using Container = typename ContainerDecl::template impl<typename Traits::user_data_t>;
+		using ParticleRec = typename Traits::particle_record_t;
 
 		template<env::FieldMask M>
-		using ParticleRefT = typename Traits::template particle_ref_t<M>;
+		using ParticleRef = typename Traits::template particle_ref_t<M>;
 
 		template<env::FieldMask M>
-		using ParticleViewT = typename Traits::template particle_view_t<M>;
+		using ParticleView = typename Traits::template particle_view_t<M>;
 
 		template<env::FieldMask M>
-		using RestrictedParticleRefT = typename Traits::template restricted_particle_ref_t<M>;
+		using RestrictedParticleRef = typename Traits::template restricted_particle_ref_t<M>;
 
 
 		// -----------------
@@ -211,11 +211,11 @@ namespace april::core {
 		// --------
 		// CONTEXTS
 		// --------
-		[[nodiscard]] SysContextT & context() { return system_context; }
-		[[nodiscard]] TrigContextT & trigger_context() { return trig_context; }
+		[[nodiscard]] SysContext & context() { return system_context; }
+		[[nodiscard]] TrigContext & trigger_context() { return trig_context; }
 
-		[[nodiscard]] const SysContextT & context() const { return system_context; }
-		[[nodiscard]] const TrigContextT & trigger_context() const { return trig_context; }
+		[[nodiscard]] const SysContext & context() const { return system_context; }
+		[[nodiscard]] const TrigContext & trigger_context() const { return trig_context; }
 
 
 	private:
@@ -224,7 +224,7 @@ namespace april::core {
 		ForceTable force_table;
 		ControllerStorage controllers;
 		FieldStorage fields;
-		ContainerT particle_container;
+		Container particle_container;
 
 		std::vector<size_t> particles_to_update_buffer;
 
@@ -240,7 +240,7 @@ namespace april::core {
 			const ContainerDecl& container_cfg,
 			const container::internal::ContainerFlags & container_flags,
 			const env::Box& domain_in,
-			const std::vector<ParticleRecT>& particles,
+			const std::vector<ParticleRec>& particles,
 			const BoundaryTable& boundaries_in,
 			const ForceTable& forces_in,
 			const ControllerStorage& controllers_in,
@@ -251,7 +251,7 @@ namespace april::core {
 			  force_table(forces_in),
 			  controllers(controllers_in),
 			  fields(fields_in),
-			  particle_container(ContainerT(container_cfg, container_flags, container::internal::ContainerHints{}, domain_in)),  // TODO replace container hints with actual input
+			  particle_container(Container(container_cfg, container_flags, container::internal::ContainerHints{}, domain_in)),  // TODO replace container hints with actual input
 			  system_context(*this),
 			  trig_context(*this)
 		{

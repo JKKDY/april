@@ -31,7 +31,6 @@ namespace april::core {
 		using BoundaryTable = typename EnvT::traits::boundary_table_t;
 		using ForceTable = typename EnvT::traits::force_table_t;
 		using ParticleRecord = typename EnvT::traits::particle_record_t;
-		using UserData = typename EnvT::traits::UserDataT;
 
 		using EnvData = env::internal::EnvironmentData< // explicit type so the IDE can perform code completion
 			typename EnvT::traits::force_variant_t,
@@ -61,7 +60,8 @@ namespace april::core {
 			id_pairs
 		);
 
-		const std::vector<ParticleRecord> particles = internal::build_particles<UserData>(env.particles, type_map, id_map);
+		const std::vector<ParticleRecord> particles =
+			internal::build_particles<typename EnvT::traits::user_data_t>(env.particles, type_map, id_map);
 
 		// create boundary table
 		internal::set_default_boundaries(env.boundaries);

@@ -165,7 +165,7 @@ TEST(LinkedCellsTest, OrbitTest) {
 	auto sys = build_system(env, LinkedCells(v));
 	sys.update_forces();
 
-	StoermerVerlet integrator(sys, monitor::monitors<OrbitMonitor>);
+	VelocityVerlet integrator(sys, monitor::monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for_duration(0.001, T);
 

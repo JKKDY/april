@@ -239,8 +239,6 @@ namespace april::container {
 				src.velocity = self.template invoke_get_field_ptr<env::Field::velocity>(i);
 			if constexpr (env::has_field_v<M, env::Field::old_position>)
 				src.old_position = self.template invoke_get_field_ptr<env::Field::old_position>(i);
-			if constexpr (env::has_field_v<M, env::Field::old_force>)
-				src.old_force = self.template invoke_get_field_ptr<env::Field::old_force>(i);
 			if constexpr (env::has_field_v<M, env::Field::mass>)
 				src.mass = self.template invoke_get_field_ptr<env::Field::mass>(i);
 			if constexpr (env::has_field_v<M, env::Field::state>)
@@ -280,8 +278,6 @@ namespace april::container {
         			src.velocity = self.template invoke_get_field_ptr_id<env::Field::velocity>(id);
 		        if constexpr (env::has_field_v<M, env::Field::old_position>)
         			src.old_position = self.template invoke_get_field_ptr_id<env::Field::old_position>(id);
-		        if constexpr (env::has_field_v<M, env::Field::old_force>)
-        			src.old_force = self.template invoke_get_field_ptr_id<env::Field::old_force>(id);
 		        if constexpr (env::has_field_v<M, env::Field::mass>)
         			src.mass = self.template invoke_get_field_ptr_id<env::Field::mass>(id);
 		        if constexpr (env::has_field_v<M, env::Field::state>)

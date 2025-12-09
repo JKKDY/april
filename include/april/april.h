@@ -33,7 +33,7 @@
 #include "april/containers/linked_cells.h"
 
 #include "april/integrators/integrator.h"
-#include "april/integrators/stoermer_verlet.h"
+#include "april/integrators/velocity_verlet.h"
 #include "april/integrators/yoshida4.h"
 
 #include "april/system/build.h"
@@ -109,7 +109,7 @@ namespace april {
 
 	// Integrators
 	using integrator::Integrator;
-	using integrator::StoermerVerlet;
+	using integrator::VelocityVerlet;
 	using integrator::Yoshida4;
 
 	// shared

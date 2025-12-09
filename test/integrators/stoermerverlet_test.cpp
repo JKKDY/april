@@ -21,7 +21,7 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
-	StoermerVerlet integrator(system);
+	VelocityVerlet integrator(system);
 	integrator.run_for_steps(0.1, 10);
 
 	for (size_t i = system.index_start(); i < system.index_end(); i++) {
@@ -42,7 +42,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
-	StoermerVerlet integrator(system);
+	VelocityVerlet integrator(system);
 	integrator.run_for_steps(1, 1);
 
 	auto particles = export_particles(system);
@@ -74,7 +74,7 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
-	StoermerVerlet integrator(system);
+	VelocityVerlet integrator(system);
 	integrator.run_for_steps(0.1, 1);
 
 	auto particles = export_particles(system);
@@ -113,7 +113,7 @@ TEST(StoermerVerletTest, OrbitTest) {
 	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
-	StoermerVerlet integrator(system, monitor::monitors<OrbitMonitor>);
+	VelocityVerlet integrator(system, monitor::monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for_duration(0.001, T);
 
@@ -161,14 +161,14 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	auto system = build_system(env, algo);
 
 	{
-		StoermerVerlet integrator(system, monitor::monitors<OrbitMonitor>);
+		VelocityVerlet integrator(system, monitor::monitors<OrbitMonitor>);
 		integrator.add_monitor(OrbitMonitor(v, R));
 		integrator.run_for_duration(0.001, T/2);
 		EXPECT_NEAR(system.time(), T/2, 0.005);
 	}
 
 	{
-		StoermerVerlet integrator(system, monitor::monitors<OrbitMonitor>);
+		VelocityVerlet integrator(system, monitor::monitors<OrbitMonitor>);
 		integrator.add_monitor(OrbitMonitor(v, R));
 		integrator.run_for_duration(0.001, T/2);
 		EXPECT_NEAR(system.time(), T, 0.005);

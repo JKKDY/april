@@ -75,7 +75,7 @@ protected:
 TEST_F(FieldTest, InitIsCalledOnce) {
     const auto env = setup_environment(2);
     auto system = build_system(env, DirectSum());
-    StoermerVerlet(system).with_dt(0.01).for_steps(10).run();
+    VelocityVerlet(system).with_dt(0.01).for_steps(10).run();
 
     EXPECT_EQ(sinks.init_call_count, 1);
 }
@@ -83,7 +83,7 @@ TEST_F(FieldTest, InitIsCalledOnce) {
 TEST_F(FieldTest, UpdateIsCalledEveryStep) {
     const auto env = setup_environment(2);
     auto system = build_system(env, DirectSum());
-    StoermerVerlet(system).with_dt(0.01).for_steps(5).run(); // Runs 0, 1, 2, 3, 4
+    VelocityVerlet(system).with_dt(0.01).for_steps(5).run(); // Runs 0, 1, 2, 3, 4
 
     EXPECT_EQ(sinks.update_call_count, 5);
     std::vector<size_t> expected_steps = {0, 1, 2, 3, 4};
@@ -96,7 +96,7 @@ TEST_F(FieldTest, ApplyIsCalledPerParticlePerStep) {
 
     const auto env = setup_environment(num_particles);
     auto system = build_system(env, DirectSum());
-    StoermerVerlet(system).with_dt(0.01).for_steps(num_steps).run(); // Runs 0, 1, 2, 3, 4
+    VelocityVerlet(system).with_dt(0.01).for_steps(num_steps).run(); // Runs 0, 1, 2, 3, 4
 
     EXPECT_EQ(sinks.apply_call_count, num_particles * num_steps);
     EXPECT_EQ(sinks.init_call_count, 1);
@@ -150,7 +150,7 @@ TEST_F(FieldTest, MultipleDifferentSpyFields) {
        .with_field(SpyField2(&sinks2));
 
     auto system = build_system(env, DirectSum());
-    StoermerVerlet(system).with_dt(0.01).for_steps(num_steps).run();
+    VelocityVerlet(system).with_dt(0.01).for_steps(num_steps).run();
 
     // Check sinks for SpyField 1
     EXPECT_EQ(sinks1.init_call_count, 1);
@@ -181,7 +181,7 @@ TEST(FieldIntegrationTest, UniformFieldModifiesForce) {
 
     auto system = build_system(env, DirectSum());
 
-    StoermerVerlet(system).with_dt(0.01).for_steps(1).run();
+    VelocityVerlet(system).with_dt(0.01).for_steps(1).run();
 
     auto particles = export_particles(system);
     ASSERT_EQ(particles.size(), 2);
@@ -219,7 +219,7 @@ TEST(FieldIntegrationTest, MultipleDifferentFieldsAreAdditive) {
 
     BuildInfo info;
     auto system = build_system(env, DirectSum(), &info);
-    StoermerVerlet(system).with_dt(0.01).for_steps(1).run(); // Runs step 0
+    VelocityVerlet(system).with_dt(0.01).for_steps(1).run(); // Runs step 0
 
     auto particles = export_particles(system);
     ASSERT_EQ(particles.size(), 2);

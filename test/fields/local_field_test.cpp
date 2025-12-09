@@ -77,7 +77,7 @@ TEST(LocalFieldTest, TimeCheck) {
        .with_field(LocalForceField(field_force, local_region, 0.025, 0.045));
 
     auto system = build_system(env, DirectSum());
-    auto integrator = StoermerVerlet(system).with_dt(0.01);
+    auto integrator = VelocityVerlet(system).with_dt(0.01);
 
     // Phase 1: before (t=0.0, t=0.01)
     integrator.for_steps(2).run(); // Runs step 0 (t=0.0), 1 (t=0.01)

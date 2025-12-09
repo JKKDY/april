@@ -146,7 +146,7 @@ TEST(ThermostatBehaviorTest, HoldingTemperature) {
     auto system = build_system(env, DirectSum());
 
     // Run for a few steps
-    StoermerVerlet(system).with_dt(0.001).for_steps(100).run();
+    VelocityVerlet(system).with_dt(0.001).for_steps(100).run();
 
     const auto particles = export_particles(system);
     const auto avg_v = get_system_avg_v(particles);
@@ -176,7 +176,7 @@ TEST(ThermostatBehaviorTest, CoolingSystem) {
     auto system = build_system(env, DirectSum());
 
     // Run for a few steps
-    StoermerVerlet(system).with_dt(0.001).for_steps(100).run();
+    VelocityVerlet(system).with_dt(0.001).for_steps(100).run();
 
     const auto particles = export_particles(system);
     const auto avg_v = get_system_avg_v(particles);
@@ -205,7 +205,7 @@ TEST(ThermostatBehaviorTest, HeatingSystem) {
     auto system = build_system(env, DirectSum());
 
     // Run for a few steps
-    StoermerVerlet(system).with_dt(0.001).for_steps(100).run();
+    VelocityVerlet(system).with_dt(0.001).for_steps(100).run();
 
     const auto particles = export_particles(system);
     const auto avg_v = get_system_avg_v(particles);
@@ -245,14 +245,14 @@ TEST(ThermostatBehaviorTest, Apply_HeatsThenCoolsWithTriggers) {
     auto system = build_system(env, DirectSum());
 
     // Run heating phase
-    StoermerVerlet(system).with_dt(0.01).for_steps(20).run();
+    VelocityVerlet(system).with_dt(0.01).for_steps(20).run();
     auto p_heated = export_particles(system);
     auto v_heated = get_system_avg_v(p_heated);
     auto T_heated = get_system_temp(p_heated, v_heated, system.box());
     EXPECT_NEAR(T_heated, T_heat, 0.1);
 
     // Run cooling phase
-    StoermerVerlet(system).with_dt(0.01).for_steps(20).run();
+    VelocityVerlet(system).with_dt(0.01).for_steps(20).run();
     auto p_cooled = export_particles(system);
     auto v_cooled = get_system_avg_v(p_cooled);
     auto T_cooled = get_system_temp(p_cooled, v_cooled, system.box());

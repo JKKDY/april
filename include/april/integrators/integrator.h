@@ -94,6 +94,7 @@ namespace april::integrator {
 			self.dispatch_initialize_monitors();
 
 			// simulation loop
+			self.sys.update_forces(); // ensure valid force initialization
 			for (self.step = 0; self.step < self.num_steps; ++self.step) {
 				self.dispatch_monitor_preparation();
 				self.integration_step();

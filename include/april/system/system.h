@@ -409,11 +409,10 @@ namespace april::core {
 		};
 
 		auto reset_force = [](auto && p) {
-			p.old_force = p.force;
 			p.force = {};
 		};
 
-		particle_container.template invoke_for_each_particle<env::Field::force | env::Field::old_force>(reset_force);
+		particle_container.template invoke_for_each_particle<+env::Field::force>(reset_force);
 		particle_container.invoke_for_each_interaction_batch(update_batch);
 	}
 

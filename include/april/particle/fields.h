@@ -6,7 +6,7 @@
 
 namespace april::env {
 
-	using FieldMask = uint32_t;
+	using FieldMask = uint16_t;
 
 	enum class Field : FieldMask {
 		none			= 0u,
@@ -14,13 +14,12 @@ namespace april::env {
 		velocity     	= 1u << 1,
 		force        	= 1u << 2,
 		old_position 	= 1u << 3,
-		old_force    	= 1u << 4,
-		state        	= 1u << 5,
-		mass         	= 1u << 6,
-		type         	= 1u << 7,
-		id           	= 1u << 8,
-		user_data    	= 1u << 9,
-		all			 	= ~0u
+		state        	= 1u << 4,
+		mass         	= 1u << 5,
+		type         	= 1u << 6,
+		id           	= 1u << 7,
+		user_data    	= 1u << 8,
+		all			 	= static_cast<FieldMask>(~0u)
 	};
 
 	constexpr FieldMask to_field_mask(Field f) { return static_cast<FieldMask>(f); }

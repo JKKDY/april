@@ -37,7 +37,7 @@ int main() {
 	auto container = LinkedCells(3);
 	auto system = build_system(env, container);
 
-	auto integrator = StoermerVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
+	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
 		.with_monitor(Benchmark())
 		.with_monitor(BinaryOutput(Trigger::every(100), dir_path.string()))
 		.with_monitor(ProgressBar(Trigger::every(100)))

@@ -18,7 +18,6 @@ namespace april::env {
 
         // optional data e.g. if initializing from a simulation snapshot
         std::optional<vec3> old_position;		// previous position of the particle. Useful for applying boundary conditions
-        std::optional<vec3> old_force;			// previous force acting on the particle.
         std::optional<vec3> force;				// current force
 
         std::any user_data {}; // custom user data
@@ -50,9 +49,6 @@ namespace april::env {
         Particle& with_old_position(const vec3& v) noexcept {
             old_position = v; return *this;
         }
-        Particle& with_old_force(const vec3& v) noexcept {
-            old_force = v; return *this;
-        }
         Particle& with_force(const vec3& v) noexcept {
             force = v; return *this;
         }
@@ -73,7 +69,6 @@ namespace april::env {
             vec3 position;			// current position of the particle.
             vec3 force;				// current force acting on the particle.
             vec3 old_position;		// previous position of the particle. Useful for applying boundary conditions
-            vec3 old_force;			// previous force acting on the particle.
             vec3 velocity;			// current velocity of the particle.
 
             double mass {};			// mass of the particle.

@@ -6,10 +6,10 @@
 
 namespace april::integrator {
 
-	template<core::IsSystem Sys, class Pack> class StoermerVerlet;
+	template<core::IsSystem Sys, class Pack> class VelocityVerlet;
 
 	template <core::IsSystem Sys, class ... TMonitors>
-	class StoermerVerlet<Sys, monitor::MonitorPack<TMonitors...>>
+	class VelocityVerlet<Sys, monitor::MonitorPack<TMonitors...>>
 		: public Integrator<Sys, monitor::MonitorPack<TMonitors...>> {
 	public:
 		using State = env::ParticleState;
@@ -22,15 +22,15 @@ namespace april::integrator {
 			env::Field::state | env::Field::velocity | env::Field::position | env::Field::mass | env::Field::old_position | env::Field::force;
 
 		static constexpr env::FieldMask vel_upd_fields =
-			env::Field::state | env::Field::velocity | env::Field::force | env::Field::mass | env::Field::old_force;
+			env::Field::state | env::Field::velocity | env::Field::force | env::Field::mass;
 
 		void integration_step() const {
 			sys.update_all_components();
 
-			// position update
 			sys.template for_each_particle<pos_upd_fields>([&](auto p) {
 				p.old_position = p.position;
-				p.position += dt * p.velocity + (dt*dt) / (2 * p.mass) * p.force;
+				p.velocity += (dt / 2.0) * (p.force / p.mass);
+				p.position += dt * p.velocity;
 			}, State::MOVABLE);
 
 			sys.rebuild_structure();
@@ -38,9 +38,8 @@ namespace april::integrator {
 			sys.update_forces();
 			sys.apply_force_fields();
 
-			// velocity update
 			sys.template for_each_particle<vel_upd_fields>([&](auto p) {
-				p.velocity += dt / 2 / p.mass * (p.force + p.old_force);
+			   p.velocity += (dt / 2.0) * (p.force / p.mass);
 			}, State::MOVABLE);
 
 			sys.apply_controllers();
@@ -49,11 +48,11 @@ namespace april::integrator {
 
 	// Deduction guide so user can write StoermerVerlet(sys, MonitorPack<M1, M2, M3>)
 	template<class Sys, class... Ms>
-	StoermerVerlet(Sys&, monitor::MonitorPack<Ms...>)
-		-> StoermerVerlet<Sys, monitor::MonitorPack<Ms...>>;
+	VelocityVerlet(Sys&, monitor::MonitorPack<Ms...>)
+		-> VelocityVerlet<Sys, monitor::MonitorPack<Ms...>>;
 
 	// Deduction guide so user can write StoermerVerlet(sys, m1, m2, m3)
 	template<class Sys, class... Ms>
-	StoermerVerlet(Sys&, Ms...)
-		-> StoermerVerlet<Sys, monitor::MonitorPack<std::decay_t<Ms>...>>;
+	VelocityVerlet(Sys&, Ms...)
+		-> VelocityVerlet<Sys, monitor::MonitorPack<std::decay_t<Ms>...>>;
 }

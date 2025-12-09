@@ -251,7 +251,6 @@ namespace april::core::internal {
 			particle.position = p.position;
 			particle.velocity = p.velocity;
 			particle.force = p.force.value_or(vec3{});
-			particle.old_force = p.old_force.value_or(vec3{});
 			particle.old_position = p.old_position.value_or(vec3{});
 			if constexpr (std::is_same_v<UserData, env::NoUserData>) {
 				particle.user_data = env::NoUserData();

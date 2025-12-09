@@ -22,7 +22,7 @@ namespace april::integrator {
 			env::Field::state | env::Field::velocity | env::Field::position | env::Field::mass | env::Field::old_position | env::Field::force;
 
 		static constexpr env::FieldMask vel_upd_fields =
-			env::Field::state | env::Field::velocity | env::Field::force | env::Field::mass | env::Field::old_force;
+			env::Field::state | env::Field::velocity | env::Field::force | env::Field::mass;
 
 
 		void stoermer_verlet_step(double delta_t) const {
@@ -30,7 +30,8 @@ namespace april::integrator {
 
 			sys.template for_each_particle<pos_upd_fields>([&](auto p) {
 				p.old_position = p.position;
-				p.position += delta_t * p.velocity + (delta_t*delta_t) / (2 * p.mass) * p.force;
+				p.velocity += (delta_t / 2.0) * (p.force / p.mass);
+				p.position += delta_t * p.velocity;
 			}, State::MOVABLE);
 
 			sys.rebuild_structure();
@@ -39,7 +40,7 @@ namespace april::integrator {
 			sys.apply_force_fields();
 
 			sys.template for_each_particle<vel_upd_fields>([&](auto p) {
-				p.velocity += delta_t / 2 / p.mass * (p.force + p.old_force);
+				p.velocity += (delta_t / 2.0) * (p.force / p.mass);
 			}, State::MOVABLE);
 
 			sys.apply_controllers();

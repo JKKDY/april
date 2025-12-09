@@ -30,7 +30,6 @@ namespace april::env {
 	    [[no_unique_address]] field_type_t<Ptr<vec3>, Field::position, M> position;
 	    [[no_unique_address]] field_type_t<Ptr<vec3>, Field::velocity, M> velocity;
 	    [[no_unique_address]] field_type_t<Ptr<vec3>, Field::old_position, M> old_position;
-	    [[no_unique_address]] field_type_t<Ptr<vec3>, Field::old_force, M> old_force;
 	    [[no_unique_address]] field_type_t<Ptr<double>, Field::mass, M> mass;
 	    [[no_unique_address]] field_type_t<Ptr<ParticleState>, Field::state, M> state;
 	    [[no_unique_address]] field_type_t<Ptr<ParticleType>, Field::type, M> type;
@@ -45,7 +44,6 @@ namespace april::env {
 				else if constexpr (F == Field::position) return position;
 				else if constexpr (F == Field::velocity) return velocity;
 				else if constexpr (F == Field::old_position) return old_position;
-				else if constexpr (F == Field::old_force) return old_force;
 				else if constexpr (F == Field::mass) return mass;
 				else if constexpr (F == Field::state) return state;
 				else if constexpr (F == Field::type) return type;
@@ -88,7 +86,6 @@ namespace april::env {
 			, position    (init_field<M, Field::position>		(source))
 			, velocity    (init_field<M, Field::velocity>		(source))
 			, old_position(init_field<M, Field::old_position>	(source))
-			, old_force   (init_field<M, Field::old_force>		(source))
 			, mass        (init_field<M, Field::mass>			(source))
 			, state       (init_field<M, Field::state>			(source))
 			, type        (init_field<M, Field::type>			(source))
@@ -104,7 +101,6 @@ namespace april::env {
 		[[no_unique_address]] field_type_t<vec3&, Field::position, M> position;
 		[[no_unique_address]] field_type_t<vec3&, Field::velocity, M> velocity;
 		[[no_unique_address]] field_type_t<vec3&, Field::old_position, M> old_position;
-		[[no_unique_address]] field_type_t<vec3&, Field::old_force, M> old_force;
 		[[no_unique_address]] field_type_t<double&, Field::mass, M> mass;
 		[[no_unique_address]] field_type_t<ParticleState&, Field::state, M> state;
 		[[no_unique_address]] field_type_t<const ParticleType, Field::type, M> type;
@@ -121,7 +117,6 @@ namespace april::env {
 			, position    (init_field<M, Field::position>		(source))
 			, velocity    (init_field<M, Field::velocity>		(source))
 			, old_position(init_field<M, Field::old_position>	(source))
-			, old_force   (init_field<M, Field::old_force>		(source))
 			, mass        (init_field<M, Field::mass>			(source))
 			, state       (init_field<M, Field::state>			(source))
 			, type        (init_field<M, Field::type>			(source))
@@ -139,7 +134,6 @@ namespace april::env {
 		[[no_unique_address]] field_type_t<const vec3&, Field::position, M> position;
 		[[no_unique_address]] field_type_t<const vec3&, Field::velocity, M> velocity;
 		[[no_unique_address]] field_type_t<const vec3&, Field::old_position, M> old_position;
-		[[no_unique_address]] field_type_t<const vec3&, Field::old_force, M> old_force;
 		[[no_unique_address]] field_type_t<const double&, Field::mass, M> mass;
 		[[no_unique_address]] field_type_t<const ParticleState, Field::state, M> state;
 		[[no_unique_address]] field_type_t<const ParticleType, Field::type, M> type;
@@ -157,7 +151,6 @@ namespace april::env {
 			, position    (init_field<M, Field::position>		(source))
 			, velocity    (init_field<M, Field::velocity>		(source))
 			, old_position(init_field<M, Field::old_position>	(source))
-			, old_force   (init_field<M, Field::old_force>		(source))
 			, mass        (init_field<M, Field::mass>			(source))
 			, state       (init_field<M, Field::state>			(source))
 			, type        (init_field<M, Field::type>			(source))
@@ -175,7 +168,6 @@ namespace april::env {
 			, position     (r.position)  // Exact match (const vec3& -> const vec3&)
 			, velocity     (r.velocity)
 			, old_position (r.old_position)
-			, old_force    (r.old_force)
 			, mass         (r.mass)      // Exact match (const double -> const double)
 			, state        (r.state)
 			, type         (r.type)
@@ -188,7 +180,6 @@ namespace april::env {
 		[[no_unique_address]] field_type_t<const vec3&, Field::position, M> position;
 		[[no_unique_address]] field_type_t<const vec3&, Field::velocity, M> velocity;
 		[[no_unique_address]] field_type_t<const vec3&, Field::old_position, M> old_position;
-		[[no_unique_address]] field_type_t<const vec3&, Field::old_force, M> old_force;
 		[[no_unique_address]] field_type_t<const double&, Field::mass, M> mass;
 		[[no_unique_address]] field_type_t<const ParticleState, Field::state, M> state;
 		[[no_unique_address]] field_type_t<const ParticleType, Field::type, M> type;

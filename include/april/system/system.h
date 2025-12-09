@@ -160,6 +160,17 @@ namespace april::core {
 			particle_container.invoke_for_each_interaction_batch(std::forward<Func>(func));
 		}
 
+		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>
+		[[nodiscard]] T invoke_reduce(
+			T initial_value,
+			Mapper&& map_func,
+			Reducer&& reduce_func = {},
+			env::ParticleState state = env::ParticleState::ALIVE
+		) const {
+			return particle_container.template invoke_reduce<M>(initial_value, map_func, reduce_func, state);
+		}
+
+
 
 		// -----------------
 		// STRUCTURE UPDATES

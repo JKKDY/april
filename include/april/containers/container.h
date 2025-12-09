@@ -52,13 +52,13 @@ namespace april::container {
 
 
 		// ---------
-		// ITERATION
+		// FUNCTIONAL OPS
 		// ---------
-		template<env::FieldMask M, typename Func, bool parallelize=false> // TODO restrict callable (invoke_for_each_particle)
+		template<env::FieldMask M, typename Func, bool parallelize=false> // TODO restrict callable Func (invoke_for_each_particle)
 		void invoke_for_each_particle(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
 			// check if subclass provides implementation
 			if constexpr (requires {self.for_each_particle<M>(func); }) {
-				self.for_each_particle<M>(func, state);
+				self.for_each_particle<M>(std::forward<Func>(func), state);
 			}
 			// if not, create default implementation
 			else {
@@ -72,9 +72,35 @@ namespace april::container {
 			}
 		}
 
-		template<typename Func> // TODO restrict callable (invoke_for_each_batch)
+		template<typename Func> // TODO restrict callable Func (invoke_for_each_batch)
 		void invoke_for_each_interaction_batch(this auto&& self, Func && func) {
-			self.for_each_interaction_batch(func);
+			self.for_each_interaction_batch(std::forward<Func>(func));
+		}
+
+
+		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>
+		[[nodiscard]] T invoke_reduce( // TODO restrict callable Mapper, Reducer (invoke_reduce)
+			this const auto& self,
+			T initial_value,
+			Mapper&& map_func,
+			Reducer&& reduce_func = {},
+			env::ParticleState state = env::ParticleState::ALIVE
+		) {
+			if constexpr (requires {self.reduce(initial_value, std::forward<Mapper>(map_func), std::forward<Reducer>(reduce_func), state); }) {
+				return self.reduce(initial_value, std::forward<Mapper>(map_func), std::forward<Reducer>(reduce_func), state);
+			} else {
+				T curr = initial_value;
+				for (size_t i = 0; i < self.particle_count(); i++) {
+					constexpr env::FieldMask fields = M | env::Field::state;
+					auto p = self.template view<fields>(i);
+					if (static_cast<int>(p.state & state)) {
+						T val = map_func(p);
+						curr = reduce_func(curr, val);
+					}
+				}
+
+				return curr;
+			}
 		}
 
 

@@ -25,8 +25,8 @@ namespace april::monitor {
 		void record(const core::SystemContext<S> & sys) const {
 			namespace fs = std::filesystem;
 
-			size_t start_idx = sys.index_start();
-			size_t end_idx = sys.index_end();
+			size_t start_idx = 0;
+			size_t end_idx = sys.size();
 
 			fs::create_directories(dir);
 			const std::string filename = std::format("{}_{:05}.bin", base_name, sys.step());
@@ -43,7 +43,7 @@ namespace april::monitor {
 			write_binary(out, format_flags);            // 4 bytes
 
 			for (size_t i = start_idx; i < end_idx; ++i) {
-				auto p = sys.template get_particle_by_index<fields>(i);
+				auto p = sys.template view<fields>(i);
 				// Write position as 3 floats
 				write_binary(out, static_cast<float>(p.position.x));
 				write_binary(out, static_cast<float>(p.position.y));

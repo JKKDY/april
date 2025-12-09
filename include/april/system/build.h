@@ -31,7 +31,7 @@ namespace april::core {
 		using BoundaryTable = typename EnvT::traits::boundary_table_t;
 		using ForceTable = typename EnvT::traits::force_table_t;
 		using ParticleRecord = typename EnvT::traits::particle_record_t;
-		using UserData = typename EnvT::traits::user_data_t;
+		using UserData = typename EnvT::traits::UserDataT;
 
 		using EnvData = env::internal::EnvironmentData< // explicit type so the IDE can perform code completion
 			typename EnvT::traits::force_variant_t,

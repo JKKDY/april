@@ -6,12 +6,12 @@ using namespace april;
 
 
 template<core::IsSystem System>
-typename System::ParticleRec get_particle(System& sys, size_t index) {
+typename System::ParticleRecT get_particle(System& sys, size_t index) {
 	constexpr auto all_fields = to_field_mask(env::Field::all);
 
 	auto p_ref = sys.template get_particle_by_index<all_fields>(index);
 
-	typename System::ParticleRec rec;
+	typename System::ParticleRecT rec;
 	rec.id          = p_ref.id;
 	rec.type        = p_ref.type;
 	rec.position    = p_ref.position;
@@ -27,12 +27,12 @@ typename System::ParticleRec get_particle(System& sys, size_t index) {
 }
 
 template<core::IsSystem System>
-typename System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
+typename System::ParticleRecT get_particle_by_id(System& sys, ParticleID id) {
 	constexpr auto all_fields = to_field_mask(env::Field::all);
 
 	auto p_ref = sys.template get_particle_by_id<all_fields>(id);
 
-	typename System::ParticleRec rec;
+	typename System::ParticleRecT rec;
 	rec.id          = p_ref.id;
 	rec.type        = p_ref.type;
 	rec.position    = p_ref.position;
@@ -48,8 +48,8 @@ typename System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
 }
 
 template<core::IsSystem System>
-std::vector<typename System::ParticleRec> export_particles(System& sys) {
-	std::vector<typename System::ParticleRec> records;
+std::vector<typename System::ParticleRecT> export_particles(System& sys) {
+	std::vector<typename System::ParticleRecT> records;
 	records.reserve(sys.index_end() - sys.index_start());
 
 	for (size_t i = sys.index_start(); i < sys.index_end(); ++i) {

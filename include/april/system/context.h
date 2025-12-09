@@ -10,69 +10,113 @@ namespace april::core {
 
 	template<class System>
 	class SystemContext {
-		using ParticleID = env::ParticleID;
 	public:
-		using user_data_t = typename System::user_data_t;
-		template<env::FieldMask M> using ParticleRef    		= typename System::template ParticleRef<M>;
-		template<env::FieldMask M> using ParticleView   		= typename System::template ParticleView<M>;
-		template<env::FieldMask M> using RestrictedParticleRef	= typename System::template RestrictedParticleRef<M>;
 
+		// -----------------
+		// LIFECYCLE & STATE
+		// -----------------
 		explicit SystemContext(System & sys): system(sys) {}
-
-		// ---- Core information ----
-		[[nodiscard]] env::Box box() const noexcept { return system.box(); }
 		[[nodiscard]] double time() const noexcept { return system.time(); }
 		[[nodiscard]] size_t step() const noexcept { return system.step(); }
-		[[nodiscard]] size_t size(env::ParticleState state = env::ParticleState::ALL) const noexcept {
-			return system.size(state);
-		}
+		[[nodiscard]] env::Box box() const noexcept { return system.box(); }
 
 
-		// ---- Particle modification ----
-		void register_particle_movement(ParticleID id) { system.register_particle_movement(id); }
-		void register_all_particle_movements() { system.register_all_particle_movements(); }
-
-
-		// ---- Region Query ----
-		[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Box& region) const {
-			return system.collect_indices_in_region(region);
-		}
-
-
-		// ---- Particle access by ID ----
+		// ------------------
+		// PARTICLE ACCESSORS
+		// ------------------
+		// INDEX ACCESSORS (fast)
 		template<env::FieldMask M>
-		[[nodiscard]]  ParticleRef<M> get_particle_by_id(ParticleID id) noexcept {
-			return system.template get_particle_by_id<M>(id);
+		[[nodiscard]] auto at(size_t index) {
+			return system.template at<M>(index);
 		}
 
 		template<env::FieldMask M>
-		[[nodiscard]] ParticleView<M> get_particle_by_id(ParticleID id) const noexcept {
-			return std::as_const(system).template get_particle_by_id<M>(id);
-		}
-
-		[[nodiscard]] std::vector<env::ParticleID> particle_id_list() const noexcept {
-			AP_ASSERT(false, "particle_id_list not implemented yet");
-			return {};
-		}
-
-
-		// ---- Particle access by index ----
-		template<env::FieldMask M>
-		[[nodiscard]] ParticleRef<M> get_particle_by_index(size_t index) noexcept {
-			return system.template get_particle_by_index<M>(index);
+		[[nodiscard]] auto view(size_t index) const {
+			return system.template view<M>(index);
 		}
 
 		template<env::FieldMask M>
-		[[nodiscard]] ParticleView<M> get_particle_by_index(size_t index) const noexcept {
-			return std::as_const(system).template get_particle_by_index<M>(index);
+		[[nodiscard]] auto restricted_at(size_t index) {
+			return system.template restricted_at<M>(index);
 		}
 
-		[[nodiscard]] size_t index_start() const noexcept {
-			return system.index_start();
+		// ID ACCESSORS (stable)
+		template<env::FieldMask M>
+		[[nodiscard]] auto at_id(env::ParticleID id) {
+			return system.template at_id<M>(id);
 		}
 
-		[[nodiscard]] size_t index_end() const noexcept {
-			return system.index_end();
+		template<env::FieldMask M>
+		[[nodiscard]] auto view_id(env::ParticleID id) const {
+			return system.template view_id<M>(id);
+		}
+
+		template<env::FieldMask M>
+		[[nodiscard]] auto restricted_at_id(env::ParticleID id) {
+			return system.template restricted_at_id<M>(id);
+		}
+
+
+		// -----------
+		// ID INDEXING
+		// -----------
+		[[nodiscard]] env::ParticleID min_id() const noexcept{
+			return system.min_id();
+		}
+
+		// get the largest particle id
+		[[nodiscard]] env::ParticleID max_id() const noexcept {
+			return system.max_id();
+		}
+
+		[[nodiscard]] bool contains(env::ParticleID id) const {
+			return system.contains(id);
+		}
+
+
+		// -------
+		// QUERIES
+		// -------
+		[[nodiscard]] size_t size(env::ParticleState = env::ParticleState::ALL) const noexcept {
+			return system.size();
+		}
+
+		[[nodiscard]] std::vector<size_t> query_region(const env::Box & region) const {
+			return system.query_region(region);
+		}
+
+		[[nodiscard]] std::vector<size_t> query_region(const env::Domain & region) const {
+			return query_region(env::Box(region.min_corner().value(), region.max_corner().value()));
+		}
+
+
+		// --------------
+		// FUNCTIONAL OPS
+		// --------------
+		template<env::FieldMask M, typename Func, bool parallelize=false>
+		void for_each_particle(Func && func) {
+			system.template for_each_particle<M, Func, parallelize>(std::forward<Func>(func));
+		}
+
+		template<typename Func>
+		void for_each_interaction_batch(Func && func) {
+			system.for_each_interaction_batch(std::forward<Func>(func));
+		}
+
+
+		// -----------------
+		// STRUCTURE UPDATES
+		// -----------------
+		void rebuild_structure() {
+			system.rebuild_structure();
+		}
+
+		void notify_moved(const std::vector<size_t> & indices) {
+			system.notify_moved(indices);
+		}
+
+		void notify_moved_id(const std::vector<env::ParticleID> & ids) {
+			system.notify_moved_id(ids);
 		}
 
 	private:

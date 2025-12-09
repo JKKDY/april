@@ -17,8 +17,8 @@ namespace april::monitor {
 		void record(const core::SystemContext<S> & sys) {
 			std::cout << "\n ##########  step: " << sys.step() <<  "  ########## \n";
 
-			for (size_t i = sys.index_start(); i < sys.index_end(); ++i) {
-				env::ParticleView p = sys.template get_particle_by_index<fields>(i);
+			for (size_t i = 0; i < sys.size(); ++i) {
+				env::ParticleView p = sys.template view<fields>(i);
 				std::cout << env::particle_to_string(p) << "\n";
 			}
 		}

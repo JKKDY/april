@@ -330,8 +330,8 @@ namespace april::container {
 		env::internal::IsEnvironmentTraits<Traits>
 	&&
 	requires {
-		typename ContainerDecl::template impl<typename Traits::user_data_t>;
+		typename ContainerDecl::template impl<typename Traits::UserDataT>;
 	} &&
-		IsContainer<typename ContainerDecl::template impl<typename Traits::user_data_t>>;
+		IsContainer<typename ContainerDecl::template impl<typename Traits::UserDataT>>;
 
 } // namespace april::container

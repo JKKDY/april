@@ -31,6 +31,30 @@ namespace april::field {
 			);
 			self.apply(particle);
 		}
+
+        template<env::FieldMask M, env::IsUserData U>
+		void invoke_apply(this const auto& self, env::RestrictedParticleRef<M, U> & particle) {
+			static_assert(
+				requires { self.apply(particle); },
+				"Field must implement: void apply(env::RestrictedParticleRef<M, U> & particle) const"
+			);
+
+			using Derived = std::remove_cvref_t<decltype(self)>;
+
+			static_assert(
+				requires { Derived::fields; },
+				"Field subclass must define 'static constexpr env::FieldMask fields'"
+			);
+
+			constexpr env::FieldMask Required = Derived::fields;
+
+			static_assert(
+				(M & Required) == Required,
+				"ParticleView is missing required fields for this Field."
+			);
+
+			self.apply(particle);
+		}
 	};
 
 	// define field concept

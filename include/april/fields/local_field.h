@@ -19,8 +19,8 @@ namespace april::field {
 		}
 
 		template<class S>
-		void update(const core::SystemContext<S> & ctx) {
-			active = ctx.time() >= start && ctx.time() < stop;
+		void update(const core::SystemContext<S> & sys) {
+			active = sys.time() >= start && sys.time() < stop;
 		}
 
 	private:

@@ -54,11 +54,11 @@ namespace april::env::internal {
 		using force_table_t    = force::internal::ForceTable<force_variant_t>;
 
 		// particles
-		using user_data_t = UserData;
-		using particle_record_t = ParticleRecord<user_data_t>;
-		template<FieldMask M> using particle_ref_t = ParticleRef<M, user_data_t>;
-		template<FieldMask M> using restricted_particle_ref_t = RestrictedParticleRef<M, user_data_t>;
-		template<FieldMask M> using particle_view_t = ParticleView<M, user_data_t>;
+		using UserDataT = UserData;
+		using particle_record_t = ParticleRecord<UserDataT>;
+		template<FieldMask M> using particle_ref_t = ParticleRef<M, UserDataT>;
+		template<FieldMask M> using restricted_particle_ref_t = RestrictedParticleRef<M, UserDataT>;
+		template<FieldMask M> using particle_view_t = ParticleView<M, UserDataT>;
 
 		// Environment Data type
 		using environment_data_t = EnvironmentData<

@@ -30,97 +30,91 @@ namespace april::core {
 	);
 
 
-	template <class C, env::internal::IsEnvironmentTraits Traits>
-	requires container::IsContainerDecl<C, Traits>
+	template <class ContainerDecl, env::internal::IsEnvironmentTraits Traits>
+	requires container::IsContainerDecl<ContainerDecl, Traits>
 	class System final {
-		using Controllers    	= typename Traits::controller_storage_t;
-		using Fields	     	= typename Traits::field_storage_t;
+		// --------------
+		// INTERNAL TYPES
+		// --------------
+		using ControllerStorage = typename Traits::controller_storage_t;
+		using FieldStorage	    = typename Traits::field_storage_t;
 		using ForceTable     	= typename Traits::force_table_t;
 		using BoundaryTable  	= typename Traits::boundary_table_t;
 
-		using Container      	= typename C::template impl<typename Traits::user_data_t>;
-		using ContainerFlags 	= container::internal::ContainerFlags;
-		using TypeInteraction	= force::internal::TypeInteraction<typename Traits::force_variant_t>;
-		using IdInteraction	 	= force::internal::IdInteraction<typename Traits::force_variant_t>;
-
-		using SysContext 		= SystemContext<System>;
-		using TrigContext		= shared::TriggerContextImpl<System>;
-
 	public:
-		using ParticleRec = typename Traits::particle_record_t;
-		using user_data_t = typename Traits::user_data_t;
-		template<env::FieldMask M> using ParticleRef    		= typename Traits::template particle_ref_t<M>;
-		template<env::FieldMask M> using ParticleView   		= typename Traits::template particle_view_t<M>;
-		template<env::FieldMask M> using RestrictedParticleRef	= typename Traits::template restricted_particle_ref_t<M>;
 
+		// ----------------
+		// PUBLIC API TYPES
+		// ----------------
+		using SysContextT = SystemContext<System>;
+		using TrigContextT = shared::TriggerContextImpl<System>;
+		using ContainerT = typename ContainerDecl::template impl<typename Traits::UserDataT>;
+		using ParticleRecT = typename Traits::particle_record_t;
+
+		template<env::FieldMask M>
+		using ParticleRefT = typename Traits::template particle_ref_t<M>;
+
+		template<env::FieldMask M>
+		using ParticleViewT = typename Traits::template particle_view_t<M>;
+
+		template<env::FieldMask M>
+		using RestrictedParticleRefT = typename Traits::template restricted_particle_ref_t<M>;
+
+
+		// -----------------
+		// LIFECYCLE & STATE
+		// -----------------
+		[[nodiscard]] double time() const noexcept { return time_; }
+		[[nodiscard]] size_t step() const noexcept { return step_; }
 		[[nodiscard]] env::Domain domain() const { return {simulation_box.min, simulation_box.extent}; }
 		[[nodiscard]] env::Box box() const { return simulation_box; }
 
-		[[nodiscard]] double time() const noexcept { return time_; }
-		[[nodiscard]] size_t step() const noexcept { return step_; }
 		void update_time(const double dt) noexcept { time_ += dt; }
 		void increment_step() noexcept { ++step_; }
 		void reset_time() noexcept { time_ = 0; step_ = 0; }
 
-		[[nodiscard]] size_t size(const env::ParticleState = env::ParticleState::ALL) const noexcept {
-			// return container.size(state);
-			// TODO implement this method (system::size) properly
-			return index_end() - index_start();
-		}
 
+		// ------------------
+		// PARTICLE ACCESSORS
+		// ------------------
+		// "at" implies mutable access, "view" implies read-only
 
-
-		[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Box & region) {
-			return particle_container.dispatch_collect_indices_in_region(region);
-		}
-
-		[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Domain & region) {
-			return collect_indices_in_region(env::Box(region.min_corner().value(), region.max_corner().value()));
-		}
-
-		// call to register particle movements. This may cause container internals to change/be rebuilt
-		void register_all_particle_movements() {
-			particle_container.invoke_rebuild_structure();
-		}
-
-		void register_particle_movement(std::vector<env::ParticleID> & ids) {
-			particle_container.invoke_notify_moved(ids);
-		}
-
-		// call to update all pairwise forces between particles
-		void update_forces();
-
-		// call to apply boundary conditions to all particles.
-		// should not be called before register_particle_movements
-		void apply_boundary_conditions();
-
-		void apply_controllers();
-
-		void apply_force_fields();
-
-		void update_all_components();
-
-
-
-		[[nodiscard]] SysContext & context() { return system_context; }
-		[[nodiscard]] const SysContext & context() const { return system_context; }
-
-		[[nodiscard]] TrigContext & trigger_context() { return trig_context; }
-		[[nodiscard]] const TrigContext & trigger_context() const { return trig_context; }
-
-
-		// get a particle reference by its id. Usually slower than getting it by its index.
-		// Useful for stable iterations and accessing a specific particle
+		// INDEX ACCESSORS (fast)
 		template<env::FieldMask M>
-		[[nodiscard]] ParticleRef<M> get_particle_by_id(const env::ParticleID id) noexcept {
+		[[nodiscard]] auto at(size_t index) {
+			return particle_container.template at<M>(index);
+		}
+
+		template<env::FieldMask M>
+		[[nodiscard]] auto view(size_t index) const {
+			return particle_container.template view<M>(index);
+		}
+
+		template<env::FieldMask M>
+		[[nodiscard]] auto restricted_at(size_t index) {
+			return particle_container.template restricted_at<M>(index);
+		}
+
+		// ID ACCESSORS (stable)
+		template<env::FieldMask M>
+		[[nodiscard]] auto at_id(env::ParticleID id) {
 			return particle_container.template at_id<M>(id);
 		}
 
 		template<env::FieldMask M>
-		[[nodiscard]] ParticleView<M> get_particle_by_id(const env::ParticleID id) const noexcept {
+		[[nodiscard]] auto view_id(env::ParticleID id) const {
 			return particle_container.template view_id<M>(id);
 		}
 
+		template<env::FieldMask M>
+		[[nodiscard]] auto restricted_at_id(env::ParticleID id) {
+			return particle_container.template restricted_at_id<M>(id);
+		}
+
+
+		// -----------
+		// ID INDEXING
+		// -----------
 		// get the lowest particle id
 		[[nodiscard]] env::ParticleID min_id() const noexcept{
 			return particle_container.min_id();
@@ -131,36 +125,95 @@ namespace april::core {
 			return particle_container.max_id();
 		}
 
-
-		// get a particle by its container specific id. useful for non-stable (but fast) iteration over particles
-		template<env::FieldMask M>
-		[[nodiscard]] ParticleRef<M> get_particle_by_index(const size_t index) noexcept {
-			return particle_container.template at<M>(index);
+		[[nodiscard]] bool contains(env::ParticleID id) const noexcept {
+			return particle_container.invoke_contains(id);
 		}
 
-		template<env::FieldMask M>
-		[[nodiscard]] ParticleView<M> get_particle_by_index(const size_t index) const noexcept {
-			return particle_container.template view<M>(index);
-		}
 
-		// get the first particle index
-		[[nodiscard]] size_t index_start() const noexcept {
-			return 0;
-		}
-
-		// get the last particle index
-		[[nodiscard]] size_t index_end() const noexcept {
+		// -------
+		// QUERIES
+		// -------
+		[[nodiscard]] size_t size(const env::ParticleState = env::ParticleState::ALL) const noexcept {
+			// TODO implement this method (system::size) properly
 			return particle_container.invoke_particle_count();
 		}
+
+		[[nodiscard]] std::vector<size_t> query_region(const env::Box & region) const {
+			return particle_container.dispatch_collect_indices_in_region(region);
+		}
+
+		[[nodiscard]] std::vector<size_t> query_region(const env::Domain & region) const {
+			return query_region(env::Box(region.min_corner().value(), region.max_corner().value()));
+		}
+
+
+		// --------------
+		// FUNCTIONAL OPS
+		// --------------
+		template<env::FieldMask M, typename Func, bool parallelize=false>
+		void for_each_particle(Func && func) {
+			particle_container.template invoke_for_each_particle<M, Func, parallelize>(func);
+		}
+
+		template<typename Func>
+		void for_each_interaction_batch(Func && func) {
+			particle_container.invoke_for_each_interaction_batch(func);
+		}
+
+
+		// -----------------
+		// STRUCTURE UPDATES
+		// -----------------
+		// call to register particle movements. This may cause container internals to change/be rebuilt
+		void rebuild_structure() {
+			particle_container.invoke_rebuild_structure();
+		}
+
+		void notify_moved(const std::vector<size_t> & indices) {
+			particle_container.invoke_notify_moved(indices);
+		}
+
+		void notify_moved_id(const std::vector<env::ParticleID> & ids) {
+			std::vector<size_t> indices;
+			indices.reserve(ids.size());
+
+			for (auto id : ids) {
+				indices.push_back(particle_container.invoke_id_to_index(id));
+			}
+
+			particle_container.invoke_notify_moved(indices);
+		}
+
+
+
+		
+		// -------
+		// PHYSICS
+		// -------
+		void update_forces();
+		void apply_boundary_conditions();
+		void apply_controllers();
+		void apply_force_fields();
+		void update_all_components();
+
+
+		// --------
+		// CONTEXTS
+		// --------
+		[[nodiscard]] SysContextT & context() { return system_context; }
+		[[nodiscard]] TrigContextT & trigger_context() { return trig_context; }
+
+		[[nodiscard]] const SysContextT & context() const { return system_context; }
+		[[nodiscard]] const TrigContextT & trigger_context() const { return trig_context; }
 
 
 	private:
 		env::Box simulation_box;
 		BoundaryTable boundary_table;
 		ForceTable force_table;
-		Controllers controllers;
-		Fields fields;
-		Container particle_container;
+		ControllerStorage controllers;
+		FieldStorage fields;
+		ContainerT particle_container;
 
 		std::vector<size_t> particles_to_update_buffer;
 
@@ -173,21 +226,21 @@ namespace april::core {
 
 		// private constructor since System should only be creatable through build_system(...)
 		System(
-			const C& container_cfg,
-			const ContainerFlags& container_flags,
+			const ContainerDecl& container_cfg,
+			const container::internal::ContainerFlags & container_flags,
 			const env::Box& domain_in,
-			const std::vector<ParticleRec>& particles,
+			const std::vector<ParticleRecT>& particles,
 			const BoundaryTable& boundaries_in,
 			const ForceTable& forces_in,
-			const Controllers& controllers_in,
-			const Fields& fields_in
+			const ControllerStorage& controllers_in,
+			const FieldStorage& fields_in
 		)
 			: simulation_box(domain_in),
 			  boundary_table(boundaries_in),
 			  force_table(forces_in),
 			  controllers(controllers_in),
 			  fields(fields_in),
-			  particle_container(Container(container_cfg, container_flags, container::internal::ContainerHints{}, domain_in)),  // TODO replace container hints with actual input
+			  particle_container(ContainerT(container_cfg, container_flags, container::internal::ContainerHints{}, domain_in)),  // TODO replace container hints with actual input
 			  system_context(*this),
 			  trig_context(*this)
 		{
@@ -210,6 +263,8 @@ namespace april::core {
 	};
 
 
+
+
 	// Default: assume any type is not a System
 	template<typename>
 	inline constexpr bool is_system_v = false;
@@ -221,6 +276,7 @@ namespace april::core {
 	// Concept: true if T (after removing cv/ref) is a System specialization
 	template<typename T>
 	concept IsSystem = is_system_v<std::remove_cvref_t<T>>;
+
 
 
 
@@ -381,7 +437,7 @@ namespace april::core {
 				constexpr env::FieldMask M = std::decay_t<B>::fields | detect_mask;
 
 				for (auto p_idx : particle_ids) {
-					auto particle = get_particle_by_index<M>(p_idx);
+					auto particle = particle_container.template at<M>(p_idx);
 
 					// make sure the particle exited through the current boundary face
 					// solve for intersection of the particles path with the boundary face
@@ -400,8 +456,7 @@ namespace april::core {
 					if (domain_box.max[ax1] >= intersection[ax1] && domain_box.min[ax1] <= intersection[ax1] &&
 						domain_box.max[ax2] >= intersection[ax2] && domain_box.min[ax2] <= intersection[ax2]) {
 
-						auto p = particle_container.template at<M>(p_idx);
-						bc.apply(p, domain_box, face);
+						bc.apply(particle, domain_box, face);
 
 						if (compiled_boundary.topology.may_change_particle_position) {
 							particles_to_update_buffer.push_back(p_idx);
@@ -434,10 +489,10 @@ namespace april::core {
 	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::apply_force_fields() {
 		fields.for_each_item([this]<typename F>(F & field) {
-			for (size_t i = index_start(); i < index_end(); ++i) {
+			for (size_t i = 0; i < size(); ++i) {
 				constexpr env::FieldMask M = F::fields;
 				auto restricted = particle_container.template restricted_at<M>(i);
-				field.template dispatch_apply<user_data_t>(restricted);
+				field.dispatch_apply(restricted);
 			}
 		});
 	}

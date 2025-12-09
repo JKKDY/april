@@ -28,22 +28,22 @@ namespace april::integrator {
 			sys.update_all_components();
 
 			// position update
-			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
-				auto p = sys.template get_particle_by_index<pos_upd_fields>(i);
+			for (size_t i = 0; i < sys.size(); ++i) {
+				auto p = sys.template at<pos_upd_fields>(i);
 				if (static_cast<int>(p.state & State::MOVABLE)) {
 					p.old_position = p.position;
 					p.position += dt * p.velocity + (dt*dt) / (2 * p.mass) * p.force;
 				}
 			}
 
-			sys.register_all_particle_movements();
+			sys.rebuild_structure();
 			sys.apply_boundary_conditions();
 			sys.update_forces();
 			sys.apply_force_fields();
 
 			// velocity update
-			for (auto i = sys.index_start(); i < sys.index_end(); ++i) {
-				auto p = sys.template get_particle_by_index<vel_upd_fields>(i);
+			for (size_t i = 0; i < sys.size(); ++i) {
+				auto p = sys.template at<vel_upd_fields>(i);
 				p.velocity += dt / 2 / p.mass * (p.force + p.old_force);
 			}
 

@@ -1,6 +1,6 @@
 #pragma once
-#include <cassert>
 #include <functional>
+#include <set>
 #include <unordered_set>
 
 #include "april/forces/force.h"
@@ -9,7 +9,22 @@
 
 namespace april::force::internal {
 
+    struct InteractionProp {
+        double cutoff = 0.0;
+        bool is_active = false;
+        std::vector<std::pair<env::ParticleType, env::ParticleType>> used_by_types;
+        std::vector<std::pair<env::ParticleID, env::ParticleID>> used_by_ids;
+    };
 
+    struct InteractionSchema {
+        const std::vector<env::ParticleType> types;
+        const std::vector<env::ParticleID> ids;
+
+        const std::vector<InteractionProp> interactions;
+
+        const std::vector<size_t> type_interaction_matrix; // i * types.size() + j -> index into interactions
+        const std::vector<size_t> id_interaction_matrix; // i * id.size() + j -> index into interactions
+    };
 
     template<IsForceVariant ForceVariant>
     class ForceTable {
@@ -28,7 +43,30 @@ namespace april::force::internal {
             build_type_forces(type_interactions, usr_types_to_impl_types);
             build_id_forces(id_interactions, usr_ids_to_impl_ids);
             validate_force_tables();
-            compute_max_cutoff();
+        }
+
+        InteractionSchema generate_schema() {
+
+            // std::vector<env::ParticleType> types(n_types);
+            // std::vector<env::ParticleID> ids(n_ids);
+            //
+            // for (int i = 0; i < n_types; ++i) types[i] = i;
+            // for (int i = 0; i < n_ids; ++i) ids[i] = i;
+            //
+            // InteractionProp get_properties = [](auto const& v){
+            //     return std::visit([](auto const& f) {
+            //         InteractionProp prop;
+            //         prop.cutoff = f.cutoff();
+            //     }, v);
+            // };
+            //
+            //
+            //
+            //
+            // return InteractionSchema{
+            //     .types = types,
+            //     .ids = ids
+            // };
         }
 
 
@@ -42,10 +80,16 @@ namespace april::force::internal {
             }, variant);
         }
 
-
-        [[nodiscard]] double get_max_cutoff() const {
-            return max_cutoff;
+        template<typename Func>
+        void dispatch_id(const env::ParticleID id1, const env::ParticleID id2, Func && func) const {
+            const auto & variant = get_id_force(id1, id2);
+            std::visit([&]<IsForce F>(const F & f) -> void {
+                if constexpr (!std::same_as<F, ForceSentinel> && !std::same_as<F, NoForce>) {
+                    func(f);
+                }
+            }, variant);
         }
+
 
         [[nodiscard]] bool has_id_force(const env::ParticleID a, const env::ParticleID b) const noexcept{
             return a < n_ids && b < n_ids;
@@ -67,12 +111,12 @@ namespace april::force::internal {
             return id_forces[id_index(a,b)];
         }
 
-        size_t n_types{};
-        size_t n_ids{};
 
     private:
         std::vector<ForceVariant> type_forces; // Forces between different particle types (e.g. type A <-> type B)
         std::vector<ForceVariant> id_forces; // Forces between specific particle instances (by ID e.g. id1 <-> id2)
+        size_t n_types{};
+        size_t n_ids{};
 
 
         double max_cutoff = 0;
@@ -182,28 +226,7 @@ namespace april::force::internal {
             #endif
         }
 
-
-        void compute_max_cutoff() {
-            // get the max cutoff distance
-            auto cutoff_of = [](auto const& v){
-                return std::visit([](auto const& f){ return f.cutoff(); }, v);
-            };
-
-            max_cutoff = 0.0;
-
-            // 1. Scan type-based forces
-            for (auto const& v : type_forces)
-                max_cutoff = std::max(max_cutoff, cutoff_of(v));
-
-            // 2. Scan id-based forces (ignore sentinels)
-            for (auto const& v : id_forces)
-                if (!std::holds_alternative<ForceSentinel>(v))
-                    max_cutoff = std::max(max_cutoff, cutoff_of(v));
-        }
     };
-
-
-
 } // namespace april::env::impl
 
 

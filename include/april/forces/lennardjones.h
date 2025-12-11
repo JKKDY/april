@@ -12,21 +12,24 @@ namespace april::force {
 	struct LennardJones : Force{
 		static constexpr env::FieldMask fields = +env::Field::none;
 
-		double epsilon; // Depth of the potential well
-		double sigma; // Distance at which potential is zero
-
 		LennardJones(const double epsilon_, const double sigma_, const double cutoff = -1.0)
-		: Force(cutoff < 0.0 ? 3.0 * sigma_ : cutoff),
-		epsilon(epsilon_), sigma(sigma_), sigma2(sigma * sigma) {}
+		: Force(cutoff < 0.0 ? 3.0 * sigma_ : cutoff), epsilon(epsilon_), sigma(sigma_) {
+			const double sigma2 = sigma * sigma;
+			const double sigma6 = sigma2 * sigma2 * sigma2;
+			const double sigma12 = sigma6 * sigma6;
+
+			c6_force = 24.0 * epsilon * sigma6;
+			c12_force = 48.0 * epsilon * sigma12;
+		}
 
 
 		template<env::FieldMask M, env::IsUserData U>
 		vec3 eval(const env::ParticleView<M, U> &, const env::ParticleView<M, U> &, const vec3& r) const noexcept {
-			const double inv_r2 = 1.0 / r.norm_squared();
-			const double sigma_r2 = sigma2 * inv_r2;
-			const double sigma_r6 = sigma_r2 * sigma_r2 * sigma_r2;
-			const double sigma_r12 = sigma_r6 * sigma_r6;
-			const double magnitude = 24.0 * epsilon * inv_r2 * (2.0 * sigma_r12 - sigma_r6);
+			const double inv_r = r.inv_norm();
+			const double inv_r2 = inv_r * inv_r;
+			const double inv_r6 = inv_r2 * inv_r2 * inv_r2;
+
+			const double magnitude = (c12_force * inv_r6 - c6_force) * inv_r6 * inv_r2;
 
 			// Force vector pointing along -r
 			return -magnitude * r;
@@ -40,6 +43,12 @@ namespace april::force {
 			return {mixed_epsilon, mixed_sigma, mixed_cutoff};
 		}
 	private:
-		double sigma2;
+		// Precomputed force constants
+		double c12_force;
+		double c6_force;
+
+		double epsilon; // Depth of the potential well
+		double sigma; // Distance at which potential is zero
+
 	};
 }

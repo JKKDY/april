@@ -75,6 +75,17 @@ namespace april::force {
             return force_cutoff2;
         }
 
+        // bool equals(this const auto & self, const auto & other) {
+        //     using SelfT  = std::remove_cvref_t<decltype(self)>;
+        //     using OtherT = std::remove_cvref_t<decltype(other)>;
+        //
+        //     if constexpr (!std::same_as<SelfT, OtherT>) {
+        //         return false;
+        //     }
+        //
+        //     return self.operator==(other);
+        // }
+
     private:
         double force_cutoff;
         double force_cutoff2;

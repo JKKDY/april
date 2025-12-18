@@ -30,5 +30,7 @@ namespace april::force {
             const double mixed_cutoff = 0.5 * (cutoff() + other.cutoff());
             return Gravity(static_cast<uint8_t>(std::round(mixed_factor)), mixed_cutoff);
         }
+
+        bool operator==(const Gravity&) const = default;
     };
 }

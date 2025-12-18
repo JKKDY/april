@@ -21,5 +21,7 @@ namespace april::force {
 		[[nodiscard]] NoForce mix(NoForce const&) const noexcept {
 			return {};
 		}
+
+		bool operator==(const NoForce&) const = default;
 	};
 }

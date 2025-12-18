@@ -75,16 +75,22 @@ namespace april::force {
             return force_cutoff2;
         }
 
-        // bool equals(this const auto & self, const auto & other) {
-        //     using SelfT  = std::remove_cvref_t<decltype(self)>;
-        //     using OtherT = std::remove_cvref_t<decltype(other)>;
-        //
-        //     if constexpr (!std::same_as<SelfT, OtherT>) {
-        //         return false;
-        //     }
-        //
-        //     return self.operator==(other);
-        // }
+        bool equals(this const auto & self, const auto & other) {
+            using SelfT  = std::remove_cvref_t<decltype(self)>;
+            using OtherT = std::remove_cvref_t<decltype(other)>;
+
+            if constexpr (!std::same_as<SelfT, OtherT>) {
+                return false;
+            }
+
+            if (self.force_cutoff != other.force_cutoff) {
+                return false;
+            }
+
+            return self == other;
+        }
+
+        bool operator==(const Force&) const = default;
 
     private:
         double force_cutoff;
@@ -159,6 +165,8 @@ namespace april::force {
                 std::unreachable();
             }
             [[nodiscard]] ForceSentinel mix(ForceSentinel const&) const { return {}; }
+
+            bool operator==(const ForceSentinel&) const = default;
         };
 
 

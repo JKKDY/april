@@ -25,7 +25,7 @@ namespace april::core {
 	requires container::IsContainerDecl<C, typename E::traits>
 	System<C, typename E::traits> build_system(
 		const E & environment,
-		const C & container,
+		const C & container_config,
 		BuildInfo * build_info = nullptr
 	);
 
@@ -81,33 +81,33 @@ namespace april::core {
 
 		// INDEX ACCESSORS (fast)
 		template<env::FieldMask M>
-		[[nodiscard]] auto at(size_t index) {
+		[[nodiscard]] auto at(const size_t index) {
 			return particle_container.template at<M>(index);
 		}
 
 		template<env::FieldMask M>
-		[[nodiscard]] auto view(size_t index) const {
+		[[nodiscard]] auto view(const size_t index) const {
 			return particle_container.template view<M>(index);
 		}
 
 		template<env::FieldMask M>
-		[[nodiscard]] auto restricted_at(size_t index) {
+		[[nodiscard]] auto restricted_at(const size_t index) {
 			return particle_container.template restricted_at<M>(index);
 		}
 
 		// ID ACCESSORS (stable)
 		template<env::FieldMask M>
-		[[nodiscard]] auto at_id(env::ParticleID id) {
+		[[nodiscard]] auto at_id(const env::ParticleID id) {
 			return particle_container.template at_id<M>(id);
 		}
 
 		template<env::FieldMask M>
-		[[nodiscard]] auto view_id(env::ParticleID id) const {
+		[[nodiscard]] auto view_id(const env::ParticleID id) const {
 			return particle_container.template view_id<M>(id);
 		}
 
 		template<env::FieldMask M>
-		[[nodiscard]] auto restricted_at_id(env::ParticleID id) {
+		[[nodiscard]] auto restricted_at_id(const env::ParticleID id) {
 			return particle_container.template restricted_at_id<M>(id);
 		}
 
@@ -125,7 +125,7 @@ namespace april::core {
 			return particle_container.max_id();
 		}
 
-		[[nodiscard]] bool contains(env::ParticleID id) const noexcept {
+		[[nodiscard]] bool contains(const env::ParticleID id) const noexcept {
 			return particle_container.invoke_contains(id);
 		}
 
@@ -171,7 +171,6 @@ namespace april::core {
 		}
 
 
-
 		// -----------------
 		// STRUCTURE UPDATES
 		// -----------------
@@ -196,8 +195,6 @@ namespace april::core {
 		}
 
 
-
-		
 		// -------
 		// PHYSICS
 		// -------
@@ -219,7 +216,7 @@ namespace april::core {
 
 
 	private:
-		env::Box simulation_box;
+		env::Box simulation_box; // TODO rename to domain
 		BoundaryTable boundary_table;
 		ForceTable force_table;
 		ControllerStorage controllers;
@@ -238,7 +235,7 @@ namespace april::core {
 		// private constructor since System should only be creatable through build_system(...)
 		System(
 			const ContainerDecl& container_cfg,
-			const container::internal::ContainerFlags & container_flags,
+			const container::internal::ContainerCreateInfo & container_info,
 			const env::Box& domain_in,
 			const std::vector<ParticleRec>& particles,
 			const BoundaryTable& boundaries_in,
@@ -251,14 +248,13 @@ namespace april::core {
 			  force_table(forces_in),
 			  controllers(controllers_in),
 			  fields(fields_in),
-			  particle_container(Container(container_cfg, container_flags, container::internal::ContainerHints{}, domain_in)),  // TODO replace container hints with actual input
+			  particle_container(Container(container_cfg, container_info)),
 			  system_context(*this),
 			  trig_context(*this)
 		{
 			particle_container.invoke_build(particles);
 			controllers.for_each_item([&](auto& c) { c.dispatch_init(context()); });
 			fields.for_each_item([&](auto& f) { f.dispatch_init(context()); });
-
 		}
 
 		// Friend factory: only entry point for constructing a System

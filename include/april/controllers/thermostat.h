@@ -20,7 +20,7 @@ namespace april::controller {
 
 		template<class S>
 		void init(core::SystemContext<S> & sys) const {
-			AP_ASSERT(ctx.size() > 1, "For the thermostat to work correctly, there should be at least two particles");
+			AP_ASSERT(sys.size() > 1, "For the thermostat to work correctly, there should be at least two particles");
 
 			if (init_temp == temperature_not_set) return;
 			for (size_t i = 0; i < sys.size(); ++i) {
@@ -31,7 +31,7 @@ namespace april::controller {
 		}
 		template<class S>
 		void apply(core::SystemContext<S> & sys) const {
-			AP_ASSERT(ctx.size() > 1, "For the thermostat to work correctly, there should be at least two particles");
+			AP_ASSERT(sys.size() > 1, "For the thermostat to work correctly, there should be at least two particles");
 
 			if (target_temp == temperature_not_set) return;
 			const vec3 avg_v = average_velocity<S>(sys);

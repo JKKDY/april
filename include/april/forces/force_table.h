@@ -1,6 +1,5 @@
 #pragma once
 #include <functional>
-#include <set>
 #include <unordered_set>
 
 #include "april/forces/force.h"
@@ -9,12 +8,14 @@
 
 namespace april::force::internal {
 
+
     struct InteractionProp {
         double cutoff = 0.0;
         bool is_active = false;
         std::vector<std::pair<env::ParticleType, env::ParticleType>> used_by_types;
         std::vector<std::pair<env::ParticleID, env::ParticleID>> used_by_ids;
     };
+
 
     struct InteractionSchema {
         const std::vector<env::ParticleType> types;
@@ -25,6 +26,7 @@ namespace april::force::internal {
         const std::vector<size_t> type_interaction_matrix; // i * types.size() + j -> index into interactions
         const std::vector<size_t> id_interaction_matrix; // i * id.size() + j -> index into interactions
     };
+
 
     template<IsForceVariant ForceVariant>
     class ForceTable {
@@ -45,28 +47,126 @@ namespace april::force::internal {
             validate_force_tables();
         }
 
-        InteractionSchema generate_schema() {
+        [[nodiscard]] InteractionSchema generate_schema() const {
+            // helper to extract properties of a given force type
+            auto get_properties = [](auto const& v) -> InteractionProp {
+                return std::visit([]<typename F>(F const& f) -> InteractionProp {
+                    using T = std::decay_t<F>;
 
-            // std::vector<env::ParticleType> types(n_types);
-            // std::vector<env::ParticleID> ids(n_ids);
-            //
-            // for (int i = 0; i < n_types; ++i) types[i] = i;
-            // for (int i = 0; i < n_ids; ++i) ids[i] = i;
-            //
-            // InteractionProp get_properties = [](auto const& v){
-            //     return std::visit([](auto const& f) {
-            //         InteractionProp prop;
-            //         prop.cutoff = f.cutoff();
-            //     }, v);
-            // };
-            //
-            //
-            //
-            //
-            // return InteractionSchema{
-            //     .types = types,
-            //     .ids = ids
-            // };
+                    InteractionProp prop;
+                    prop.cutoff = f.cutoff();
+
+                    if constexpr (std::is_same_v<T, NoForce>) {
+                        prop.is_active = false;
+                    } else {
+                        prop.is_active = true;
+                    }
+
+                    return prop;
+                }, v);
+            };
+
+            // helper to check if two variants cary the same force (regarding type as well as parameters)
+            auto is_equal = [&](const ForceVariant& a, const ForceVariant& b) {
+                if (a.index() != b.index()) return false;
+                return std::visit([&]<typename A>(const A& val_a) {
+                    using T = std::decay_t<A>;
+                    const T& val_b = std::get<T>(b);
+                    return val_a.equals(val_b);
+                }, a);
+            };
+
+            // gather all types and ids in ascending order (types and ids are dense in [0,...])
+            std::vector<env::ParticleType> types(n_types);
+            std::vector<env::ParticleID> ids(n_ids);
+
+            for (size_t i = 0; i < n_types; ++i) types[i] = i;
+            for (size_t i = 0; i < n_ids; ++i) ids[i] = i;
+
+            // first we gather all forces (type forces and id forces)
+            std::vector<ForceVariant> all_forces;
+            all_forces.reserve(type_forces.size() + id_forces.size());
+
+            for (const auto & force : type_forces) all_forces.push_back(force);
+            for (const auto & force : id_forces) all_forces.push_back(force);
+
+            // and we also create a corresponding properties vector for every force
+            std::vector<InteractionProp> all_force_props;
+            all_force_props.reserve(type_forces.size() + id_forces.size());
+            for (const auto & force : all_forces) all_force_props.push_back(get_properties(force));
+
+            // loop through all possible type pairs and register them in the properties of their interacting force
+            for (env::ParticleType i = 0; i < static_cast<env::ParticleType>(n_types); i++) {
+                for (env::ParticleType j = 0; j < static_cast<env::ParticleType>(n_types); j++) {
+                    all_force_props[type_index(i, j)].used_by_types.emplace_back(i, j);
+                }
+            }
+
+            // loop through all possible (relevant) id pairs and register them in the properties of their interacting force
+            for (env::ParticleID i = 0; i < static_cast<env::ParticleID>(n_ids); i++) {
+                for (env::ParticleID j = 0; j < static_cast<env::ParticleID>(n_ids); j++) {
+                    all_force_props[type_forces.size() + id_index(i, j)].used_by_ids.emplace_back(i, j);
+                }
+            }
+
+            // now we merge the properties of all identical forces
+            // first we create a vector of unique forces and track which force in all_forces maps a force in unique_forces
+            std::vector<size_t> remapping(all_forces.size());
+            std::vector<ForceVariant> unique_forces;
+            std::vector<InteractionProp> unique_props;
+
+            for (size_t i = 0; i < all_forces.size(); i++) {
+                const auto & current_force = all_forces[i];
+                auto& current_prop  = all_force_props[i];
+
+                // check if current_force is already contained in unique forces
+                bool found = false;
+                size_t found_idx = 0;
+
+                for (size_t j = 0; j < unique_forces.size(); ++j) {
+                    if (is_equal(current_force, unique_forces[j])) {
+                        found = true;
+                        found_idx = j;
+                        break;
+                    }
+                }
+
+                if (found) {
+                    // current force is a duplicate of unique_forces[found_idx] -> merge
+                    auto & props = unique_props[found_idx];
+
+                    props.used_by_types.insert(props.used_by_types.end(), current_prop.used_by_types.begin(), current_prop.used_by_types.end());
+                    props.used_by_ids.insert(props.used_by_ids.end(), current_prop.used_by_ids.begin(), current_prop.used_by_ids.end());
+
+                    remapping[i] = found_idx;
+                } else {
+                    // current force is not in unique_forces -> create new entry
+                    const size_t new_idx = unique_forces.size();
+                    unique_forces.push_back(current_force);
+                    unique_props.push_back(std::move(all_force_props[i]));
+
+                    remapping[i] = new_idx;
+                }
+            }
+
+            std::vector<size_t> type_interaction_matrix(n_types * n_types);
+            std::vector<size_t> id_interaction_matrix(n_ids * n_ids);
+
+            for (size_t i = 0; i < n_types * n_types; ++i) {
+                type_interaction_matrix[i] = remapping[i];
+            }
+
+            for (size_t i = 0; i < n_ids * n_ids; ++i) {
+                id_interaction_matrix[i] = remapping[n_types * n_types + i];
+            }
+
+            return InteractionSchema{
+                .types = types,
+                .ids = ids,
+                .interactions = unique_props,
+                .type_interaction_matrix = type_interaction_matrix,
+                .id_interaction_matrix = id_interaction_matrix
+            };
         }
 
 
@@ -143,7 +243,7 @@ namespace april::force::internal {
             n_types = particle_types.size();
             type_forces.resize(n_types * n_types);
 
-            // insert type forces into map & apply usr mappings
+            // insert type forces into map & apply user mappings
             for (auto& x : type_infos) {
                 const auto a = type_map.at(x.type1);
                 const auto b = type_map.at(x.type2);

@@ -34,5 +34,7 @@ namespace april::force {
 			const Harmonic h(mixed_k, mixed_r0, std::max(cutoff(), other.cutoff()));
 			return h;
 		}
+
+		bool operator==(const Harmonic&) const = default;
 	};
 }

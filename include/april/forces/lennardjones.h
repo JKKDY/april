@@ -42,6 +42,8 @@ namespace april::force {
 			const double mixed_cutoff = std::sqrt(cutoff() * other.cutoff());
 			return {mixed_epsilon, mixed_sigma, mixed_cutoff};
 		}
+
+		bool operator==(const LennardJones&) const = default;
 	private:
 		// Precomputed force constants
 		double c12_force;
@@ -49,6 +51,5 @@ namespace april::force {
 
 		double epsilon; // Depth of the potential well
 		double sigma; // Distance at which potential is zero
-
 	};
 }

@@ -22,13 +22,20 @@ namespace april::container {
 			bool particle_deletable;	// particles can be deleted during run time
 		};
 
-
 		struct ContainerHints {
 			// TODO add regions that will be queried in the future so the container can keep track of particles better
 			std::vector<env::ParticleID> interacting_particles;
 			std::vector<env::Box> query_regions;
 		};
+
+		struct ContainerCreateInfo {
+			ContainerFlags flags {};
+			ContainerHints hints {};
+			force::internal::InteractionSchema force_schema {};
+			env::Box domain {};
+		};
 	}
+
 
 
 	template<class C, env::IsUserData U>
@@ -38,11 +45,8 @@ namespace april::container {
 		using UserData = U;
 		using Config = C;
 
-		Container(const Config & config,
-			const internal::ContainerFlags & flags,
-			const internal::ContainerHints & hints,
-			const env::Box & box)
-			: config(config), flags(flags), hints(hints), domain(box)
+		Container(const Config & config, const internal::ContainerCreateInfo & info):
+			config(config), flags(info.flags), hints(info.hints), domain(info.domain)
 		{}
 
 		void invoke_build(this auto&& self, const std::vector<ParticleRecord>& particles) {
@@ -141,7 +145,7 @@ namespace april::container {
 		// ------------------
 		// INDEX ACCESSORS
 		template<env::FieldMask M>
-	[[nodiscard]] auto at(this auto&& self, size_t index) {
+		[[nodiscard]] auto at(this auto&& self, size_t index) {
 			return env::ParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
@@ -255,6 +259,7 @@ namespace april::container {
 
 		template<env::FieldMask M>
 		[[nodiscard]] auto access_particle_id(this auto&& self, const env::ParticleID id) {
+			// its optional to implement get_field_ptr_id. The fallback is to use id -> index and access_particle
 
 		    // Safety check: If Mask is empty, return empty source immediately.
 		    if constexpr (M == 0) return env::ParticleSource<0, U, false>{};
@@ -263,10 +268,10 @@ namespace april::container {
 		    // We cannot check the function "in general" because it is a template.
 		    constexpr auto TestF = static_cast<env::Field>(1 << std::countr_zero(M));
 
-		    // CHECK: Does 'get_field_ptr_id<TestF>(id)' compile?
+		    // does 'get_field_ptr_id<TestF>(id)' compile?
 		    if constexpr (requires { self.template get_field_ptr_id<TestF>(id); }) {
 
-		        // specialized path (Direct ID Access)
+		        // specialized path (direct ID access)
 		        constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 		        env::ParticleSource<M, U, IsConst> src;
 

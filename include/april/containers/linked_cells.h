@@ -65,7 +65,6 @@ namespace april::container::internal {
 
 		struct SymmetricChunk {
 			std::ranges::iota_view<size_t, size_t> indices;
-
 		};
 
 		struct AsymmetricChunkedBatch : SerialBatch<BatchSymmetry::Asymmetric> {
@@ -204,6 +203,7 @@ namespace april::container::internal {
 
 
 		void rebuild_structure() {
+			// TODO use hilbert curve sorting on the cells
 			const size_t num_bins = bin_start_indices.size();
 			std::ranges::fill(bin_start_indices, 0);
 

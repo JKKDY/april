@@ -2,7 +2,6 @@
 
 #include <vector>
 #include "april/system/system.h"
-#include "april/particle/fields.h"
 #include "april/env/environment.h"
 #include "april/containers/container.h"
 #include "april/env/domain.h"
@@ -25,7 +24,7 @@ namespace april::core {
 	requires container::IsContainerDecl<Container, typename EnvT::traits>
 	System<Container, typename EnvT::traits> build_system(
 		const EnvT & environment,
-		const Container& container,
+		const Container& container_config,
 		BuildInfo * build_info
 	) {
 		using BoundaryTable = typename EnvT::traits::boundary_table_t;
@@ -80,9 +79,16 @@ namespace april::core {
 			build_info->simulation_domain = env::Domain(simulation_box.min, simulation_box.extent);
 		}
 
+		container::internal::ContainerCreateInfo container_info {
+			.flags = internal::set_container_flags(topologies),
+			.hints = container::internal::ContainerHints(),
+			.force_schema = forces.generate_schema(),
+			.domain = simulation_box
+		};
+
 		return System<Container, typename EnvT::traits> (
-			container,
-			internal::set_container_flags(topologies),
+			container_config,
+			container_info,
 			simulation_box,
 			particles,
 			boundaries,

@@ -46,7 +46,7 @@ namespace april::container {
 		using Config = C;
 
 		Container(const Config & config, const internal::ContainerCreateInfo & info):
-			config(config), flags(info.flags), hints(info.hints), domain(info.domain)
+			config(config), flags(info.flags), hints(info.hints), force_schema(info.force_schema), domain(info.domain)
 		{}
 
 		void invoke_build(this auto&& self, const std::vector<ParticleRecord>& particles) {
@@ -209,10 +209,11 @@ namespace april::container {
 
 
 	protected:
-		Config config;
+		const Config config;
 		const internal::ContainerFlags flags;
 		const internal::ContainerHints hints;
-		env::Box domain;
+		const force::internal::InteractionSchema force_schema;
+		const env::Box domain; // Note: in the future this may be adjustable during run time
 
 	private:
 

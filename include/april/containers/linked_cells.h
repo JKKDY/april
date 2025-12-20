@@ -16,7 +16,7 @@ namespace april::container {
 
 	struct LinkedCells {
 		template<class U> using impl = internal::LinkedCells<U>;
-		double cell_size_hint;
+		std::optional<double> cell_size_hint;
 
 		void with_cell_size(const double cell_size) {
 			cell_size_hint = cell_size;
@@ -38,6 +38,7 @@ namespace april::container::internal {
 		using Base::id_to_index_map;
 		using Base::flags;
 		using Base::build_storage;
+		using Base::force_schema;
 
 		enum CellWrapFlag : uint8_t {
 			NO_WRAP = 0,
@@ -239,7 +240,7 @@ namespace april::container::internal {
 		}
 
 
-		std::vector<size_t> collect_indices_in_region(const env::Box & region) const {
+		[[nodiscard]] std::vector<size_t> collect_indices_in_region(const env::Box & region) const {
 			std::vector<uint32_t> cells = get_cells_in_region(region);
 			std::vector<size_t> ret;
 
@@ -286,12 +287,24 @@ namespace april::container::internal {
 
 		
 		void setup_cell_grid() {
-			// TODO add automatic cell size option
+			double cell_size_hint;
+			if (config.cell_size_hint.has_value()) {
+				AP_ASSERT(config.cell_size_hint.value() > 0, "config.cell_size_hint must be greater than 0");
+				cell_size_hint = config.cell_size_hint.value();
+			} else {
+				double max_cutoff = 0;
+				for (const auto & interaction : force_schema.interactions) {
+					if (interaction.is_active && !interaction.used_by_types.empty() && interaction.cutoff > max_cutoff) {
+						max_cutoff = interaction.cutoff;
+					}
+				}
+				cell_size_hint = max_cutoff;
+			}
 
 			// compute number of cells along each axis
-			const auto num_x = static_cast<unsigned int>(std::max(1.0, floor(domain.extent.x / config.cell_size_hint)));
-			const auto num_y = static_cast<unsigned int>(std::max(1.0, floor(domain.extent.y / config.cell_size_hint)));
-			const auto num_z = static_cast<unsigned int>(std::max(1.0, floor(domain.extent.z / config.cell_size_hint)));
+			const auto num_x = static_cast<unsigned int>(std::max(1.0, floor(domain.extent.x / cell_size_hint)));
+			const auto num_y = static_cast<unsigned int>(std::max(1.0, floor(domain.extent.y / cell_size_hint)));
+			const auto num_z = static_cast<unsigned int>(std::max(1.0, floor(domain.extent.z / cell_size_hint)));
 
 			// calculate cell size along each axis and cache inverse
 			cell_size = {domain.extent.x / num_x, domain.extent.y / num_y, domain.extent.z / num_z};
@@ -303,22 +316,15 @@ namespace april::container::internal {
 
 			cells_per_axis = uint3{num_x, num_y, num_z};
 
-			// compute number of types
-			// TODO this info should be injected by ContainerHints
-			std::unordered_set<env::ParticleType> types;
-			for (const auto & p : particles) {
-				types.insert(p.type);
-			}
-
 			// set scalars
-			n_types = types.size();
+			n_types = force_schema.types.size();
 			n_grid_cells = num_x * num_y * num_z;
 			n_cells = n_grid_cells + 1;
 			outside_cell_id = n_grid_cells;
 
 			// allocate buffers
 			bin_start_indices.resize(n_cells * n_types + 1); // size = (total Cells * types) + sentinel
-			write_ptr.resize(n_cells * n_types);
+			write_ptr.resize(n_cells * n_types + 1);
 			tmp_particles.resize(particles.size());
 		}
 

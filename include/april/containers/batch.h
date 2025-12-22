@@ -124,4 +124,12 @@ namespace april::container {
 		}
 	};
 
+
+
+	// ---- Topology batch
+	struct TopologyBatch {
+		env::ParticleID id1, id2;
+		std::vector<std::pair<env::ParticleID, env::ParticleID>> pairs;
+	};
+
 }

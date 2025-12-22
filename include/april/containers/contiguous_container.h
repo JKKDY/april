@@ -2,17 +2,37 @@
 
 #include "april/particle/particle.h"
 #include "april/containers/container.h"
+#include "april/containers/batch.h"
 
 namespace april::container {
 
 	template<typename Config, env::IsUserData U>
 	class ContiguousContainer : public Container<Config, U>{
+
 	public:
 		using Base = Container<Config, U>;
+		using Base::force_schema;
 		friend Base;
 
 		using Particle = env::internal::ParticleRecord<U>;
 		using Base::Base;
+
+		ContiguousContainer(const Config & config, const internal::ContainerCreateInfo & info):
+			Container<Config, U>(config, info)
+		{
+			for (size_t i = 0; i < force_schema.interactions.size(); ++i) {
+				const auto& prop = force_schema.interactions[i];
+
+				if (!prop.used_by_ids.empty() && prop.is_active) {
+					TopologyBatch batch;
+					batch.id1 = prop.used_by_ids[0].first;
+					batch.id2 = prop.used_by_ids[0].second;
+					batch.pairs = prop.used_by_ids;
+
+					topology_batches.push_back(std::move(batch));
+				}
+			}
+		}
 
 		void build_storage(const std::vector<Particle>& particles) {
 			AP_ASSERT(!is_built, "storage has already been built");
@@ -24,6 +44,13 @@ namespace april::container {
 				id_to_index_map[id] = i;
 			}
 			this->is_built = true;
+		}
+
+		template<typename Func>
+		void for_each_topology_batch(Func && func) {
+			for (const auto & batch : topology_batches) {
+				func(batch);
+			}
 		}
 
 		// INDEXING
@@ -73,6 +100,7 @@ namespace april::container {
 		std::vector<Particle> particles = {};
 		std::vector<uint32_t> id_to_index_map; // map id to index
 	private:
+		std::vector<TopologyBatch> topology_batches;
 		bool is_built = false;
 	};
 }

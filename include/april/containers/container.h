@@ -55,9 +55,9 @@ namespace april::container {
 
 
 
-		// ---------
+		// --------------
 		// FUNCTIONAL OPS
-		// ---------
+		// --------------
 		template<env::FieldMask M, typename Func, bool parallelize=false> // TODO restrict callable Func (invoke_for_each_particle)
 		void invoke_for_each_particle(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
 			// check if subclass provides implementation
@@ -79,6 +79,11 @@ namespace april::container {
 		template<typename Func> // TODO restrict callable Func (invoke_for_each_batch)
 		void invoke_for_each_interaction_batch(this auto&& self, Func && func) {
 			self.for_each_interaction_batch(std::forward<Func>(func));
+		}
+
+		template<typename Func>
+		void invoke_for_each_topology_batch(this auto&& self, Func&& func) {
+			self.for_each_topology_batch(std::forward<Func>(func));
 		}
 
 
@@ -106,6 +111,7 @@ namespace april::container {
 				return curr;
 			}
 		}
+
 
 
 		// -----------------

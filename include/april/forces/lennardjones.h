@@ -22,7 +22,6 @@ namespace april::force {
 			c12_force = 48.0 * epsilon * sigma12;
 		}
 
-
 		template<env::FieldMask M, env::IsUserData U>
 		vec3 eval(const env::ParticleView<M, U> &, const env::ParticleView<M, U> &, const vec3& r) const noexcept {
 			const double inv_r = r.inv_norm();

@@ -410,6 +410,32 @@ namespace april::core {
 
 		particle_container.template invoke_for_each_particle<+env::Field::force>(reset_force);
 		particle_container.invoke_for_each_interaction_batch(update_batch);
+
+
+		// handle id interactions
+		auto update_global_batch = [&](const auto & batch) {
+
+			auto apply_batch_update = [&] <force::IsForce ForceT> (const ForceT & force) {
+				constexpr env::FieldMask fields = ForceT::fields;
+				constexpr env::FieldMask upd_fields = env::Field::force | env::Field::position;
+				constexpr env::FieldMask all_fields = upd_fields | fields;
+
+				for (const auto & [id1, id2] : batch.pairs) {
+					auto && p1 = particle_container.template restricted_at_id<all_fields>(id1);
+					auto && p2 = particle_container.template restricted_at_id<all_fields>(id2);
+
+					vec3 r = p2.position - p1.position;
+					const vec3 f = force(p1.to_view(), p2.to_view(), r);
+
+					p1.force += f;
+					p2.force -= f;
+				}
+			};
+
+			force_table.dispatch_id(batch.id1, batch.id2, apply_batch_update);
+		};
+
+		particle_container.invoke_for_each_topology_batch(update_global_batch);
 	}
 
 

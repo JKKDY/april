@@ -21,10 +21,11 @@ namespace april::force::internal {
         const std::vector<env::ParticleType> types;
         const std::vector<env::ParticleID> ids;
 
-        const std::vector<InteractionProp> interactions;
-
         const std::vector<size_t> type_interaction_matrix; // i * types.size() + j -> index into interactions
         const std::vector<size_t> id_interaction_matrix; // i * id.size() + j -> index into interactions
+
+        const std::vector<InteractionProp> interactions;
+
     };
 
 
@@ -104,7 +105,7 @@ namespace april::force::internal {
 
             // loop through all possible (relevant) id pairs and register them in the properties of their interacting force
             for (env::ParticleID i = 0; i < static_cast<env::ParticleID>(n_ids); i++) {
-                for (env::ParticleID j = 0; j < static_cast<env::ParticleID>(n_ids); j++) {
+                for (env::ParticleID j = i+1; j < static_cast<env::ParticleID>(n_ids); j++) {
                     all_force_props[type_forces.size() + id_index(i, j)].used_by_ids.emplace_back(i, j);
                 }
             }
@@ -163,9 +164,9 @@ namespace april::force::internal {
             return InteractionSchema{
                 .types = types,
                 .ids = ids,
-                .interactions = unique_props,
                 .type_interaction_matrix = type_interaction_matrix,
-                .id_interaction_matrix = id_interaction_matrix
+                .id_interaction_matrix = id_interaction_matrix,
+                .interactions = unique_props,
             };
         }
 
@@ -217,7 +218,6 @@ namespace april::force::internal {
         std::vector<ForceVariant> id_forces; // Forces between specific particle instances (by ID e.g. id1 <-> id2)
         size_t n_types{};
         size_t n_ids{};
-
 
         double max_cutoff = 0;
 

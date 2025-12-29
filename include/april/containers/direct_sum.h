@@ -131,13 +131,14 @@ namespace april::container {
 				for (size_t i = 0; i < particles.size(); i++) {
 					auto & p = particles[i];
 					if (current_type != p.type) {
-						type_ranges[current_type] = {start, i};
-						start = i;
+						type_ranges[current_type] = std::ranges::iota_view(start, i);;
 
+						start = i;
 						current_type = p.type;
 					}
 				}
-				type_ranges[current_type] = {start, this->particles.size()}; // last batch
+				type_ranges[current_type] = std::ranges::iota_view(start, particles.size()); // last batch
+
 				const env::ParticleType n_types = current_type + 1;
 
 				// create a batch for each particle type

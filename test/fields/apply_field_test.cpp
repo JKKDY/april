@@ -22,7 +22,7 @@ public:
     SpyFieldSinks* sinks = nullptr;
 
     explicit SpyField(SpyFieldSinks* sinks_ptr) : sinks(sinks_ptr) {}
-    SpyField() : sinks(nullptr) {} // Default ctor is required
+    SpyField() {} // Default ctor is required
 
     template<class S>
     void init(const core::SystemContext<S>&) {

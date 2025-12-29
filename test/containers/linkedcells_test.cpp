@@ -218,7 +218,7 @@ TEST(LinkedCellsTest, CollectIndicesInRegion) {
         // Case 1: small inner region (should include one particle)
         {
             env::Domain region({0.1, 0.1, 0.1}, {0.9, 0.9, 0.9});
-            auto indices = sys.collect_indices_in_region(region);
+            auto indices = sys.query_region(region);
             ASSERT_EQ(indices.size(), 1u);
 	        auto p = export_particles(sys)[indices[0]];
             EXPECT_EQ(p.position.x, 0.25);
@@ -229,20 +229,20 @@ TEST(LinkedCellsTest, CollectIndicesInRegion) {
         // Case 2: mid region (should include all 27)
         {
             env::Domain region({0, 0, 0}, {5, 5, 5});
-            auto indices = sys.collect_indices_in_region(region);
+            auto indices = sys.query_region(region);
             EXPECT_EQ(indices.size(), 27u);
         }
 
         // Case 3: partially overlapping region
         {
             env::Domain region({1.5, 1.5, 1.5}, {4.5, 4.5, 4.5});
-            std::vector indices = sys.collect_indices_in_region(region);
+            std::vector indices = sys.query_region(region);
             EXPECT_GT(indices.size(), 0u);
             EXPECT_LT(indices.size(), 27u);
 
         	std::unordered_set inside (indices.begin(), indices.end());
 
-        	for (size_t id = sys.id_start(); id < sys.id_end(); id++) {
+			for (size_t id = sys.min_id(); id < sys.max_id(); id++) {
 				auto p = get_particle(sys, id);
         		bool in_region = (p.position.x >= 1.5 && p.position.x <= 4.5) &&
 					(p.position.y >= 1.5 && p.position.y <= 4.5) &&
@@ -259,7 +259,7 @@ TEST(LinkedCellsTest, CollectIndicesInRegion) {
         // Case 4: region completely outside
         {
             env::Domain region({10, 10, 10}, {12, 12, 12});
-            auto indices = sys.collect_indices_in_region(region);
+            auto indices = sys.query_region(region);
             EXPECT_TRUE(indices.empty());
         }
     }
@@ -267,11 +267,14 @@ TEST(LinkedCellsTest, CollectIndicesInRegion) {
 
 // does nothing except signaling the container to be periodic
 struct DummyPeriodicBoundary final : Boundary {
+	static constexpr env::FieldMask fields = +env::Field::none;
+
 	DummyPeriodicBoundary()
 	: Boundary(0.0, false, true, false ) {}
 
-	template<env::IsFetcher F>
-	void apply(F &&, const env::Box &, const Face) const noexcept {}
+	template<env::FieldMask M, env::IsUserData U>
+		void apply(env::ParticleRef<M, U> &, const env::Box &, const Face) const noexcept{
+	}
 };
 
 TEST(LinkedCellsTest, PeriodicForceWrap_X) {

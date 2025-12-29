@@ -17,16 +17,41 @@ inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& 
 	return p;
 }
 
+template<env::FieldMask Mask, typename RecordT>
+auto make_source(RecordT& record) {
+	// Determine constness based on RecordT (allows making const sources from const records)
+	constexpr bool IsConst = std::is_const_v<RecordT>;
+	using UserDataT = typename RecordT::user_data_t;
+
+	env::ParticleSource<Mask, UserDataT, IsConst> src;
+
+	if constexpr (env::has_field_v<Mask, env::Field::position>)     src.position     = &record.position;
+	if constexpr (env::has_field_v<Mask, env::Field::velocity>)     src.velocity     = &record.velocity;
+	if constexpr (env::has_field_v<Mask, env::Field::force>)        src.force        = &record.force;
+	if constexpr (env::has_field_v<Mask, env::Field::old_position>) src.old_position = &record.old_position;
+	if constexpr (env::has_field_v<Mask, env::Field::mass>)         src.mass         = &record.mass;
+	if constexpr (env::has_field_v<Mask, env::Field::state>)        src.state        = &record.state;
+	if constexpr (env::has_field_v<Mask, env::Field::type>)         src.type         = &record.type;
+	if constexpr (env::has_field_v<Mask, env::Field::id>)           src.id           = &record.id;
+	if constexpr (env::has_field_v<Mask, env::Field::user_data>)    src.user_data    = &record.user_data;
+
+	return src;
+}
+
 
 // Direct Application Tests
 TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 	const Periodic periodic;
+	constexpr env::FieldMask Mask = Periodic::fields;
+
 	const env::Box box({0,0,0}, {10,10,10});
 
 	// Particle just beyond +X boundary
 	auto p = make_particle({10.2, 5.0, 5.0});
-	auto pf = env::internal::ParticleRecordFetcher(p);
-	periodic.apply(pf, box, Face::XPlus);
+	auto src = make_source<Mask>(p);
+	env::ParticleRef<Mask, env::NoUserData> ref(src);
+
+	periodic.apply(ref, box, Face::XPlus);
 
 	EXPECT_NEAR(p.position.x, 0.2, 1e-12);
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);
@@ -35,12 +60,15 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 
 TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 	const Periodic periodic;
+	constexpr env::FieldMask Mask = Periodic::fields;
 	const env::Box box({0,0,0}, {10,10,10});
 
 	// Particle just beyond -X boundary
 	auto p = make_particle({-0.3, 5.0, 5.0});
-	auto pf = env::internal::ParticleRecordFetcher(p);
-	periodic.apply(pf, box, Face::XMinus);
+	auto src = make_source<Mask>(p);
+	env::ParticleRef<Mask, env::NoUserData> ref(src);
+
+	periodic.apply(ref, box, Face::XMinus);
 
 	EXPECT_NEAR(p.position.x, 9.7, 1e-12);
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);
@@ -50,6 +78,8 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 	const Periodic periodic;
 	const env::Box box({0,0,0}, {10,10,10});
+	constexpr env::FieldMask Mask = Periodic::fields;
+
 
 	const std::array start_positions = {
 		vec3{-0.1, 5, 5},   // X-
@@ -74,8 +104,9 @@ TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 
 	for (size_t i = 0; i < faces.size(); ++i) {
 		auto p = make_particle(start_positions[i]);
-		auto pf = env::internal::ParticleRecordFetcher(p);
-		periodic.apply(pf, box, faces[i]);
+		auto src = make_source<Mask>(p);
+		env::ParticleRef<Mask, env::NoUserData> ref(src);
+		periodic.apply(ref, box, faces[i]);
 		EXPECT_NEAR(p.position.x, expected[i].x, 1e-12);
 		EXPECT_NEAR(p.position.y, expected[i].y, 1e-12);
 		EXPECT_NEAR(p.position.z, expected[i].z, 1e-12);
@@ -100,14 +131,20 @@ TEST(PeriodicBoundaryTest, Topology_IsOutsideCoupledAndWrapsForces) {
 // 3. Compiled Boundary Variant
 TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 	std::variant<Periodic> variant = Periodic();
+	constexpr env::FieldMask Mask = Periodic::fields;
 	env::Domain domain({0,0,0}, {10,10,10});
 
 	auto compiled = boundary::internal::compile_boundary(variant, env::Box::from_domain(domain), Face::ZPlus);
+
 	auto p = make_particle({5,5,10.2});
-	auto pf = env::internal::ParticleRecordFetcher(p);
+	auto src = make_source<Mask>(p);
+	env::ParticleRef<Mask, env::NoUserData> ref(src);
+
 	env::Box box({0,0,0}, {10,10,10});
 
-	compiled.apply(pf, box, Face::ZPlus);
+	compiled.dispatch([&](auto && bc) {
+		bc.apply(ref, box, Face::ZPlus);
+	});
 
 	EXPECT_NEAR(p.position.z, 0.2, 1e-12)
 		<< "Periodic boundary should wrap Z+ back into domain.";
@@ -145,8 +182,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 	// Simulate one integration step: move each particle outside its face
 	simulate_single_step(sys);
 
-
-	sys.register_all_particle_movements();
+	sys.rebuild_structure();
 	sys.apply_boundary_conditions();
 
 	// Expected positions after wrapping (10x10x10 domain)
@@ -161,11 +197,11 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 
 	for (int uid = 0; uid < 6; ++uid) {
 		auto iid = mappings.id_map.at(uid);
-		const auto p = get_particle(sys, iid);
+		const auto p = get_particle_by_id(sys, iid);
 
-		EXPECT_NEAR(p.position.x, expected[iid].x, 1e-12);
-		EXPECT_NEAR(p.position.y, expected[iid].y, 1e-12);
-		EXPECT_NEAR(p.position.z, expected[iid].z, 1e-12);
+		EXPECT_NEAR(p.position.x, expected[uid].x, 1e-12);
+		EXPECT_NEAR(p.position.y, expected[uid].y, 1e-12);
+		EXPECT_NEAR(p.position.z, expected[uid].z, 1e-12);
 	}
 }
 
@@ -186,7 +222,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinu
 	simulate_single_step(sys);
 
 
-	sys.register_all_particle_movements();
+	sys.rebuild_structure();
 	sys.apply_boundary_conditions();
 
 	const auto p = get_particle(sys, mappings.id_map.at(0));

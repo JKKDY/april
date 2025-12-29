@@ -24,7 +24,7 @@ namespace april::controller {
 
 			if (init_temp == temperature_not_set) return;
 			for (size_t i = 0; i < sys.size(); ++i) {
-				auto p = sys.template view<mass_vel>(i);
+				auto p = sys.template at<mass_vel>(i);
 				const double sigma = std::sqrt(init_temp / p.mass);
 				p.velocity = shared::maxwell_boltzmann_velocity_distribution(sigma, dimensions(sys));
 			}
@@ -45,7 +45,7 @@ namespace april::controller {
 				// by setting new thermal velocities, just like init(),
 				// but preserving the average velocity.
 				for (size_t i = 0; i < sys.size(); ++i) {
-					auto p = sys.template get_particle_by_index<mass_vel>(i);
+					auto p = sys.template at<mass_vel>(i);
 					const double sigma = std::sqrt(new_T / p.mass);
 					p.velocity = avg_v + shared::maxwell_boltzmann_velocity_distribution(sigma, dimensions(sys));
 				}

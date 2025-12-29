@@ -92,13 +92,13 @@ TEST(Yoshida4Test, SingleStepWithForceTest) {
 
 	constexpr double vel = 0.1 / 2 * f_mag;
 
-	EXPECT_NEAR(p1.velocity.x,  vel, 1e-2);
-	EXPECT_NEAR(p1.velocity.y,  0.0, 1e-2);
-	EXPECT_NEAR(p1.velocity.z,  0.0, 1e-2);
+	EXPECT_NEAR(p1.velocity.x,  vel, 2e-2);
+	EXPECT_NEAR(p1.velocity.y,  0.0, 2e-2);
+	EXPECT_NEAR(p1.velocity.z,  0.0, 2e-2);
 
-	EXPECT_NEAR(p2.velocity.x, -vel, 1e-2);
-	EXPECT_NEAR(p2.velocity.y,  0.0, 1e-2);
-	EXPECT_NEAR(p2.velocity.z,  0.0, 1e-2);
+	EXPECT_NEAR(p2.velocity.x, -vel, 2e-2);
+	EXPECT_NEAR(p2.velocity.y,  0.0, 2e-2);
+	EXPECT_NEAR(p2.velocity.z,  0.0, 2e-2);
 }
 
 

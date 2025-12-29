@@ -14,7 +14,7 @@ make_test_particle(const vec3& force) {
 	p.id = 0;
 	p.type = 0;
 	p.mass = 1.0;
-	p.state = env::ParticleState::ALIVE;
+	p.state = ParticleState::ALIVE;
 	p.position = {0,0,0};
 	p.velocity = {0,0,0};
 	return p;
@@ -24,14 +24,18 @@ make_test_particle(const vec3& force) {
 TEST(UniformFieldTest, ApplyIsAdditive) {
 	// 1. Create the field
 	const vec3 field_force = {1.0, 2.0, 3.0};
-	const auto field = field::UniformField(field_force);
+	const auto field = UniformField(field_force);
 
 	// 2. Create a mock particle with an initial force
 	auto p_rec = make_test_particle({10.0, 0.0, 0.0});
 
 	// 3. Create the necessary reference for the 'apply' method
-	auto p_fetcher = env::internal::ParticleRecordFetcher(p_rec);
-	auto p_ref = env::RestrictedParticleRef<field::UniformField::fields, env::NoUserData>(p_fetcher);
+	constexpr env::FieldMask Mask = UniformField::fields;
+
+	env::ParticleSource<Mask, env::NoUserData, false> src;
+	src.force    = &p_rec.force;
+
+	env::RestrictedParticleRef<Mask, env::NoUserData> p_ref(src);
 
 	// 4. Call apply()
 	field.apply(p_ref);

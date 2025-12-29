@@ -1,160 +1,181 @@
-// interaction_manager_test.cpp
 #include <gtest/gtest.h>
 #include <cmath>
 #include <vector>
 #include <unordered_map>
-#include <memory>
+#include <variant>
 
 #include "april/april.h"
-#include "constant_force.h"
+#include "constant_force.h" // Assumes your provided struct is here
 
 using namespace april;
+using namespace april::force;
 
-struct Charge {
-    double charge;
-};
-
-template<env::IsUserData UserDataT = Charge> struct ConstFetcher {
-    using user_data_t = UserDataT;
-    using Record = env::internal::ParticleRecord<UserDataT>;
-
-    explicit ConstFetcher(Record r) : record(r) {}
-
-    [[nodiscard]] const vec3& position() const       	{ return record.position; }
-    [[nodiscard]] const vec3& velocity() const       	{ return record.velocity; }
-    [[nodiscard]] const vec3& force() const          	{ return record.force; }
-    [[nodiscard]] const vec3& old_position() const   	{ return record.old_position; }
-    [[nodiscard]] const vec3& old_force() const      	{ return record.old_force; }
-    [[nodiscard]] double mass() const         		 	{ return record.mass; }
-    [[nodiscard]] ParticleState state() const 		 	{ return record.state; }
-    [[nodiscard]] ParticleType type() const   		 	{ return record.type; }
-    [[nodiscard]] ParticleID id() const       		 	{ return record.id; }
-    [[nodiscard]] const UserDataT & user_data() const	{ return record.user_data; }
-private:
-    Record record;
-};
-
-
-// Helper to make a dummy particle
-static ConstFetcher<> make_particle(ParticleType type, ParticleID id, double mass=1.0, vec3 pos={0,0,0}) {
-    env::internal::ParticleRecord<Charge> rec;
-    rec.id = id,
-    rec.position = pos,
-    rec.velocity = vec3{0,0,0},
-    rec.mass = mass,
-    rec.type = type,
-    rec.state = ParticleState::ALIVE;
-    rec.user_data.charge = 1;
-    return ConstFetcher(rec);
-}
-
-
-// Use an environment that supports ConstantForce
-using Env = Environment<
-    force::ForcePack<ConstantForce>,
-    boundary::BoundaryPack<>,
-    controller::ControllerPack<>,
-    field::FieldPack<>,
-    env::ParticleData<Charge>>;
-using FT  = Env::traits::force_table_t;
-using TypeInfo = force::internal::TypeInteraction<Env::traits::force_variant_t>; // variant<ConstantForce>
-using IdInfo = force::internal::IdInteraction<Env::traits::force_variant_t>; // variant<ConstantForce>
+// 1. Define the ForceVariant and ForceTable types for the test
+// Must include ForceSentinel and NoForce as per internal requirements
+using TestForceVariant = std::variant<force::internal::ForceSentinel, ConstantForce, force::NoForce>;
+using ForceTable = force::internal::ForceTable<TestForceVariant>;
+using TypeInfo = force::internal::TypeInteraction<TestForceVariant>;
+using IdInfo = force::internal::IdInteraction<TestForceVariant>;
 
 
 TEST(InteractionManagerTest, EmptyBuild) {
-    // empty maps are fine
-    EXPECT_NO_THROW(FT({}, {}, {}, {}));
+    EXPECT_NO_THROW(ForceTable({}, {}, {}, {}));
 
-    const FT mgr({}, {}, {}, {});
-    EXPECT_DOUBLE_EQ(mgr.get_max_cutoff(), 0.0);
+    const ForceTable force_table({}, {}, {}, {});
+
+    auto schema = force_table.generate_schema();
+    EXPECT_TRUE(schema.interactions.empty());
 }
 
 TEST(InteractionManagerTest, MaxCutoffCalculation) {
-
-    // two type-based interactions with cutoffs 1.5 and 2.5
     std::vector<TypeInfo> info;
     info.emplace_back(0, 0, ConstantForce(1, 1, 1, 1.5));
     info.emplace_back(1, 1, ConstantForce(2, 2, 2, 2.5));
 
     const std::unordered_map<ParticleType, ParticleType> type_map{{0, 0}, {1, 1}};
 
-    const FT mgr(info, {}, type_map, {});
-    EXPECT_NO_THROW(FT(info, {}, type_map, {}));
-    EXPECT_DOUBLE_EQ(mgr.get_max_cutoff(), 2.5);
+    const ForceTable force_table(info, {}, type_map, {});
+
+    // Verify via Schema
+    auto schema = force_table.generate_schema();
+
+    double max_cut = 0;
+    for(auto& p : schema.interactions) {
+        if(p.is_active) max_cut = std::max(max_cut, p.cutoff);
+    }
+
+    EXPECT_DOUBLE_EQ(max_cut, 2.5);
 }
 
 TEST(InteractionManagerTest, TypeBasedLookup) {
     std::vector<TypeInfo> info;
-    info.emplace_back(0, 0, ConstantForce(4, 5, 6, -1));
-    info.emplace_back(1, 1, ConstantForce(1, 2, 3, -1));
-    info.emplace_back(0, 1, ConstantForce(7, 8, 9, -1));
+    // Define forces:
+    // 0-0: (4,5,6)
+    // 1-1: (1,2,3)
+    // 0-1: (7,8,9)
+    info.emplace_back(0, 0, ConstantForce(4, 5, 6));
+    info.emplace_back(1, 1, ConstantForce(1, 2, 3));
+    info.emplace_back(0, 1, ConstantForce(7, 8, 9));
 
     std::unordered_map<ParticleType, ParticleType> type_map{{0, 0}, {1, 1}};
-    FT mgr(info, {}, type_map, {});
+    ForceTable force_table(info, {}, type_map, {});
 
-    auto p0 = make_particle(0, 10, 1.0, {0, 0, 0});
-    auto p1 = make_particle(1, 11, 1.0, {1, 1, 1});
+    // Helper to run dispatch and extract the force vector
+    auto eval_type = [&](ParticleType t1, ParticleType t2) {
+        vec3 result{0,0,0};
+        force_table.dispatch(t1, t2, [&](const auto& force) {
+            if constexpr (std::is_same_v<std::decay_t<decltype(force)>, ConstantForce>) {
+                 result = force.v; // UPDATED: Using .v
+            }
+        });
+        return result;
+    };
 
-    vec3 f1 = mgr.evaluate(p0, p0); // self-interaction (just for lookup test)
-    EXPECT_EQ(f1, vec3(4, 5, 6));
+    EXPECT_EQ(eval_type(0, 0), vec3(4, 5, 6));
+    EXPECT_EQ(eval_type(1, 1), vec3(1, 2, 3));
 
-    vec3 f2 = mgr.evaluate(p1, p1);
-    EXPECT_EQ(f2, vec3(1, 2, 3));
-
-    vec3 f3 = mgr.evaluate(p0, p1);
-    vec3 f4 = mgr.evaluate(p1, p0);
-    EXPECT_EQ(f3, f4);
-    EXPECT_EQ(f3, vec3(7, 8, 9));
+    // Check symmetry
+    EXPECT_EQ(eval_type(0, 1), vec3(7, 8, 9));
+    EXPECT_EQ(eval_type(1, 0), vec3(7, 8, 9));
 }
 
 TEST(InteractionManagerTest, IdBasedLookup) {
     std::vector<IdInfo> id_info;
     std::vector<TypeInfo> type_info;
 
-    // Provide a zero type-force for (0,0) so evaluate never hits NullForce
+    // Type Force (0,0) is Zero
     type_info.emplace_back(0, 0, ConstantForce(0, 0, 0));
-    // one id-based entry for (42,99)
+
+    // ID Force (42, 99) is (7,8,9)
+    // internal map: 42->0, 99->1
     id_info.emplace_back(42, 99, ConstantForce(7, 8, 9));
 
     std::unordered_map<ParticleType, ParticleType> type_map{{0, 0}};
-    std::unordered_map<ParticleID, ParticleID> id_map{{42, 0}, {99, 1}};
-    const FT mgr (type_info, id_info, type_map, id_map);
+    std::unordered_map<ParticleID, ParticleID> id_map{{42, 0}, {99, 1}, {100, 2}};
+    const ForceTable force_table(type_info, id_info, type_map, id_map);
 
-    auto p1 = make_particle(0, 0);
-    auto p2 = make_particle(0, 1);
-    auto p3 = make_particle(0, 2);
+    // 1. Check ID interaction existence
+    EXPECT_TRUE(force_table.has_id_force(0, 1));
+    EXPECT_TRUE(force_table.has_id_force(1, 0));
+    EXPECT_TRUE(force_table.has_id_force(0, 0));
+    EXPECT_TRUE(force_table.has_id_force(1, 1));
+    EXPECT_FALSE(force_table.has_id_force(0, 2));
+    EXPECT_FALSE(force_table.has_id_force(2, 2));
 
-    vec3 f1 = mgr.evaluate(p1, p2);
-    vec3 f2 = mgr.evaluate(p2, p1);
-    EXPECT_EQ(f1, f2);
-    EXPECT_EQ(f1, vec3(7, 8, 9));
+    // 2. Dispatch ID
+    auto eval_id = [&](ParticleID id1, ParticleID id2) {
+        vec3 result{0,0,0};
+        force_table.dispatch_id(id1, id2, [&](const auto& force) {
+            if constexpr (std::is_same_v<std::decay_t<decltype(force)>, ConstantForce>) {
+                 result = force.v; // UPDATED: Using .v
+            }
+        });
+        return result;
+    };
 
-    // no id interaction for (2,2), and type force is zero; expect zero
-    vec3 f = mgr.evaluate(p3, p3);
-    EXPECT_EQ(f, vec3{});
+    // Note: Inputs to dispatch_id are Implementation IDs
+    EXPECT_EQ(eval_id(0, 1), vec3(7, 8, 9));
+    EXPECT_EQ(eval_id(1, 0), vec3(7, 8, 9));
+
+    // 3. Verify Schema Topology
+    auto schema = force_table.generate_schema();
+
+    // We expect the schema to have recorded the ID usage for this pair
+    bool found_id_link = false;
+    for(const auto& prop : schema.interactions) {
+        for(const auto& pair : prop.used_by_ids) {
+            // Check for pair (0, 1) or (1, 0)
+            if ((pair.first == 0 && pair.second == 1) || (pair.first == 1 && pair.second == 0)) {
+                found_id_link = true;
+            }
+        }
+    }
+    EXPECT_TRUE(found_id_link) << "Schema should record the ID usage for (0,1)";
 }
 
-
 TEST(InteractionManagerTest, MixingForces) {
-
     std::vector<TypeInfo> info;
-    info.emplace_back(0, 0, ConstantForce(4, 5, 6, -1));
-    info.emplace_back(1, 1, ConstantForce(1, 2, 3, -1));
+    info.emplace_back(0, 0, ConstantForce(4, 5, 6));
+    info.emplace_back(1, 1, ConstantForce(1, 2, 3));
+    // Missing (0,1) -> Should trigger mixing!
 
     std::unordered_map<ParticleType, ParticleType> type_map{{0, 0}, {1, 1}};
-    FT mgr (info, {}, type_map, {});
+    ForceTable force_table(info, {}, type_map, {});
 
-    auto p0 = make_particle(0, 10, 1.0, {0, 0, 0});
-    auto p1 = make_particle(1, 11, 1.0, {1, 1, 1});
+    auto eval_type = [&](ParticleType t1, ParticleType t2) {
+        vec3 result{0,0,0};
+        force_table.dispatch(t1, t2, [&](const auto& force) {
+            if constexpr (std::is_same_v<std::decay_t<decltype(force)>, ConstantForce>) {
+                 result = force.v; // UPDATED: Using .v
+            }
+        });
+        return result;
+    };
 
-    vec3 f1 = mgr.evaluate(p0, p0);
-    EXPECT_EQ(f1, vec3(4, 5, 6));
+    EXPECT_EQ(eval_type(0, 0), vec3(4, 5, 6));
+    EXPECT_EQ(eval_type(1, 1), vec3(1, 2, 3));
 
-    vec3 f2 = mgr.evaluate(p1, p1);
-    EXPECT_EQ(f2, vec3(1, 2, 3));
+    // UPDATED: ConstantForce::mix sums the vectors
+    // (4,5,6) + (1,2,3) = (5, 7, 9)
+    vec3 expected(5.0, 7.0, 9.0);
+    EXPECT_EQ(eval_type(0, 1), expected);
+    EXPECT_EQ(eval_type(1, 0), expected);
+}
 
-    vec3 f3 = mgr.evaluate(p0, p1);
-    vec3 f4 = mgr.evaluate(p1, p0);
-    EXPECT_EQ(f3, f4);
-    EXPECT_EQ(f3, vec3(5, 7, 9)); // assuming your container mixes type (0,0) with (1,1) for cross-type
+TEST(InteractionManagerTest, SchemaDeduplication) {
+    std::vector<TypeInfo> info;
+    // Two different pairs use Identical Forces
+    info.emplace_back(0, 0, ConstantForce(1, 0, 0));
+    info.emplace_back(1, 1, ConstantForce(1, 0, 0)); // Same as 0-0
+    info.emplace_back(0, 1, ConstantForce(2, 0, 0)); // Different
+
+    std::unordered_map<ParticleType, ParticleType> type_map{{0, 0}, {1, 1}};
+    ForceTable force_table(info, {}, type_map, {});
+
+    auto schema = force_table.generate_schema();
+
+    // We expect exactly 2 unique interactions in the palette:
+    // 1. Force(1,0,0) [used by 0-0 and 1-1]
+    // 2. Force(2,0,0) [used by 0-1]
+    EXPECT_EQ(schema.interactions.size(), 2);
 }

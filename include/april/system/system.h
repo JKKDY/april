@@ -21,11 +21,11 @@ namespace april::core {
 	class System;
 
 
-	template <class C, env::IsEnvironment E>
-	requires container::IsContainerDecl<C, typename E::traits>
-	System<C, typename E::traits> build_system(
-		const E & environment,
-		const C & container_config,
+	template <class Container, env::IsEnvironment EnvT>
+	requires container::IsContainerDecl<Container, typename EnvT::traits>
+	System<Container, typename EnvT::traits> build_system(
+		const EnvT & environment,
+		const Container & container_config,
 		BuildInfo * build_info = nullptr
 	);
 
@@ -128,6 +128,9 @@ namespace april::core {
 		[[nodiscard]] bool contains(const env::ParticleID id) const noexcept {
 			return particle_container.invoke_contains(id);
 		}
+		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const noexcept {
+			return particle_container.invoke_id_to_index(id);
+		}
 
 
 		// -------
@@ -139,7 +142,7 @@ namespace april::core {
 		}
 
 		[[nodiscard]] std::vector<size_t> query_region(const env::Box & region) const {
-			return particle_container.dispatch_collect_indices_in_region(region);
+			return particle_container.invoke_collect_indices_in_region(region);
 		}
 
 		[[nodiscard]] std::vector<size_t> query_region(const env::Domain & region) const {
@@ -259,12 +262,12 @@ namespace april::core {
 
 		// Friend factory: only entry point for constructing a System
 		// Avoids exposing constructor internals publicly.
-		template <class Cont, env::IsEnvironment Env>
-		requires container::IsContainerDecl<Cont, typename Env::traits>
-		friend System<Cont, typename Env::traits>
+		template <class Container, env::IsEnvironment EnvT>
+		requires container::IsContainerDecl<Container, typename EnvT::traits>
+		friend System<Container, typename EnvT::traits>
 		build_system(
-			 const Env & environment,
-			 const Cont& container,
+			 const EnvT & environment,
+			 const Container& container,
 			 BuildInfo * build_info
 		);
 	};

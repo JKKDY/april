@@ -11,7 +11,7 @@ namespace april::boundary {
 
 		template<env::FieldMask M, env::IsUserData U>
 		void apply(env::ParticleRef<M, U> & p, const env::Box &, const Face) const noexcept{
-			p.state() = env::ParticleState::DEAD;
+			p.state = env::ParticleState::DEAD;
 		}
 	};
 }

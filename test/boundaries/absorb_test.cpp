@@ -19,14 +19,39 @@ static env::internal::ParticleRecord<env::NoUserData> make_alive_particle() {
 	return p;
 }
 
+template<env::FieldMask Mask, typename RecordT>
+auto make_source(RecordT& record) {
+	// Determine constness based on RecordT (allows making const sources from const records)
+	constexpr bool IsConst = std::is_const_v<RecordT>;
+	using UserDataT = typename RecordT::user_data_t;
+
+	env::ParticleSource<Mask, UserDataT, IsConst> src;
+
+	if constexpr (env::has_field_v<Mask, env::Field::position>)     src.position     = &record.position;
+	if constexpr (env::has_field_v<Mask, env::Field::velocity>)     src.velocity     = &record.velocity;
+	if constexpr (env::has_field_v<Mask, env::Field::force>)        src.force        = &record.force;
+	if constexpr (env::has_field_v<Mask, env::Field::old_position>) src.old_position = &record.old_position;
+	if constexpr (env::has_field_v<Mask, env::Field::mass>)         src.mass         = &record.mass;
+	if constexpr (env::has_field_v<Mask, env::Field::state>)        src.state        = &record.state;
+	if constexpr (env::has_field_v<Mask, env::Field::type>)         src.type         = &record.type;
+	if constexpr (env::has_field_v<Mask, env::Field::id>)           src.id           = &record.id;
+	if constexpr (env::has_field_v<Mask, env::Field::user_data>)    src.user_data    = &record.user_data;
+
+	return src;
+}
+
 // Direct application should mark particle DEAD
 TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 	const Absorb absorb;
+	constexpr env::FieldMask Mask = Absorb::fields;
+
 	const env::Box box {{0,0,0}, {10,10,10}};
 
 	auto p = make_alive_particle();
-	auto pf = env::internal::ParticleRecordFetcher(p);
-	absorb.apply(pf, box, Face::XPlus);
+	auto src = make_source<Mask>(p);
+	env::ParticleRef<Mask, env::NoUserData> ref(src);
+
+	absorb.apply(ref, box, Face::XPlus);
 
 	EXPECT_EQ(p.state, env::ParticleState::DEAD)
 		<< "Absorb boundary should mark particle as DEAD";
@@ -47,16 +72,22 @@ TEST(AbsorbBoundaryTest, Topology_IsOutsideAndPassive) {
 
 TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 	std::variant<Absorb> absorb = Absorb();
+	constexpr env::FieldMask Mask = Absorb::fields;
+
 	env::Domain domain{{0,0,0}, {10,10,10}};
 
 	// Compile boundary for X+ face
 	auto compiled = boundary::internal::compile_boundary(absorb, env::Box::from_domain(domain), Face::XPlus);
 
 	auto p = make_alive_particle();
-	auto pf = env::internal::ParticleRecordFetcher(p);
+	auto src = make_source<Mask>(p);
+	env::ParticleRef<Mask, env::NoUserData> ref(src);
+
 	env::Box box{{0,0,0}, {10,10,10}};
 
-	compiled.apply(pf, box, Face::XPlus);
+	compiled.dispatch([&](auto && bc) {
+		bc.apply(ref, box, Face::XPlus);
+	});
 
 	EXPECT_EQ(p.state, env::ParticleState::DEAD);
 }
@@ -87,7 +118,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, InsideDomain_RemainsAlive) {
 	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
 
-	sys.register_all_particle_movements();
+	sys.rebuild_structure();
 	sys.apply_boundary_conditions();
 
 	auto id0 = mappings.id_map.at(0);
@@ -121,7 +152,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 	// Simulate one time step: move each particle beyond its face
 	simulate_single_step(sys);
 
-	sys.register_all_particle_movements();
+	sys.rebuild_structure();
 	sys.apply_boundary_conditions();
 
 	// Verify all particles are DEAD

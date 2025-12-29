@@ -16,15 +16,40 @@ inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& 
 	return p;
 }
 
+template<env::FieldMask Mask, typename RecordT>
+auto make_source(RecordT& record) {
+
+	constexpr bool IsConst = std::is_const_v<RecordT>;
+	using UserDataT = typename RecordT::user_data_t;
+
+	env::ParticleSource<Mask, UserDataT, IsConst> src;
+
+	if constexpr (env::has_field_v<Mask, env::Field::position>)     src.position     = &record.position;
+	if constexpr (env::has_field_v<Mask, env::Field::velocity>)     src.velocity     = &record.velocity;
+	if constexpr (env::has_field_v<Mask, env::Field::force>)        src.force        = &record.force;
+	if constexpr (env::has_field_v<Mask, env::Field::old_position>) src.old_position = &record.old_position;
+	if constexpr (env::has_field_v<Mask, env::Field::mass>)         src.mass         = &record.mass;
+	if constexpr (env::has_field_v<Mask, env::Field::state>)        src.state        = &record.state;
+	if constexpr (env::has_field_v<Mask, env::Field::type>)         src.type         = &record.type;
+	if constexpr (env::has_field_v<Mask, env::Field::id>)           src.id           = &record.id;
+	if constexpr (env::has_field_v<Mask, env::Field::user_data>)    src.user_data    = &record.user_data;
+
+	return src;
+}
+
 // Direct application should reflect the particles position
 TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
 	const Reflective reflective;
+	constexpr env::FieldMask Mask = Reflective::fields;
+
 	const env::Box box({0,0,0}, {10,10,10});
 
 	// heading out X+. Intersection at {10, 5, 5}
 	auto p = make_particle({9.5,4.5,4.5}, {2,2,2});
-	auto pf = env::internal::ParticleRecordFetcher(p);
-	reflective.apply(pf, box, Face::XPlus);
+	auto src = make_source<Mask>(p);
+	env::ParticleRef<Mask, env::NoUserData> ref(src);
+
+	reflective.apply(ref, box, Face::XPlus);
 
 	EXPECT_TRUE(box.contains(p.position));
 	EXPECT_EQ(p.position.x, 8.5);
@@ -52,16 +77,22 @@ TEST(ReflectiveBoundaryTest, Topology_IsOutsideAndChangesPosition) {
 
 TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPosition) {
 	std::variant<Reflective> reflect = Reflective();
+	constexpr env::FieldMask Mask = Reflective::fields;
+
 	env::Domain domain({0,0,0}, {10,10,10});
 
 	// Compile boundary for X+ face
 	auto compiled = boundary::internal::compile_boundary(reflect, env::Box::from_domain(domain), Face::XPlus);
 
 	auto p = make_particle({9.8,5,5}, {+1,0,0});
+	auto src = make_source<Mask>(p);
+	env::ParticleRef<Mask, env::NoUserData> ref(src);
+
 	env::Box box{{0,0,0}, {10,10,10}};
 
-	auto pf = env::internal::ParticleRecordFetcher(p);
-	compiled.apply(pf, box, Face::XPlus);
+	compiled.dispatch([&](auto && bc) {
+		bc.apply(ref, box, Face::XPlus);
+	});
 
 	EXPECT_TRUE(box.contains(p.position));
 	EXPECT_EQ(p.position.x, 9.2);
@@ -105,7 +136,7 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
 	simulate_single_step(sys);
 
 
-    sys.register_all_particle_movements();
+    sys.rebuild_structure();
     sys.apply_boundary_conditions();
 
 	// expected positions
@@ -131,14 +162,14 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
     for (int uid = 0; uid < 6; ++uid) {
         auto iid = mappings.id_map.at(uid);
 
-    	const auto p = get_particle(sys, iid);
+    	const auto p = get_particle_by_id(sys, iid);
 
-    	EXPECT_EQ(p.position.x, expected_pos[iid].x);
-    	EXPECT_EQ(p.position.y, expected_pos[iid].y);
-    	EXPECT_EQ(p.position.z, expected_pos[iid].z);
+    	EXPECT_EQ(p.position.x, expected_pos[uid].x);
+    	EXPECT_EQ(p.position.y, expected_pos[uid].y);
+    	EXPECT_EQ(p.position.z, expected_pos[uid].z);
 
-        EXPECT_EQ(p.velocity.x, expected_vel[iid].x);
-        EXPECT_EQ(p.velocity.y, expected_vel[iid].y);
-        EXPECT_EQ(p.velocity.z, expected_vel[iid].z);
+        EXPECT_EQ(p.velocity.x, expected_vel[uid].x);
+        EXPECT_EQ(p.velocity.y, expected_vel[uid].y);
+        EXPECT_EQ(p.velocity.z, expected_vel[uid].z);
     }
 }

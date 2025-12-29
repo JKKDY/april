@@ -5,7 +5,9 @@
 
 #include "april/particle/fields.h"
 #include "april/common.h"
+#include "april/particle/access.h"
 #include "april/particle/defs.h"
+#include "april/particle/particle.h"
 
 using namespace april::env;
 using namespace april;
@@ -27,9 +29,8 @@ static_assert(IsUserData<TestUserDataT>, "MyTestUserData does not satisfy IsUser
 // create a particle record with data
 class ParticleViewsTest : public testing::Test {
 protected:
-    using Record = internal::ParticleRecord<TestUserDataT>;
-
-    Record particle_data;
+    // The backing storage
+    internal::ParticleRecord<TestUserDataT> particle_data;
 
     void SetUp() override {
         particle_data.id = 123;
@@ -38,10 +39,39 @@ protected:
         particle_data.velocity = {4.0, 5.0, 6.0};
         particle_data.force = {7.0, 8.0, 9.0};
         particle_data.old_position = {10.0, 11.0, 12.0};
-        particle_data.old_force = {13.0, 14.0, 15.0};
         particle_data.mass = 1.1;
         particle_data.state = ParticleState::ALIVE;
-        particle_data.user_data = MyTestUserData{10, 20.5}; // Use the POD struct
+        particle_data.user_data = MyTestUserData{10, 20.5};
+    }
+
+    // Helper: Create a Mutable Source pointing to the Record's fields
+    auto get_source() {
+        ParticleSource<+Field::all, TestUserDataT, false> src;
+        src.position     = &particle_data.position;
+        src.velocity     = &particle_data.velocity;
+        src.force        = &particle_data.force;
+        src.old_position = &particle_data.old_position;
+        src.mass         = &particle_data.mass;
+        src.state        = &particle_data.state;
+        src.type         = &particle_data.type;
+        src.id           = &particle_data.id;
+        src.user_data    = &particle_data.user_data;
+        return src;
+    }
+
+    // Helper: Create a Const Source pointing to the Record's fields
+    auto get_const_source() {
+        ParticleSource<+Field::all, TestUserDataT, true> src;
+        src.position     = &particle_data.position;
+        src.velocity     = &particle_data.velocity;
+        src.force        = &particle_data.force;
+        src.old_position = &particle_data.old_position;
+        src.mass         = &particle_data.mass;
+        src.state        = &particle_data.state;
+        src.type         = &particle_data.type;
+        src.id           = &particle_data.id;
+        src.user_data    = &particle_data.user_data;
+        return src;
     }
 };
 
@@ -54,7 +84,7 @@ TEST(ParticleViewsHelpersTest, BitmaskOperators) {
     EXPECT_EQ(mask2, (1u << 0) | (1u << 1) | (1u << 2));
 
     constexpr FieldMask mask3 = Field::id | mask2;
-    EXPECT_EQ(mask3, (1u << 0) | (1u << 1) | (1u << 2) | (1u << 8));
+    EXPECT_EQ(mask3, (1u << 0) | (1u << 1) | (1u << 2) | (1u << 7));
 
     // Test has_field_v
     EXPECT_TRUE((has_field_v<mask3, Field::position>));
@@ -67,14 +97,13 @@ TEST(ParticleViewsHelpersTest, BitmaskOperators) {
 
 // --- Test ParticleRef ---
 TEST_F(ParticleViewsTest, ParticleRefAllFieldsRead) {
-    internal::ParticleRecordFetcher fetcher(particle_data);
-    const ParticleRef<+Field::all, TestUserDataT> ref(fetcher);
+    auto src = get_source();
+    const ParticleRef<+Field::all, TestUserDataT> ref(src);
 
     EXPECT_EQ(ref.position, particle_data.position);
     EXPECT_EQ(ref.velocity, particle_data.velocity);
     EXPECT_EQ(ref.force, particle_data.force);
     EXPECT_EQ(ref.old_position, particle_data.old_position);
-    EXPECT_EQ(ref.old_force, particle_data.old_force);
     EXPECT_EQ(ref.mass, particle_data.mass);
     EXPECT_EQ(ref.state, particle_data.state);
     EXPECT_EQ(ref.type, particle_data.type); // Read-only copy
@@ -83,8 +112,8 @@ TEST_F(ParticleViewsTest, ParticleRefAllFieldsRead) {
 }
 
 TEST_F(ParticleViewsTest, ParticleRefAllFieldsWrite) {
-    internal::ParticleRecordFetcher fetcher(particle_data);
-    const ParticleRef<+Field::all, TestUserDataT> ref(fetcher);
+    auto src = get_source();
+    const ParticleRef<+Field::all, TestUserDataT> ref(src);
 
     constexpr MyTestUserData updated_data{99, -1.0};
 
@@ -101,8 +130,9 @@ TEST_F(ParticleViewsTest, ParticleRefAllFieldsWrite) {
 
 TEST_F(ParticleViewsTest, ParticleRefPartialMask) {
     constexpr auto mask = Field::position | Field::mass | Field::user_data;
-    internal::ParticleRecordFetcher fetcher(particle_data);
-    ParticleRef<mask, TestUserDataT> ref(fetcher);
+
+    auto src = get_source(); // Source has ALL fields populated
+    ParticleRef<mask, TestUserDataT> ref(src); // Ref only maps subset
 
     // check present fields are correct
     EXPECT_EQ(ref.position, particle_data.position);
@@ -123,10 +153,8 @@ TEST_F(ParticleViewsTest, ParticleRefPartialMask) {
 
 // --- Test ParticleView ---
 TEST_F(ParticleViewsTest, ParticleViewIsConst) {
-    const Record& const_data = particle_data; // Get a const reference
-    internal::ConstParticleRecordFetcher const_fetcher(const_data);
-
-    ParticleView<+Field::all, TestUserDataT> view(const_fetcher);
+    auto src = get_const_source(); // Source is const
+    ParticleView<+Field::all, TestUserDataT> view(src);
 
     // check values
     EXPECT_EQ(view.position, particle_data.position);
@@ -135,7 +163,7 @@ TEST_F(ParticleViewsTest, ParticleViewIsConst) {
 
     // check types are const (or copies)
     EXPECT_TRUE((std::is_same_v<decltype(view.position), const vec3&>));
-    EXPECT_TRUE((std::is_same_v<decltype(view.mass), const double>)); // copy
+    EXPECT_TRUE((std::is_same_v<decltype(view.mass), const double&>)); // copy
     EXPECT_TRUE((std::is_same_v<decltype(view.user_data), const TestUserDataT&>));
 }
 
@@ -143,9 +171,9 @@ TEST_F(ParticleViewsTest, ParticleViewIsConst) {
 // --- Test RestrictedParticleRef ---
 TEST_F(ParticleViewsTest, RestrictedParticleRefAccess) {
     constexpr auto mask = Field::position | Field::force | Field::id | Field::user_data;
-    internal::ParticleRecordFetcher fetcher(particle_data);
+    auto src = get_source(); // Mutable source
 
-    RestrictedParticleRef<mask, TestUserDataT> restricted_ref(fetcher);
+    RestrictedParticleRef<mask, TestUserDataT> restricted_ref(src);
 
     // check that 'force' is mutable
     EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.force), vec3&>));

@@ -56,18 +56,32 @@ public:
 	Box sim_box = {{0,0,0}, {1,1,1}};
 
 	// Implement minimal API for read-only tests
-	[[nodiscard]] size_t index_start() const noexcept { return 0; }
-	[[nodiscard]] size_t index_end() const noexcept { return particles.size(); }
 	[[nodiscard]] size_t size(ParticleState = ParticleState::ALL) const noexcept { return particles.size(); }
 	[[nodiscard]] size_t step() const noexcept { return step_; }
 	[[nodiscard]] double time() const noexcept { return time_; }
 	[[nodiscard]] Box box() const noexcept { return sim_box; }
 
 	template<FieldMask M>
-	[[nodiscard]] ParticleView<M> get_particle_by_index(const size_t index) const noexcept {
+	[[nodiscard]] ParticleView<M> view(const size_t index) const noexcept {
+		// 1. Get reference to storage
 		const ParticleRec& record = particles.at(index);
-		internal::ConstParticleRecordFetcher fetcher(record);
-		return ParticleView<M>(fetcher);
+
+		// 2. Create Source (IsConst = true)
+		// We map the requested fields M to the record's members
+		env::ParticleSource<M, user_data_t, true> src;
+
+		if constexpr (env::has_field_v<M, Field::position>)     src.position     = &record.position;
+		if constexpr (env::has_field_v<M, Field::velocity>)     src.velocity     = &record.velocity;
+		if constexpr (env::has_field_v<M, Field::force>)        src.force        = &record.force;
+		if constexpr (env::has_field_v<M, Field::old_position>) src.old_position = &record.old_position;
+		if constexpr (env::has_field_v<M, Field::mass>)         src.mass         = &record.mass;
+		if constexpr (env::has_field_v<M, Field::state>)        src.state        = &record.state;
+		if constexpr (env::has_field_v<M, Field::type>)         src.type         = &record.type;
+		if constexpr (env::has_field_v<M, Field::id>)           src.id           = &record.id;
+		if constexpr (env::has_field_v<M, Field::user_data>)    src.user_data    = &record.user_data;
+
+		// 3. Construct View
+		return ParticleView<M>(src);
 	}
 
 	const SystemContext<DummySystem> ctx = SystemContext<DummySystem>(*this);

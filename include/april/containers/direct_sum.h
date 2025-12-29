@@ -131,7 +131,7 @@ namespace april::container {
 				for (size_t i = 0; i < particles.size(); i++) {
 					auto & p = particles[i];
 					if (current_type != p.type) {
-						type_ranges[i] = {start, i};
+						type_ranges[current_type] = {start, i};
 						start = i;
 
 						current_type = p.type;

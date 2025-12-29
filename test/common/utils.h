@@ -9,7 +9,7 @@ template<core::IsSystem System>
 typename System::ParticleRec get_particle(System& sys, size_t index) {
 	constexpr auto all_fields = to_field_mask(env::Field::all);
 
-	auto p_ref = sys.template get_particle_by_index<all_fields>(index);
+	auto p_ref = sys.template at<all_fields>(index);
 
 	typename System::ParticleRec rec;
 	rec.id          = p_ref.id;
@@ -18,7 +18,6 @@ typename System::ParticleRec get_particle(System& sys, size_t index) {
 	rec.velocity    = p_ref.velocity;
 	rec.force       = p_ref.force;
 	rec.old_position = p_ref.old_position;
-	rec.old_force   = p_ref.old_force;
 	rec.state       = p_ref.state;
 	rec.mass        = p_ref.mass;
 	rec.user_data   = p_ref.user_data;
@@ -30,7 +29,7 @@ template<core::IsSystem System>
 typename System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
 	constexpr auto all_fields = to_field_mask(env::Field::all);
 
-	auto p_ref = sys.template get_particle_by_id<all_fields>(id);
+	auto p_ref = sys.template at_id<all_fields>(id);
 
 	typename System::ParticleRec rec;
 	rec.id          = p_ref.id;
@@ -39,7 +38,6 @@ typename System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
 	rec.velocity    = p_ref.velocity;
 	rec.force       = p_ref.force;
 	rec.old_position = p_ref.old_position;
-	rec.old_force   = p_ref.old_force;
 	rec.state       = p_ref.state;
 	rec.mass        = p_ref.mass;
 	rec.user_data   = p_ref.user_data;
@@ -50,9 +48,9 @@ typename System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
 template<core::IsSystem System>
 std::vector<typename System::ParticleRec> export_particles(System& sys) {
 	std::vector<typename System::ParticleRec> records;
-	records.reserve(sys.index_end() - sys.index_start());
+	records.reserve(sys.size());
 
-	for (size_t i = sys.index_start(); i < sys.index_end(); ++i) {
+	for (size_t i = 0; i < sys.size(); ++i) {
 		records.push_back(get_particle(sys, i));
 	}
 
@@ -65,8 +63,8 @@ template<core::IsSystem System>
 void simulate_single_step(System& sys) {
 	constexpr env::FieldMask edit_fields = env::Field::old_position | env::Field::position | env::Field::velocity;
 
-	for (auto pid = sys.index_start(); pid < sys.index_end(); ++pid) {
-		auto p = sys.template get_particle_by_index<edit_fields>(pid);
+	for (size_t pid = 0; pid < sys.size(); ++pid) {
+		auto p = sys.template at<edit_fields>(pid);
 		p.old_position = p.position;
 		p.position = p.old_position + p.velocity; // simulate one step
 	}

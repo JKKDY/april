@@ -19,7 +19,7 @@ namespace april::force {
 		requires requires {
 			{ U::charge } -> std::convertible_to<double>;
 		}
-		vec3 eval(const env::ParticleView<fields, U> & p1, const env::ParticleView<fields, U> & p2, const vec3& r) const noexcept {
+		vec3 eval(const env::ParticleView<M, U> & p1, const env::ParticleView<M, U> & p2, const vec3& r) const noexcept {
 			const double inv_r = r.inv_norm();
 			const double mag = coulomb_constant * p1.user_data.charge * p2.user_data.charge * inv_r * inv_r;
 
@@ -29,7 +29,7 @@ namespace april::force {
 		[[nodiscard]] Coulomb mix(Coulomb const& other) const noexcept {
 			// Arithmetic average of pre-factor and cutoff
 			const double mixed_factor = 0.5 * (coulomb_constant + other.coulomb_constant);
-			const double mixed_cutoff = 0.5 * (cutoff + other.cutoff);
+			const double mixed_cutoff = 0.5 * (cutoff() + other.cutoff());
 			return Coulomb(static_cast<uint8_t>(std::round(mixed_factor)), mixed_cutoff);
 		}
 

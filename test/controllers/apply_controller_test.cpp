@@ -242,9 +242,9 @@ public:
     ContextSpyController() : Controller(Trigger::never()), target_id(0) {}
 
     template<class S>
-    void apply(core::SystemContext<S>& ctx) {
+    void apply(SystemContext<S>& ctx) {
         // Use the context to get a particle by ID and modify it
-        auto p = ctx.template get_particle_by_id<mask>(target_id);
+        auto p = ctx.template at<mask>(target_id);
         p.velocity = {100.0, 200.0, 300.0};
     }
 

@@ -5,7 +5,6 @@
 #include "april/particle/particle.h"
 #include "april/common.h"  // vec3
 #include "april/particle/defs.h"
-#include "april/particle/generators.h"
 
 using namespace april::env;
 using namespace april;
@@ -19,7 +18,6 @@ TEST(ParticleTest, FluentSettersAndChaining) {
     constexpr double test_mass = 7.0;
     constexpr auto test_state = ParticleState::ALIVE;
     const vec3 test_old_pos = {8.0, 9.0, 10.0};
-    const vec3 test_old_force = {11.0, 12.0, 13.0};
     const vec3 test_force = {14.0, 15.0, 16.0};
     const std::any test_data = std::string("hello");
 
@@ -31,7 +29,6 @@ TEST(ParticleTest, FluentSettersAndChaining) {
      .with_mass(test_mass)
      .with_state(test_state)
      .with_old_position(test_old_pos)
-     .with_old_force(test_old_force)
      .with_force(test_force)
      .with_data(test_data);
 
@@ -49,9 +46,6 @@ TEST(ParticleTest, FluentSettersAndChaining) {
 
     ASSERT_TRUE(p.old_position.has_value());
     EXPECT_EQ(p.old_position.value(), test_old_pos);
-
-    ASSERT_TRUE(p.old_force.has_value());
-    EXPECT_EQ(p.old_force.value(), test_old_force);
 
     ASSERT_TRUE(p.force.has_value());
     EXPECT_EQ(p.force.value(), test_force);

@@ -298,6 +298,11 @@ namespace april::container::internal {
 						max_cutoff = interaction.cutoff;
 					}
 				}
+
+				if (max_cutoff == 0 || max_cutoff > domain.extent.min()) {
+					max_cutoff = domain.extent.min() / 2;
+				}
+
 				cell_size_hint = max_cutoff;
 			}
 

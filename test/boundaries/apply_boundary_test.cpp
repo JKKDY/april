@@ -8,14 +8,15 @@ using namespace april;
 using ParticleRecord = env::internal::ParticleRecord<env::NoUserData>;
 
 struct TouchSpy final : Boundary {
+	static constexpr env::FieldMask fields = +env::Field::id;
 
 	// thickness >= 0 → inside slab; < 0 → outside half-space
 	explicit TouchSpy(const double thickness, std::vector<ParticleID>* sink)
 	: Boundary(thickness, false, false, false), sink(sink) {}
 
-	template<env::IsFetcher F>
-	void apply(F & p, const env::Box &, Face) const noexcept {
-		if (sink) sink->push_back(p.id());
+	template<env::FieldMask M, env::IsUserData U>
+	void apply(env::ParticleRef<M, U> & p, const env::Box &, Face) const noexcept {
+		if (sink) sink->push_back(p.id);
 	}
 
 private:
@@ -36,9 +37,6 @@ TYPED_TEST(BoundaryTestT, InsideSlab_XMinus_AppliesOnlyToSlabParticles) {
 	env.set_extent({10,10,10});
 
 	// Particles: one in the X- slab [0,1], one outside it
-	// env.add_particle({.id=0, .type=0, .position={0.4,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
-	// env.add_particle({.id=1, .type=0, .position={1.1,5,5}, .velocity={}, .mass=1, .state=ParticleState::ALIVE});
-
 	env.add_particle(make_particle(0, {0.4,5,5}, {}, 1, ParticleState::ALIVE, 0));
 	env.add_particle(make_particle(0, {1.1,5,5}, {}, 1, ParticleState::ALIVE, 1));
 
@@ -60,7 +58,7 @@ TYPED_TEST(BoundaryTestT, InsideSlab_XMinus_AppliesOnlyToSlabParticles) {
 	BuildInfo mappings;
 
 	auto sys = build_system(env, TypeParam(), &mappings);
-	sys.register_all_particle_movements();
+	sys.rebuild_structure();
 	sys.apply_boundary_conditions();
 
 	auto id0 = mappings.id_map.at(0);
@@ -81,10 +79,8 @@ TYPED_TEST(BoundaryTestT, OutsideHalfspace_XPlus_TouchesOnlyActualExiters) {
 	env.add_force(NoForce{}, to_type(0));
 
 	// p0: crosses X+ this step
-	// env.add_particle({.id=0, .type=0, .position={9.5,5,5}, .velocity={+2,0,0}, .mass=1, .state=ParticleState::ALIVE});
 	env.add_particle(make_particle(0, {9.5,5,5}, {+2,0,0}, 1, ParticleState::ALIVE, 0));
 	// p1: exits via Y+ instead
-	// env.add_particle({.id=1, .type=0, .position={5.0,9.5,5}, .velocity={0,+2,0}, .mass=1, .state=ParticleState::ALIVE});
 	env.add_particle(make_particle(0, {5.0,9.5,5}, {0,+2,0}, 1, ParticleState::ALIVE, 1));
 
 	// external sinks
@@ -105,7 +101,7 @@ TYPED_TEST(BoundaryTestT, OutsideHalfspace_XPlus_TouchesOnlyActualExiters) {
 
 	simulate_single_step(sys);
 
-	sys.register_all_particle_movements();
+	sys.rebuild_structure();
 	sys.apply_boundary_conditions();
 
 	auto id0 = mappings.id_map.at(0);
@@ -150,7 +146,7 @@ TYPED_TEST(BoundaryTestT, CornerExit_TriggersRelevantFaces) {
 	simulate_single_step(sys);
 
 
-	sys.register_all_particle_movements();
+	sys.rebuild_structure();
 	sys.apply_boundary_conditions();
 
 	auto id42 = mappings.id_map.at(42);
@@ -195,7 +191,7 @@ TYPED_TEST(BoundaryTestT, InsideCorner_TouchesAllOverlappingFaces) {
 
 	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
-	sys.register_all_particle_movements();
+	sys.rebuild_structure();
 	sys.apply_boundary_conditions();
 
 	auto id = mappings.id_map.at(0);
@@ -240,7 +236,7 @@ TYPED_TEST(BoundaryTestT, NearCornerExit_TriggersCorrectFace) {
 	simulate_single_step(sys);
 
 
-	sys.register_all_particle_movements();
+	sys.rebuild_structure();
 	sys.apply_boundary_conditions();
 
 	auto id = mappings.id_map.at(42);
@@ -284,7 +280,7 @@ TYPED_TEST(BoundaryTestT, InsideSlab_AllFaces_OneParticleEach) {
 
 	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
-	sys.register_all_particle_movements();
+	sys.rebuild_structure();
 	sys.apply_boundary_conditions();
 
 	// Map user IDs → internal IDs for verification

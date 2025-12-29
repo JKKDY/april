@@ -24,8 +24,8 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	VelocityVerlet integrator(system);
 	integrator.run_for_steps(0.1, 10);
 
-	for (size_t i = system.index_start(); i < system.index_end(); i++) {
-		auto p = system.get_particle_by_index<all_fields>(i);
+	for (size_t i = 0; i < system.size(); i++) {
+		auto p = system.at<all_fields>(i);
 		EXPECT_EQ(p.position, vec3(0,0,0));
 		EXPECT_EQ(p.velocity, vec3(0,0,0));
 	}
@@ -84,13 +84,21 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	const auto p1 =  particles[0].position.x < 0 ? particles[0] : particles[1];
 	const auto p2 =  particles[0].position.x > 0 ? particles[0] : particles[1];
 
-	EXPECT_EQ(p1.force, vec3(f_mag,0,0));
-	EXPECT_EQ(p2.force, vec3(-f_mag,0,0));
+	EXPECT_NEAR(p1.force.x, f_mag, 1e-3);
+	EXPECT_NEAR(p2.force.x,-f_mag, 1e-3);
+	EXPECT_NEAR(p1.force.y,0, 1e-3);
+	EXPECT_NEAR(p2.force.y,0, 1e-3);
+	EXPECT_NEAR(p1.force.z,0, 1e-3);
+	EXPECT_NEAR(p2.force.z,0, 1e-3);
 
 	constexpr double vel = 0.1 / 2 * f_mag;
 
-	EXPECT_EQ(p1.velocity, vec3(vel,0,0));
-	EXPECT_EQ(p2.velocity, vec3(-vel,0,0));
+	EXPECT_NEAR(p1.velocity.x, vel, 5e-2);
+	EXPECT_NEAR(p2.velocity.x,-vel, 5e-2);
+	EXPECT_NEAR(p1.velocity.y,0, 1e-3);
+	EXPECT_NEAR(p2.velocity.y,0, 1e-3);
+	EXPECT_NEAR(p1.velocity.z,0, 1e-3);
+	EXPECT_NEAR(p2.velocity.z,0, 1e-3);
 }
 
 

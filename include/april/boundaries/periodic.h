@@ -14,7 +14,7 @@ namespace april::boundary {
 			const int sign = face_sign_pos(face) ? -1 : +1;
 			const int ax = axis_of_face(face);
 
-			particle.position()[ax] = particle.position()[ax] + sign * domain_box.extent[ax];
+			particle.position[ax] = particle.position[ax] + sign * domain_box.extent[ax];
 		}
 	};
 }

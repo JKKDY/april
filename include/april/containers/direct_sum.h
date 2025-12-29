@@ -96,7 +96,7 @@ namespace april::container {
 				const double domain_vol = domain.volume();
 				const double region_vol = region.volume();
 
-				if (domain_vol > 1e-9) { // avoid division by zero
+				if (domain_vol > 1e-9 ) { // avoid division by zero
 					const double ratio = region_vol / domain_vol;
 
 					// apply 1.1x safety factor because distributions are rarely perfectly uniform

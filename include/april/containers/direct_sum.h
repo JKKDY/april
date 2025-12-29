@@ -94,10 +94,10 @@ namespace april::container {
 				std::vector<size_t> ret;
 
 				const double domain_vol = domain.volume();
-				const double region_vol = region.volume();
+				const auto intersection = domain.intersection(region);
 
-				if (domain_vol > 1e-9 ) { // avoid division by zero
-					const double ratio = region_vol / domain_vol;
+				if (domain_vol > 1e-9 && intersection.has_value()) { // avoid division by zero
+					const double ratio = intersection->volume() / domain_vol;
 
 					// apply 1.1x safety factor because distributions are rarely perfectly uniform
 					// clamp to particles.size() to avoid over-reservation

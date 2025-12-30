@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <memory>
-#include "april/april.h"
+#include "april/april.hpp"
 #include "utils.h"
 
 using namespace april;

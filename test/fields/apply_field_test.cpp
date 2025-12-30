@@ -3,7 +3,7 @@
 #include <memory>
 #include <utils.h>
 
-#include "april/april.h"
+#include "april/april.hpp"
 
 using namespace april;
 

@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <variant>
 
-#include "april/april.h"
+#include "april/april.hpp"
 #include "constant_force.h" // Assumes your provided struct is here
 
 using namespace april;

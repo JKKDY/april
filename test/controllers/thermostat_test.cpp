@@ -1,6 +1,6 @@
 #include <utils.h>
 #include <gtest/gtest.h>
-#include "april/april.h"
+#include "april/april.hpp"
 #include <vector>
 
 using namespace april;

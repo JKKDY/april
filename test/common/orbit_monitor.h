@@ -1,7 +1,7 @@
 #pragma once
 
 #include <gtest/gtest.h>
-# include "april/april.h"
+#include "april/april.hpp"
 
 using namespace april;
 

@@ -4,7 +4,7 @@
 using testing::AnyOf;
 using testing::Eq;
 
-#include "april/april.h"
+#include "april/april.hpp"
 #include "constant_force.h"
 #include "utils.h"
 

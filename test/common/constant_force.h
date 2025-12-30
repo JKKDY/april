@@ -1,6 +1,6 @@
 #pragma once
 
-#include "april/april.h"
+#include "april/april.hpp"
 
 using namespace april;
 // A tiny force that returns a constant vector and mixes by summing

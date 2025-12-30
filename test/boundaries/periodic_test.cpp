@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "april/april.h"
+#include "april/april.hpp"
 #include "utils.h"
 
 using namespace april;

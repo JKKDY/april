@@ -3,10 +3,7 @@
 #include <any>
 #include <stdexcept>
 
-#include "april/particle/generators.h"
-#include "april/particle/particle.h"
-#include "april/common.h"
-#include "april/particle/defs.h"
+#include "april/april.h"
 
 using namespace april::env;
 using namespace april;

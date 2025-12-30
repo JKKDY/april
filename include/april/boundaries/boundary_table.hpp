@@ -3,7 +3,7 @@
 #include <variant>
 #include <algorithm>
 
-#include "april/boundaries/boundary.h"
+#include "april/boundaries/boundary.hpp"
 
 namespace april::boundary::internal {
 

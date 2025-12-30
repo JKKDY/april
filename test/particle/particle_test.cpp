@@ -2,9 +2,7 @@
 #include <string>
 #include <any>
 
-#include "april/particle/particle.h"
-#include "april/common.h"  // vec3
-#include "april/particle/defs.h"
+#include "april/april.h"
 
 using namespace april::env;
 using namespace april;

@@ -3,11 +3,8 @@
 #include <variant> // std::monostate
 #include <type_traits> // std::is_same_v
 
-#include "april/particle/fields.h"
-#include "april/common.h"
-#include "april/particle/access.h"
-#include "april/particle/defs.h"
-#include "april/particle/particle.h"
+#include "april/april.h"
+
 
 using namespace april::env;
 using namespace april;

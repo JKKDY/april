@@ -1,14 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "april/forces/noforce.h"
-#include "april/forces/gravity.h"
-#include "april/forces/harmonic.h"
-#include "april/forces/coulomb.h"
-#include "april/forces/lennardjones.h"
+#include "april/april.h"
 
-#include "april/common.h"
-#include "april/particle/fields.h"
-#include "april/particle/defs.h"
 
 using namespace april::force;
 using namespace april::env;

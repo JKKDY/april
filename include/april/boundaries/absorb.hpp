@@ -1,7 +1,7 @@
 #pragma once
 
-#include "april/particle/fields.h"
-#include "april/boundaries/boundary.h"
+#include "april/particle/fields.hpp"
+#include "april/boundaries/boundary.hpp"
 
 namespace april::boundary {
 	struct Absorb : Boundary {

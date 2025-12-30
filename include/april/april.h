@@ -1,44 +1,45 @@
 #pragma once
-#include "april/env/environment.h"
-#include "april/particle/fields.h"
+#include "april/env/environment.hpp"
+#include "april/particle/fields.hpp"
 
-#include "april/boundaries/boundary.h"
-#include "april/boundaries/absorb.h"
-#include "april/boundaries/open.h"
-#include "april/boundaries/periodic.h"
-#include "april/boundaries/reflective.h"
-#include "april/boundaries/repulsive.h"
+#include "april/boundaries/boundary.hpp"
+#include "april/boundaries/absorb.hpp"
+#include "april/boundaries/open.hpp"
+#include "april/boundaries/periodic.hpp"
+#include "april/boundaries/reflective.hpp"
+#include "april/boundaries/repulsive.hpp"
 
-#include "april/forces/force.h"
-#include "april/forces/harmonic.h"
-#include "april/forces/gravity.h"
-#include "april/forces/lennardjones.h"
-#include "april/forces/noforce.h"
+#include "april/forces/force.hpp"
+#include "april/forces/harmonic.hpp"
+#include "april/forces/gravity.hpp"
+#include "april/forces/lennardjones.hpp"
+#include "april/forces/noforce.hpp"
+#include "april/forces/coulomb.hpp"
 
-#include "april/controllers/controller.h"
-#include "april/controllers/thermostat.h"
+#include "april/controllers/controller.hpp"
+#include "april/controllers/thermostat.hpp"
 
-#include "april/fields/field.h"
-#include "april/fields/uniform_field.h"
-#include "april/fields/local_field.h"
+#include "april/fields/field.hpp"
+#include "april/fields/uniform_field.hpp"
+#include "april/fields/local_field.hpp"
 
-#include "april/monitors/monitor.h"
-#include "april/monitors/terminal_output.h"
-#include "april/monitors/binary_output.h"
-#include "april/monitors/progressbar.h"
-#include "april/monitors/benchmark.h"
+#include "april/monitors/monitor.hpp"
+#include "april/monitors/terminal_output.hpp"
+#include "april/monitors/binary_output.hpp"
+#include "april/monitors/progressbar.hpp"
+#include "april/monitors/benchmark.hpp"
 
-#include "april/containers/container.h"
-#include "april/containers/direct_sum.h"
-#include "april/containers/linked_cells.h"
+#include "april/containers/container.hpp"
+#include "april/containers/direct_sum.hpp"
+#include "april/containers/linked_cells.hpp"
 
-#include "april/integrators/integrator.h"
-#include "april/integrators/velocity_verlet.h"
-#include "april/integrators/yoshida4.h"
+#include "april/integrators/integrator.hpp"
+#include "april/integrators/velocity_verlet.hpp"
+#include "april/integrators/yoshida4.hpp"
 
-#include "april/system/build.h"
-#include "april/system/system.h"
-#include "april/system/context.h"
+#include "april/system/build.hpp"
+#include "april/system/system.hpp"
+#include "april/system/context.hpp"
 
 
 namespace april {
@@ -77,6 +78,7 @@ namespace april {
 	using force::NoForce;
 	using force::Gravity;
 	using force::LennardJones;
+	using force::Coulomb;
 
 	// Controllers
 	using controller::controllers;

@@ -5,7 +5,7 @@
 #include <concepts>
 #include <functional>
 
-#include "april/shared/debug.h"
+#include "april/shared/debug.hpp"
 
 
 namespace april::utils {

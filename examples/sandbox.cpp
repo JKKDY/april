@@ -21,7 +21,7 @@ int main() {
 	auto system = build_system(env, DirectSum());
 
 	auto integrator = VelocityVerlet(system, monitors<BinaryOutput, Benchmark, TerminalOutput>)
-		.with_monitor(BinaryOutput(Trigger::always(), dir_path))
+		.with_monitor(BinaryOutput(Trigger::always(), dir_path.string()))
 		.with_monitor(TerminalOutput(Trigger::always()))
 		.run_for_steps(0.001, 1000);
 }

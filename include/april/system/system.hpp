@@ -318,7 +318,7 @@ namespace april::core {
 
 					const vec3 f = force(p1.to_view(), p2.to_view(), r);
 
-					if constexpr (batch.update_policy == Upd::Atomic) {
+					if constexpr (Batch::update_policy == Upd::Atomic) {
 						throw std::logic_error("atomic force update not implemented yet");
 					} else {
 						p1.force += f;
@@ -363,7 +363,7 @@ namespace april::core {
 
 				// INNER LOOP DISPATCHING
 				auto run_symmetric_inner_loop = [&](const auto& batch_item){
-					if constexpr (batch.parallel_policy == Par::InnerLoop) {
+					if constexpr (Batch::parallel_policy == Par::InnerLoop) {
 						run_symmetric_parallel(batch_item);
 					} else {
 						run_symmetric_serial(batch_item);
@@ -371,7 +371,7 @@ namespace april::core {
 				};
 
 				auto run_asymmetric_inner_loop = [&](const auto& batch_item){
-					if constexpr (batch.parallel_policy == Par::InnerLoop) {
+					if constexpr (Batch::parallel_policy == Par::InnerLoop) {
 						run_asymmetric_parallel(batch_item);
 					} else {
 						run_asymmetric_serial(batch_item);
@@ -383,7 +383,7 @@ namespace april::core {
 				auto execute_strategy = [&](auto&& run_inner) {
 					if constexpr (container::IsChunkedBatch<Batch>) {
 						// Chunked Path
-						if constexpr (batch.parallel_policy == Par::Chunks) {
+						if constexpr (Batch::parallel_policy == Par::Chunks) {
 							throw std::logic_error("parallelized chunked processing not implemented yet");
 						} else {
 							for (const auto & chunk : batch.chunks) {
@@ -396,9 +396,9 @@ namespace april::core {
 				};
 
 				// OUTER LOOP DISPATCHING
-				if constexpr (batch.symmetry == Sym::Symmetric) {
+				if constexpr (Batch::symmetry == Sym::Symmetric) {
 					execute_strategy(run_symmetric_inner_loop);
-				} else if constexpr (batch.symmetry == Sym::Asymmetric) {
+				} else if constexpr (Batch::symmetry == Sym::Asymmetric) {
 					execute_strategy(run_asymmetric_inner_loop);
 				}
 			};

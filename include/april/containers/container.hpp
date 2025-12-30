@@ -61,8 +61,8 @@ namespace april::container {
 		template<env::FieldMask M, typename Func, bool parallelize=false> // TODO restrict callable Func (invoke_for_each_particle)
 		void invoke_for_each_particle(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
 			// check if subclass provides implementation
-			if constexpr (requires {self.for_each_particle<M>(func); }) {
-				self.for_each_particle<M>(std::forward<Func>(func), state);
+			if constexpr (requires {self.template for_each_particle<M>(func); }) {
+				self.template for_each_particle<M>(std::forward<Func>(func), state);
 			}
 			// if not, create default implementation
 			else {
@@ -268,12 +268,12 @@ namespace april::container {
 		[[nodiscard]] auto access_particle_id(this auto&& self, const env::ParticleID id) {
 			// its optional to implement get_field_ptr_id. The fallback is to use id -> index and access_particle
 
-		    // Safety check: If Mask is empty, return empty source immediately.
-		    if constexpr (M == 0) return env::ParticleSource<0, U, false>{};
+			// Safety check: If Mask is empty, return empty source immediately.
+			if constexpr (M == 0) return env::ParticleSource<0, U, false>{};
 
-		    // Strategy: We pick the first active field in the Mask to test if 'get_field_ptr_id' exists.
-		    // We cannot check the function "in general" because it is a template.
-		    constexpr auto TestF = static_cast<env::Field>(1 << std::countr_zero(M));
+			// Strategy: We pick the first active field in the Mask to test if 'get_field_ptr_id' exists.
+			// We cannot check the function "in general" because it is a template.
+			[[maybe_unused]] constexpr auto TestF = static_cast<env::Field>(1 << std::countr_zero(M));
 
 		    // does 'get_field_ptr_id<TestF>(id)' compile?
 		    if constexpr (requires { self.template get_field_ptr_id<TestF>(id); }) {

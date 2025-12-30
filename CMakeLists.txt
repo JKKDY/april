@@ -68,6 +68,7 @@ function(set_target_build_flags target_name)
             -finline-functions
             -funroll-loops
             -fno-plt
+
             >
 
             # MSVC

@@ -9,160 +9,251 @@
 
 
 namespace april::utils {
-    template <typename  T> requires std::integral<T> || std::floating_point<T>
-    struct Vec3 {
-        T x, y, z;
 
-        Vec3() : x(static_cast<T>(0.0)), y(static_cast<T>(0.0)), z(static_cast<T>(0.0)) {}
-        Vec3(const T x, const T y, const T z) : x(x), y(y), z(z) {}
-        explicit Vec3(const T v): x(v), y(v), z(v) {}
 
-        // unary minus
-        Vec3 operator-() const noexcept {
-            return Vec3{-x, -y, -z};
+    template <typename T> requires std::integral<T> || std::floating_point<T>
+    struct Vec3;
+
+
+    template <typename V>
+    concept IsVectorLike = requires(V v) {
+        { v.x };
+        { v.y };
+        { v.z };
+    };
+
+    template <typename S, typename T>
+    concept IsScalar = std::convertible_to<S, T>; // Or std::arithmetic<S>
+
+
+    template <typename T>
+    requires (std::integral<std::remove_cvref_t<T>> || std::floating_point<std::remove_cvref_t<T>>)
+    struct Vec3Ops {
+
+        // --------------
+        // ARITHMETIC OPS
+        // --------------
+
+        // vector addition
+        template <IsVectorLike Other>
+        Vec3<T> operator+(this const auto& self, const Other& other) noexcept {
+            return {self.x + other.x, self.y + other.y, self.z + other.z};
         }
 
-        // Addition operator: returns a new vector that is the sum of this and another vector
-        Vec3 operator+(const Vec3& other) const noexcept {
-            return {x + other.x, y + other.y, z + other.z};
-        }
-
-        // Subtraction operator: returns a new vector that is the difference of this and another vector
-        Vec3 operator-(const Vec3& other) const noexcept {
-            return {x - other.x, y - other.y, z - other.z};
-        }
-
-        // Scalar multiplication operator: returns a new vector scaled by a constant
-        Vec3 operator*(const T scalar) const noexcept {
-            return {x * scalar, y * scalar, z * scalar};
-        }
-
-        // Scalar division: returns a new vector inversely scaled
-        Vec3 operator/(const T scalar) const noexcept {
-            return {x / scalar, y / scalar, z / scalar};
-        }
-
-        // Friend function for scalar multiplication with the scalar on the left
-        friend Vec3 operator*(const T scalar, const Vec3& vec) noexcept {
-            return vec * scalar;
-        }
-
-        // Compound assignment for addition
-        Vec3& operator+=(const Vec3& other) noexcept {
-            x += other.x;
-            y += other.y;
-            z += other.z;
-            return *this;
-        }
-
-        // Compound assignment for subtraction
-        Vec3& operator-=(const Vec3& other) noexcept {
-            x -= other.x;
-            y -= other.y;
-            z -= other.z;
-            return *this;
+        // vector subtraction
+        template <IsVectorLike Other>
+        Vec3<T> operator-(this const auto& self, const Other& other) noexcept {
+            return {self.x - other.x, self.y - other.y, self.z - other.z};
         }
 
         // point-wise multiplication
-        Vec3 operator*(const Vec3 & other) const noexcept {
-            return {x * other.x, y * other.y, z * other.z};
+        template <IsVectorLike Other>
+        Vec3<T> operator*(this const auto& self, const Other& other) noexcept {
+            return {self.x * other.x, self.y * other.y, self.z * other.z};
+        }
+
+        template <IsVectorLike Other>
+        Vec3<T> hadamard(this const auto& self, const Other& other) noexcept {
+            return self * other;
         }
 
         // point wise division
-        Vec3 operator/(const Vec3 & other) const noexcept {
-            return {x / other.x, y / other.y, z / other.z};
+        template <IsVectorLike Other>
+        Vec3<T> operator/(this const auto& self, const Other& other) noexcept {
+            return {self.x / other.x, self.y / other.y, self.z / other.z};
         }
 
-        Vec3 hadamard(const Vec3& other) { return *this * other; }
-        Vec3 elementwise_div(const Vec3& other) { return *this / other; }
-
-
-        // scalar product
-        T dot(const Vec3 & other) const noexcept {
-            return x * other.x + y * other.y + z * other.z;
+        template <IsVectorLike Other>
+        Vec3<T> elementwise_div(this const auto& self, const Other& other) noexcept {
+            return self / other;
         }
 
-        // Compound assignment for scalar multiplication
-        Vec3& operator*=(const T scalar) {
-            x *= scalar;
-            y *= scalar;
-            z *= scalar;
+        // unary minus
+        Vec3<T> operator-(this const auto& self) noexcept {
+            return {-self.x, -self.y, -self.z};
+        }
+
+        // scalar multiplication
+        Vec3<T> operator*(this const auto& self, T scalar) noexcept {
+            return {self.x * scalar, self.y * scalar, self.z * scalar};
+        }
+
+        // scalar division
+        Vec3<T> operator/(this const auto& self, const T scalar) noexcept {
+            return {self.x / scalar, self.y / scalar, self.z / scalar};
+        }
+
+        // Friend function for scalar multiplication with the scalar on the left
+        template <typename Scalar>
+        requires std::convertible_to<Scalar, T>
+        friend Vec3<T> operator*(Scalar scalar, const auto& rhs) noexcept {
+            return rhs * static_cast<T>(scalar);
+        }
+
+
+        // --------------------
+        // COMPOUND ASSIGNMENTS
+        // --------------------
+        template <IsVectorLike Other>
+        auto& operator+=(this auto& self, const Other& rhs) noexcept {
+            self.x += rhs.x;
+            self.y += rhs.y;
+            self.z += rhs.z;
+            return self;
+        }
+
+        template <IsVectorLike Other>
+        auto& operator-=(this auto& self, const Other& rhs) noexcept {
+            self.x -= rhs.x;
+            self.y -= rhs.y;
+            self.z -= rhs.z;
+            return self;
+        }
+
+        auto& operator*=(this auto& self, T scalar) noexcept {
+            self.x *= scalar;
+            self.y *= scalar;
+            self.z *= scalar;
+            return self;
+        }
+
+
+        // -------------------
+        // GEOMETRIC FUNCTIONS
+        // -------------------
+        template <IsVectorLike Other>
+        T dot(this const auto& self, const Other& rhs) noexcept {
+            return self.x * rhs.x + self.y * rhs.y + self.z * rhs.z;
+        }
+
+        [[nodiscard]] double norm_squared(this const auto& self) noexcept {
+            return self.x * self.x + self.y * self.y + self.z * self.z;
+        }
+
+        [[nodiscard]] double norm(this const auto& self) noexcept {
+            return std::sqrt(self.norm_squared());
+        }
+
+        [[nodiscard]] double inv_norm(this const auto& self) noexcept {
+            return 1 / std::sqrt(self.norm_squared()); // compiler may optimize with fast inverse square root
+        }
+
+
+        // -------------------
+        // ORDERING & EQUALITY
+        // -------------------
+        // v < u iff for all v_i: v_i < u_i
+        // in other words v smaller than u if every element in v is smaller than the corresponding element in u
+
+        template <IsVectorLike Other>
+        bool operator==(this const auto& self, const Other& other) noexcept {
+            return self.x == other.x && self.y == other.y && self.z == other.z;
+        }
+
+        template <IsVectorLike Other>
+        bool operator<=(this const auto& self, const Other& other) noexcept {
+            return self.x <= other.x && self.y <= other.y && self.z <= other.z;
+        }
+
+        template <IsVectorLike Other>
+        bool operator>=(this const auto& self, const Other& other) noexcept {
+            return self.x >= other.x && self.y >= other.y && self.z >= other.z;
+        }
+
+        template <IsVectorLike Other>
+        bool operator<(this const auto& self, const Other& other) noexcept {
+            return self.x < other.x && self.y < other.y && self.z < other.z;
+        }
+
+        template <IsVectorLike Other>
+        bool operator>(this const auto& self, const Other& other) noexcept {
+            return self.x > other.x && self.y > other.y && self.z > other.z;
+        }
+
+
+        // ---------
+        // ACCESSORS
+        // ---------
+
+        // Access component by index: 0 for x, 1 for y, 2 for z.
+        // decltype(auto) preserves references
+        decltype(auto) operator[](this auto&& self, const int index) noexcept {
+            AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
+            if (index == 0) return (self.x); // Parentheses matter for decltype(auto) on members
+            if (index == 1) return (self.y);
+            return (self.z);
+        }
+
+        T max(this const auto& self) noexcept {
+            return std::max(self.x, std::max(self.y, self.z));
+        }
+
+        T min(this const auto& self) noexcept {
+            return std::min(self.x, std::min(self.y, self.z));
+        }
+
+
+        //-----------------
+        // LOGIC PREDICATES
+        // ----------------
+        template <typename Predicate>
+        bool any(this const auto& self, Predicate predicate) {
+            return predicate(self.x) || predicate(self.y) || predicate(self.z);
+        }
+
+        template <typename Predicate>
+        bool all(this const auto& self, Predicate predicate) {
+            return predicate(self.x) && predicate(self.y) && predicate(self.z);
+        }
+
+
+        [[nodiscard]] std::string to_string(this const auto& self) {
+            return std::format("{{{}, {}, {}}}", self.x, self.y, self.z);
+        }
+    };
+
+
+
+    template <typename T> requires std::integral<T> || std::floating_point<T>
+    struct Vec3 : Vec3Ops<T> {
+        T x, y, z;
+
+        Vec3() : x(0), y(0), z(0) {}
+        Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
+        explicit Vec3(T v) : x(v), y(v), z(v) {}
+
+        template <IsVectorLike Other>
+        Vec3(const Other& p) : x(p.x), y(p.y), z(p.z) {}
+    };
+
+
+
+    template <typename T>
+    struct Vec3Proxy : Vec3Ops<T> {
+        T& x;
+        T& y;
+        T& z;
+
+        Vec3Proxy(T& x_ref, T& y_ref, T& z_ref) : x(x_ref), y(y_ref), z(z_ref) {}
+
+        // Assign Value (writes to memory)
+        Vec3Proxy& operator=(const Vec3<T>& rhs) {
+            x = rhs.x; y = rhs.y; z = rhs.z;
             return *this;
         }
 
-        // Access component by index: 0 for x, 1 for y, 2 for z.
-        T operator[](const int index) const noexcept{
-            AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
-            switch (index) {
-                case 0: return x;
-                case 1: return y;
-                case 2: return z;
-            default: ;
+        // Assign Proxy (writes to memory)
+        Vec3Proxy& operator=(const Vec3Proxy& rhs) {
+            if (this != &rhs) {
+                x = rhs.x; y = rhs.y; z = rhs.z;
             }
-			return 0; // This line should never be reached due to the assertion above.
+            return *this;
         }
 
-        T & operator[](const int index) noexcept {
-            AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
-            switch (index) {
-                case 0: return x;
-                case 1: return y;
-                case 2: return z;
-            default: ;
-            }
-            return x; // This line should never be reached due to the assertion above.
-        }
-
-		[[nodiscard]] double norm_squared() const noexcept {
-			return x * x + y * y + z * z;
-		}
-
-        [[nodiscard]] double inv_norm() const noexcept {
-            return 1 / std::sqrt(norm_squared()); // compiler may optimize with fast inverse square root
-        }
-
-		[[nodiscard]] double norm() const noexcept {
-			return sqrt(norm_squared());
-		}
-
-        bool operator==(const Vec3 & other) const noexcept {
-            return x == other.x && y == other.y && z == other.z;
-        }
-
-        bool operator<=(const Vec3& other) const noexcept {
-            return x <= other.x and y <= other.y and z <= other.z;
-        }
-
-        bool operator>=(const Vec3& other) const noexcept {
-            return x >= other.x and y >= other.y and z >= other.z;
-        }
-
-        bool operator<(const Vec3& other) const noexcept {
-            return x < other.x and y < other.y and z < other.z;
-        }
-
-        bool operator>(const Vec3& other) const noexcept {
-            return x > other.x and y > other.y and z > other.z;
-        }
-
-        [[nodiscard]] std::string to_string() const {
-            return std::format("{{{}, {}, {}}}", x, y, z);
-        }
-
-        T max() const noexcept {
-            return std::max(x, std::max(y, z));
-        }
-
-        T min() const noexcept {
-            return std::min(x, std::min(y, z));
-        }
-
-        static bool any(Vec3 v, std::function<bool(T)> c) {
-            return c(v.x) || c(v.y) || c(v.z);
-        }
-
-        static bool all(Vec3 v, std::function<bool(T)> c) {
-            return c(v.x) && c(v.y) && c(v.z);
-        }
+        // Implicit conversion to Value
+        operator Vec3<T>() const { return Vec3<T>(x, y, z); }
     };
+
+
+
 } // namespace april::utils

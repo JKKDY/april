@@ -14,19 +14,19 @@ namespace april::monitor {
 		Benchmark() : Monitor(shared::Trigger::always()) {}
 
 		void initialize() {
-			glob_start_time = std::chrono::high_resolution_clock::now();
+			glob_start_time = std::chrono::steady_clock::now();
 			timings.reserve(num_steps);
 		}
 
 		template<class S>
 		void before_step(const core::SystemContext<S> & sys) {
 			updates += sys.size();
-			start_time = std::chrono::high_resolution_clock::now();
+			start_time = std::chrono::steady_clock::now();
 		}
 
 		template<class S>
 		void record(const core::SystemContext<S> &) {
-			end_time = std::chrono::high_resolution_clock::now();
+			end_time = std::chrono::steady_clock::now();
 			const auto elapsed = std::chrono::duration<double>(end_time - start_time).count();
 			timings.push_back(elapsed);
 		}
@@ -34,7 +34,7 @@ namespace april::monitor {
 		void finalize() {
 			if (timings.empty()) return;
 
-			glob_end_time = std::chrono::high_resolution_clock::now();
+			glob_end_time = std::chrono::steady_clock::now();
 
 			// basic sums
           const double glob_total_s = std::chrono::duration<double>(glob_end_time - glob_start_time).count();
@@ -89,7 +89,7 @@ namespace april::monitor {
 		}
 
 	private:
-		using Clock = std::chrono::high_resolution_clock;
+		using Clock = std::chrono::steady_clock;
 		Clock::time_point glob_start_time;
 		Clock::time_point glob_end_time;
 		Clock::time_point start_time;

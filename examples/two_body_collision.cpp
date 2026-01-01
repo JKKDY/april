@@ -39,8 +39,8 @@ int main() {
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
 		.with_monitor(Benchmark())
-		.with_monitor(BinaryOutput(Trigger::every(100), dir_path.string()))
-		.with_monitor(ProgressBar(Trigger::every(100)))
+		// .with_monitor(BinaryOutput(Trigger::every(100), dir_path.string()))
+		// .with_monitor(ProgressBar(Trigger::every(100)))
 		.run_for_duration(0.0002, 5);
 }
 

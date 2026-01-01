@@ -6,9 +6,7 @@
 #include "april/particle/particle.hpp"
 
 // --- Configuration ---
-static constexpr int NX = 40;
-static constexpr int NY = 40;
-static constexpr int NZ = 40;
+static constexpr int NX = 20, NY = 20, NZ = 20;
 static constexpr double A = 1.1225;
 double MASS = 1.0;
 
@@ -23,7 +21,7 @@ double R_CUT2 = R_CUT * R_CUT;
 
 // Simulation settings
 double DT = 0.0002;
-int STEPS = 5;
+int STEPS = 1000;
 
 
 using april::vec3;

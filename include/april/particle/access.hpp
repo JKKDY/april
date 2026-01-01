@@ -13,7 +13,6 @@ namespace april::env {
 	// PARTICLE DATA SOURCE
 	//---------------------
 
-
 	// field attribute helpers
 	template<typename T, Field F, FieldMask M>
 	using field_type_t = std::conditional_t<has_field_v<M, F>, T, std::monostate>;
@@ -97,10 +96,12 @@ namespace april::env {
 			return ParticleView<M, UserDataT>(*this);
 		}
 
-		[[no_unique_address]] field_type_t<vec3&, Field::force, M> force;
-		[[no_unique_address]] field_type_t<vec3&, Field::position, M> position;
-		[[no_unique_address]] field_type_t<vec3&, Field::velocity, M> velocity;
-		[[no_unique_address]] field_type_t<vec3&, Field::old_position, M> old_position;
+		using vec3ref = utils::Vec3Proxy<double>;
+
+		[[no_unique_address]] field_type_t<vec3ref, Field::force, M> force;
+		[[no_unique_address]] field_type_t<vec3ref, Field::position, M> position;
+		[[no_unique_address]] field_type_t<vec3ref, Field::velocity, M> velocity;
+		[[no_unique_address]] field_type_t<vec3ref, Field::old_position, M> old_position;
 		[[no_unique_address]] field_type_t<double&, Field::mass, M> mass;
 		[[no_unique_address]] field_type_t<ParticleState&, Field::state, M> state;
 		[[no_unique_address]] field_type_t<const ParticleType, Field::type, M> type;
@@ -128,12 +129,15 @@ namespace april::env {
 			return ParticleView<M, UserDataT>(*this);
 		}
 
+		using Vec3Ref = utils::Vec3Proxy<double>;
+		using ConstVec3Ref = utils::Vec3Proxy<const double>;
+
 
 		// everything by const reference except for force
-		vec3& force;
-		[[no_unique_address]] field_type_t<const vec3&, Field::position, M> position;
-		[[no_unique_address]] field_type_t<const vec3&, Field::velocity, M> velocity;
-		[[no_unique_address]] field_type_t<const vec3&, Field::old_position, M> old_position;
+		Vec3Ref force;
+		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::position, M> position;
+		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::velocity, M> velocity;
+		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::old_position, M> old_position;
 		[[no_unique_address]] field_type_t<const double&, Field::mass, M> mass;
 		[[no_unique_address]] field_type_t<const ParticleState, Field::state, M> state;
 		[[no_unique_address]] field_type_t<const ParticleType, Field::type, M> type;
@@ -175,11 +179,13 @@ namespace april::env {
 			, user_data    (r.user_data)
 			{}
 
+		using ConstVec3Ref = utils::Vec3Proxy<const double>;
+
 		// everything by const reference
-		[[no_unique_address]] field_type_t<const vec3&, Field::force, M> force;
-		[[no_unique_address]] field_type_t<const vec3&, Field::position, M> position;
-		[[no_unique_address]] field_type_t<const vec3&, Field::velocity, M> velocity;
-		[[no_unique_address]] field_type_t<const vec3&, Field::old_position, M> old_position;
+		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::force, M> force;
+		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::position, M> position;
+		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::velocity, M> velocity;
+		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::old_position, M> old_position;
 		[[no_unique_address]] field_type_t<const double&, Field::mass, M> mass;
 		[[no_unique_address]] field_type_t<const ParticleState, Field::state, M> state;
 		[[no_unique_address]] field_type_t<const ParticleType, Field::type, M> type;

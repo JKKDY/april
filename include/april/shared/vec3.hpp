@@ -228,13 +228,27 @@ namespace april::utils {
 
 
 
-    template <typename T>
+    template <typename T> requires std::integral<T> || std::floating_point<T>
     struct Vec3Proxy : Vec3Ops<T> {
         T& x;
         T& y;
         T& z;
 
-        Vec3Proxy(T& x_ref, T& y_ref, T& z_ref) : x(x_ref), y(y_ref), z(z_ref) {}
+        Vec3Proxy(T& x_ref, T& y_ref, T& z_ref)
+            : x(x_ref), y(y_ref), z(z_ref) {}
+
+        template<typename U>
+        requires std::convertible_to<U, T>
+        explicit Vec3Proxy(Vec3<U> & other)
+            : x(other.x), y(other.y), z(other.z) {}
+
+        template <typename U>
+        requires std::convertible_to<U&, T&>
+        explicit Vec3Proxy(const Vec3Proxy<U>& other)
+            : x(other.x), y(other.y), z(other.z) {}
+
+
+        Vec3Proxy(const Vec3Proxy&) = default;
 
         // Assign Value (writes to memory)
         Vec3Proxy& operator=(const Vec3<T>& rhs) {
@@ -244,9 +258,9 @@ namespace april::utils {
 
         // Assign Proxy (writes to memory)
         Vec3Proxy& operator=(const Vec3Proxy& rhs) {
-            if (this != &rhs) {
+            // if (this != &rhs) {
                 x = rhs.x; y = rhs.y; z = rhs.z;
-            }
+            // }
             return *this;
         }
 

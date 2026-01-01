@@ -90,6 +90,7 @@ namespace april::container {
 			else if constexpr (F == env::Field::position)	  	return &self.particles[i].position;
 			else if constexpr (F == env::Field::velocity)	  	return &self.particles[i].velocity;
 			else if constexpr (F == env::Field::old_position) 	return &self.particles[i].old_position;
+
 			else if constexpr (F == env::Field::mass)			return &self.particles[i].mass;
 			else if constexpr (F == env::Field::state)			return &self.particles[i].state;
 			else if constexpr (F == env::Field::type)			return &self.particles[i].type;

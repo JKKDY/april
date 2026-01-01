@@ -14,6 +14,9 @@ namespace april::utils {
     template <typename T> requires std::integral<T> || std::floating_point<T>
     struct Vec3;
 
+    template <typename T> requires std::integral<T> || std::floating_point<T>
+    struct Vec3Proxy;
+
 
     template <typename V>
     concept IsVectorLike = requires(V v) {
@@ -29,11 +32,11 @@ namespace april::utils {
     template <typename T>
     requires (std::integral<std::remove_cvref_t<T>> || std::floating_point<std::remove_cvref_t<T>>)
     struct Vec3Ops {
+        using type = T;
 
         // --------------
         // ARITHMETIC OPS
         // --------------
-
         // vector addition
         template <IsVectorLike Other>
         Vec3<T> operator+(this const auto& self, const Other& other) noexcept {
@@ -174,7 +177,6 @@ namespace april::utils {
         // ---------
         // ACCESSORS
         // ---------
-
         // Access component by index: 0 for x, 1 for y, 2 for z.
         // decltype(auto) preserves references
         decltype(auto) operator[](this auto&& self, const int index) noexcept {
@@ -229,10 +231,57 @@ namespace april::utils {
 
 
     template <typename T> requires std::integral<T> || std::floating_point<T>
+    struct Vec3Ptr {
+        T * x = nullptr;
+        T * y = nullptr;
+        T * z = nullptr;
+
+        Vec3Ptr() = default;
+
+        template <typename U>
+        requires std::convertible_to<U, T>
+        Vec3Ptr(Vec3<U>* other)
+           : x(&other->x), y(&other->y), z(&other->z) {}
+
+        template <typename U>
+        requires std::convertible_to<const U*, T*>
+        Vec3Ptr(const Vec3<U>* other)
+           : x(&other->x), y(&other->y), z(&other->z) {}
+
+        Vec3Ptr(T& x_ref, T& y_ref, T& z_ref)
+           : x(&x_ref), y(&y_ref), z(&z_ref) {}
+
+        template <typename U>
+        requires std::convertible_to<U*, T*>
+        Vec3Ptr(const Vec3Ptr<U>& other)
+           : x(other.x), y(other.y), z(other.z) {}
+
+        template <typename U>
+        requires std::convertible_to<U*, T*>
+        Vec3Ptr& operator=(const Vec3Ptr<U>& other) {
+            x = other.x;
+            y = other.y;
+            z = other.z;
+            return *this;
+        }
+
+        // Vec3Ptr(T* x_ptr, T* y_ptr, T* z_ptr)
+        //   : x(x_ptr), y(y_ptr), z(z_ptr) {}
+
+        Vec3Proxy<T> operator*() const {
+            return Vec3Proxy<T>(*x, *y, *z);
+        }
+    };
+
+
+    template <typename T> requires std::integral<T> || std::floating_point<T>
     struct Vec3Proxy : Vec3Ops<T> {
         T& x;
         T& y;
         T& z;
+
+        // ---- Constructors ----
+        Vec3Proxy(const Vec3Proxy&) = default;
 
         Vec3Proxy(T& x_ref, T& y_ref, T& z_ref)
             : x(x_ref), y(y_ref), z(z_ref) {}
@@ -247,24 +296,18 @@ namespace april::utils {
         explicit Vec3Proxy(const Vec3Proxy<U>& other)
             : x(other.x), y(other.y), z(other.z) {}
 
-
-        Vec3Proxy(const Vec3Proxy&) = default;
-
-        // Assign Value (writes to memory)
+        // ---- Assigment ----
         Vec3Proxy& operator=(const Vec3<T>& rhs) {
             x = rhs.x; y = rhs.y; z = rhs.z;
             return *this;
         }
 
-        // Assign Proxy (writes to memory)
         Vec3Proxy& operator=(const Vec3Proxy& rhs) {
-            // if (this != &rhs) {
-                x = rhs.x; y = rhs.y; z = rhs.z;
-            // }
+            x = rhs.x; y = rhs.y; z = rhs.z;
             return *this;
         }
 
-        // Implicit conversion to Value
+        // implicit conversion to Value
         operator Vec3<T>() const { return Vec3<T>(x, y, z); }
     };
 

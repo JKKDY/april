@@ -24,16 +24,20 @@ namespace april::env {
 	    template<typename T>
 	    using Ptr = std::conditional_t<IsConst, const T*, T*>;
 
+		using Vec3PtrT = utils::Vec3Ptr<std::conditional_t<IsConst, const vec3::type, vec3::type>>;
+
 	    // data pointers (optimized away if not in M)
-	    [[no_unique_address]] field_type_t<Ptr<vec3>, Field::force, M> force;
-	    [[no_unique_address]] field_type_t<Ptr<vec3>, Field::position, M> position;
-	    [[no_unique_address]] field_type_t<Ptr<vec3>, Field::velocity, M> velocity;
-	    [[no_unique_address]] field_type_t<Ptr<vec3>, Field::old_position, M> old_position;
-	    [[no_unique_address]] field_type_t<Ptr<double>, Field::mass, M> mass;
-	    [[no_unique_address]] field_type_t<Ptr<ParticleState>, Field::state, M> state;
-	    [[no_unique_address]] field_type_t<Ptr<ParticleType>, Field::type, M> type;
-	    [[no_unique_address]] field_type_t<Ptr<ParticleID>, Field::id, M> id;
-	    [[no_unique_address]] field_type_t<Ptr<U>, Field::user_data, M> user_data;
+		// TODO with MSVC no_unique_address may not work. Use [[msvc::no_unique_address]] instead. Use a macro for implementation
+	    AP_NO_UNIQUE_ADDRESS field_type_t<Vec3PtrT, Field::force, M> force;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<Vec3PtrT, Field::position, M> position;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<Vec3PtrT, Field::velocity, M> velocity;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<Vec3PtrT, Field::old_position, M> old_position;
+
+	    AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<double>, Field::mass, M> mass;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<ParticleState>, Field::state, M> state;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<ParticleType>, Field::type, M> type;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<ParticleID>, Field::id, M> id;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<U>, Field::user_data, M> user_data;
 
 		// getter (Used by ParticleRef/View)
 		template<Field F>
@@ -98,15 +102,15 @@ namespace april::env {
 
 		using vec3ref = utils::Vec3Proxy<double>;
 
-		[[no_unique_address]] field_type_t<vec3ref, Field::force, M> force;
-		[[no_unique_address]] field_type_t<vec3ref, Field::position, M> position;
-		[[no_unique_address]] field_type_t<vec3ref, Field::velocity, M> velocity;
-		[[no_unique_address]] field_type_t<vec3ref, Field::old_position, M> old_position;
-		[[no_unique_address]] field_type_t<double&, Field::mass, M> mass;
-		[[no_unique_address]] field_type_t<ParticleState&, Field::state, M> state;
-		[[no_unique_address]] field_type_t<const ParticleType, Field::type, M> type;
-		[[no_unique_address]] field_type_t<const ParticleID, Field::id, M> id;
-		[[no_unique_address]] field_type_t<UserDataT&, Field::user_data, M> user_data;
+		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, Field::force, M> force;
+		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, Field::position, M> position;
+		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, Field::velocity, M> velocity;
+		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, Field::old_position, M> old_position;
+		AP_NO_UNIQUE_ADDRESS field_type_t<double&, Field::mass, M> mass;
+		AP_NO_UNIQUE_ADDRESS field_type_t<ParticleState&, Field::state, M> state;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleType, Field::type, M> type;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleID, Field::id, M> id;
+		AP_NO_UNIQUE_ADDRESS field_type_t<UserDataT&, Field::user_data, M> user_data;
 	};
 
 	// Restricted reference allowing only the force field to be modified, used for fields.
@@ -135,14 +139,14 @@ namespace april::env {
 
 		// everything by const reference except for force
 		Vec3Ref force;
-		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::position, M> position;
-		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::velocity, M> velocity;
-		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::old_position, M> old_position;
-		[[no_unique_address]] field_type_t<const double&, Field::mass, M> mass;
-		[[no_unique_address]] field_type_t<const ParticleState, Field::state, M> state;
-		[[no_unique_address]] field_type_t<const ParticleType, Field::type, M> type;
-		[[no_unique_address]] field_type_t<const ParticleID, Field::id, M> id;
-		[[no_unique_address]] field_type_t<const UserDataT&, Field::user_data, M> user_data;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, Field::position, M> position;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, Field::velocity, M> velocity;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, Field::old_position, M> old_position;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const double&, Field::mass, M> mass;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleState, Field::state, M> state;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleType, Field::type, M> type;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleID, Field::id, M> id;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const UserDataT&, Field::user_data, M> user_data;
 	};
 
 
@@ -182,15 +186,15 @@ namespace april::env {
 		using ConstVec3Ref = utils::Vec3Proxy<const double>;
 
 		// everything by const reference
-		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::force, M> force;
-		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::position, M> position;
-		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::velocity, M> velocity;
-		[[no_unique_address]] field_type_t<const ConstVec3Ref, Field::old_position, M> old_position;
-		[[no_unique_address]] field_type_t<const double&, Field::mass, M> mass;
-		[[no_unique_address]] field_type_t<const ParticleState, Field::state, M> state;
-		[[no_unique_address]] field_type_t<const ParticleType, Field::type, M> type;
-		[[no_unique_address]] field_type_t<const ParticleID, Field::id, M> id;
-		[[no_unique_address]] field_type_t<const UserDataT&, Field::user_data, M> user_data;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, Field::force, M> force;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, Field::position, M> position;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, Field::velocity, M> velocity;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, Field::old_position, M> old_position;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const double&, Field::mass, M> mass;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleState, Field::state, M> state;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleType, Field::type, M> type;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleID, Field::id, M> id;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const UserDataT&, Field::user_data, M> user_data;
 	};
 
 	// TODO maybe stick this somewhere else? like in particle.h

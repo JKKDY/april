@@ -109,8 +109,8 @@ TEST_F(ParticleViewsTest, ParticleRefAllFieldsRead) {
 }
 
 TEST_F(ParticleViewsTest, ParticleRefAllFieldsWrite) {
-    auto src = get_source();
-    const ParticleRef<+Field::all, TestUserDataT> ref(src);
+    const auto src = get_source();
+    ParticleRef<+Field::all, TestUserDataT> ref(src);
 
     constexpr MyTestUserData updated_data{99, -1.0};
 
@@ -133,7 +133,7 @@ TEST_F(ParticleViewsTest, ParticleRefPartialMask) {
 
     // check present fields are correct
     EXPECT_EQ(ref.position, particle_data.position);
-    EXPECT_TRUE((std::is_same_v<decltype(ref.position), vec3&>));
+    EXPECT_TRUE((std::is_same_v<decltype(ref.position), utils::Vec3Proxy<vec3::type>>));
     EXPECT_EQ(ref.mass, particle_data.mass);
     EXPECT_TRUE((std::is_same_v<decltype(ref.mass), double&>));
     EXPECT_EQ(ref.user_data, particle_data.user_data);
@@ -159,7 +159,7 @@ TEST_F(ParticleViewsTest, ParticleViewIsConst) {
     EXPECT_EQ(view.user_data, particle_data.user_data);
 
     // check types are const (or copies)
-    EXPECT_TRUE((std::is_same_v<decltype(view.position), const vec3&>));
+    EXPECT_TRUE((std::is_same_v<decltype(view.position), const utils::Vec3Proxy<const vec3::type>>));
     EXPECT_TRUE((std::is_same_v<decltype(view.mass), const double&>)); // copy
     EXPECT_TRUE((std::is_same_v<decltype(view.user_data), const TestUserDataT&>));
 }
@@ -173,10 +173,10 @@ TEST_F(ParticleViewsTest, RestrictedParticleRefAccess) {
     RestrictedParticleRef<mask, TestUserDataT> restricted_ref(src);
 
     // check that 'force' is mutable
-    EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.force), vec3&>));
+    EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.force), utils::Vec3Proxy<vec3::type>>));
 
     // check that other fields are const or copies
-    EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.position), const vec3&>));
+    EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.position), const utils::Vec3Proxy<const vec3::type>>));
     EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.id), const ParticleID>)); // copy
     EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.user_data), const TestUserDataT&>));
 

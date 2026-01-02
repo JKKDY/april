@@ -27,7 +27,6 @@ namespace april::env {
 		using Vec3PtrT = utils::Vec3Ptr<std::conditional_t<IsConst, const vec3::type, vec3::type>>;
 
 	    // data pointers (optimized away if not in M)
-		// TODO with MSVC no_unique_address may not work. Use [[msvc::no_unique_address]] instead. Use a macro for implementation
 	    AP_NO_UNIQUE_ADDRESS field_type_t<Vec3PtrT, Field::force, M> force;
 	    AP_NO_UNIQUE_ADDRESS field_type_t<Vec3PtrT, Field::position, M> position;
 	    AP_NO_UNIQUE_ADDRESS field_type_t<Vec3PtrT, Field::velocity, M> velocity;

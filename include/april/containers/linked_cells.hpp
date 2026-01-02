@@ -4,7 +4,7 @@
 #include <ranges>
 
 #include "batch.hpp"
-#include "april/containers/contiguous_container.hpp"
+#include "april/containers/aos_container.hpp"
 
 
 
@@ -26,8 +26,8 @@ namespace april::container {
 
 namespace april::container::internal {
 	template <class U>
-	class LinkedCells final : public ContiguousContainer<container::LinkedCells, U> {
-		using Base = ContiguousContainer<container::LinkedCells, U>;
+	class LinkedCells final : public AoSContainer<container::LinkedCells, U> {
+		using Base = AoSContainer<container::LinkedCells, U>;
 		friend Base;
 
 		using typename Base::ParticleRecord;

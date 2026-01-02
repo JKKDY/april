@@ -2,7 +2,7 @@
 
 #include <ranges>
 
-#include "april/containers/contiguous_container.hpp"
+#include "april/containers/aos_container.hpp"
 #include "april/containers/batch.hpp"
 
 namespace april::container {
@@ -16,8 +16,8 @@ namespace april::container {
 
 	namespace internal {
 		template <class U>
-		class DirectSum final : public ContiguousContainer<container::DirectSum, U> {
-			using Base = ContiguousContainer<container::DirectSum, U>;
+		class DirectSum final : public AoSContainer<container::DirectSum, U> {
+			using Base = AoSContainer<container::DirectSum, U>;
 			using typename Base::ParticleRecord;
 			friend Base;
 			using Base::particles;

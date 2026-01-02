@@ -7,7 +7,7 @@ namespace fs = std::filesystem;
 
 
 
-static constexpr int NX = 20, NY = 20, NZ = 20;
+static constexpr int NX = 40, NY = 40, NZ = 40;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
@@ -45,7 +45,7 @@ int main() {
 	auto system = build_system(env, container);
 
 	constexpr double dt = 0.0002;
-	constexpr int steps  = 1000;
+	constexpr int steps  = 5;
 
 	VelocityVerlet integrator(system, monitors<Benchmark>);
 	integrator.add_monitor(Benchmark());

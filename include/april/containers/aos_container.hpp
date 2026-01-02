@@ -7,7 +7,7 @@
 namespace april::container {
 
 	template<typename Config, env::IsUserData U>
-	class ContiguousContainer : public Container<Config, U>{
+	class AoSContainer : public Container<Config, U>{
 
 	public:
 		using Base = Container<Config, U>;
@@ -17,9 +17,10 @@ namespace april::container {
 		using Particle = env::internal::ParticleRecord<U>;
 		using Base::Base;
 
-		ContiguousContainer(const Config & config, const internal::ContainerCreateInfo & info):
+		AoSContainer(const Config & config, const internal::ContainerCreateInfo & info):
 			Container<Config, U>(config, info)
 		{
+			// precompute topology batches (id based batches)
 			for (size_t i = 0; i < force_schema.interactions.size(); ++i) {
 				const auto& prop = force_schema.interactions[i];
 
@@ -77,9 +78,11 @@ namespace april::container {
 		}
 
 	protected:
-		void swap_particles (uint32_t idx1, uint32_t idx2) {
-			auto id1 = particles[idx1].id, id2 = particles[idx2].id;
-			std::swap(particles[idx1], particles[idx2]);
+		void swap_particles (uint32_t i, uint32_t j) {
+			if (i == j) return;
+
+			auto id1 = particles[i].id, id2 = particles[j].id;
+			std::swap(particles[i], particles[j]);
 			std::swap(id_to_index_map[id1], id_to_index_map[id2]);
 		}
 
@@ -90,7 +93,6 @@ namespace april::container {
 			else if constexpr (F == env::Field::position)	  	return &self.particles[i].position;
 			else if constexpr (F == env::Field::velocity)	  	return &self.particles[i].velocity;
 			else if constexpr (F == env::Field::old_position) 	return &self.particles[i].old_position;
-
 			else if constexpr (F == env::Field::mass)			return &self.particles[i].mass;
 			else if constexpr (F == env::Field::state)			return &self.particles[i].state;
 			else if constexpr (F == env::Field::type)			return &self.particles[i].type;

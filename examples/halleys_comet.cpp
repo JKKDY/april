@@ -17,7 +17,7 @@ int main() {
 	                 .with_force(Gravity(), to_type(0))
 	                 .with_extent({50,50, 0});
 
-	constexpr auto algo = DirectSum();
+	constexpr auto algo = DirectSumAoS();
 	auto system = build_system(env, algo);
 
 	auto integrator = Yoshida4(system, monitors<BinaryOutput, ProgressBar, Benchmark, TerminalOutput>)

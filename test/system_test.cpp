@@ -10,7 +10,7 @@ TEST(EnvTest, empty_env) {
     Environment e (forces<NoForce>);
     e.set_extent(1,1,1);
 
-    auto sys = build_system(e, DirectSum());
+    auto sys = build_system(e, DirectSumAoS());
 
     const auto p = export_particles(sys);
     EXPECT_EQ(p.size(), 0);
@@ -24,7 +24,7 @@ TEST(EnvTest, one_particle_test) {
     e.add_force(LennardJones(3, 5), to_type(0));
     e.set_extent(1,1,1);
 
-    auto sys = build_system(e, DirectSum());
+    auto sys = build_system(e, DirectSumAoS());
     const auto particles = export_particles(sys);
 
     EXPECT_EQ(particles.size(), 1);
@@ -46,7 +46,7 @@ TEST(EnvTest, negative_mass_throws) {
     e.add_force(NoForce(), to_type(0));
     e.set_extent(1,1,1);
 
-    EXPECT_THROW(build_system(e, DirectSum()), std::invalid_argument);
+    EXPECT_THROW(build_system(e, DirectSumAoS()), std::invalid_argument);
 }
 
 
@@ -59,7 +59,7 @@ TEST(EnvTest, type_force_missing) {
 
     e.add_force(Gravity(), between_ids(-1, 0));
 
-    EXPECT_THROW(build_system(e, DirectSum()), std::invalid_argument);
+    EXPECT_THROW(build_system(e, DirectSumAoS()), std::invalid_argument);
 }
 
 
@@ -73,7 +73,7 @@ TEST(EnvTest, two_particle_force_test) {
     e.add_force(Gravity(), between_ids(1, 0));
     e.add_force(Gravity(), to_type(0));
 
-    auto sys = build_system(e, DirectSum());
+    auto sys = build_system(e, DirectSumAoS());
 
     const auto particles = export_particles(sys);
     EXPECT_EQ(particles.size(), 2);
@@ -96,7 +96,7 @@ TEST(EnvTest, ExtentTooSmallThrows) {
     e.set_origin({0,0,0});
     e.set_extent({1,1,1});
     e.add_force(NoForce(), to_type(0));
-    EXPECT_THROW(build_system(e, DirectSum()), std::invalid_argument);
+    EXPECT_THROW(build_system(e, DirectSumAoS()), std::invalid_argument);
 }
 
 TEST(EnvTest, OriginOutsideThrows) {
@@ -109,7 +109,7 @@ TEST(EnvTest, OriginOutsideThrows) {
     e.set_origin({2,2,2});
     e.set_extent({2,2,2});
     e.add_force(NoForce(), to_type(0));
-    EXPECT_THROW(build_system(e, DirectSum()), std::invalid_argument);
+    EXPECT_THROW(build_system(e, DirectSumAoS()), std::invalid_argument);
 }
 
 TEST(EnvTest, OnlyExtentCentersOrigin) {
@@ -120,7 +120,7 @@ TEST(EnvTest, OnlyExtentCentersOrigin) {
     // Only extent given
     e.set_extent({4,4,4});
     e.add_force(NoForce(), to_type(0));
-    const auto sys = build_system(e, DirectSum());
+    const auto sys = build_system(e, DirectSumAoS());
 
     // bbox_min = (3,4,5), bbox_center = same
     // origin = center - extent/2 = (3,4,5) - (2,2,2) = (1,2,3)
@@ -138,7 +138,7 @@ TEST(EnvTest, OnlyOriginSymmetricExtent) {
     e.add_force(NoForce(), to_type(0));
     e.auto_domain(1);
 
-    const auto sys = build_system(e, DirectSum());
+    const auto sys = build_system(e, DirectSumAoS());
 
 
     EXPECT_EQ(sys.domain().origin, vec3(0,0,0));
@@ -155,7 +155,7 @@ TEST(EnvTest, AutoOriginExtentDoublesBBox) {
     e.auto_domain_factor(1);
 
     // neither origin nor extent set
-    const auto sys = build_system(e, DirectSum());
+    const auto sys = build_system(e, DirectSumAoS());
 
     // bbox_min = (1,2,3), bbox_max = (3,4,5), bbox_center = (2,3,4), bbox_extent = (2,2,2)
     // extent = bbox_extent * 2 = (4,4,4)

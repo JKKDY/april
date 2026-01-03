@@ -18,7 +18,7 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
-	constexpr auto algo = DirectSum();
+	constexpr auto algo = DirectSumAoS();
 	auto system = build_system(env, algo);
 
 	VelocityVerlet integrator(system);
@@ -39,7 +39,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
-	constexpr auto algo = DirectSum();
+	constexpr auto algo = DirectSumAoS();
 	auto system = build_system(env, algo);
 
 	VelocityVerlet integrator(system);
@@ -71,7 +71,7 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
-	constexpr auto algo = DirectSum();
+	constexpr auto algo = DirectSumAoS();
 	auto system = build_system(env, algo);
 
 	VelocityVerlet integrator(system);
@@ -118,7 +118,7 @@ TEST(StoermerVerletTest, OrbitTest) {
 	env.set_extent(vec3{R,R,R}*4);
 	env.set_origin(vec3{-R,-R,-R} * 2);
 
-	constexpr auto algo = DirectSum();
+	constexpr auto algo = DirectSumAoS();
 	auto system = build_system(env, algo);
 
 	VelocityVerlet integrator(system, monitor::monitors<OrbitMonitor>);
@@ -165,7 +165,7 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	env.set_extent(vec3{R,R,R}*4);
 	env.set_origin(vec3{-R,-R,-R} * 2);
 
-	constexpr auto algo = DirectSum();
+	constexpr auto algo = DirectSumAoS();
 	auto system = build_system(env, algo);
 
 	{

@@ -251,6 +251,9 @@ namespace april::utils {
         Vec3Ptr(T& x_ref, T& y_ref, T& z_ref)
            : x(&x_ref), y(&y_ref), z(&z_ref) {}
 
+        Vec3Ptr(T* x_ptr, T* y_ptr, T* z_ptr)
+            : x(x_ptr), y(y_ptr), z(z_ptr) {}
+
         template <typename U>
         requires std::convertible_to<U*, T*>
         Vec3Ptr(const Vec3Ptr<U>& other)

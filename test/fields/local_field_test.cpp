@@ -32,7 +32,7 @@ TEST(LocalFieldTest, SpatialCheck) {
        .with_field(LocalForceField(field_force, local_region, 0.0, 10.0));
 
     BuildInfo info;
-    auto system = build_system(env, DirectSum(), &info);
+    auto system = build_system(env, DirectSumAoS(), &info);
     system.apply_force_fields();
     // Run at step 0 (t=0.0), which is inside the active time
     // StoermerVerlet(system).with_dt(0.01).for_steps(1).run();
@@ -76,7 +76,7 @@ TEST(LocalFieldTest, TimeCheck) {
        // Field is active ONLY between t=0.025 and t=0.045
        .with_field(LocalForceField(field_force, local_region, 0.025, 0.045));
 
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     auto integrator = VelocityVerlet(system).with_dt(0.01);
 
     // Phase 1: before (t=0.0, t=0.01)

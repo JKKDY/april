@@ -27,7 +27,7 @@ private:
 template <class ContainerT>
 class BoundaryTestT : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSum, LinkedCells>;
+using ContainerTypes = testing::Types<DirectSumAoS, LinkedCells>;
 TYPED_TEST_SUITE(BoundaryTestT, ContainerTypes);
 
 TYPED_TEST(BoundaryTestT, InsideSlab_XMinus_AppliesOnlyToSlabParticles) {

@@ -92,7 +92,8 @@ namespace april {
 
 	// Containers
 	using container::Container;
-	using container::DirectSum;
+	using container::DirectSumAoS;
+	using container::DirectSumSoA;
 	using container::LinkedCells;
 
 	// System

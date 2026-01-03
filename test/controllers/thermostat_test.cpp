@@ -59,7 +59,7 @@ TEST(ThermostatCalculationTest, InitialTemperatureTest1) {
        .with_force(NoForce(), to_type(0))
        .with_extent(100, 100, 0); // 2D system
 
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     const auto particles = export_particles(system);
     const auto avg_v = get_system_avg_v(particles);
     const auto temp = get_system_temp(particles, avg_v, system.box());
@@ -83,7 +83,7 @@ TEST(ThermostatCalculationTest, InitialTemperatureTest2) {
        .with_force(NoForce(), to_type(0))
        .with_extent(100, 100, 0); // 2D system
 
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     const auto particles = export_particles(system);
     const auto avg_v = get_system_avg_v(particles);
     const auto temp = get_system_temp(particles, avg_v, system.box());
@@ -111,7 +111,7 @@ TEST(ThermostatBehaviorTest, SetInitialTemperature) {
             .with_extent(100, 100, 100)
             .with_controller(VelocityScalingThermostat(t, 0, 30, Trigger::always()));
 
-        auto system = build_system(env, DirectSum());
+        auto system = build_system(env, DirectSumAoS());
 
         const auto particles = export_particles(system);
         const auto avg_v = get_system_avg_v(particles);
@@ -143,7 +143,7 @@ TEST(ThermostatBehaviorTest, HoldingTemperature) {
              20, 20, 0.5, Trigger::every(10)
         ));
 
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
 
     // Run for a few steps
     VelocityVerlet(system).with_dt(0.001).for_steps(100).run();
@@ -173,7 +173,7 @@ TEST(ThermostatBehaviorTest, CoolingSystem) {
              20, 5, 10, Trigger::every(10)
          ));
 
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
 
     // Run for a few steps
     VelocityVerlet(system).with_dt(0.001).for_steps(100).run();
@@ -202,7 +202,7 @@ TEST(ThermostatBehaviorTest, HeatingSystem) {
             20, 80, 10, Trigger::every(10)
         ));
 
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
 
     // Run for a few steps
     VelocityVerlet(system).with_dt(0.001).for_steps(100).run();
@@ -242,7 +242,7 @@ TEST(ThermostatBehaviorTest, Apply_HeatsThenCoolsWithTriggers) {
         controller::temperature_not_set, T_cool, 5.0, Trigger::after(20)
     ));
 
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
 
     // Run heating phase
     VelocityVerlet(system).with_dt(0.01).for_steps(20).run();

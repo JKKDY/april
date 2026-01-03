@@ -10,9 +10,9 @@ namespace april::container {
     class SoAContainer : public Container<Config, U> {
     public:
         using Base = Container<Config, U>;
-        using Particle = env::internal::ParticleRecord<U>;
         using Base::force_schema;
         using Base::Base;
+        friend Base;
 
         SoAContainer(const Config & config, const internal::ContainerCreateInfo & info)
             : Base(config, info)
@@ -32,8 +32,16 @@ namespace april::container {
             }
         }
 
+        template<typename Func>
+        void for_each_topology_batch(Func && func) {
+            for (const auto & batch : topology_batches) {
+                func(batch);
+            }
+        }
+
+
         // explode AoS input into SoA vectors
-        void build_storage(const std::vector<Particle>& particles) {
+        void build_storage(const std::vector<env::internal::ParticleRecord<U>>& particles) {
             AP_ASSERT(!is_built, "storage already built");
 
             size_t n = particles.size();
@@ -112,18 +120,15 @@ namespace april::container {
         template<env::Field F>
         auto get_field_ptr(this auto&& self, size_t i) {
 
-            if constexpr (F == env::Field::position) {
-                return utils::Vec3Ptr { &self.pos_x[i], &self.pos_y[i], &self.pos_z[i] };
-            }
-            else if constexpr (F == env::Field::velocity) {
-                return utils::Vec3Ptr { &self.vel_x[i], &self.vel_y[i], &self.vel_z[i] };
-            }
-            else if constexpr (F == env::Field::force) {
-                return utils::Vec3Ptr { &self.frc_x[i], &self.frc_y[i], &self.frc_z[i] };
-            }
-            else if constexpr (F == env::Field::old_position) {
-                return utils::Vec3Ptr { &self.old_x[i], &self.old_y[i], &self.old_z[i] };
-            }
+            if constexpr (F == env::Field::position)
+                return utils::Vec3Ptr { self.pos_x[i], self.pos_y[i], self.pos_z[i] };
+            else if constexpr (F == env::Field::velocity)
+                return utils::Vec3Ptr { self.vel_x[i], self.vel_y[i], self.vel_z[i] };
+            else if constexpr (F == env::Field::force)
+                return utils::Vec3Ptr { self.frc_x[i], self.frc_y[i], self.frc_z[i] };
+            else if constexpr (F == env::Field::old_position)
+                return utils::Vec3Ptr { self.old_x[i], self.old_y[i], self.old_z[i] };
+
             // Scalars are simple pointers
             else if constexpr (F == env::Field::mass)      return &self.mass[i];
             else if constexpr (F == env::Field::state)     return &self.state[i];

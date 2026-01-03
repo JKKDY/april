@@ -17,7 +17,7 @@ TEST(Yoshida4Test,ConstructionTest) {
 	env.set_extent({2,2,2});
 	env.set_origin({-1,-1,-1});
 
-	constexpr auto algo = DirectSum();
+	constexpr auto algo = DirectSumAoS();
 	auto system = build_system(env, algo);
 
 	Yoshida4 integrator(system);
@@ -37,7 +37,7 @@ TEST(Yoshida4Test, SingleStepNoForceTest) {
 	env.set_extent(20 * vec3(1));
 	env.set_origin(10*vec3{-1});
 
-	constexpr auto algo = DirectSum();
+	constexpr auto algo = DirectSumAoS();
 	auto system = build_system(env, algo);
 
 	Yoshida4 integrator(system);
@@ -69,7 +69,7 @@ TEST(Yoshida4Test, SingleStepWithForceTest) {
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
-	constexpr auto algo = DirectSum();
+	constexpr auto algo = DirectSumAoS();
 	auto system = build_system(env, algo);
 
 	Yoshida4 integrator(system);
@@ -117,7 +117,7 @@ TEST(Yoshida4Test, OrbitTest) {
 	env.set_extent(vec3{R,R,R}*4);
 	env.set_origin(vec3{-R,-R,-R} * 2);
 
-	constexpr auto algo = DirectSum();
+	constexpr auto algo = DirectSumAoS();
 	auto system = build_system(env, algo);
 
 	Yoshida4 integrator(system, monitors<OrbitMonitor>);
@@ -164,7 +164,7 @@ TEST(Yoshida4Test, OrbitTestSplitRuns) {
 	env.set_extent(vec3{R,R,R}*4);
 	env.set_origin(vec3{-R,-R,-R} * 2);
 
-	constexpr auto algo = DirectSum();
+	constexpr auto algo = DirectSumAoS();
 	auto system = build_system(env, algo);
 
 	{

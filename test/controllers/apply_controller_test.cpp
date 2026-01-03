@@ -70,7 +70,7 @@ protected:
 
 TEST_F(ControllerTest, InitIsCalledOnce) {
     const auto env = setup_environment(Trigger::never());
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     VelocityVerlet(system).with_dt(0.01).for_steps(10).run();
 
     // Init should be called exactly once by the integrator
@@ -79,7 +79,7 @@ TEST_F(ControllerTest, InitIsCalledOnce) {
 
 TEST_F(ControllerTest, TriggerNever) {
     const auto env = setup_environment(Trigger::never());
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     VelocityVerlet(system).with_dt(0.01).for_steps(10).run();
 
     EXPECT_EQ(sinks.apply_call_count, 0);
@@ -88,7 +88,7 @@ TEST_F(ControllerTest, TriggerNever) {
 
 TEST_F(ControllerTest, TriggerAlways) {
     const auto env = setup_environment(Trigger::always());
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     VelocityVerlet(system).with_dt(0.01).for_steps(5).run(); // Runs steps 0, 1, 2, 3, 4
 
     EXPECT_EQ(sinks.apply_call_count, 5);
@@ -98,7 +98,7 @@ TEST_F(ControllerTest, TriggerAlways) {
 
 TEST_F(ControllerTest, TriggerEvery3Steps) {
     const auto env = setup_environment(Trigger::every(3));
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     VelocityVerlet(system).with_dt(0.01).for_steps(10).run(); // Runs 1..10. Triggers at 0, 3, 6, 9.
 
     EXPECT_EQ(sinks.apply_call_count, 4);
@@ -108,7 +108,7 @@ TEST_F(ControllerTest, TriggerEvery3Steps) {
 
 TEST_F(ControllerTest, TriggerEvery3StepsWithOffset) {
     const auto env = setup_environment(Trigger::every(3, 1)); // offset = 1
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     VelocityVerlet(system).with_dt(0.01).for_steps(10).run(); // (step + 1) % 3 == 0. Triggers at 2, 5, 8.
 
     EXPECT_EQ(sinks.apply_call_count, 3);
@@ -118,7 +118,7 @@ TEST_F(ControllerTest, TriggerEvery3StepsWithOffset) {
 
 TEST_F(ControllerTest, TriggerAtStep5) {
     const auto env = setup_environment(Trigger::at_step(5));
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     VelocityVerlet(system).with_dt(0.01).for_steps(10).run();
 
     EXPECT_EQ(sinks.apply_call_count, 1);
@@ -128,7 +128,7 @@ TEST_F(ControllerTest, TriggerAtStep5) {
 
 TEST_F(ControllerTest, TriggerAfterStep4) {
     const auto env = setup_environment(Trigger::after(4));
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     VelocityVerlet(system).with_dt(0.01).for_steps(7).run(); // Triggers at 4, 5, 6
 
     EXPECT_EQ(sinks.apply_call_count, 3);
@@ -138,7 +138,7 @@ TEST_F(ControllerTest, TriggerAfterStep4) {
 
 TEST_F(ControllerTest, TriggerBetweenSteps3And5) {
     const auto env = setup_environment(Trigger::between(3, 5));
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     VelocityVerlet(system).with_dt(0.01).for_steps(7).run(); // Triggers at 3, 4. (end is exclusive)
 
     EXPECT_EQ(sinks.apply_call_count, 2);
@@ -148,7 +148,7 @@ TEST_F(ControllerTest, TriggerBetweenSteps3And5) {
 
 TEST_F(ControllerTest, TriggerAfterTime) {
     const auto env = setup_environment(Trigger::after_time(0.025));
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     // dt=0.01. Steps: 1 (t=0.01), 2 (t=0.02), 3 (t=0.03)
     // Should trigger at step 3.
     VelocityVerlet(system).with_dt(0.01).for_steps(5).run();
@@ -161,7 +161,7 @@ TEST_F(ControllerTest, TriggerAfterTime) {
 
 TEST_F(ControllerTest, TriggerPeriodically) {
     const auto env = setup_environment(Trigger::periodically(0.03));
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     // dt=0.01. Steps/Time: 1/0.01, 2/0.02, 3/0.03, 4/0.04, 5/0.05, 6/0.06, 7/0.07
     // Fires at 1 (t=0.01), 4 (t=0.04), 7 (t=0.07)
     VelocityVerlet(system).with_dt(0.01).for_steps(8).run();
@@ -174,7 +174,7 @@ TEST_F(ControllerTest, TriggerPeriodically) {
 TEST_F(ControllerTest, TriggerLogicalOr) {
     const auto trigger = Trigger::at_step(2) || Trigger::at_step(4);
     const auto env = setup_environment(trigger);
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     VelocityVerlet(system).with_dt(0.01).for_steps(5).run();
 
     EXPECT_EQ(sinks.apply_call_count, 2);
@@ -185,7 +185,7 @@ TEST_F(ControllerTest, TriggerLogicalOr) {
 TEST_F(ControllerTest, TriggerLogicalAnd) {
     const auto trigger = Trigger::every(2) && Trigger::after(4);
     const auto env = setup_environment(trigger);
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     // Steps: 0, 1, 2, 3, 4, 5, 6, 7
     // every(2): 0, 2, 4, 6
     // after(4): 3, 4, 5, 6, 7
@@ -201,7 +201,7 @@ TEST_F(ControllerTest, TriggerLogicalNot) {
     // Trigger at every step EXCEPT step 3
     const auto trigger = Trigger::always() && !Trigger::at_step(3);
     const auto env = setup_environment(trigger);
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     VelocityVerlet(system).with_dt(0.01).for_steps(5).run(); // 1, 2, 4, 5
 
     EXPECT_EQ(sinks.apply_call_count, 4);
@@ -276,7 +276,7 @@ TEST_F(ControllerTest, MultipleSameTypeControllers) {
     env.with_controller(SpyController(Trigger::at_step(2), &sinks1));
     env.with_controller(SpyController(Trigger::at_step(4), &sinks2));
 
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     VelocityVerlet(system).with_dt(0.01).for_steps(5).run(); // Runs 0, 1, 2, 3, 4
 
     // Check sinks1
@@ -311,7 +311,7 @@ TEST_F(ControllerTest, MultipleDifferentControllers) {
     env.with_controller(SpyController(Trigger::at_step(1), &sinks1));
     env.with_controller(SpyController2(Trigger::at_step(3), &sinks2));
 
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
     VelocityVerlet(system).with_dt(0.01).for_steps(5).run(); // Runs 0, 1, 2, 3, 4
 
     // Check sinks1
@@ -349,7 +349,7 @@ TEST_F(ControllerTest, ContextAccess_ModifiesParticles) {
     // Add the controller, set to trigger at step 2
     env.with_controller(ContextSpyController(Trigger::at_step(2), target_id));
 
-    auto system = build_system(env, DirectSum());
+    auto system = build_system(env, DirectSumAoS());
 
     // Check initial state
     auto p1 = export_particles(system)[0];

@@ -117,7 +117,7 @@ TEST(RepulsiveBoundaryTest, CompiledBoundary_Apply_AddsInwardForce) {
 // System-level pipeline test
 template <class ContainerT>
 class RepulsiveBoundarySystemTestT : public testing::Test {};
-using ContainerTypes = testing::Types<DirectSumAoS, LinkedCells>;
+using ContainerTypes = testing::Types<DirectSumAoS, LinkedCellsAoS>;
 TYPED_TEST_SUITE(RepulsiveBoundarySystemTestT, ContainerTypes);
 
 

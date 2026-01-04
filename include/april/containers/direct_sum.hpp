@@ -85,7 +85,7 @@ namespace april::container {
 				}
 
 				for (size_t i = 0; i < self.particle_count(); i++) {
-					auto particle = self.template view<env::Field::position | env::Field::state>(i);
+					const auto & particle = self.template view<env::Field::position | env::Field::state>(i);
 
 					if (region.contains(particle.position) && particle.state != env::ParticleState::DEAD) {
 						ret.push_back(i);

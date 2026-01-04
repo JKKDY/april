@@ -293,7 +293,7 @@ namespace april::container::internal {
 		void setup_cell_grid(this auto&& self) {
 			double cell_size_hint;
 			if (self.config.cell_size_hint.has_value()) {
-				AP_ASSERT(config.cell_size_hint.value() > 0, "config.cell_size_hint must be greater than 0");
+				AP_ASSERT(self.config.cell_size_hint.value() > 0, "config.cell_size_hint must be greater than 0");
 				cell_size_hint = self.config.cell_size_hint.value();
 			} else {
 				double max_cutoff = 0;
@@ -515,75 +515,49 @@ namespace april::container::internal {
 		}
 	};
 
-    template <class U>
-    class LinkedCellsSoA final : public LinkedCellsBase<SoAContainer<container::LinkedCellsSoA, U>> {
-       using Base = LinkedCellsBase<SoAContainer<container::LinkedCellsSoA, U>>;
+	template <class U>
+	class LinkedCellsSoA final : public LinkedCellsBase<SoAContainer<container::LinkedCellsSoA, U>> {
+		using Base = LinkedCellsBase<SoAContainer<container::LinkedCellsSoA, U>>;
 
-       // Temporary storage struct to mirror the SoA vectors
-       struct SoABuffer {
-          std::vector<double> pos_x, pos_y, pos_z;
-          std::vector<double> vel_x, vel_y, vel_z;
-          std::vector<double> frc_x, frc_y, frc_z;
-          std::vector<double> old_x, old_y, old_z;
+		// mirror the Storage type from the base class
+		using Storage = typename Base::Storage;
+		Storage tmp;
+	public:
+		using Base::Base;
+		using Base::data;
 
-          std::vector<double> mass;
-          std::vector<env::ParticleState> state;
-          std::vector<env::ParticleType> type;
-          std::vector<env::ParticleID> id;
-          std::vector<U> user_data;
+		void allocate_tmp_storage() {
+			if (tmp.pos_x.size() < this->particle_count()) {
+				tmp.resize(this->particle_count());
+			}
+		}
 
-          void resize(size_t n) {
-             pos_x.resize(n); pos_y.resize(n); pos_z.resize(n);
-             vel_x.resize(n); vel_y.resize(n); vel_z.resize(n);
-             frc_x.resize(n); frc_y.resize(n); frc_z.resize(n);
-             old_x.resize(n); old_y.resize(n); old_z.resize(n);
-             mass.resize(n); state.resize(n); type.resize(n); id.resize(n);
-             user_data.resize(n);
-          }
-       };
+		void write_to_tmp_storage(const size_t dst, const size_t src) {
+			tmp.pos_x[dst] = data.pos_x[src]; tmp.pos_y[dst] = data.pos_y[src]; tmp.pos_z[dst] = data.pos_z[src];
+			tmp.vel_x[dst] = data.vel_x[src]; tmp.vel_y[dst] = data.vel_y[src]; tmp.vel_z[dst] = data.vel_z[src];
+			tmp.frc_x[dst] = data.frc_x[src]; tmp.frc_y[dst] = data.frc_y[src]; tmp.frc_z[dst] = data.frc_z[src];
+			tmp.old_x[dst] = data.old_x[src]; tmp.old_y[dst] = data.old_y[src]; tmp.old_z[dst] = data.old_z[src];
 
-       SoABuffer tmp;
+			tmp.mass[dst]      = data.mass[src];
+			tmp.state[dst]     = data.state[src];
+			tmp.type[dst]      = data.type[src];
+			tmp.id[dst]        = data.id[src];
+			tmp.user_data[dst] = data.user_data[src];
+		}
 
-    public:
-       using Base::Base;
+		void swap_tmp_storage() {
+			std::swap(data.pos_x, tmp.pos_x); std::swap(data.pos_y, tmp.pos_y); std::swap(data.pos_z, tmp.pos_z);
+			std::swap(data.vel_x, tmp.vel_x); std::swap(data.vel_y, tmp.vel_y); std::swap(data.vel_z, tmp.vel_z);
+			std::swap(data.frc_x, tmp.frc_x); std::swap(data.frc_y, tmp.frc_y); std::swap(data.frc_z, tmp.frc_z);
+			std::swap(data.old_x, tmp.old_x); std::swap(data.old_y, tmp.old_y); std::swap(data.old_z, tmp.old_z);
 
-       // 1. Resize Tmp Buffer
-       void allocate_tmp_storage() {
-          // Only resize if we need more space
-          if (tmp.pos_x.size() < this->particle_count()) {
-             tmp.resize(this->particle_count());
-          }
-       }
-
-       // 2. Scatter Copy (Src -> Dst)
-       // We explicitly copy every field from the inherited storage to our tmp buffer
-       void write_to_tmp_storage(const size_t dst, const size_t src) {
-          tmp.pos_x[dst] = this->pos_x[src]; tmp.pos_y[dst] = this->pos_y[src]; tmp.pos_z[dst] = this->pos_z[src];
-          tmp.vel_x[dst] = this->vel_x[src]; tmp.vel_y[dst] = this->vel_y[src]; tmp.vel_z[dst] = this->vel_z[src];
-          tmp.frc_x[dst] = this->frc_x[src]; tmp.frc_y[dst] = this->frc_y[src]; tmp.frc_z[dst] = this->frc_z[src];
-          tmp.old_x[dst] = this->old_x[src]; tmp.old_y[dst] = this->old_y[src]; tmp.old_z[dst] = this->old_z[src];
-
-          tmp.mass[dst]      = this->mass[src];
-          tmp.state[dst]     = this->state[src];
-          tmp.type[dst]      = this->type[src];
-          tmp.id[dst]        = this->id[src];
-          tmp.user_data[dst] = this->user_data[src];
-       }
-
-       // 3. Commit (Swap All Vectors)
-       void swap_tmp_storage() {
-          std::swap(this->pos_x, tmp.pos_x); std::swap(this->pos_y, tmp.pos_y); std::swap(this->pos_z, tmp.pos_z);
-          std::swap(this->vel_x, tmp.vel_x); std::swap(this->vel_y, tmp.vel_y); std::swap(this->vel_z, tmp.vel_z);
-          std::swap(this->frc_x, tmp.frc_x); std::swap(this->frc_y, tmp.frc_y); std::swap(this->frc_z, tmp.frc_z);
-          std::swap(this->old_x, tmp.old_x); std::swap(this->old_y, tmp.old_y); std::swap(this->old_z, tmp.old_z);
-
-          std::swap(this->mass, tmp.mass);
-          std::swap(this->state, tmp.state);
-          std::swap(this->type, tmp.type);
-          std::swap(this->id, tmp.id);
-          std::swap(this->user_data, tmp.user_data);
-       }
-    };
+			std::swap(data.mass, tmp.mass);
+			std::swap(data.state, tmp.state);
+			std::swap(data.type, tmp.type);
+			std::swap(data.id, tmp.id);
+			std::swap(data.user_data, tmp.user_data);
+		}
+	};
 } // namespace april::container::internal
 
 

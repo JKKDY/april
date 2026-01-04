@@ -6,7 +6,6 @@ using namespace april;
 namespace fs = std::filesystem;
 
 
-
 static constexpr int NX = 40, NY = 40, NZ = 40;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
@@ -17,6 +16,7 @@ static constexpr double r_cut = 3 * sigma;
 static constexpr double Lx = (NX - 1) * a;
 static constexpr double Ly = (NY - 1) * a;
 static constexpr double Lz = (NZ - 1) * a;
+
 
 int main() {
 	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/bench";
@@ -41,7 +41,7 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	constexpr auto container = DirectSumSoA();
+	constexpr auto container = DirectSumAoS();
 	auto system = build_system(env, container);
 
 	constexpr double dt = 0.0002;
@@ -49,12 +49,11 @@ int main() {
 
 	VelocityVerlet integrator(system, monitors<Benchmark>);
 	integrator.add_monitor(Benchmark());
-//	integrator.add_monitor(ProgressBar(Trigger::every(200)));
+	// integrator.add_monitor(ProgressBar(Trigger::every(200)));
 	integrator.run_for_steps(dt, steps);
 
 	std::cout << "Particles: " << NX * NY * NZ << "\n"
 			 << "Steps: " << steps << "\n"
 			 << "dt: " << dt << "\n";
-
 }
 

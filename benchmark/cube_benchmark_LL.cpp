@@ -41,7 +41,7 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	constexpr auto container = LinkedCellsAoS();
+	constexpr auto container = LinkedCellsSoA();
 	auto system = build_system(env, container);
 
 	constexpr double dt = 0.0002;
@@ -50,7 +50,7 @@ int main() {
 	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 	integrator.add_monitor(Benchmark());
 	// integrator.add_monitor(ProgressBar(Trigger::every(200)));
-	//	integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path));
+	// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path));
 	integrator.run_for_steps(dt, steps);
 
 

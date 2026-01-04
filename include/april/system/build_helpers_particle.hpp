@@ -186,7 +186,7 @@ namespace april::core::internal {
 		const std::vector<std::pair<env::ParticleID, env::ParticleID>>& id_pairs
 	) {
 		std::unordered_map<env::ParticleID, env::ParticleID> map;
-		std::vector<env::ParticleType> id_vector;
+		std::vector<env::ParticleID> id_vector;
 
 		// copy user ids
 		id_vector.reserve(user_ids.size());

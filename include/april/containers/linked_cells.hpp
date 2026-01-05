@@ -51,13 +51,13 @@ namespace april::container::internal {
 		};
 
 		struct CellPair {
-			const uint32_t c1 = {};
-			const uint32_t c2 = {};
+			const size_t c1 = {};
+			const size_t c2 = {};
 		};
 
 		struct WrappedCellPair {
-			const uint32_t c1 = {};
-			const uint32_t c2 = {};
+			const size_t c1 = {};
+			const size_t c2 = {};
 			const CellWrapFlag force_wrap = {};
 			const vec3 shift = {};
 		};
@@ -101,8 +101,8 @@ namespace april::container::internal {
 
 		template<typename F>
 		void for_each_interaction_batch(this auto && self, F && func) {
-			auto get_indices = [&](const uint32_t cell, const env::ParticleType type) {
-				const uint32_t bin_idx = self.bin_index(cell, type);
+			auto get_indices = [&](const size_t cell, const env::ParticleType type) {
+				const size_t bin_idx = self.bin_index(cell, type);
 				const size_t start = self.bin_start_indices[bin_idx];
 				const size_t end   = self.bin_start_indices[bin_idx + 1]; // +1 works because types are dense
 				return std::ranges::iota_view {start, end};
@@ -116,7 +116,7 @@ namespace april::container::internal {
 				sym_batch.types = {static_cast<env::ParticleType>(t), static_cast<env::ParticleType>(t)};
 				sym_batch.chunks.clear(); // reset size to 0 but keep capacity
 
-				for (uint32_t c = 0; c < self.n_grid_cells; ++c) {
+				for (size_t c = 0; c < self.n_grid_cells; ++c) {
 					auto range = get_indices(c, t);
 					if (range.size() < 2) continue;
 					sym_batch.chunks.push_back({range});
@@ -137,7 +137,7 @@ namespace april::container::internal {
 					asym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
 					asym_batch.chunks.clear();
 
-					for (uint32_t c = 0; c < self.n_grid_cells; ++c) {
+					for (size_t c = 0; c < self.n_grid_cells; ++c) {
 						auto range1 = get_indices(c, t1);
 						if (range1.empty()) continue;
 
@@ -207,7 +207,7 @@ namespace april::container::internal {
 
 
 		void rebuild_structure(this auto&& self) {
-			// TODO use hilbert curve sorting on the cells
+			// // TODO use hilbert curve sorting on the cells
 			const size_t num_bins = self.bin_start_indices.size();
 			std::ranges::fill(self.bin_start_indices, 0);
 
@@ -221,9 +221,9 @@ namespace april::container::internal {
 			}
 
 			// transform "counts" -> "start indices" (index of first particle in bin)
-			uint32_t current_sum = 0;
+			size_t current_sum = 0;
 			for (size_t i = 0; i < num_bins; ++i) {
-				const uint32_t count = self.bin_start_indices[i]; // read count
+				const size_t count = self.bin_start_indices[i]; // read count
 				self.bin_start_indices[i] = current_sum;  // write start index
 				current_sum += count;
 			}
@@ -232,8 +232,8 @@ namespace april::container::internal {
 			std::ranges::copy(self.bin_start_indices, self.write_ptr.begin());
 			for (size_t i = 0; i < self.particle_count(); i++) {
 				auto p = self.template view<env::Field::type | env::Field::position | env::Field::id>(i);
-				const uint32_t cid = self.cell_index_from_position(p.position);
-				const uint32_t dst = self.write_ptr[self.bin_index(cid, p.type)]++;
+				const size_t cid = self.cell_index_from_position(p.position);
+				const size_t dst = self.write_ptr[self.bin_index(cid, p.type)]++;
 
 				self.write_to_tmp_storage(dst, i);
 				self.id_to_index_map[p.id] = dst;
@@ -244,8 +244,9 @@ namespace april::container::internal {
 		}
 
 
+
 		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const env::Box & region) {
-			std::vector<uint32_t> cells = self.get_cells_in_region(region);
+			std::vector<size_t> cells = self.get_cells_in_region(region);
 			std::vector<size_t> ret;
 
 			// heuristic: reserve space for the expected average number of particles per cell
@@ -253,10 +254,10 @@ namespace april::container::internal {
 			ret.reserve(est_count);
 
 			// for each cell that intersects the region: for each particle in cell perform inclusion check
-			for (const uint32_t cid : cells) {
+			for (const size_t cid : cells) {
 				const auto [start_idx, end_idx] = self.cell_index_range(cid);
 
-				for (uint32_t i = start_idx; i < end_idx; ++i) {
+				for (size_t i = start_idx; i < end_idx; ++i) {
 					const auto & p = self.template view<env::Field::position | env::Field::state>(i);
 
 					// TODO move particles into sentinel bucket -> avoid dead check
@@ -270,7 +271,7 @@ namespace april::container::internal {
 		}
 
 	private:
-		uint32_t outside_cell_id {};
+		size_t outside_cell_id {};
 		size_t n_grid_cells {};
 		size_t n_cells {}; // total cells = grid + outside
 		size_t n_types {}; // types range from 0 ... n_types-1
@@ -279,11 +280,11 @@ namespace april::container::internal {
 		vec3 inv_cell_size; // cache the inverse of each size component to avoid divisions
 		uint3 cells_per_axis{}; // number of cells along each axis
 
-		std::vector<uint32_t> bin_start_indices; // maps bin id to index of first particle in that bin
+		std::vector<size_t> bin_start_indices; // maps bin id to index of first particle in that bin
 
 		// used for cell rebuilding
 		// std::vector<ParticleRecord> tmp_particles;
-		std::vector<uint32_t> write_ptr;
+		std::vector<size_t> write_ptr;
 
 		// cell pair info
 		std::vector<CellPair> neighbor_cell_pairs;
@@ -404,7 +405,7 @@ namespace april::container::internal {
 
 
 		// gather all cell ids whose cells have an intersection with the box region
-		[[nodiscard]] std::vector<uint32_t> get_cells_in_region(this const auto& self, const env::Box & box) {
+		[[nodiscard]] std::vector<size_t> get_cells_in_region(this const auto& self, const env::Box & box) {
 			//  Convert world coords to cell coords (relative to domain origin)
 			const vec3 min = (box.min - self.domain.min) * self.inv_cell_size;
 			const vec3 max = (box.max - self.domain.min) * self.inv_cell_size;
@@ -424,25 +425,25 @@ namespace april::container::internal {
 
 			// find the lowest left cell
 			const uint3 min_cell = {
-				static_cast<uint32_t>(min_clamped.x),
-				static_cast<uint32_t>(min_clamped.y),
-				static_cast<uint32_t>(min_clamped.z)
+				static_cast<uint3::type>(min_clamped.x),
+				static_cast<uint3::type>(min_clamped.y),
+				static_cast<uint3::type>(min_clamped.z)
 			};
 
 			// find the highest right cell
 			const uint3 max_cell = {
-				static_cast<uint32_t>(max_clamped.x),
-				static_cast<uint32_t>(max_clamped.y),
-				static_cast<uint32_t>(max_clamped.z)
+				static_cast<uint3::type>(max_clamped.x),
+				static_cast<uint3::type>(max_clamped.y),
+				static_cast<uint3::type>(max_clamped.z)
 			};
 
 			// add all cells in that region
 			const auto cell_counts = max_cell - min_cell;
-			std::vector<uint32_t> cells;
+			std::vector<size_t> cells;
 			cells.reserve(cell_counts.x * cell_counts.y * cell_counts.z);
-			for (uint32_t x = min_cell.x; x <= max_cell.x; ++x) {
-				for (uint32_t y = min_cell.y; y <= max_cell.y; ++y) {
-					for (uint32_t z = min_cell.z; z <= max_cell.z; ++z) {
+			for (size_t x = min_cell.x; x <= max_cell.x; ++x) {
+				for (size_t y = min_cell.y; y <= max_cell.y; ++y) {
+					for (size_t z = min_cell.z; z <= max_cell.z; ++z) {
 						cells.push_back(self.cell_pos_to_idx(x,y,z));
 					}
 				}
@@ -461,7 +462,7 @@ namespace april::container::internal {
 			return cell_id * n_types + static_cast<size_t>(type);
 		}
 
-		[[nodiscard]] std::pair<uint32_t, uint32_t> cell_index_range(const uint32_t cid) const {
+		[[nodiscard]] std::pair<size_t, size_t> cell_index_range(const uint32_t cid) const {
 			const size_t start_bin_idx = bin_index(cid);
 
 			return {
@@ -470,19 +471,19 @@ namespace april::container::internal {
 			};
 		}
 
-		[[nodiscard]] uint32_t cell_pos_to_idx(const uint32_t x, const uint32_t y, const uint32_t z) const noexcept{
+		[[nodiscard]] size_t cell_pos_to_idx(const size_t x, const size_t y, const size_t z) const noexcept{
 			return  z * cells_per_axis.x * cells_per_axis.y + y * cells_per_axis.x + x;
 		}
 
-		uint32_t cell_index_from_position(this const auto & self, const vec3 & position) {
+		size_t cell_index_from_position(this const auto & self, const vec3 & position) {
 			const vec3 pos = position - self.domain.min;
 			if (pos.x < 0 || pos.y < 0 || pos.z < 0) {
 				return self.outside_cell_id;
 			}
 
-			const auto x = static_cast<uint32_t>(pos.x * self.inv_cell_size.x);
-			const auto y = static_cast<uint32_t>(pos.y * self.inv_cell_size.y);
-			const auto z = static_cast<uint32_t>(pos.z * self.inv_cell_size.z);
+			const auto x = static_cast<size_t>(pos.x * self.inv_cell_size.x);
+			const auto y = static_cast<size_t>(pos.y * self.inv_cell_size.y);
+			const auto z = static_cast<size_t>(pos.z * self.inv_cell_size.z);
 
 			if (x >= self.cells_per_axis.x || y >= self.cells_per_axis.y || z >= self.cells_per_axis.z) {
 				return self.outside_cell_id;

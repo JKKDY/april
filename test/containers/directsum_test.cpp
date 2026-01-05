@@ -10,8 +10,13 @@ using testing::Eq;
 
 using namespace april;
 
+template <typename T>
+class DirectSumTest : public testing::Test {};
 
-TEST(DirectSumTest, SingleParticle_NoForce) {
+using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA>;
+TYPED_TEST_SUITE(DirectSumTest, ContainerTypes);
+
+TYPED_TEST(DirectSumTest, SingleParticle_NoForce) {
     Environment e (forces<NoForce>);
 	e.add_particle(make_particle(0, {1,2,3}, {}, 1, ParticleState::ALIVE, 0));
 	e.add_force(NoForce(), to_type(0));
@@ -25,7 +30,7 @@ TEST(DirectSumTest, SingleParticle_NoForce) {
     EXPECT_EQ(out[0].force, vec3(0,0,0));
 }
 
-TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
+TYPED_TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
     Environment e (forces<ConstantForce>);
 	e.add_particle(make_particle(7, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
 	e.add_particle(make_particle(7, {1,0,0}, {}, 1, ParticleState::ALIVE, 1));
@@ -47,7 +52,7 @@ TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
 
 }
 
-TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
+TYPED_TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
     Environment e (forces<ConstantForce, NoForce>);
 	e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 42));
 	e.add_particle(make_particle(0, {0,1,0}, {}, 1, ParticleState::ALIVE, 99));
@@ -69,7 +74,7 @@ TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
 	);
 }
 
-TEST(DirectSumTest, TwoParticles_InverseSquare) {
+TYPED_TEST(DirectSumTest, TwoParticles_InverseSquare) {
 	Environment e (forces<Gravity, NoForce>);
 
 	e.set_extent({10,10,10});
@@ -98,7 +103,7 @@ TEST(DirectSumTest, TwoParticles_InverseSquare) {
 }
 
 
-TEST(DirectSumTest, CollectIndicesInRegion) {
+TYPED_TEST(DirectSumTest, CollectIndicesInRegion) {
 	// Create a simple 3x3x3 grid of particles (27 total)
 	auto cuboid = ParticleCuboid{}
 		.at(vec3(0.25))
@@ -178,7 +183,7 @@ struct DummyPeriodicBoundary final : Boundary {
 	}
 };
 
-TEST(DirectSumTest, PeriodicForceWrap_X) {
+TYPED_TEST(DirectSumTest, PeriodicForceWrap_X) {
 	Environment e(forces<Harmonic>, boundaries<DummyPeriodicBoundary>);
 
 	e.set_origin({0,0,0});
@@ -208,7 +213,7 @@ TEST(DirectSumTest, PeriodicForceWrap_X) {
 }
 
 
-TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
+TYPED_TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 	// Enable force wrapping in all 6 directions
 	Environment e(forces<Harmonic>, boundaries<DummyPeriodicBoundary>);
 	e.set_origin({0, 0, 0});

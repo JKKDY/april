@@ -129,7 +129,7 @@ namespace april::container {
 			} else {
 				// fallback: rebuild entire structure
 				// useful in cases where the container cant do partial updates
-				self.rebuild_structure();
+				self.invoke_rebuild_structure();
 			}
 		}
 

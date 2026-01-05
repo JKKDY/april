@@ -34,7 +34,7 @@ int main() {
 	   .with_force(LennardJones(5, 1), to_type(0))
 	   .with_boundaries(Reflective(), all_faces);
 
-	auto container = LinkedCellsAoS(3);
+	auto container = LinkedCellsAoS();
 	auto system = build_system(env, container);
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)

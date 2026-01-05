@@ -2,7 +2,7 @@
 
 #include <ranges>
 
-#include "soa_container.h"
+#include "soa_container.hpp"
 #include "april/containers/aos_container.hpp"
 #include "april/containers/batch.hpp"
 

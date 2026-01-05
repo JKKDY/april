@@ -13,8 +13,13 @@ using testing::Eq;
 // TODO tests for get_particle_by_id
 using namespace april;
 
+template <typename T>
+class LinkedCellsTest : public testing::Test {};
 
-TEST(LinkedCellsTest, SingleParticle_NoForce) {
+using ContainerTypes = testing::Types<LinkedCellsAoS, LinkedCellsSoA>;
+TYPED_TEST_SUITE(LinkedCellsTest, ContainerTypes);
+
+TYPED_TEST(LinkedCellsTest, SingleParticle_NoForce) {
     Environment e (forces<NoForce>);
 	e.add_particle(make_particle(0, {1,2,3}, {}, 1, ParticleState::ALIVE, 0));
 	e.add_force(NoForce(), to_type(0));
@@ -28,7 +33,7 @@ TEST(LinkedCellsTest, SingleParticle_NoForce) {
     EXPECT_EQ(out[0].force, vec3(0,0,0));
 }
 
-TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
+TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
     Environment e(forces<ConstantForce>);
 	e.set_extent({2,2,2});
 	e.set_origin({0,0,0});
@@ -50,7 +55,7 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
 	EXPECT_EQ(p1.force, -p2.force);
 }
 
-TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
+TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 	Environment e(forces<ConstantForce>);
 	e.set_extent({2,1,1});
 	e.set_origin({0,0,0});
@@ -72,7 +77,7 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 	EXPECT_EQ(p1.force, -p2.force);
 }
 
-TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
+TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 	Environment e(forces<ConstantForce>);
 	e.set_extent({2,1,0.5});
 	e.set_origin({0,0,0});
@@ -92,7 +97,7 @@ TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 	EXPECT_EQ(p2.force, vec3(0,0,0));
 }
 
-TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
+TYPED_TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
     Environment e(forces<NoForce, ConstantForce>);
 	e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 42));
 	e.add_particle(make_particle(0, {0,1,0}, {}, 1, ParticleState::ALIVE, 99));
@@ -114,7 +119,7 @@ TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
 	);
 }
 
-TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
+TYPED_TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
     Environment e(forces<NoForce, Gravity>);
 
     e.set_extent({10,10,10});
@@ -144,7 +149,7 @@ TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 }
 
 
-TEST(LinkedCellsTest, OrbitTest) {
+TYPED_TEST(LinkedCellsTest, OrbitTest) {
 	constexpr double G = 1;
 	constexpr double R = 1;
 	constexpr double M = 1.0;
@@ -194,7 +199,7 @@ TEST(LinkedCellsTest, OrbitTest) {
 }
 
 
-TEST(LinkedCellsTest, CollectIndicesInRegion) {
+TYPED_TEST(LinkedCellsTest, CollectIndicesInRegion) {
 	// Create a simple 3x3x3 grid of particles (27 total)
 	auto cuboid = ParticleCuboid{}
 		.at(vec3(0.25))
@@ -277,7 +282,7 @@ struct DummyPeriodicBoundary final : Boundary {
 	}
 };
 
-TEST(LinkedCellsTest, PeriodicForceWrap_X) {
+TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 	// Iterate over several cell sizes (smaller, medium, larger than extent/2)
 	for (double cell_size_hint : {1.0, 3.3, 9.9}) {
 		Environment e(forces<Harmonic>, boundaries<DummyPeriodicBoundary>);
@@ -313,7 +318,7 @@ TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 }
 
 
-TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
+TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
 	for (double cell_size_hint : {1.0, 3.3, 9.9}) {
 
 		Environment e(forces<Harmonic>, boundaries<DummyPeriodicBoundary>);

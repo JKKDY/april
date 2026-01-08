@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <ranges>
 
-#include "batching.hpp"
+
+#include "april/containers/cell_orderings.hpp"
+#include "april/containers/batching.hpp"
 #include "april/containers/aos.hpp"
 
 
@@ -15,7 +17,7 @@ namespace april::container {
 
 		struct LinkedCellsConfig {
 			std::optional<double> cell_size_hint;
-			std::optional<std::function<std::vector<uint32_t>(uint3)>> cell_ordering_fn;
+			std::optional<std::function<std::vector<uint32_t>(uint3)>> cell_ordering_fn = morton_order;
 			uint8_t super_batch_size = 1;
 
 			auto with_cell_size(this auto&& self, const double cell_size) {

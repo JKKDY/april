@@ -10,8 +10,6 @@
 #include "april/boundaries/boundary.hpp"
 
 
-// TODO: add deleter callbacks to detect if system goes out of scope too early (e.g. prior to integrator.run)
-
 
 namespace april::core {
 	struct BuildInfo;

@@ -12,62 +12,39 @@ namespace april::container {
 	namespace internal {
 		template <class U> class LinkedCellsAoS;
 		template <class U> class LinkedCellsSoA;
+
+		struct LinkedCellsConfig {
+			std::optional<double> cell_size_hint;
+			std::optional<std::function<std::vector<uint32_t>(uint3)>> cell_ordering_fn;
+			uint8_t super_batch_size = 1;
+
+			auto with_cell_size(this auto&& self, const double cell_size) {
+				self.cell_size_hint = cell_size;
+				return self;
+			}
+
+			auto with_cell_ordering(this auto&& self, const std::function<std::vector<uint32_t>(uint3)> & ordering) {
+				self.cell_ordering_fn = ordering;
+				return self;
+			}
+
+			auto with_super_batch_size(this auto&& self, const uint8_t super_batch_size) {
+				self.super_batch_size = super_batch_size;
+				return self;
+			}
+		};
 	}
 
-
-	struct LinkedCellsConfig {
-		std::optional<double> cell_size_hint;
-		std::optional<std::function<std::vector<uint32_t>(uint3)>> cell_ordering;
-		uint8_t super_batch_size = 1;
-
-		auto with_cell_size(this auto&& self, const double cell_size) {
-			self.cell_size_hint = cell_size;
-			return self;
-		}
-
-		auto with_cell_ordering(this auto&& self, const std::function<std::vector<uint32_t>(uint3)> & ordering) {
-			self.cell_ordering = ordering;
-			return self;
-		}
-
-		auto with_super_batch_size(this auto&& self, const uint8_t super_batch_size) {
-			self.super_batch_size = super_batch_size;
-			return self;
-		}
-	};
-
-	struct LinkedCellsAoS {
+	struct LinkedCellsAoS : internal::LinkedCellsConfig{
 		template<class U> using impl = internal::LinkedCellsAoS<U>;
-		std::optional<double> cell_size_hint;
-
-		void with_cell_size(const double cell_size) {
-			cell_size_hint = cell_size;
-		}
 	};
 
-	struct LinkedCellsSoA {
+	struct LinkedCellsSoA : internal::LinkedCellsConfig{
 		template<class U> using impl = internal::LinkedCellsSoA<U>;
-		std::optional<double> cell_size_hint;
-
-		void with_cell_size(const double cell_size) {
-			cell_size_hint = cell_size;
-		}
 	};
 }
 
-inline uint64_t split_by_3(uint32_t a) {
-	uint64_t x = a & 0x1fffff; // mask to 21 bits
-	x = (x | x << 32) & 0x1f00000000ffff;
-	x = (x | x << 16) & 0x1f0000ff0000ff;
-	x = (x | x <<  8) & 0x100f00f00f00f00f;
-	x = (x | x <<  4) & 0x10c30c30c30c30c3;
-	x = (x | x <<  2) & 0x1249249249249249;
-	return x;
-}
 
-inline uint64_t morton_3d_64(uint32_t x, uint32_t y, uint32_t z) {
-	return split_by_3(x) | (split_by_3(y) << 1) | (split_by_3(z) << 2);
-}
 
 namespace april::container::internal {
 	template <class ContainerBase>
@@ -121,6 +98,10 @@ namespace april::container::internal {
 	public:
 		using ContainerBase::ContainerBase;
 
+		//---------------
+		// PUBLIC METHODS
+		//---------------
+
 		void build(this auto&& self, const std::vector<ParticleRecord> & input_particles) {
 			self.build_storage(input_particles);
 			self.setup_cell_grid();
@@ -132,8 +113,6 @@ namespace april::container::internal {
 				throw std::logic_error("infinite domain not supported on linked cells");
 			}
 		}
-
-
 
 		template<typename F>
 		void for_each_interaction_batch(this auto && self, F && func) {
@@ -278,7 +257,6 @@ namespace april::container::internal {
 		}
 
 
-
 		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const env::Box & region) {
 			std::vector<size_t> cells = self.get_cells_in_region(region);
 			std::vector<size_t> ret;
@@ -305,6 +283,9 @@ namespace april::container::internal {
 		}
 
 	private:
+		//-------------
+		// DATA MEMBERS
+		//-------------
 		size_t outside_cell_id {};
 		size_t n_grid_cells {};
 		size_t n_cells {}; // total cells = grid + outside
@@ -324,6 +305,10 @@ namespace april::container::internal {
 		std::vector<CellPair> neighbor_cell_pairs;
 		std::vector<WrappedCellPair> wrapped_cell_pairs;
 
+
+		//-------------
+		// SETUP FUNCTIONS
+		//-------------
 		
 		void setup_cell_grid(this auto&& self) {
 			double cell_size_hint;
@@ -372,6 +357,13 @@ namespace april::container::internal {
 			self.allocate_tmp_storage();
 		}
 
+
+		void init_cell_order(this auto && self) {
+			if (self.config.cell_ordering_fn.has_value()) {
+				const std::function<std::vector<uint32_t>(uint3)> & cell_ordering_fn = self.config.cell_ordering_fn.value();
+				self.cell_ordering = cell_ordering_fn(self.cells_per_axis);
+			}
+		}
 
 		void compute_cell_pairs(this auto && self) {
 			self.neighbor_cell_pairs.reserve(self.cells_per_axis.x * self.cells_per_axis.y * self.cells_per_axis.z * 13); // heuristic
@@ -438,6 +430,10 @@ namespace april::container::internal {
 		}
 
 
+
+		//-------------
+		// UTILITIES
+		//-------------
 		// gather all cell ids whose cells have an intersection with the box region
 		[[nodiscard]] std::vector<size_t> get_cells_in_region(this const auto& self, const env::Box & box) {
 			//  Convert world coords to cell coords (relative to domain origin)
@@ -490,8 +486,6 @@ namespace april::container::internal {
 			return cells;
 		}
 
-
-		// ----- Utilities -----
 		[[nodiscard]] size_t bin_index(const size_t cell_id, const env::ParticleType type = 0) const {
 			return cell_id * n_types + static_cast<size_t>(type);
 		}
@@ -505,64 +499,22 @@ namespace april::container::internal {
 			};
 		}
 
-		// In your Grid/System class
-		std::vector<size_t> grid_to_linear_idx; // Size: NX * NY * NZ
-
-		void init_morton_order() {
-			const size_t NX = cells_per_axis.x;
-			const size_t NY = cells_per_axis.y;
-			const size_t NZ = cells_per_axis.z;
-
-			grid_to_linear_idx.resize(NX * NY * NZ);
-
-			// 1. Create a temporary list of all coordinates
-			struct Coord { size_t x, y, z; size_t original_flat_index; uint64_t morton; };
-			std::vector<Coord> coords;
-			coords.reserve(NX * NY * NZ);
-
-			for (size_t z = 0; z < NZ; ++z) {
-				for (size_t y = 0; y < NY; ++y) {
-					for (size_t x = 0; x < NX; ++x) {
-						// Calculate raw Morton code (the sparse one)
-						uint64_t m = morton_3d_64(x, y, z);
-						size_t flat = z * NY * NX + y * NX + x;
-						coords.push_back({x, y, z, flat, m});
-					}
-				}
-			}
-
-			// 2. Sort based on Morton code
-			// This removes the "gaps" because we are just sorting the existing valid cells
-			std::sort(coords.begin(), coords.end(), [](const Coord& a, const Coord& b) {
-				return a.morton < b.morton;
-			});
-
-			// 3. Build the lookup table
-			// coords[i] is the i-th cell in memory (Sorted order).
-			// We want to know: "Where in the sorted array is grid cell (x,y,z)?"
-			for (size_t i = 0; i < coords.size(); ++i) {
-				grid_to_linear_idx[coords[i].original_flat_index] = i;
-			}
+		[[nodiscard]] uint32_t cell_pos_to_idx(this const auto & self, const uint32_t x, const uint32_t y, const uint32_t z) noexcept{
+			// get flat cell index
+			uint32_t flat_idx = z * self.cells_per_axis.x * self.cells_per_axis.y + y * self.cells_per_axis.x + x;
+			// map to cell ordering index (if possible)
+			return self.cell_ordering.empty() ? flat_idx : self.cell_ordering[flat_idx];
 		}
 
-		[[nodiscard]] size_t cell_pos_to_idx(this const auto & self, const size_t x, const size_t y, const size_t z) const noexcept{
-			// return  z * cells_per_axis.x * cells_per_axis.y + y * cells_per_axis.x + x;
-			size_t flat = z * cells_per_axis.x * cells_per_axis.y + y * cells_per_axis.x + x;
-
-			// return self.config.
-			// Remap to Z-Order storage index
-			return grid_to_linear_idx[flat];
-		}
-
-		size_t cell_index_from_position(this const auto & self, const vec3 & position) {
+		uint32_t cell_index_from_position(this const auto & self, const vec3 & position) noexcept {
 			const vec3 pos = position - self.domain.min;
 			if (pos.x < 0 || pos.y < 0 || pos.z < 0) {
 				return self.outside_cell_id;
 			}
 
-			const auto x = static_cast<size_t>(pos.x * self.inv_cell_size.x);
-			const auto y = static_cast<size_t>(pos.y * self.inv_cell_size.y);
-			const auto z = static_cast<size_t>(pos.z * self.inv_cell_size.z);
+			const auto x = static_cast<uint32_t>(pos.x * self.inv_cell_size.x);
+			const auto y = static_cast<uint32_t>(pos.y * self.inv_cell_size.y);
+			const auto z = static_cast<uint32_t>(pos.z * self.inv_cell_size.z);
 
 			if (x >= self.cells_per_axis.x || y >= self.cells_per_axis.y || z >= self.cells_per_axis.z) {
 				return self.outside_cell_id;

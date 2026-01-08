@@ -77,7 +77,7 @@ namespace april::core {
 		// ------------------
 		// PARTICLE ACCESSORS
 		// ------------------
-		// "at" implies mutable access, "view" implies read-only
+		// "at" implies mutable access, "view" implies read-only, "restricted_at" implies only force mutable
 
 		// INDEX ACCESSORS (fast)
 		template<env::FieldMask M>
@@ -125,9 +125,12 @@ namespace april::core {
 			return particle_container.max_id();
 		}
 
+		// check if particle id is valid
 		[[nodiscard]] bool contains(const env::ParticleID id) const noexcept {
 			return particle_container.invoke_contains(id);
 		}
+
+		// convert id to index
 		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const noexcept {
 			return particle_container.invoke_id_to_index(id);
 		}

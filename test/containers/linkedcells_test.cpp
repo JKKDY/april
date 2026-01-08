@@ -13,7 +13,7 @@ using testing::Eq;
 // TODO tests for get_particle_by_id
 using namespace april;
 
-template <typename T>
+template <typename LinkedCellsT>
 class LinkedCellsTest : public testing::Test {};
 
 using ContainerTypes = testing::Types<LinkedCellsAoS, LinkedCellsSoA>;
@@ -25,7 +25,7 @@ TYPED_TEST(LinkedCellsTest, SingleParticle_NoForce) {
 	e.add_force(NoForce(), to_type(0));
 	e.set_extent({4,4,4});
 
-	auto sys = build_system(e, LinkedCellsAoS(4));
+	auto sys = build_system(e, TypeParam{}.with_cell_size(4));
     sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -41,7 +41,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
 	e.add_particle(make_particle(7, {1.5,0,0}, {}, 2, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = build_system(e, LinkedCellsAoS(2));
+	auto sys = build_system(e, TypeParam{}.with_cell_size(2));
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -63,7 +63,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 	e.add_particle(make_particle(7, {1.5,0,0}, {}, 2, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = build_system(e, LinkedCellsAoS(1));
+	auto sys = build_system(e, TypeParam().with_cell_size(1));
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -85,7 +85,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 	e.add_particle(make_particle(7, {1,0,0}, {}, 1, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = build_system(e, LinkedCellsAoS(0.5));
+	auto sys = build_system(e, TypeParam().with_cell_size(0.5));
 	sys.update_forces();
     auto const& out = export_particles(sys);
 	ASSERT_EQ(out.size(), 2u);
@@ -105,7 +105,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
 	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
 	e.auto_domain(2);
 
-	auto sys = build_system(e, LinkedCellsAoS());
+	auto sys = build_system(e, TypeParam());
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -133,7 +133,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 
 	e.add_force(Gravity(5.0), between_types(0, 1));
 
-	auto sys = build_system(e, LinkedCellsAoS());
+	auto sys = build_system(e, TypeParam());
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -167,7 +167,7 @@ TYPED_TEST(LinkedCellsTest, OrbitTest) {
 	env.set_origin({-1.5*v,-1.5*v,0});
 	env.set_extent({3*v,3*v,1});
 
-	auto sys = build_system(env, LinkedCellsAoS(v));
+	auto sys = build_system(env, TypeParam().with_cell_size(v));
 	sys.update_forces();
 
 	VelocityVerlet integrator(sys, monitor::monitors<OrbitMonitor>);
@@ -218,7 +218,7 @@ TYPED_TEST(LinkedCellsTest, CollectIndicesInRegion) {
 		e.add_particles(cuboid);
         e.add_force(NoForce(), to_type(0));
 
-        auto sys = build_system(e, LinkedCellsAoS(cell_size));
+        auto sys = build_system(e, TypeParam().with_cell_size(cell_size));
 
         // Case 1: small inner region (should include one particle)
         {
@@ -300,7 +300,7 @@ TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 		e.set_boundaries(DummyPeriodicBoundary(), {Face::XMinus, Face::XPlus});
 
 		BuildInfo mapping;
-		auto sys = build_system(e, LinkedCellsAoS(cell_size_hint), &mapping);
+		auto sys = build_system(e, TypeParam().with_cell_size(cell_size_hint), &mapping);
 		sys.update_forces();
 
 		auto const& out = export_particles(sys);
@@ -339,7 +339,7 @@ TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
 		});
 
 		BuildInfo mapping;
-		auto sys = build_system(e, LinkedCellsAoS(cell_size_hint), &mapping);
+		auto sys = build_system(e, TypeParam().with_cell_size(cell_size_hint), &mapping);
 		sys.update_forces();
 
 		auto const& out = export_particles(sys);

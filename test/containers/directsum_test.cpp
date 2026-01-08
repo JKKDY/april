@@ -37,7 +37,7 @@ TYPED_TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 	e.set_extent(1,1,1);
 
-	auto sys = build_system(e, DirectSumAoS());
+	auto sys = build_system(e, TypeParam());
     sys.update_forces();
     auto const& out = export_particles(sys);
 
@@ -60,7 +60,7 @@ TYPED_TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
 	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
 	e.set_extent(1,1,1);
 
-	auto sys = build_system(e, DirectSumAoS());
+	auto sys = build_system(e, TypeParam());
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -87,7 +87,7 @@ TYPED_TEST(DirectSumTest, TwoParticles_InverseSquare) {
 	e.add_force(NoForce(), to_type(1));
 	e.add_force(Gravity(5.0), between_types(0, 1));
 
-	auto sys = build_system(e, DirectSumAoS());
+	auto sys = build_system(e, TypeParam());
     sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -119,7 +119,7 @@ TYPED_TEST(DirectSumTest, CollectIndicesInRegion) {
 	e.add_particles(cuboid);
     e.add_force(NoForce(), to_type(0));
 
-    auto sys = build_system(e, DirectSumAoS());
+    auto sys = build_system(e, TypeParam());
 
     // Case 1: small inner region (should include one particle)
     {
@@ -197,7 +197,7 @@ TYPED_TEST(DirectSumTest, PeriodicForceWrap_X) {
 	e.set_boundaries(DummyPeriodicBoundary(), {Face::XMinus, Face::XPlus});
 
 	BuildInfo mapping;
-	auto sys = build_system(e, DirectSumAoS(),&mapping); // DirectSum container
+	auto sys = build_system(e, TypeParam(),&mapping); // DirectSum container
 	sys.update_forces();
 
 	const auto out = export_particles(sys);
@@ -234,7 +234,7 @@ TYPED_TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 	});
 
 	BuildInfo mapping;
-	auto sys = build_system(e, DirectSumAoS(), &mapping);
+	auto sys = build_system(e, TypeParam(), &mapping);
 	sys.update_forces();
 
 	auto const& out = export_particles(sys);

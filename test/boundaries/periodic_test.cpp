@@ -156,7 +156,7 @@ TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 template <class ContainerT>
 class PeriodicBoundarySystemTestT : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSumAoS, LinkedCellsAoS>;
+using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, LinkedCellsAoS, LinkedCellsSoA>;
 TYPED_TEST_SUITE(PeriodicBoundarySystemTestT, ContainerTypes);
 
 TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {

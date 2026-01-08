@@ -108,7 +108,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPositi
 template <class ContainerT>
 class ReflectiveBoundarySystemTestT : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSumAoS, LinkedCellsAoS>;
+using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, LinkedCellsAoS, LinkedCellsSoA>;
 TYPED_TEST_SUITE(ReflectiveBoundarySystemTestT, ContainerTypes);
 
 

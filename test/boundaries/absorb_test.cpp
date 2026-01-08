@@ -97,7 +97,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 template <class ContainerT>
 class AbsorbBoundarySystemTestT : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSumAoS, LinkedCellsAoS>;
+using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, LinkedCellsAoS, LinkedCellsSoA>;
 TYPED_TEST_SUITE(AbsorbBoundarySystemTestT, ContainerTypes);
 
 

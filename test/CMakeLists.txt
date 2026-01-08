@@ -16,9 +16,10 @@ add_executable(test_april
         system_test.cpp
         forces/interaction_test.cpp
         containers/directsum_test.cpp
+        containers/linkedcells_test.cpp
+        containers/cell_ordering_test.cpp
         output_test.cpp
         integrators/stoermerverlet_test.cpp
-        containers/linkedcells_test.cpp
         integrators/yoshida_test.cpp
         boundaries/apply_boundary_test.cpp
         boundaries/absorb_test.cpp

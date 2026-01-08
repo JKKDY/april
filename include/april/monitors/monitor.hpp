@@ -3,7 +3,7 @@
 #include <utility>
 
 #include "april/system/context.hpp"
-#include "april/shared/trigger.hpp"
+#include "april/utility/trigger.hpp"
 
 namespace april::monitor {
 

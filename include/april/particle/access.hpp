@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include "april/common.hpp"
+#include "april/macros.hpp"
 #include "april/particle/defs.hpp"
 #include "april/particle/fields.hpp"
 

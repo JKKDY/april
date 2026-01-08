@@ -2,6 +2,7 @@
 
 #include <cstddef>
 
+#include <functional>
 #include "april/system/context.hpp"
 
 namespace april::shared {

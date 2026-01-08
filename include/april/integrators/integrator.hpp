@@ -5,7 +5,7 @@
 #include "april/monitors/monitor.hpp"
 #include "april/common.hpp"
 
-#include "april/shared/pack_storage.hpp"
+#include "april/utility/pack_storage.hpp"
 
 namespace april::integrator {
 

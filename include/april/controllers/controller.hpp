@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include "april/shared/trigger.hpp"
+#include "april/utility/trigger.hpp"
 #include "april/system/context.hpp"
 
 namespace april::controller  {

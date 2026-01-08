@@ -3,10 +3,11 @@
 #include <algorithm>
 #include <ranges>
 
-
+#include "linked_cells_types.h"
 #include "april/containers/cell_orderings.hpp"
 #include "april/containers/batching.hpp"
 #include "april/containers/aos.hpp"
+#include "april/containers/soa.hpp"
 
 
 
@@ -14,27 +15,6 @@ namespace april::container {
 	namespace internal {
 		template <class U> class LinkedCellsAoS;
 		template <class U> class LinkedCellsSoA;
-
-		struct LinkedCellsConfig {
-			std::optional<double> cell_size_hint;
-			std::optional<std::function<std::vector<uint32_t>(uint3)>> cell_ordering_fn = morton_order;
-			uint8_t super_batch_size = 1;
-
-			auto with_cell_size(this auto&& self, const double cell_size) {
-				self.cell_size_hint = cell_size;
-				return self;
-			}
-
-			auto with_cell_ordering(this auto&& self, const std::function<std::vector<uint32_t>(uint3)> & ordering) {
-				self.cell_ordering_fn = ordering;
-				return self;
-			}
-
-			auto with_super_batch_size(this auto&& self, const uint8_t super_batch_size) {
-				self.super_batch_size = super_batch_size;
-				return self;
-			}
-		};
 	}
 
 	struct LinkedCellsAoS : internal::LinkedCellsConfig{
@@ -44,7 +24,7 @@ namespace april::container {
 	struct LinkedCellsSoA : internal::LinkedCellsConfig{
 		template<class U> using impl = internal::LinkedCellsSoA<U>;
 	};
-}
+}// namespace april::container
 
 
 
@@ -56,54 +36,12 @@ namespace april::container::internal {
 
 		using CellIdxT = uint32_t;
 
-		enum CellWrapFlag : uint8_t {
-			NO_WRAP = 0,
-			WRAP_X=1,
-			WRAP_Y=2,
-			WRAP_Z=4,
-		};
-
-		struct CellPair {
-			const size_t c1 = {};
-			const size_t c2 = {};
-		};
-
-		struct WrappedCellPair {
-			const size_t c1 = {};
-			const size_t c2 = {};
-			const CellWrapFlag force_wrap = {};
-			const vec3 shift = {};
-		};
-
-		struct AsymmetricChunk {
-			std::ranges::iota_view<size_t, size_t> indices1;
-			std::ranges::iota_view<size_t, size_t> indices2;
-		};
-
-		struct SymmetricChunk {
-			std::ranges::iota_view<size_t, size_t> indices;
-		};
-
-		struct AsymmetricChunkedBatch : SerialBatch<BatchSymmetry::Asymmetric> {
-			std::vector<AsymmetricChunk> chunks;
-		};
-
-		struct SymmetricChunkedBatch : SerialBatch<BatchSymmetry::Symmetric> {
-			std::vector<SymmetricChunk> chunks;
-		};
-
-		struct AsymmetricBatch : SerialBatch<BatchSymmetry::Asymmetric> {
-			std::ranges::iota_view<size_t, size_t> indices1;
-			std::ranges::iota_view<size_t, size_t> indices2;
-		};
-
 	public:
 		using ContainerBase::ContainerBase;
 
 		//---------------
 		// PUBLIC METHODS
 		//---------------
-
 		void build(this auto&& self, const std::vector<ParticleRecord> & input_particles) {
 			self.build_storage(input_particles);
 			self.setup_cell_grid();
@@ -311,7 +249,6 @@ namespace april::container::internal {
 		//-------------
 		// SETUP FUNCTIONS
 		//-------------
-		
 		void setup_cell_grid(this auto&& self) {
 			double cell_size_hint;
 			if (self.config.cell_size_hint.has_value()) {
@@ -358,7 +295,6 @@ namespace april::container::internal {
 			self.write_ptr.resize(self.n_cells * self.n_types + 1);
 			self.allocate_tmp_storage();
 		}
-
 
 		void init_cell_order(this auto && self) {
 			if (self.config.cell_ordering_fn.has_value()) {
@@ -430,7 +366,6 @@ namespace april::container::internal {
 				}
 			}
 		}
-
 
 
 		//-------------
@@ -593,6 +528,5 @@ namespace april::container::internal {
 		}
 	};
 } // namespace april::container::internal
-
 
 

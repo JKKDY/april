@@ -12,8 +12,8 @@
 #include "april/forces/force.hpp"
 #include "april/forces/harmonic.hpp"
 #include "april/forces/gravity.hpp"
-#include "april/forces/lennardjones.hpp"
-#include "april/forces/noforce.hpp"
+#include "april/forces/lennard_jones.hpp"
+#include "april/forces/no_force.hpp"
 #include "april/forces/coulomb.hpp"
 
 #include "april/controllers/controller.hpp"

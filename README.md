@@ -425,11 +425,11 @@ Foundational:
 - [x] Force fields, including time-dependent fields
 
 Performance: 
-- [ ] SOA
+- [x] SOA
+- [ ] AoSoA
 - [ ] SIMD support
 - [ ] Verlet neighbour lists
 - [ ] Parallelism
-- [ ] Particle force declarations at compile time
 
 Features: 
 - [x] Yoshida4
@@ -453,6 +453,7 @@ Project:
 [//]: # (- [ ] Hybrid containers &#40;different containers for different particle types&#41;)
 [//]: # (- [ ] Run time container switching via policy)
 [//]: # (- [ ] Rigid bodies / constraints)
+[//]: # (- [ ] Custom compute pipelines)
 
 [//]: # (To explore? )
 [//]: # (- [ ] relativistic simulations)

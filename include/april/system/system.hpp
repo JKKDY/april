@@ -6,7 +6,7 @@
 #include "april/containers/container.hpp"
 #include "april/env/domain.hpp"
 #include "april/system/context.hpp"
-#include "april/containers/batch.hpp"
+#include "april/containers/batching.hpp"
 #include "april/boundaries/boundary.hpp"
 
 

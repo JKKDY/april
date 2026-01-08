@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <ranges>
 
-#include "batch.hpp"
-#include "april/containers/aos_container.hpp"
+#include "batching.hpp"
+#include "april/containers/aos.hpp"
 
 
 
@@ -14,6 +14,27 @@ namespace april::container {
 		template <class U> class LinkedCellsSoA;
 	}
 
+
+	struct LinkedCellsConfig {
+		std::optional<double> cell_size_hint;
+		std::optional<std::function<std::vector<uint32_t>(uint3)>> cell_ordering;
+		uint8_t super_batch_size = 1;
+
+		auto with_cell_size(this auto&& self, const double cell_size) {
+			self.cell_size_hint = cell_size;
+			return self;
+		}
+
+		auto with_cell_ordering(this auto&& self, const std::function<std::vector<uint32_t>(uint3)> & ordering) {
+			self.cell_ordering = ordering;
+			return self;
+		}
+
+		auto with_super_batch_size(this auto&& self, const uint8_t super_batch_size) {
+			self.super_batch_size = super_batch_size;
+			return self;
+		}
+	};
 
 	struct LinkedCellsAoS {
 		template<class U> using impl = internal::LinkedCellsAoS<U>;
@@ -34,7 +55,19 @@ namespace april::container {
 	};
 }
 
+inline uint64_t split_by_3(uint32_t a) {
+	uint64_t x = a & 0x1fffff; // mask to 21 bits
+	x = (x | x << 32) & 0x1f00000000ffff;
+	x = (x | x << 16) & 0x1f0000ff0000ff;
+	x = (x | x <<  8) & 0x100f00f00f00f00f;
+	x = (x | x <<  4) & 0x10c30c30c30c30c3;
+	x = (x | x <<  2) & 0x1249249249249249;
+	return x;
+}
 
+inline uint64_t morton_3d_64(uint32_t x, uint32_t y, uint32_t z) {
+	return split_by_3(x) | (split_by_3(y) << 1) | (split_by_3(z) << 2);
+}
 
 namespace april::container::internal {
 	template <class ContainerBase>
@@ -42,6 +75,7 @@ namespace april::container::internal {
 		friend ContainerBase;
 		using typename ContainerBase::ParticleRecord;
 
+		using CellIdxT = uint32_t;
 
 		enum CellWrapFlag : uint8_t {
 			NO_WRAP = 0,
@@ -90,6 +124,7 @@ namespace april::container::internal {
 		void build(this auto&& self, const std::vector<ParticleRecord> & input_particles) {
 			self.build_storage(input_particles);
 			self.setup_cell_grid();
+			self.init_cell_order();
 			self.rebuild_structure();
 			self.compute_cell_pairs();
 
@@ -97,6 +132,7 @@ namespace april::container::internal {
 				throw std::logic_error("infinite domain not supported on linked cells");
 			}
 		}
+
 
 
 		template<typename F>
@@ -111,13 +147,17 @@ namespace april::container::internal {
 			// INTRA CELL
 			SymmetricChunkedBatch sym_batch;
 			sym_batch.chunks.reserve(self.n_grid_cells); // avoid reallocations during push back
-
-			for (size_t t = 0; t < self.n_types; ++t) {
-				sym_batch.types = {static_cast<env::ParticleType>(t), static_cast<env::ParticleType>(t)};
+			AsymmetricChunkedBatch asym_batch;
+			asym_batch.chunks.reserve(self.n_grid_cells);
+			AsymmetricChunkedBatch asym_nieghb_batch;
+			asym_nieghb_batch.chunks.reserve(self.neighbor_cell_pairs.size());
+			
+			for (size_t t1 = 0; t1 < self.n_types; ++t1) {
+				sym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t1)};
 				sym_batch.chunks.clear(); // reset size to 0 but keep capacity
 
 				for (size_t c = 0; c < self.n_grid_cells; ++c) {
-					auto range = get_indices(c, t);
+					auto range = get_indices(c, t1);
 					if (range.size() < 2) continue;
 					sym_batch.chunks.push_back({range});
 				}
@@ -125,13 +165,7 @@ namespace april::container::internal {
 				if (!sym_batch.chunks.empty()) {
 					func(sym_batch, NoBatchBCP{});
 				}
-			}
 
-			// for every pair of types in each cell
-			AsymmetricChunkedBatch asym_batch;
-			asym_batch.chunks.reserve(self.n_grid_cells);
-
-			for (size_t t1 = 0; t1 < self.n_types; ++t1) {
 				for (size_t t2 = t1 + 1; t2 < self.n_types; ++t2) {
 
 					asym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
@@ -153,10 +187,11 @@ namespace april::container::internal {
 				}
 			}
 
+
 			// NEIGHBOR CELLS
 			// neighbor_cell_pairs contains pre-calculated valid pairs
-			asym_batch.chunks.reserve(self.neighbor_cell_pairs.size());
-
+			// asym_batch.chunks.reserve(self.neighbor_cell_pairs.size());
+			//
 			for (size_t t1 = 0; t1 < self.n_types; ++t1) {
 				for (size_t t2 = 0; t2 < self.n_types; ++t2) {
 
@@ -204,7 +239,6 @@ namespace april::container::internal {
 				}
 			}
 		}
-
 
 		void rebuild_structure(this auto&& self) {
 			// // TODO use hilbert curve sorting on the cells
@@ -281,9 +315,9 @@ namespace april::container::internal {
 		uint3 cells_per_axis{}; // number of cells along each axis
 
 		std::vector<size_t> bin_start_indices; // maps bin id to index of first particle in that bin
+		std::vector<uint32_t> cell_ordering; // map x,y,z flat index (Nx*Ny*z+Nx*y+x) to ordering index
 
 		// used for cell rebuilding
-		// std::vector<ParticleRecord> tmp_particles;
 		std::vector<size_t> write_ptr;
 
 		// cell pair info
@@ -471,8 +505,53 @@ namespace april::container::internal {
 			};
 		}
 
-		[[nodiscard]] size_t cell_pos_to_idx(const size_t x, const size_t y, const size_t z) const noexcept{
-			return  z * cells_per_axis.x * cells_per_axis.y + y * cells_per_axis.x + x;
+		// In your Grid/System class
+		std::vector<size_t> grid_to_linear_idx; // Size: NX * NY * NZ
+
+		void init_morton_order() {
+			const size_t NX = cells_per_axis.x;
+			const size_t NY = cells_per_axis.y;
+			const size_t NZ = cells_per_axis.z;
+
+			grid_to_linear_idx.resize(NX * NY * NZ);
+
+			// 1. Create a temporary list of all coordinates
+			struct Coord { size_t x, y, z; size_t original_flat_index; uint64_t morton; };
+			std::vector<Coord> coords;
+			coords.reserve(NX * NY * NZ);
+
+			for (size_t z = 0; z < NZ; ++z) {
+				for (size_t y = 0; y < NY; ++y) {
+					for (size_t x = 0; x < NX; ++x) {
+						// Calculate raw Morton code (the sparse one)
+						uint64_t m = morton_3d_64(x, y, z);
+						size_t flat = z * NY * NX + y * NX + x;
+						coords.push_back({x, y, z, flat, m});
+					}
+				}
+			}
+
+			// 2. Sort based on Morton code
+			// This removes the "gaps" because we are just sorting the existing valid cells
+			std::sort(coords.begin(), coords.end(), [](const Coord& a, const Coord& b) {
+				return a.morton < b.morton;
+			});
+
+			// 3. Build the lookup table
+			// coords[i] is the i-th cell in memory (Sorted order).
+			// We want to know: "Where in the sorted array is grid cell (x,y,z)?"
+			for (size_t i = 0; i < coords.size(); ++i) {
+				grid_to_linear_idx[coords[i].original_flat_index] = i;
+			}
+		}
+
+		[[nodiscard]] size_t cell_pos_to_idx(this const auto & self, const size_t x, const size_t y, const size_t z) const noexcept{
+			// return  z * cells_per_axis.x * cells_per_axis.y + y * cells_per_axis.x + x;
+			size_t flat = z * cells_per_axis.x * cells_per_axis.y + y * cells_per_axis.x + x;
+
+			// return self.config.
+			// Remap to Z-Order storage index
+			return grid_to_linear_idx[flat];
 		}
 
 		size_t cell_index_from_position(this const auto & self, const vec3 & position) {

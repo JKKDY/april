@@ -5,9 +5,9 @@
 #include "april/env/environment.hpp"
 #include "april/containers/container.hpp"
 #include "april/env/domain.hpp"
-#include "april/system/build_helpers_particle.hpp"
-#include "april/system/build_helpers_domain.hpp"
-#include "april/system/build_helpers_boundary.hpp"
+#include "april/system/internal/build_helpers_particle.hpp"
+#include "april/system/internal/build_helpers_domain.hpp"
+#include "april/system/internal/build_helpers_boundary.hpp"
 
 
 namespace april::core {

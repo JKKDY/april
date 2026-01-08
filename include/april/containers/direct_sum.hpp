@@ -2,9 +2,9 @@
 
 #include <ranges>
 
-#include "soa_container.hpp"
-#include "april/containers/aos_container.hpp"
-#include "april/containers/batch.hpp"
+#include "soa.hpp"
+#include "april/containers/aos.hpp"
+#include "april/containers/batching.hpp"
 
 namespace april::container {
 	namespace internal {

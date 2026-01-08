@@ -68,7 +68,20 @@ function(set_target_build_flags target_name)
             -finline-functions
             -funroll-loops
             -fno-plt
+            >
 
+            $<$<AND:$<CONFIG:RelWithDebInfo>,$<CXX_COMPILER_ID:GNU,Clang>>:
+            -O3
+            -g
+            -march=haswell
+            -ffast-math
+            -fno-omit-frame-pointer
+            -finline-functions
+            -funroll-loops
+            -fno-plt
+            >
+            $<$<AND:$<CONFIG:RelWithDebInfo>,$<CXX_COMPILER_ID:MSVC>>:
+            /Ox /Zi /GL /fp:fast /arch:AVX2 /favor:INTEL64 /Oi /Ot /Ob3
             >
 
             # MSVC
@@ -89,8 +102,8 @@ function(set_target_build_flags target_name)
             $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od /Zi>
 
             # Profile → -O2 -g -pg
-            $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:GNU>>:-O2 -g -pg>
-            $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:Clang>>:-O2 -g -pg>
+            $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:GNU>>:-O1 -g -pg>
+            $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:Clang>>:-O1 -g -pg>
     )
 
     # tell the linker to generate gmon.out

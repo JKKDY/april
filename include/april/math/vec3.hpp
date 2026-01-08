@@ -232,32 +232,42 @@ namespace april::utils {
 
     template <typename T> requires std::integral<T> || std::floating_point<T>
     struct Vec3Ptr {
-        T * x = nullptr;
-        T * y = nullptr;
-        T * z = nullptr;
+        T * __restrict__ x = nullptr;
+        T * __restrict__ y = nullptr;
+        T * __restrict__ z = nullptr;
 
         Vec3Ptr() = default;
 
         template <typename U>
         requires std::convertible_to<U, T>
         Vec3Ptr(Vec3<U>* other)
-           : x(&other->x), y(&other->y), z(&other->z) {}
+           : x(&other->x), y(&other->y), z(&other->z) {
+            // AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+        }
 
         template <typename U>
         requires std::convertible_to<const U*, T*>
         Vec3Ptr(const Vec3<U>* other)
-           : x(&other->x), y(&other->y), z(&other->z) {}
+           : x(&other->x), y(&other->y), z(&other->z) {
+            // AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+        }
 
         Vec3Ptr(T& x_ref, T& y_ref, T& z_ref)
-           : x(&x_ref), y(&y_ref), z(&z_ref) {}
+           : x(&x_ref), y(&y_ref), z(&z_ref) {
+            // AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+        }
 
         Vec3Ptr(T* x_ptr, T* y_ptr, T* z_ptr)
-            : x(x_ptr), y(y_ptr), z(z_ptr) {}
+            : x(x_ptr), y(y_ptr), z(z_ptr) {
+            // AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+        }
 
         template <typename U>
         requires std::convertible_to<U*, T*>
         Vec3Ptr(const Vec3Ptr<U>& other)
-           : x(other.x), y(other.y), z(other.z) {}
+           : x(other.x), y(other.y), z(other.z) {
+            // AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+        }
 
         template <typename U>
         requires std::convertible_to<U*, T*>
@@ -279,9 +289,9 @@ namespace april::utils {
 
     template <typename T> requires std::integral<T> || std::floating_point<T>
     struct Vec3Proxy : Vec3Ops<T> {
-        T& x;
-        T& y;
-        T& z;
+        T& __restrict__ x;
+        T& __restrict__ y;
+        T& __restrict__ z;
 
         // ---- Constructors ----
         Vec3Proxy(const Vec3Proxy&) = default;

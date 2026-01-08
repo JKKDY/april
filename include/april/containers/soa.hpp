@@ -1,7 +1,10 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Julian Deller-Yee
+
 #pragma once
 #include <vector>
 #include "april/containers/container.hpp"
-#include "april/containers/batch.hpp"
+#include "april/containers/batching.hpp"
 #include "april/particle/particle.hpp"
 
 namespace april::container {

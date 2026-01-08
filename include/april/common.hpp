@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "april/shared/vec3.hpp"
+#include "april/math/vec3.hpp"
 
 /// Cross-compiler force-inline
 #if defined(_MSC_VER)

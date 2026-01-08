@@ -2,7 +2,7 @@
 
 #include "april/particle/particle.hpp"
 #include "april/containers/container.hpp"
-#include "april/containers/batch.hpp"
+#include "april/containers/batching.hpp"
 
 namespace april::container {
 

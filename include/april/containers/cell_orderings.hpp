@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: MIT
-// Copyright (c) 2026 Julian Deller-Yee
 #pragma once
 
 #include <algorithm>
@@ -31,79 +29,86 @@ namespace april::container {
 		// -----------------------
 		// HILBERT CURVE UTILITIES
 		// -----------------------
-		// we use the following hilbert curve basis shape (fills a 2x2x2 octant)
-		// Index (Time)   Coord (x,y,z)    Binary (val)      Geometric Octant Value (4z + 2y + x)
-		//       0          (0, 0, 0)             000                           0
-		//       1          (1, 0, 0)             001                           1
-		//       2          (1, 1, 0)             011                           3
-		//       3          (0, 1, 0)             010                           2
-		//       4          (0, 1, 1)             110                           6
-		//       5          (1, 1, 1)             111                           7
-		//       6          (1, 0, 1)             101                           5
-		//       7          (0, 0, 1)             100                           4
-		// the following table the basis shape for every one of the possible 24 rotations
-		// given a rotation, it gives the sequence of octants. These define a base hilbert curve.
-		// the sequence is specified by the "time" (number of steps when traversing the curve) at which ocant
-		// i (where i the geometric octant value as per the above grey code) should be visited
-		// i.e. maps space -> time
-		static constexpr uint8_t hilbert_octant_to_index[24][8] = {
-			{0, 1, 3, 2, 7, 6, 4, 5}, {0, 7, 1, 6, 3, 4, 2, 5}, {0, 3, 7, 4, 1, 2, 6, 5},
-			{2, 3, 1, 0, 5, 4, 6, 7}, {4, 3, 5, 2, 7, 0, 6, 1}, {6, 5, 1, 2, 7, 4, 0, 3},
-			{4, 7, 5, 6, 3, 0, 2, 1}, {6, 7, 1, 0, 5, 4, 2, 3}, {0, 1, 3, 2, 7, 6, 4, 5},
-			{2, 1, 3, 0, 5, 6, 4, 7}, {4, 5, 7, 6, 3, 2, 0, 1}, {6, 1, 7, 0, 5, 2, 4, 3},
-			{0, 7, 1, 6, 3, 4, 2, 5}, {2, 1, 3, 0, 5, 6, 4, 7}, {4, 3, 5, 2, 7, 0, 6, 1},
-			{4, 7, 5, 6, 3, 0, 2, 1}, {0, 1, 3, 2, 7, 6, 4, 5}, {0, 3, 7, 4, 1, 2, 6, 5},
-			{2, 3, 1, 0, 5, 4, 6, 7}, {2, 1, 3, 0, 5, 6, 4, 7}, {4, 5, 7, 6, 3, 2, 0, 1},
-			{4, 7, 5, 6, 3, 0, 2, 1}, {6, 5, 1, 2, 7, 4, 0, 3}, {6, 7, 1, 0, 5, 4, 2, 3}
-		};
+		// The following hilbert curve encoding is based on Princeton numpy-hilbert-curve library:
+		//	https://github.com/PrincetonLIPS/numpy-hilbert-curve
+		// which in turn is based on Skillings grey-code "correction" procedure presented in:
+		//	Skilling, J. (2004, April). Programming the Hilbert curve. In AIP Conference Proceedings
+		//	(Vol. 707, No. 1, pp. 381-387). American Institute of Physics.
 
-		// There are 24 orientation-preserving 90° rotations in 3D (octahedral group):
-		// choose where the +X axis maps (6 choices), then choose a perpendicular +Y axis (4 choices) -> 6 x 4 = 24
+		// given a point and size of the grid (2^num_bits), return the hilbert index of that point
+		// (num steps along the hilbert curve)
+		inline uint64_t hilbert_encode(std::vector<uint32_t> coords, const int num_bits) {
+		    const size_t num_dims = coords.size();
 
-		// consider the sub octants (cells) of a 2x2x2 block (octet). Each sub octant contains its own hilbert curve shape.
-		// the octet contains its own hilbert curve that specifies which sub octant is adjacent to which.
-		// sub octants are rotated such that the end of the previous matches the start of the next
+		    // Safety check
+		    if (num_dims * num_bits > 64) {
+		        throw std::overflow_error("Hilbert index would exceed 64 bits.");
+		    }
 
-		// the following is a state transition table for the 3D Hilbert curve (24 rotations x 8 octants)
-		// given an orientation and a current sub octant, it gives the orientation of the next octant
-		static constexpr uint8_t hilbert_rotation[24][8] = {
-			{0,3,4,0,4,7,8,7}, {1,2,5,1,5,6,9,6}, {0,3,4,0,4,7,8,7}, {1,2,5,1,5,6,9,6},
-			{10,13,14,10,14,17,18,17}, {11,12,15,11,15,16,19,16}, {10,13,14,10,14,17,18,17}, {11,12,15,11,15,16,19,16},
-			{20,23,2,20,2,5,6,5}, {21,22,3,21,3,4,7,4}, {20,23,2,20,2,5,6,5}, {21,22,3,21,3,4,7,4},
-			{0,3,4,0,4,7,8,7}, {1,2,5,1,5,6,9,6}, {0,3,4,0,4,7,8,7}, {1,2,5,1,5,6,9,6},
-			{10,13,14,10,14,17,18,17}, {11,12,15,11,15,16,19,16}, {10,13,14,10,14,17,18,17}, {11,12,15,11,15,16,19,16},
-			{20,23,2,20,2,5,6,5}, {21,22,3,21,3,4,7,4}, {20,23,2,20,2,5,6,5}, {21,22,3,21,3,4,7,4}
-		};
+			// Loop through all bits starting at the MSB (Most Significant Bit).
+			// This is akin to iterating through the most coarse (hyper-) quadrant
+			// and zooming in to divide it in each step.
+			for (int i = num_bits - 1; i >= 0; --i) {
 
-		// calculates the Hilbert index for a point in a virtual 2^bits x 2^bits x 2^bits box.
-		inline uint64_t hilbert_3d_64(const uint32_t x, const uint32_t y, const uint32_t z, const int bits) {
-			uint64_t index = 0;
-			int rotation = 0; // Canonical initial orientation
+				// lower_mask = 0...001...1 with i least-significant bits set to 1.
+				// Using this in an XOR operation (x ^ lower_mask) will flip all i
+				// least significant bits (effectively processing the sub-quadrants).
+				const uint32_t lower_mask = (1U << i) - 1;
 
-			// we build the index bit by bit
-			// hilbert curves are self similar; we start at the most coarse curve and iteratively refine it (
-			for (int i = bits - 1; i >= 0; --i) {
-				const uint32_t mask = 1 << i; // get the most significant bit (most left)
+				// Loop through all dimensions.
+				// For each quadrant, we need to "unrotate" (or "unflip") its orientation
+				// so the next iteration can treat it as a standard non-rotated box.
+				for (size_t d = 0; d < num_dims; ++d) {
 
-				// which of the 8 octants are we in at the current (refinement) level?
-				// first get the octant index (without considering rotations due to the curve)
-				// if x has the bit set, it's on the "Right".
-				// if y has the bit set, it's on the "Top".
-				// if z has the bit set, it's in the "Front".
-				const uint8_t octant = ((x & mask) ? 1 : 0) | ((y & mask) ? 2 : 0) | ((z & mask) ? 4 : 0);
+					// Check if the coordinate along the d-th dimension has its i-th bit set.
+					// In other words: Is the point in the "Top" half of the current square?
+					if ((coords[d] >> i) & 1) {
 
-				// get the octant index considering rotations
-				const uint8_t seg_index = hilbert_octant_to_index[rotation][octant];
+						// Yes: perform a horizontal reflection (invert the i-th lowest bits).
+						// Intuition: This typically happens in "exit" regions. We flip the
+						// coordinates so the exit point aligns with the entry of the next block.
+						coords[0] ^= lower_mask;
 
-				// 3. Accumulate index
-				index = (index << 3) | seg_index;
+					} else {
 
-				// 4. Update rotation for the next level
-				rotation = hilbert_rotation[rotation][octant];
+						// No: perform a geometric Transpose (Swap axes) to rotate the frame.
+						// We swap the lower bits of the Primary Axis (0) and Current Axis (d).
+						// This handles the "entry" regions where the curve winds inwards.
+						const uint32_t t = (coords[0] ^ coords[d]) & lower_mask;
+						coords[0] ^= t;
+						coords[d] ^= t;
+					}
+				}
 			}
-			return index;
+
+			// build grey index (hilbert index of point but in grey number system) from modified coordinates
+		    uint64_t gray_index = 0;
+			// loop through all bits starting at the most significant (msb; most left; determines the top level quadrant)
+		    for (int i = num_bits - 1; i >= 0; --i) {
+		    	// loop through all dimensions
+		        for (size_t d = 0; d < num_dims; ++d) {
+		            const uint64_t bit = (coords[d] >> i) & 1;
+		            gray_index = (gray_index << 1) | bit;
+		        }
+		    }
+
+		    // convert grey index back to binary
+			uint64_t bin = gray_index;
+			bin ^= bin >> 1;
+			bin ^= bin >> 2;
+			bin ^= bin >> 4;
+			bin ^= bin >> 8;
+			bin ^= bin >> 16;
+			bin ^= bin >> 32;
+			return bin;
 		}
-	}
+
+		// wrapper for 3d hilbert encode
+		inline uint64_t hilbert_encode_3d(uint32_t x, uint32_t y, uint32_t z, const int depth) {
+		    return hilbert_encode({x, y, z}, depth);
+		}
+	} // namespace internal
+
 
 	// ----------------
 	// MORTON (Z-Curve)
@@ -141,7 +146,7 @@ namespace april::container {
 		// coords[i] is the i-th cell in memory (Sorted order).
 		// We want to know: "Where in the sorted array is grid cell (x,y,z)?"
 		for (size_t i = 0; i < coords.size(); ++i) {
-			cell_ordering[coords[i].original_flat_index] = i;
+			cell_ordering[coords[i].original_flat_index] = static_cast<uint32_t>(i);
 		}
 
 		return cell_ordering;
@@ -173,7 +178,7 @@ namespace april::container {
 			for (uint32_t y = 0; y < cells_per_axis.y; ++y) {
 				for (uint32_t x = 0; x < cells_per_axis.x; ++x) {
 					// Calculate Hilbert Key assuming the point is inside the virtual power-of-two box
-					const uint64_t hilbert_curve_index = internal::hilbert_3d_64(x, y, z, bits);
+					const uint64_t hilbert_curve_index = internal::hilbert_encode_3d(x, y, z, bits);
 					const uint32_t flat = z * cells_per_axis.y * cells_per_axis.x + y * cells_per_axis.x + x;
 					coords.push_back({flat, hilbert_curve_index});
 				}

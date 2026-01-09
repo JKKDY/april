@@ -5,7 +5,9 @@
 using testing::AnyOf;
 using testing::Eq;
 
-#include "april/april.hpp"
+
+#include "april/containers/linked_cells.hpp"
+
 #include "orbit_monitor.h"
 #include "constant_force.h"
 #include "utils.h"
@@ -13,11 +15,65 @@ using testing::Eq;
 // TODO tests for get_particle_by_id
 using namespace april;
 
+
+// Policy: No ordering (Flat/Default)
+struct OrderDefault {
+	static auto apply(auto&& container) {
+		return std::forward<decltype(container)>(container);
+	}
+};
+
+// Policy: Morton
+struct OrderMorton {
+	static auto apply(auto&& container) {
+		// Assuming morton_order is available in current scope or april namespace
+		return container.with_cell_ordering(april::morton_order);
+	}
+};
+
+// Policy: Hilbert
+struct OrderHilbert {
+	static auto apply(auto&& container) {
+		// Assuming hilbert_order is available in current scope or april namespace
+		return container.with_cell_ordering(april::hilbert_order);
+	}
+};
+
+template <typename ContainerT, typename OrderingT>
+struct TestConfig {
+	// Helper to initialize the container with size and ordering
+	static auto create(double cell_size) {
+		// Create container and set size
+		auto c = ContainerT{}.with_cell_size(cell_size);
+		// Apply the ordering strategy (Default, Morton, or Hilbert)
+		return OrderingT::apply(std::move(c));
+	}
+
+	static auto create() {
+		auto c = ContainerT{};
+		return OrderingT::apply(std::move(c));
+	}
+};
+
+using ContainerConfigurations = testing::Types<
+	// AoS Combinations
+	TestConfig<LinkedCellsAoS, OrderDefault>,
+	TestConfig<LinkedCellsAoS, OrderMorton>,
+	TestConfig<LinkedCellsAoS, OrderHilbert>,
+
+	// SoA Combinations
+	TestConfig<LinkedCellsSoA, OrderDefault>,
+	TestConfig<LinkedCellsSoA, OrderMorton>,
+	TestConfig<LinkedCellsSoA, OrderHilbert>
+>;
+
 template <typename LinkedCellsT>
 class LinkedCellsTest : public testing::Test {};
 
-using ContainerTypes = testing::Types<LinkedCellsAoS, LinkedCellsSoA>;
-TYPED_TEST_SUITE(LinkedCellsTest, ContainerTypes);
+// Update the Test Suite to use these configurations
+TYPED_TEST_SUITE(LinkedCellsTest, ContainerConfigurations);
+
+
 
 TYPED_TEST(LinkedCellsTest, SingleParticle_NoForce) {
     Environment e (forces<NoForce>);
@@ -25,7 +81,7 @@ TYPED_TEST(LinkedCellsTest, SingleParticle_NoForce) {
 	e.add_force(NoForce(), to_type(0));
 	e.set_extent({4,4,4});
 
-	auto sys = build_system(e, TypeParam{}.with_cell_size(4));
+	auto sys = build_system(e, TypeParam::create(4));
     sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -41,7 +97,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
 	e.add_particle(make_particle(7, {1.5,0,0}, {}, 2, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = build_system(e, TypeParam{}.with_cell_size(2));
+	auto sys = build_system(e, TypeParam::create(2));
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -63,7 +119,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 	e.add_particle(make_particle(7, {1.5,0,0}, {}, 2, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = build_system(e, TypeParam().with_cell_size(1));
+	auto sys = build_system(e, TypeParam::create(1));
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -85,7 +141,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 	e.add_particle(make_particle(7, {1,0,0}, {}, 1, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = build_system(e, TypeParam().with_cell_size(0.5));
+	auto sys = build_system(e, TypeParam::create(0.5));
 	sys.update_forces();
     auto const& out = export_particles(sys);
 	ASSERT_EQ(out.size(), 2u);
@@ -105,7 +161,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
 	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
 	e.auto_domain(2);
 
-	auto sys = build_system(e, TypeParam());
+	auto sys = build_system(e, TypeParam::create());
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -133,7 +189,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 
 	e.add_force(Gravity(5.0), between_types(0, 1));
 
-	auto sys = build_system(e, TypeParam());
+	auto sys = build_system(e, TypeParam::create());
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -167,7 +223,7 @@ TYPED_TEST(LinkedCellsTest, OrbitTest) {
 	env.set_origin({-1.5*v,-1.5*v,0});
 	env.set_extent({3*v,3*v,1});
 
-	auto sys = build_system(env, TypeParam().with_cell_size(v));
+	auto sys = build_system(env, TypeParam::create(v));
 	sys.update_forces();
 
 	VelocityVerlet integrator(sys, monitor::monitors<OrbitMonitor>);
@@ -218,7 +274,7 @@ TYPED_TEST(LinkedCellsTest, CollectIndicesInRegion) {
 		e.add_particles(cuboid);
         e.add_force(NoForce(), to_type(0));
 
-        auto sys = build_system(e, TypeParam().with_cell_size(cell_size));
+        auto sys = build_system(e, TypeParam::create(cell_size));
 
         // Case 1: small inner region (should include one particle)
         {
@@ -300,7 +356,7 @@ TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 		e.set_boundaries(DummyPeriodicBoundary(), {Face::XMinus, Face::XPlus});
 
 		BuildInfo mapping;
-		auto sys = build_system(e, TypeParam().with_cell_size(cell_size_hint), &mapping);
+		auto sys = build_system(e, TypeParam::create(cell_size_hint), &mapping);
 		sys.update_forces();
 
 		auto const& out = export_particles(sys);
@@ -339,7 +395,7 @@ TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
 		});
 
 		BuildInfo mapping;
-		auto sys = build_system(e, TypeParam().with_cell_size(cell_size_hint), &mapping);
+		auto sys = build_system(e, TypeParam::create(cell_size_hint), &mapping);
 		sys.update_forces();
 
 		auto const& out = export_particles(sys);

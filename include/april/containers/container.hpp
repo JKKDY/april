@@ -4,9 +4,11 @@
 #include <vector>
 #include <stdexcept>
 
+#include "april/forces/force_table.hpp"
 #include "april/particle/fields.hpp"
 #include "april/particle/access.hpp"
 #include "april/env/domain.hpp"
+#include "april/env/traits.hpp"
 
 
 

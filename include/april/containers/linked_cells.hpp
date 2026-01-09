@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <ranges>
 
-#include "linked_cells_types.h"
+#include "linked_cells_types.hpp"
 #include "april/containers/cell_orderings.hpp"
 #include "april/containers/batching.hpp"
 #include "april/containers/aos.hpp"
@@ -33,9 +33,6 @@ namespace april::container::internal {
 	class LinkedCellsBase : public ContainerBase {
 		friend ContainerBase;
 		using typename ContainerBase::ParticleRecord;
-
-		using CellIdxT = uint32_t;
-
 	public:
 		using ContainerBase::ContainerBase;
 
@@ -198,7 +195,7 @@ namespace april::container::internal {
 
 
 		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const env::Box & region) {
-			std::vector<size_t> cells = self.get_cells_in_region(region);
+			std::vector<cell_index_t> cells = self.get_cells_in_region(region);
 			std::vector<size_t> ret;
 
 			// heuristic: reserve space for the expected average number of particles per cell
@@ -235,8 +232,8 @@ namespace april::container::internal {
 		vec3 inv_cell_size; // cache the inverse of each size component to avoid divisions
 		uint3 cells_per_axis{}; // number of cells along each axis
 
-		std::vector<size_t> bin_start_indices; // maps bin id to index of first particle in that bin
-		std::vector<uint32_t> cell_ordering; // map x,y,z flat index (Nx*Ny*z+Nx*y+x) to ordering index
+		std::vector<cell_index_t> bin_start_indices; // maps bin id to index of first particle in that bin
+		std::vector<cell_index_t> cell_ordering; // map x,y,z flat index (Nx*Ny*z+Nx*y+x) to ordering index
 
 		// used for cell rebuilding
 		std::vector<size_t> write_ptr;
@@ -372,7 +369,7 @@ namespace april::container::internal {
 		// UTILITIES
 		//-------------
 		// gather all cell ids whose cells have an intersection with the box region
-		[[nodiscard]] std::vector<size_t> get_cells_in_region(this const auto& self, const env::Box & box) {
+		[[nodiscard]] std::vector<cell_index_t> get_cells_in_region(this const auto& self, const env::Box & box) {
 			//  Convert world coords to cell coords (relative to domain origin)
 			const vec3 min = (box.min - self.domain.min) * self.inv_cell_size;
 			const vec3 max = (box.max - self.domain.min) * self.inv_cell_size;
@@ -406,7 +403,7 @@ namespace april::container::internal {
 
 			// add all cells in that region
 			const auto cell_counts = max_cell - min_cell;
-			std::vector<size_t> cells;
+			std::vector<cell_index_t> cells;
 			cells.reserve(cell_counts.x * cell_counts.y * cell_counts.z);
 			for (size_t x = min_cell.x; x <= max_cell.x; ++x) {
 				for (size_t y = min_cell.y; y <= max_cell.y; ++y) {

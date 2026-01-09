@@ -2,7 +2,8 @@
 #include <functional>
 #include <optional>
 
-#include "cell_orderings.hpp"
+#include "april/containers/cell_orderings.hpp"
+#include "april/containers/batching.hpp"
 #include "april/common.hpp"
 
 namespace april::container::internal {
@@ -27,6 +28,8 @@ namespace april::container::internal {
 		}
 	};
 
+	using cell_index_t = uint32_t;
+
 
 	enum CellWrapFlag : uint8_t {
 		NO_WRAP = 0,
@@ -36,13 +39,13 @@ namespace april::container::internal {
 	};
 
 	struct CellPair {
-		const size_t c1 = {};
-		const size_t c2 = {};
+		const cell_index_t c1 = {};
+		const cell_index_t c2 = {};
 	};
 
 	struct WrappedCellPair {
-		const size_t c1 = {};
-		const size_t c2 = {};
+		const cell_index_t c1 = {};
+		const cell_index_t c2 = {};
 		const CellWrapFlag force_wrap = {};
 		const vec3 shift = {};
 	};

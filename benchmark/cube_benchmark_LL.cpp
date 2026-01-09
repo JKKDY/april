@@ -41,7 +41,7 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	constexpr auto container = LinkedCellsAoS(r_cut);
+	const auto container = LinkedCellsAoS().with_cell_size(r_cut).with_cell_ordering(april::container::hilbert_order);
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;
 	constexpr int steps  = 10000;

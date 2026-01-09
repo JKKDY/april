@@ -82,6 +82,7 @@ namespace april::container::internal {
 					func(sym_batch, NoBatchBCP{});
 				}
 
+
 				for (size_t t2 = t1 + 1; t2 < self.n_types; ++t2) {
 
 					asym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
@@ -101,14 +102,8 @@ namespace april::container::internal {
 						func(asym_batch, NoBatchBCP{});
 					}
 				}
-			}
 
-
-			// NEIGHBOR CELLS
-			// neighbor_cell_pairs contains pre-calculated valid pairs
-			// asym_batch.chunks.reserve(self.neighbor_cell_pairs.size());
-			//
-			for (size_t t1 = 0; t1 < self.n_types; ++t1) {
+				// NEIGHBOR CELLS
 				for (size_t t2 = 0; t2 < self.n_types; ++t2) {
 
 					asym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
@@ -129,6 +124,7 @@ namespace april::container::internal {
 					}
 				}
 			}
+
 
 			// WRAPPED CELL PAIRS
 			// (only if periodic bcp enabled)
@@ -157,7 +153,6 @@ namespace april::container::internal {
 		}
 
 		void rebuild_structure(this auto&& self) {
-			// // TODO use hilbert curve sorting on the cells
 			const size_t num_bins = self.bin_start_indices.size();
 			std::ranges::fill(self.bin_start_indices, 0);
 
@@ -227,6 +222,7 @@ namespace april::container::internal {
 		size_t n_grid_cells {};
 		size_t n_cells {}; // total cells = grid + outside
 		size_t n_types {}; // types range from 0 ... n_types-1
+		double global_cutoff {}; // maximum force cutoff
 
 		vec3 cell_size; // side lengths of each cell
 		vec3 inv_cell_size; // cache the inverse of each size component to avoid divisions
@@ -239,40 +235,47 @@ namespace april::container::internal {
 		std::vector<size_t> write_ptr;
 
 		// cell pair info
+		std::vector<int3> neighbor_stencil;
 		std::vector<CellPair> neighbor_cell_pairs;
 		std::vector<WrappedCellPair> wrapped_cell_pairs;
 
 
-		//-------------
+		//----------------
 		// SETUP FUNCTIONS
-		//-------------
+		//----------------
 		void setup_cell_grid(this auto&& self) {
-			double cell_size_hint;
-			if (self.config.cell_size_hint.has_value()) {
-				AP_ASSERT(self.config.cell_size_hint.value() > 0, "config.cell_size_hint must be greater than 0");
-				cell_size_hint = self.config.cell_size_hint.value();
-			} else {
-				double max_cutoff = 0;
-				for (const auto & interaction : self.force_schema.interactions) {
-					if (interaction.is_active && !interaction.used_by_types.empty() && interaction.cutoff > max_cutoff) {
-						max_cutoff = interaction.cutoff;
-					}
+			// determine the physical cutoff (max_rc) from interactions
+			double max_cutoff = 0;
+			for (const auto & interaction : self.force_schema.interactions) {
+				if (interaction.is_active && !interaction.used_by_types.empty() && interaction.cutoff > max_cutoff) {
+					max_cutoff = interaction.cutoff;
 				}
-
-				if (max_cutoff == 0 || max_cutoff > self.domain.extent.min()) {
-					max_cutoff = self.domain.extent.min() / 2;
-				}
-
-				cell_size_hint = max_cutoff;
 			}
 
-			// compute number of cells along each axis
-			const auto num_x = static_cast<unsigned int>(std::max(1.0, floor(self.domain.extent.x / cell_size_hint)));
-			const auto num_y = static_cast<unsigned int>(std::max(1.0, floor(self.domain.extent.y / cell_size_hint)));
-			const auto num_z = static_cast<unsigned int>(std::max(1.0, floor(self.domain.extent.z / cell_size_hint)));
+			// handle edge cases (no interactions or cutoff > domain)
+			// ensure at least a 2x2x2 grid (before applying cell size factor (CSF))
+			if (max_cutoff <= 0 || max_cutoff > self.domain.extent.min()) {
+				// TODO log warning
+				max_cutoff = self.domain.extent.min() / 2.0;
+			}
 
-			// calculate cell size along each axis and cache inverse
-			self.cell_size = {self.domain.extent.x / num_x, self.domain.extent.y / num_y, self.domain.extent.z / num_z};
+			double target_cell_size = self.config.get_width(max_cutoff);
+			AP_ASSERT(target_cell_size > 0, "Calculated cell size must be > 0");
+
+			// compute number of cells along each axis
+			// std::floor ensures that the resulting cells are larger than or equal to target_cell_size
+			const auto num_x = static_cast<cell_index_t>(std::max(1.0, std::floor(self.domain.extent.x / target_cell_size)));
+			const auto num_y = static_cast<cell_index_t>(std::max(1.0, std::floor(self.domain.extent.y / target_cell_size)));
+			const auto num_z = static_cast<cell_index_t>(std::max(1.0, std::floor(self.domain.extent.z / target_cell_size)));
+
+			// calculate cell size along (stretches to fit domain exactly)
+			self.cell_size = {
+				self.domain.extent.x / num_x,
+				self.domain.extent.y / num_y,
+				self.domain.extent.z / num_z
+			};
+
+			// cache inverse (useful for fast binning: index = coord * inv_cell_size)
 			self.inv_cell_size = {
 				self.cell_size.x > 0 ? 1.0/self.cell_size.x : 0.0,
 				self.cell_size.y > 0 ? 1.0/self.cell_size.y : 0.0,
@@ -286,6 +289,7 @@ namespace april::container::internal {
 			self.n_grid_cells = num_x * num_y * num_z;
 			self.n_cells = self.n_grid_cells + 1;
 			self.outside_cell_id = self.n_grid_cells;
+			self.global_cutoff = max_cutoff;
 
 			// allocate buffers
 			self.bin_start_indices.resize(self.n_cells * self.n_types + 1); // size = (total Cells * types) + sentinel
@@ -301,49 +305,91 @@ namespace april::container::internal {
 		}
 
 		void compute_cell_pairs(this auto && self) {
-			self.neighbor_cell_pairs.reserve(self.cells_per_axis.x * self.cells_per_axis.y * self.cells_per_axis.z * 13); // heuristic
+			// number of cells within a box of sidelengths global_cutoff
+			// ceil ensures we really check every relevant cell
+			const auto nx = static_cast<int>(std::ceil(self.global_cutoff * self.inv_cell_size.x));
+			const auto ny = static_cast<int>(std::ceil(self.global_cutoff * self.inv_cell_size.y));
+			const auto nz = static_cast<int>(std::ceil(self.global_cutoff * self.inv_cell_size.z));
 
-			static const int3 displacements[13] = {
-				{ 1, 0, 0}, { 0, 1, 0}, { 0, 0, 1},
-				{ 1, 1, 0}, { 1,-1, 0}, { 1, 0, 1},
-				{-1, 0, 1}, { 0, 1, 1}, { 0,-1, 1},
-				{ 1, 1, 1}, { 1,-1, 1}, {-1, 1, 1},
-				{-1,-1, 1}
-			};
+			const double cutoff_sq = self.global_cutoff * self.global_cutoff;
 
+			std::vector<int3> stencil;
+
+			// loop over every cell within a 2*rc sized box
+			for (int z = 0; z <= nz; ++z) {  // we only need a half sphere so we can exclude cells with z<0
+				for (int y = -ny; y <= ny; ++y) {
+					for (int x = -nx; x <= nx; ++x) {
+
+						// half sphere filter: only "forward" cells (use tuple ordering for filtering)
+						if (std::make_tuple(z, y, x) <= std::make_tuple(0, 0, 0)) {
+							continue;
+						}
+
+						// calculate distance between cell at x,y,z and center cell
+						vec3 dist_vec = {
+							std::abs(x) > 1 ? (std::abs(x) - 1) * self.cell_size.x : 0,
+							std::abs(y) > 1 ? (std::abs(y) - 1) * self.cell_size.y : 0,
+							std::abs(z) > 1 ? (std::abs(z) - 1) * self.cell_size.z : 0,
+						};
+
+						if (dist_vec.norm_squared() <= cutoff_sq) {
+							stencil.emplace_back(x,y,z);
+						}
+					}
+				}
+			}
+
+			self.neighbor_cell_pairs.reserve(self.cells_per_axis.x * self.cells_per_axis.y * self.cells_per_axis.z * stencil.size()); // heuristic
+
+			// check if cell index is out of bounds, wrap it to the other side and compute the spatial shift vector
 			auto try_wrap_cell = [&](int3 & n, vec3 & shift, int ax) -> CellWrapFlag {
-				if (n[ax] == -1) {
-					n[ax] = self.cells_per_axis[ax] - 1;
-					shift[ax] = - self.domain.extent[ax];
-				} else if (n[ax] == static_cast<int>(self.cells_per_axis[ax])) {
-					n[ax] = 0;
+				const int dim_cells = static_cast<int>(self.cells_per_axis[ax]);
+
+				if (n[ax] < 0) {
+					// Wrapped "Left": Shift index by +Size
+					n[ax] += dim_cells;
+					shift[ax] = -self.domain.extent[ax];
+				}
+				else if (n[ax] >= dim_cells) {
+					// Wrapped "Right": Shift index by -Size
+					n[ax] -= dim_cells;
 					shift[ax] = self.domain.extent[ax];
-				} else {
+				}
+				else {
 					return NO_WRAP;
 				}
+
 				return static_cast<CellWrapFlag>(1 << ax); // maps axis to appropriate CellWrap flag
 			};
 
-			for (const auto displacement : displacements) {
-				for (unsigned int z = 0; z < self.cells_per_axis.z; z++) {
-					for (unsigned int y = 0; y < self.cells_per_axis.y; y++) {
-						for (unsigned int x = 0; x < self.cells_per_axis.x; x++) {
-							const int3 base{static_cast<int>(x), static_cast<int>(y), static_cast<int>(z)};
 
-							int3 n = base + displacement;
+			for (unsigned int z = 0; z < self.cells_per_axis.z; z++) {
+				for (unsigned int y = 0; y < self.cells_per_axis.y; y++) {
+					for (unsigned int x = 0; x < self.cells_per_axis.x; x++) {
+						for (const auto displacement : stencil) {
+							if (displacement == int3{0,0,0}) continue;
+
+							const int3 base {  // coordinates of cell 1
+								static_cast<int>(x),
+								static_cast<int>(y),
+								static_cast<int>(z)
+							};
+
+							int3 n = base + displacement; // coordinates of cell 2
 							vec3 shift = {};
 							int8_t wrap_flags = {};
 
+							// if periodic check if cell pair needs to be wrapped
 							if (self.flags.periodic_x) wrap_flags |= try_wrap_cell(n, shift, 0);
 							if (self.flags.periodic_y) wrap_flags |= try_wrap_cell(n, shift, 1);
 							if (self.flags.periodic_z) wrap_flags |= try_wrap_cell(n, shift, 2);
 
-							if (n.x < 0 || n.y < 0 || n.z < 0)
-								continue;
-							if (n.x >= static_cast<int>(self.cells_per_axis.x) ||
+							// if cell pair is not wrapped and cell 2 is outside of domain: skip pair
+							if (n.x < 0 || n.y < 0 || n.z < 0 ||
+								n.x >= static_cast<int>(self.cells_per_axis.x) ||
 								n.y >= static_cast<int>(self.cells_per_axis.y) ||
-								n.z >= static_cast<int>(self.cells_per_axis.z))
-								continue;
+								n.z >= static_cast<int>(self.cells_per_axis.z)
+							) continue;
 
 							if (shift == vec3{}) {
 								self.neighbor_cell_pairs.emplace_back(
@@ -362,6 +408,8 @@ namespace april::container::internal {
 					}
 				}
 			}
+
+			self.neighbor_stencil = stencil;
 		}
 
 
@@ -434,9 +482,7 @@ namespace april::container::internal {
 		}
 
 		[[nodiscard]] uint32_t cell_pos_to_idx(this const auto & self, const uint32_t x, const uint32_t y, const uint32_t z) noexcept{
-			// get flat cell index
 			uint32_t flat_idx = z * self.cells_per_axis.x * self.cells_per_axis.y + y * self.cells_per_axis.x + x;
-			// map to cell ordering index (if possible)
 			return self.cell_ordering.empty() ? flat_idx : self.cell_ordering[flat_idx];
 		}
 

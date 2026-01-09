@@ -1,7 +1,14 @@
 #include <gtest/gtest.h>
 
-#include "april/april.hpp"
+// #include "april/april.hpp"
 
+#include "april/common.hpp"
+#include "april/forces/force.hpp"
+#include "april/forces/coulomb.hpp"
+#include "april/forces/gravity.hpp"
+#include "april/forces/harmonic.hpp"
+#include "april/forces/lennard_jones.hpp"
+#include "april/forces/force_table.hpp"
 
 using namespace april::force;
 using namespace april::env;
@@ -21,7 +28,7 @@ static constexpr FieldMask TestMask = Field::position | Field::mass | Field::use
 class ForceTest : public testing::Test {
 protected:
     vec3 pos1, pos2;
-    double mass1, mass2;
+    double mass1{}, mass2{};
     ForceTestUserData data1, data2;
 
     // B. The Source (The struct of pointers)
@@ -55,8 +62,12 @@ protected:
     }
 
     // Helper to generate the View expected by the Force operator
-    auto get_view1() const { return ParticleView<TestMask, ForceTestUserData>(source1); }
-    auto get_view2() const { return ParticleView<TestMask, ForceTestUserData>(source2); }
+    [[nodiscard]] auto get_view1() const {
+        return ParticleView<TestMask, ForceTestUserData>(source1);
+    }
+    [[nodiscard]] auto get_view2() const {
+        return ParticleView<TestMask, ForceTestUserData>(source2);
+    }
 };
 
 

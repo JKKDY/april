@@ -2,7 +2,7 @@
 
 #include <ranges>
 
-#include "soa.hpp"
+#include "april/containers/soa.hpp"
 #include "april/containers/aos.hpp"
 #include "april/containers/batching.hpp"
 
@@ -106,9 +106,9 @@ namespace april::container {
 				if (n == 0) return;
 
 				std::vector<size_t> p(n);
-				std::iota(p.begin(), p.end(), 0);
+				std::ranges::iota(p, size_t{0});
 
-				std::sort(p.begin(), p.end(), [&](size_t i, size_t j) {
+				std::ranges::sort(p, [&](size_t i, size_t j) {
 					auto t1 = *self.template get_field_ptr<env::Field::type>(i);
 					auto t2 = *self.template get_field_ptr<env::Field::type>(j);
 					return t1 < t2;

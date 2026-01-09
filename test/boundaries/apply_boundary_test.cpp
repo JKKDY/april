@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
-#include "april/april.hpp"
+
+#include "april/boundaries/boundary.hpp"
 
 #include "utils.h"
 

@@ -3,7 +3,7 @@
 #include <gmock/gmock.h>
 
 
-#include "april/april.hpp"
+#include "april/integrators/velocity_verlet.hpp"
 #include "orbit_monitor.h"
 
 using namespace april;

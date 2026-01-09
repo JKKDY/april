@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <concepts>
 
+#include "april/particle/defs.hpp"
+#include "april/particle/access.hpp"
+#include "april/env/domain.hpp"
 
 namespace april::boundary {
 

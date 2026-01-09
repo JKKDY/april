@@ -1,6 +1,10 @@
 #include <gtest/gtest.h>
-#include "april/april.hpp"
 
+
+#include "april/particle/access.hpp"
+#include "april/boundaries/boundary.hpp"
+#include "april/boundaries/boundary_table.hpp"
+#include "april/boundaries/repulsive.hpp"
 #include "utils.h"
 
 using namespace april;

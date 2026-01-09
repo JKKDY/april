@@ -3,8 +3,9 @@
 #include <variant> // std::monostate
 #include <type_traits> // std::is_same_v
 
-#include "april/april.hpp"
-
+#include "april/common.hpp"
+#include "april/particle/access.hpp"
+#include "april/particle/particle.hpp"
 
 using namespace april::env;
 using namespace april;

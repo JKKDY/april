@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
-#include "april/april.hpp"
 #include "utils.h"
 
 using namespace april;
 
-
+#include "april/particle/access.hpp"
+#include "april/boundaries/boundary.hpp"
+#include "april/boundaries/boundary_table.hpp"
+#include "april/boundaries/periodic.hpp"
 
 inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& pos, const vec3& vel = {0,0,0}) {
 	env::internal::ParticleRecord<env::NoUserData> p;

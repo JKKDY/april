@@ -4,7 +4,8 @@
 using testing::AnyOf;
 using testing::Eq;
 
-#include "april/april.hpp"
+#include "april/common.hpp"
+#include "april/containers/direct_sum.hpp"
 #include "constant_force.h"
 #include "utils.h"
 

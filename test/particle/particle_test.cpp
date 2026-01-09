@@ -2,7 +2,8 @@
 #include <string>
 #include <any>
 
-#include "april/april.hpp"
+#include "april/common.hpp"
+#include "april/particle/particle.hpp"
 
 using namespace april::env;
 using namespace april;

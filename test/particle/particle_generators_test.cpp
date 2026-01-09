@@ -3,7 +3,9 @@
 #include <any>
 #include <stdexcept>
 
-#include "april/april.hpp"
+#include "april/common.hpp"
+#include "april/particle/particle.hpp"
+#include "april/particle/generators.hpp"
 
 using namespace april::env;
 using namespace april;

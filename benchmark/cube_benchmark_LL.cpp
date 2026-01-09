@@ -7,7 +7,7 @@ namespace fs = std::filesystem;
 
 
 
-static constexpr int NX = 20, NY = 20, NZ = 20;
+static constexpr int NX = 100, NY = 100, NZ = 100;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
@@ -41,10 +41,10 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	const auto container = LinkedCellsAoS().with_cell_size(r_cut).with_cell_ordering(april::container::hilbert_order);
+	const auto container = LinkedCellsAoS().with_cell_size(r_cut).with_cell_ordering(hilbert_order);
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;
-	constexpr int steps  = 10000;
+	constexpr int steps  = 200;
 
 	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 	integrator.add_monitor(Benchmark());

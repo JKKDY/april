@@ -42,11 +42,11 @@ int main() {
 	env.set_boundaries(Reflective(), all_faces);
 
 	const auto container = LinkedCellsAoS()
-		.with_cell_size(container::CellSize::Half)
+		.with_cell_size(container::CellSize::Cutoff)
 		.with_cell_ordering(morton_order);
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;
-	constexpr int steps  = 5000;
+	constexpr int steps  = 10000;
 
 	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 	integrator.add_monitor(Benchmark());

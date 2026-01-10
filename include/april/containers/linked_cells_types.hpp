@@ -94,12 +94,12 @@ namespace april::container::internal {
 	// ------------------------------
 	// Batch Work Units (The "Atoms")
 	// ------------------------------
-	struct AsymmetricChunk {
+	struct AsymLCChunk {
 		std::ranges::iota_view<size_t, size_t> indices1;
 		std::ranges::iota_view<size_t, size_t> indices2;
 	};
 
-	struct SymmetricChunk {
+	struct SymLCChunk {
 		std::ranges::iota_view<size_t, size_t> indices;
 	};
 
@@ -107,20 +107,20 @@ namespace april::container::internal {
 	// --------------
 	// Compound Batch
 	// --------------
-	struct UnifiedBatch : SerialBatch<BatchType::Compound> {
-		std::pair<env::ParticleType, env::ParticleType> types;
-
-		std::vector<AsymmetricChunk> sym_chunks;
-		std::vector<SymmetricChunk> asym_chunks;
-
-		void clear() {
-			sym_chunks.clear();
-			asym_chunks.clear();
-		}
+	struct LCWorkUnit {
+		std::vector<SymLCChunk> sym_chunks;
+		std::vector<AsymLCChunk> asym_chunks;
 
 		[[nodiscard]] bool empty() const {
 			return sym_chunks.empty() && asym_chunks.empty();
 		}
+	};
+
+	struct UnifiedLCBatch : SerialBatch<BatchType::Compound> {
+		std::vector<LCWorkUnit> chunks;
+
+		void clear() { chunks.clear(); }
+		[[nodiscard]] bool empty() const { return chunks.empty(); }
 	};
 
 }

@@ -41,7 +41,7 @@ namespace april::env {
 
 		// getter (Used by ParticleRef/View)
 		template<Field F>
-		constexpr auto get() const {
+		constexpr auto get() const noexcept {
 			if constexpr (has_field_v<M, F>) {
 				if constexpr (F == Field::force) return force;
 				else if constexpr (F == Field::position) return position;
@@ -84,7 +84,7 @@ namespace april::env {
 	template<FieldMask M, IsUserData UserDataT>
 	struct ParticleRef {
 		template<class S>
-		explicit ParticleRef(const S & source)
+		explicit ParticleRef(const S & source) noexcept
 			: force       (init_field<M, Field::force>			(source))
 			, position    (init_field<M, Field::position>		(source))
 			, velocity    (init_field<M, Field::velocity>		(source))
@@ -96,7 +96,7 @@ namespace april::env {
 			, user_data   (init_field<M, Field::user_data>		(source))
 		{}
 
-		ParticleView<M, UserDataT> to_view() {
+		ParticleView<M, UserDataT> to_view() noexcept {
 			return ParticleView<M, UserDataT>(*this);
 		}
 
@@ -117,7 +117,7 @@ namespace april::env {
 	template<FieldMask M, IsUserData UserDataT>
 	struct RestrictedParticleRef {
 
-		explicit RestrictedParticleRef(const auto& source)
+		explicit RestrictedParticleRef(const auto& source) noexcept
 			: force       (init_field<M, Field::force>			(source))
 			, position    (init_field<M, Field::position>		(source))
 			, velocity    (init_field<M, Field::velocity>		(source))
@@ -129,7 +129,7 @@ namespace april::env {
 			, user_data   (init_field<M, Field::user_data>		(source))
 		{}
 
-		ParticleView<M, UserDataT> to_view() {
+		ParticleView<M, UserDataT> to_view() noexcept {
 			return ParticleView<M, UserDataT>(*this);
 		}
 
@@ -154,7 +154,7 @@ namespace april::env {
 	template<FieldMask M, IsUserData UserDataT>
 	struct ParticleView {
 
-		explicit ParticleView(const auto & source)
+		explicit ParticleView(const auto & source) noexcept
 			: force       (init_field<M, Field::force>			(source))
 			, position    (init_field<M, Field::position>		(source))
 			, velocity    (init_field<M, Field::velocity>		(source))
@@ -171,7 +171,7 @@ namespace april::env {
 			std::is_same_v<std::remove_cvref_t<RefT>, ParticleRef<M, UserDataT>> ||
 			std::is_same_v<std::remove_cvref_t<RefT>, RestrictedParticleRef<M, UserDataT>>
 		)
-		explicit ParticleView(const RefT& r)
+		explicit ParticleView(const RefT& r) noexcept
 			: force        (r.force)     // Implicitly converts vec3& -> const vec3&
 			, position     (r.position)  // Exact match (const vec3& -> const vec3&)
 			, velocity     (r.velocity)

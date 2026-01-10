@@ -51,200 +51,6 @@ namespace april::container::internal {
 			}
 		}
 
-		// template<typename F>
-		// void for_each_interaction_batch(this auto && self, F && func) {
-		//    // ----------------------------------------------------------
-		//    // 1. SETUP BUCKETS
-		//    // ----------------------------------------------------------
-		//    // Buckets to buffer interactions between types until they are large enough to process
-		//    // Indexing: batch_buckets[type_i][type_j]
-		//    std::vector<std::vector<AsymmetricChunkedBatch>> batch_buckets(self.n_types);
-		//    std::vector<SymmetricChunkedBatch> sym_buckets(self.n_types);
-		//
-		//    for (size_t i = 0; i < self.n_types; ++i) {
-		//       sym_buckets[i].types = {static_cast<env::ParticleType>(i), static_cast<env::ParticleType>(i)};
-		//       sym_buckets[i].chunks.reserve(64); // heuristic reserve
-		//
-		//       batch_buckets[i].resize(self.n_types);
-		//       for (size_t j = 0; j < self.n_types; ++j) {
-		//          batch_buckets[i][j].types = {static_cast<env::ParticleType>(i), static_cast<env::ParticleType>(j)};
-		//          batch_buckets[i][j].chunks.reserve(64);
-		//       }
-		//    }
-		//
-		//    // Helper to flush a specific bucket if it gets too large
-		//    auto flush_asym = [&](size_t t1, size_t t2, bool force = false) {
-		//       auto& batch = batch_buckets[t1][t2];
-		//       if (!batch.chunks.empty() && (force || batch.chunks.size() >= 128)) {
-		//          func(batch, NoBatchBCP{});
-		//          batch.chunks.clear();
-		//       }
-		//    };
-		//
-		//    auto flush_sym = [&](size_t t, bool force = false) {
-		//       auto& batch = sym_buckets[t];
-		//       if (!batch.chunks.empty() && (force || batch.chunks.size() >= 128)) {
-		//          func(batch, NoBatchBCP{});
-		//          batch.chunks.clear();
-		//       }
-		//    };
-		//
-		//    // Helper to get particle indices for a specific cell/type
-		//    auto get_indices = [&](const size_t cell_idx, const size_t type_idx) {
-		//       const size_t bin_idx = self.bin_index(cell_idx, type_idx);
-		//       const size_t start = self.bin_start_indices[bin_idx];
-		//       const size_t end   = self.bin_start_indices[bin_idx + 1];
-		//       return std::ranges::iota_view {start, end};
-		//    };
-		//
-		//    // Helper to identify which types are actually present in a cell
-		//    // (Avoids N^2 loops over types for empty bins)
-		//    auto get_active_types = [&](const size_t cell_idx, std::vector<size_t>& out_types) {
-		//       out_types.clear();
-		//       for (size_t t = 0; t < self.n_types; ++t) {
-		//          const size_t bin_idx = self.bin_index(cell_idx, t);
-		//          if (self.bin_start_indices[bin_idx] != self.bin_start_indices[bin_idx + 1]) {
-		//             out_types.push_back(t);
-		//          }
-		//       }
-		//    };
-		//
-		//    // Reusable buffers for active types (prevent allocation in loop)
-		//    std::vector<size_t> active_types_c1;
-		//    active_types_c1.reserve(self.n_types);
-		//    std::vector<size_t> active_types_c2;
-		//    active_types_c2.reserve(self.n_types);
-		//
-		//
-		//    // ----------------------------------------------------------
-		//    // 2. SPATIAL ITERATION (Z -> Y -> X)
-		//    // ----------------------------------------------------------
-		//
-		//    // Lambda for handling periodic wraps (Copied from your setup logic)
-		//    auto try_wrap_cell = [&](int3 & n, vec3 & shift, int ax) -> CellWrapFlag {
-		//       const int dim_cells = static_cast<int>(self.cells_per_axis[ax]);
-		//       if (n[ax] < 0) {
-		//          n[ax] += dim_cells;
-		//          shift[ax] = -self.domain.extent[ax];
-		//       } else if (n[ax] >= dim_cells) {
-		//          n[ax] -= dim_cells;
-		//          shift[ax] = self.domain.extent[ax];
-		//       } else {
-		//          return NO_WRAP;
-		//       }
-		//       return static_cast<CellWrapFlag>(1 << ax);
-		//    };
-		//
-		//    for (uint32_t z = 0; z < self.cells_per_axis.z; ++z) {
-		//       for (uint32_t y = 0; y < self.cells_per_axis.y; ++y) {
-		//          for (uint32_t x = 0; x < self.cells_per_axis.x; ++x) {
-		//
-		//             const uint32_t c1_idx = self.cell_pos_to_idx(x, y, z);
-		//
-		//             // Step A: Check if current cell has ANY particles
-		//             get_active_types(c1_idx, active_types_c1);
-		//             if (active_types_c1.empty()) continue; // SKIP EMPTY CELL (Huge Optimization)
-		//
-		//             // -------------------------------------------------------
-		//             // Step B: INTRA-CELL (Self Interactions)
-		//             // -------------------------------------------------------
-		//             for (size_t t1 : active_types_c1) {
-		//                auto range1 = get_indices(c1_idx, t1);
-		//
-		//                // Symmetric (Type A <-> Type A)
-		//                if (range1.size() >= 2) {
-		//                   sym_buckets[t1].chunks.push_back({range1});
-		//                   flush_sym(t1);
-		//                }
-		//
-		//                // Asymmetric (Type A <-> Type B, where B > A)
-		//                for (size_t t2 : active_types_c1) {
-		//                   if (t2 <= t1) continue;
-		//                   auto range2 = get_indices(c1_idx, t2);
-		//
-		//                   batch_buckets[t1][t2].chunks.push_back({range1, range2});
-		//                   flush_asym(t1, t2);
-		//                }
-		//             }
-		//
-		//             // -------------------------------------------------------
-		//             // Step C: INTER-CELL (Stencil Neighbors)
-		//             // -------------------------------------------------------
-		//             for (const auto& offset : self.neighbor_stencil) {
-		//                int3 n_pos = int3{static_cast<int>(x), static_cast<int>(y), static_cast<int>(z)} + offset;
-		//                vec3 shift = {0, 0, 0};
-		//                int8_t wrap_flags = 0;
-		//
-		//                // Apply Periodic Wraps
-		//                if (self.flags.periodic_x) wrap_flags |= try_wrap_cell(n_pos, shift, 0);
-		//                if (self.flags.periodic_y) wrap_flags |= try_wrap_cell(n_pos, shift, 1);
-		//                if (self.flags.periodic_z) wrap_flags |= try_wrap_cell(n_pos, shift, 2);
-		//
-		//                // Boundary Check (Skip if outside non-periodic domain)
-		//                if (n_pos.x < 0 || n_pos.y < 0 || n_pos.z < 0 ||
-		//                    n_pos.x >= static_cast<int>(self.cells_per_axis.x) ||
-		//                    n_pos.y >= static_cast<int>(self.cells_per_axis.y) ||
-		//                    n_pos.z >= static_cast<int>(self.cells_per_axis.z))
-		//                    continue;
-		//
-		//                const uint32_t c2_idx = self.cell_pos_to_idx(n_pos.x, n_pos.y, n_pos.z);
-		//
-		//                // Optimization: Check neighbor emptiness before loop
-		//                get_active_types(c2_idx, active_types_c2);
-		//                if (active_types_c2.empty()) continue;
-		//
-		//                // Distinguish between "Normal" (Bucket) and "Wrapped" (Immediate)
-		//                bool is_wrapped = (shift != vec3{0,0,0});
-		//
-		//                for (size_t t1 : active_types_c1) {
-		//                   for (size_t t2 : active_types_c2) {
-		//
-		//                      auto range1 = get_indices(c1_idx, t1);
-		//                      auto range2 = get_indices(c2_idx, t2);
-		//
-		//                      if (!is_wrapped) {
-		//                         // STANDARD CASE: Add to Buckets (Fastest)
-		//                         // Ensure canonical ordering (min_type < max_type) for the buckets
-		//                         // Note: If t1 > t2, we flip indices to match bucket[t2][t1]
-		//                         if (t1 <= t2) {
-		//                            batch_buckets[t1][t2].chunks.push_back({range1, range2});
-		//                            flush_asym(t1, t2);
-		//                         } else {
-		//                            batch_buckets[t2][t1].chunks.push_back({range2, range1});
-		//                            flush_asym(t2, t1);
-		//                         }
-		//                      }
-		//                      else {
-		//                         // WRAPPED CASE: Execute Immediately
-		//                         // We cannot mix shifted and non-shifted chunks in the same bucket
-		//                         // without complicating the Batch structure. Since wrapped pairs
-		//                         // are rare (<5%), immediate execution is fine.
-		//                         AsymmetricBatch batch;
-		//                         batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-		//                         batch.indices1 = range1;
-		//                         batch.indices2 = range2;
-		//
-		//                         // Custom BCP for this specific shift
-		//                         auto bcp = [shift](const vec3& d) { return d + shift; };
-		//                         func(batch, bcp);
-		//                      }
-		//                   }
-		//                }
-		//             }
-		//          }
-		//       }
-		//    }
-		//
-		//    // ----------------------------------------------------------
-		//    // 3. FINAL FLUSH
-		//    // ----------------------------------------------------------
-		//    for (size_t i = 0; i < self.n_types; ++i) {
-		//       flush_sym(i, true);
-		//       for (size_t j = 0; j < self.n_types; ++j) {
-		//          flush_asym(i, j, true);
-		//       }
-		//    }
-		// }
 
 		template<typename F>
 		void for_each_interaction_batch(this auto && self, F && func) {
@@ -256,24 +62,25 @@ namespace april::container::internal {
 			};
 
 			// INTRA CELL
-			SymmetricChunkedBatch sym_batch;
-			sym_batch.chunks.reserve(self.n_grid_cells); // avoid reallocations during push back
-			AsymmetricChunkedBatch asym_batch;
-			asym_batch.chunks.reserve(self.n_grid_cells);
-			AsymmetricChunkedBatch asym_nieghb_batch;
-			asym_nieghb_batch.chunks.reserve(self.neighbor_cell_pairs.size());
+			using range_type = std::ranges::iota_view<size_t, size_t>;
+			ChunkedSymmetricBatch<range_type> sym_batch;
+			sym_batch.sym_chunks.reserve(self.n_grid_cells); // avoid reallocations during push back
+			ChunkedAsymmetricBatch<range_type, range_type> asym_batch;
+			asym_batch.asym_chunks.reserve(self.n_grid_cells);
+			ChunkedAsymmetricBatch<range_type, range_type> asym_nieghb_batch;
+			asym_nieghb_batch.asym_chunks.reserve(self.neighbor_cell_pairs.size());
 
 			for (size_t t1 = 0; t1 < self.n_types; ++t1) {
 				sym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t1)};
-				sym_batch.chunks.clear(); // reset size to 0 but keep capacity
+				sym_batch.sym_chunks.clear(); // reset size to 0 but keep capacity
 
 				for (size_t c = 0; c < self.n_grid_cells; ++c) {
 					auto range = get_indices(c, t1);
 					if (range.size() < 2) continue;
-					sym_batch.chunks.push_back({range});
+					sym_batch.sym_chunks.push_back({range});
 				}
 
-				if (!sym_batch.chunks.empty()) {
+				if (!sym_batch.sym_chunks.empty()) {
 					func(sym_batch, NoBatchBCP{});
 				}
 
@@ -281,7 +88,7 @@ namespace april::container::internal {
 				for (size_t t2 = t1 + 1; t2 < self.n_types; ++t2) {
 
 					asym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-					asym_batch.chunks.clear();
+					asym_batch.asym_chunks.clear();
 
 					for (size_t c = 0; c < self.n_grid_cells; ++c) {
 						auto range1 = get_indices(c, t1);
@@ -290,10 +97,10 @@ namespace april::container::internal {
 						auto range2 = get_indices(c, t2);
 						if (range2.empty()) continue;
 
-						asym_batch.chunks.push_back({range1, range2});
+						asym_batch.asym_chunks.push_back({range1, range2});
 					}
 
-					if (!asym_batch.chunks.empty()) {
+					if (!asym_batch.asym_chunks.empty()) {
 						func(asym_batch, NoBatchBCP{});
 					}
 				}
@@ -302,7 +109,7 @@ namespace april::container::internal {
 				for (size_t t2 = 0; t2 < self.n_types; ++t2) {
 
 					asym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-					asym_batch.chunks.clear();
+					asym_batch.asym_chunks.clear();
 
 					for (const auto& pair : self.neighbor_cell_pairs) {
 						auto range1 = get_indices(pair.c1, t1);
@@ -311,10 +118,10 @@ namespace april::container::internal {
 						auto range2 = get_indices(pair.c2, t2);
 						if (range2.empty()) continue;
 
-						asym_batch.chunks.push_back({range1, range2});
+						asym_batch.asym_chunks.push_back({range1, range2});
 					}
 
-					if (!asym_batch.chunks.empty()) {
+					if (!asym_batch.asym_chunks.empty()) {
 						func(asym_batch, NoBatchBCP{});
 					}
 				}
@@ -336,7 +143,7 @@ namespace april::container::internal {
 						auto range2 = get_indices(pair.c2, t2);
 						if (range2.empty()) continue;
 
-						AsymmetricBatch batch;
+						DirectAsymmetricBatch<range_type, range_type> batch;
 						batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
 						batch.indices1 = range1;
 						batch.indices2 = range2;

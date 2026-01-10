@@ -35,9 +35,9 @@ namespace april::container {
 		SIMD
 	};
 
-	template<BatchType type, ParallelPolicy parallelize, UpdatePolicy upd, ComputePolicy cmp>
+	template<BatchType batch_type, ParallelPolicy parallelize, UpdatePolicy upd, ComputePolicy cmp>
 	struct BatchBase {
-		static constexpr auto batch_type = type;
+		static constexpr auto type = batch_type;
 		static constexpr auto parallel_policy = parallelize;
 		static constexpr auto update_policy = upd;
 		static constexpr auto compute_policy = cmp;
@@ -49,16 +49,12 @@ namespace april::container {
 
 
 
-
-
-
 	namespace internal {
-
 		// base constraints common to all batches
 		template <typename T>
 		concept IsBatchBase = requires(const T& b) {
 			// must have static constexpr configuration flags
-			{ T::batch_type }		-> std::convertible_to<BatchType>;
+			{ T::type }				-> std::convertible_to<BatchType>;
 			{ T::parallel_policy }	-> std::convertible_to<ParallelPolicy>;
 			{ T::update_policy }	-> std::convertible_to<UpdatePolicy>;
 			{ T::compute_policy }	-> std::convertible_to<ComputePolicy>;
@@ -73,8 +69,6 @@ namespace april::container {
 		concept IsIndexRange =
 			std::ranges::input_range<T> &&  // must be iterable
 			std::convertible_to<std::ranges::range_value_t<T>, size_t>; // iteration yields size_t
-
-
 
 
 		//---------------------
@@ -97,7 +91,6 @@ namespace april::container {
 
 		template<typename T>
 		concept IsAtom = IsSymmetricAtom<T> || IsAsymmetricAtom<T>;
-
 
 
 		//----------------------
@@ -126,8 +119,6 @@ namespace april::container {
 		concept HasAsymmetricRange = requires(const T& b) {
 			{ b.asym_chunks } -> IsAsymmetricAtomRange;
 		};
-
-
 
 
 		//-----------
@@ -184,32 +175,69 @@ namespace april::container {
 		// symmetric batch: either a symmetric atom or a range of symmetric atoms
 		template <typename T>
 		concept IsSymmetricBatch = IsBatchBase<T> && requires {
-			requires T::batch_type == BatchType::Symmetric && IsSymmetricWorkUnit<T>;
+			requires T::type == BatchType::Symmetric && IsSymmetricWorkUnit<T>;
 		};
 
 		// asymmetric batch: either an asymmetric atom or a range of asymmetric atoms
 		template <typename T>
 		concept IsAsymmetricBatch = IsBatchBase<T> && requires {
-			requires T::batch_type == BatchType::Asymmetric && IsAsymmetricWorkUnit<T>;
+			requires T::type == BatchType::Asymmetric && IsAsymmetricWorkUnit<T>;
 		};
 
 		// compound batch: either a compound unit or a range of compound units
 		template <typename T>
 		concept IsCompoundBatch = IsBatchBase<T> && requires(const T& b) {
-			requires T::batch_type == BatchType::Compound && (IsCompoundWorkUnit<T> != HasCompositeRange<T>);
+			requires T::type == BatchType::Compound && (IsCompoundWorkUnit<T> != HasCompositeRange<T>);
 		};
 	}
 
 
 
-	//---------------------
-	// BATCHING DEFINITIONS
-	//---------------------
+	//--------------
+	// BATCH CONCEPT
+	//--------------
 	template <typename T>
 	concept IsBatch =
 		internal::IsAsymmetricBatch<T>	||
 		internal::IsSymmetricBatch<T>	||
 		internal::IsCompoundBatch<T>;
+
+
+
+	//--------------------------
+	// PREDEFINED BATCHING TYPES
+	//--------------------------
+	template<typename Range1, typename Range2>
+	struct DirectAsymmetricBatch : SerialBatch<BatchType::Asymmetric> {
+		// Holds the particle indices directly (e.g. iota_view or std::vector)
+		Range1 indices1;
+		Range2 indices2;
+	};
+
+
+	template<typename Range>
+	struct DirectSymmetricBatch : SerialBatch<BatchType::Symmetric> {
+		// Holds the particle indices directly (e.g. iota_view or std::vector)
+		Range indices;
+	};
+
+	// Holds a list of symmetric work units (e.g. for verlet lists or grouped tasks)
+	template<typename Range>
+	struct ChunkedSymmetricBatch : SerialBatch<BatchType::Symmetric> {
+		struct Chunk { Range indices; };
+
+		// Satisfies HasSymmetricRange
+		std::vector<Chunk> sym_chunks;
+	};
+
+	// Holds a list of asymmetric work units
+	template<typename Range1, typename Range2>
+	struct ChunkedAsymmetricBatch : SerialBatch<BatchType::Asymmetric> {
+		struct Chunk { Range1 indices1; Range2 indices2; };
+
+		// Satisfies HasAsymmetricRange
+		std::vector<Chunk> asym_chunks;
+	};
 
 	struct TopologyBatch {
 		env::ParticleID id1, id2;
@@ -232,74 +260,6 @@ namespace april::container {
 			return std::forward<T>(v); // identity; do nothing
 		}
 	};
-
-
-
-
-
-
-
-	//
-	// // direct batches
-	// struct SymmetricBatch : SerialBatch<BatchType::Symmetric> {
-	// 	std::vector<size_t> indices;
-	// };
-	//
-	// struct AsymmetricBatch : SerialBatch<BatchType::Asymmetric> {
-	// 	std::vector<size_t> indices1;
-	// 	std::vector<size_t> indices2;
-	// };
-
-
-
-	// // chunked batches
-	// struct SymmetricWorkUnit{
-	// 	std::vector<size_t> indices;
-	// };
-	//
-	// struct AsymmetricWorkUnit{
-	// 	std::vector<size_t> indices1;
-	// 	std::vector<size_t> indices2;
-	// };
-	//
-	// struct ChunkedSymmetricBatch : SerialBatch<BatchType::Symmetric> {
-	// 	std::vector<SymmetricWorkUnit> sym_chunks;
-	// };
-	//
-	// struct ChunkedAsymmetricBatch : SerialBatch<BatchType::Asymmetric> {
-	// 	std::vector<AsymmetricWorkUnit> asym_chunks;
-	// };
-	//
-	//
-	//
-	//
-	//
-	// struct CompoundBatch : SerialBatch<BatchType::Compound> {
-	// 	std::vector<SymmetricWorkUnit> sym_chunks;
-	// 	std::vector<AsymmetricWorkUnit> asym_chunks;
-	// };
-	//
-	//
-	// struct CompoundChunkedWorkUnit  {
-	// 	std::vector<SymmetricWorkUnit> sym_chunks;
-	// 	std::vector<AsymmetricWorkUnit> asym_chunks;
-	// };
-	//
-	// struct CompoundChunkedBatch : SerialBatch<BatchType::Compound> {
-	// 	std::vector<CompoundChunkedWorkUnit> chunks;
-	// };
-	//
-	//
-	// struct CompoundDirectWorkUnit  {
-	// 	std::vector<size_t> indices;
-	// 	std::vector<size_t> indices1;
-	// 	std::vector<size_t> indices2;
-	// };
-	//
-	// struct CompoundDirectBatch : SerialBatch<BatchType::Compound> {
-	// 	std::vector<CompoundDirectWorkUnit> chunks;
-	// };
-
 
 }
 

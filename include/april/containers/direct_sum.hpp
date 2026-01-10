@@ -11,12 +11,12 @@ namespace april::container {
 		template <class ContainerBase>
 		class DirectSumBase final : public ContainerBase {
 
-			struct AsymmetricBatch : SerialBatch<BatchSymmetry::Asymmetric>{
+			struct AsymmetricBatch : SerialBatch<BatchType::Asymmetric>{
 				std::ranges::iota_view<size_t, size_t> indices1{};
 				std::ranges::iota_view<size_t, size_t> indices2{};
 			};
 
-			struct SymmetricBatch : SerialBatch<BatchSymmetry::Symmetric>{
+			struct SymmetricBatch : SerialBatch<BatchType::Symmetric>{
 				std::ranges::iota_view<size_t, size_t> indices {};
 			};
 

@@ -6,6 +6,9 @@
 #include "april/containers/batching.hpp"
 #include "april/common.hpp"
 
+
+
+
 namespace april::container {
 	enum class CellSize {
 		Cutoff,     // 1.0 * rc
@@ -17,9 +20,11 @@ namespace april::container {
 }
 
 namespace april::container::internal {
+
+	// ---------------------------------
+	// LINKED CELLS CONFIGURATION STRUCT
+	// ---------------------------------
 	struct LinkedCellsConfig {
-
-
 		CellSize cell_size_strategy = CellSize::Cutoff;
 		std::optional<double> manual_cell_size;
 
@@ -59,8 +64,12 @@ namespace april::container::internal {
 		}
 	};
 
-	using cell_index_t = uint32_t;
 
+	// -----------------------------
+	// LINKED CELLS INTERNAL STRUCTS
+	// -----------------------------
+
+	using cell_index_t = uint32_t;
 
 	enum CellWrapFlag : uint8_t {
 		NO_WRAP = 0,
@@ -81,6 +90,10 @@ namespace april::container::internal {
 		const vec3 shift = {};
 	};
 
+
+	// ------------------------------
+	// Batch Work Units (The "Atoms")
+	// ------------------------------
 	struct AsymmetricChunk {
 		std::ranges::iota_view<size_t, size_t> indices1;
 		std::ranges::iota_view<size_t, size_t> indices2;
@@ -90,17 +103,24 @@ namespace april::container::internal {
 		std::ranges::iota_view<size_t, size_t> indices;
 	};
 
-	struct AsymmetricChunkedBatch : SerialBatch<BatchSymmetry::Asymmetric> {
-		std::vector<AsymmetricChunk> chunks;
-	};
 
-	struct SymmetricChunkedBatch : SerialBatch<BatchSymmetry::Symmetric> {
-		std::vector<SymmetricChunk> chunks;
-	};
+	// --------------
+	// Compound Batch
+	// --------------
+	struct UnifiedBatch : SerialBatch<BatchType::Compound> {
+		std::pair<env::ParticleType, env::ParticleType> types;
 
-	struct AsymmetricBatch : SerialBatch<BatchSymmetry::Asymmetric> {
-		std::ranges::iota_view<size_t, size_t> indices1;
-		std::ranges::iota_view<size_t, size_t> indices2;
+		std::vector<AsymmetricChunk> sym_chunks;
+		std::vector<SymmetricChunk> asym_chunks;
+
+		void clear() {
+			sym_chunks.clear();
+			asym_chunks.clear();
+		}
+
+		[[nodiscard]] bool empty() const {
+			return sym_chunks.empty() && asym_chunks.empty();
+		}
 	};
 
 }

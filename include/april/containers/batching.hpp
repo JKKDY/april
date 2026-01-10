@@ -1,15 +1,22 @@
 #pragma once
 #include <cstdint>
-#include <utility>
 
 #include "april/common.hpp"
 #include "april/particle/defs.hpp"
 
 
 namespace april::container {
-	enum class BatchSymmetry : uint8_t {
-		Symmetric,	// Pairs from a single list; compute only i<j to avoid duplicate interactions.
-		Asymmetric  // Pairs from two distinct lists; compute full Cartesian product.
+
+	//-----------------
+	// BATCH BASE CLASS
+	//-----------------
+
+	// batch type could also be inferred through structural matching, however setting a flag forces the user to be
+	// explicit with their intent which allows for more robust concepts to enforce intent
+	enum class BatchType : uint8_t {
+		Symmetric,	// batch must contain symmetric work: Pairs from a single list; compute only i<j to avoid duplicate interactions.
+		Asymmetric,	// batch must contain asymmetric work: Pairs from two distinct lists; compute full Cartesian product.
+		Compound	// batch must contain both symmetric and asymmetric work
 	};
 
 	enum class ParallelPolicy : uint8_t {
@@ -28,90 +35,192 @@ namespace april::container {
 		SIMD
 	};
 
-	template<BatchSymmetry sym, ParallelPolicy parallelize, UpdatePolicy upd>
+	template<BatchType type, ParallelPolicy parallelize, UpdatePolicy upd, ComputePolicy cmp>
 	struct BatchBase {
-		static constexpr auto symmetry = sym;
+		static constexpr auto batch_type = type;
 		static constexpr auto parallel_policy = parallelize;
 		static constexpr auto update_policy = upd;
-		std::pair<env::ParticleType, env::ParticleType> types{};
+		static constexpr auto compute_policy = cmp;
+		std::pair<env::ParticleType, env::ParticleType> types {};
 	};
 
-	template<BatchSymmetry sym>
-	using SerialBatch = BatchBase<sym, ParallelPolicy::None, UpdatePolicy::Serial>;
+	template<BatchType type>
+	using SerialBatch = BatchBase<type, ParallelPolicy::None, UpdatePolicy::Serial, ComputePolicy::Scalar>;
 
 
 
-	// ---- Helper concepts -----
 
-	// base constraints common to all batches
+
+
+	namespace internal {
+
+		// base constraints common to all batches
+		template <typename T>
+		concept IsBatchBase = requires(const T& b) {
+			// must have static constexpr configuration flags
+			{ T::batch_type }		-> std::convertible_to<BatchType>;
+			{ T::parallel_policy }	-> std::convertible_to<ParallelPolicy>;
+			{ T::update_policy }	-> std::convertible_to<UpdatePolicy>;
+			{ T::compute_policy }	-> std::convertible_to<ComputePolicy>;
+
+			// must have type pair
+			{ b.types } -> std::convertible_to<std::pair<env::ParticleType, env::ParticleType>>;
+		};
+
+
+		// a range that yields particle indices (size_t)
+		template <typename T>
+		concept IsIndexRange =
+			std::ranges::input_range<T> &&  // must be iterable
+			std::convertible_to<std::ranges::range_value_t<T>, size_t>; // iteration yields size_t
+
+
+
+
+		//---------------------
+		// ATOMIC UNITS OF WORK
+		//---------------------
+		// a single piece of work (atom). Can be either symmetric or asymmetric
+
+		// A Symmetric Work Unit has a single range of indices (i < j logic)
+		template <typename T>
+		concept IsSymmetricAtom = requires(const T& t) {
+			{ t.indices } -> IsIndexRange;
+		};
+
+		// An Asymmetric Work Unit has two ranges (i vs j logic)
+		template <typename T>
+		concept IsAsymmetricAtom = requires(const T& t) {
+			{ t.indices1 } -> IsIndexRange;
+			{ t.indices2 } -> IsIndexRange;
+		};
+
+		template<typename T>
+		concept IsAtom = IsSymmetricAtom<T> || IsAsymmetricAtom<T>;
+
+
+
+		//----------------------
+		// RANGES OF ATOMIC WORK
+		//----------------------
+		// work ranges hold ranges of either symmetric or asymmetric work atoms
+
+		// a symmetric work range contains symmetric work units
+		template <typename T>
+		concept IsSymmetricAtomRange =
+			std::ranges::input_range<T> &&  // must be iterable
+			IsSymmetricAtom<std::ranges::range_value_t<T>>;  // elements are symmetric work units
+
+		template <typename T>
+		concept HasSymmetricRange = requires(const T& b) {
+			{ b.sym_chunks } -> IsSymmetricAtomRange;
+		};
+
+		// an asymmetric work range contains asymmetric work units
+		template <typename T>
+		concept IsAsymmetricAtomRange =
+			std::ranges::input_range<T> &&  // must be iterable
+			IsAsymmetricAtom<std::ranges::range_value_t<T>>;  // elements are asymmetric work units
+
+		template <typename T>
+		concept HasAsymmetricRange = requires(const T& b) {
+			{ b.asym_chunks } -> IsAsymmetricAtomRange;
+		};
+
+
+
+
+		//-----------
+		// WORK UNITS
+		//-----------
+		// a work unit is either an atom or a range of atoms (but cannot be both at once)
+		template <typename T>
+		struct SymmetricAmbiguityCheck {
+			static constexpr bool value = true;
+			static_assert(!(IsSymmetricAtom<T> && HasSymmetricRange<T>),
+				"AMBIGUITY ERROR: Type cannot satisfy both IsSymmetricAtom and HasSymmetricRange simultaneously.");
+		};
+
+		template <typename T>
+		struct AsymmetricAmbiguityCheck {
+			static constexpr bool value = true;
+			static_assert(!(IsAsymmetricAtom<T> && HasAsymmetricRange<T>),
+				"AMBIGUITY ERROR: Type cannot satisfy both IsAsymmetricAtom and HasAsymmetricRange simultaneously.");
+		};
+
+		template <typename T>
+		concept IsSymmetricWorkUnit = (IsSymmetricAtom<T> || HasSymmetricRange<T>)
+			&& SymmetricAmbiguityCheck<T>::value;
+
+		template <typename T>
+		concept IsAsymmetricWorkUnit = (IsAsymmetricAtom<T> || HasAsymmetricRange<T>)
+			&& AsymmetricAmbiguityCheck<T>::value;
+
+		template<typename T> // note that T can be a symmetric work unit as well as an asymmetric one (compound unit)
+		concept IsWorkUnit = IsSymmetricWorkUnit<T> || IsAsymmetricWorkUnit<T>;
+
+
+		//---------------
+		// COMPOUND UNITS
+		//---------------
+		// compound units most hold both symmetric and asymmetric work
+		template <typename T>
+		concept IsCompoundWorkUnit = IsSymmetricWorkUnit<T> && IsAsymmetricWorkUnit<T>;
+
+		template <typename T>
+		concept IsCompositeWorkRange =
+			std::ranges::input_range<T> &&  // must be iterable
+			IsCompoundWorkUnit<std::ranges::range_value_t<T>>;  // elements are compound work units
+
+		template <typename T>
+		concept HasCompositeRange = requires(const T& b) {
+			{ b.chunks } -> IsCompositeWorkRange;
+		};
+
+
+		//---------------
+		// BATCH CONCEPTS
+		//---------------
+		// symmetric batch: either a symmetric atom or a range of symmetric atoms
+		template <typename T>
+		concept IsSymmetricBatch = IsBatchBase<T> && requires {
+			requires T::batch_type == BatchType::Symmetric && IsSymmetricWorkUnit<T>;
+		};
+
+		// asymmetric batch: either an asymmetric atom or a range of asymmetric atoms
+		template <typename T>
+		concept IsAsymmetricBatch = IsBatchBase<T> && requires {
+			requires T::batch_type == BatchType::Asymmetric && IsAsymmetricWorkUnit<T>;
+		};
+
+		// compound batch: either a compound unit or a range of compound units
+		template <typename T>
+		concept IsCompoundBatch = IsBatchBase<T> && requires(const T& b) {
+			requires T::batch_type == BatchType::Compound && (IsCompoundWorkUnit<T> != HasCompositeRange<T>);
+		};
+	}
+
+
+
+	//---------------------
+	// BATCHING DEFINITIONS
+	//---------------------
 	template <typename T>
-	concept IsBatchBase = requires(const T& b) {
-		// must have static constexpr configuration flags
-		{ T::symmetry } -> std::convertible_to<BatchSymmetry>;
-		{ T::parallel_policy } -> std::convertible_to<ParallelPolicy>;
-		{ T::update_policy } -> std::convertible_to<UpdatePolicy>;
+	concept IsBatch =
+		internal::IsAsymmetricBatch<T>	||
+		internal::IsSymmetricBatch<T>	||
+		internal::IsCompoundBatch<T>;
 
-		// must have type pair
-		{ b.types } -> std::convertible_to<std::pair<env::ParticleType, env::ParticleType>>;
+	struct TopologyBatch {
+		env::ParticleID id1, id2;
+		std::vector<std::pair<env::ParticleID, env::ParticleID>> pairs;
 	};
 
 
-	// a range that yields particle indices (size_t)
-	template <typename T>
-	concept IsIndexRange = std::ranges::input_range<T> &&  // must be iterable
-						   std::convertible_to<std::ranges::range_value_t<T>, size_t>; // iteration yields size_t
 
-	// checks for "indices" (Symmetric)
-	template <typename T>
-	concept HasSymmetricIndices = requires(const T& t) {
-		{ t.indices } -> IsIndexRange;
-	};
-
-	// checks for "indices1, indices2" (Asymmetric)
-	template <typename T>
-	concept HasAsymmetricIndices = requires(const T& t) {
-		{ t.indices1 } -> IsIndexRange;
-		{ t.indices2 } -> IsIndexRange;
-	};
-
-
-	// ---- Main concepts -----
-
-	// DIRECT BATCH:
-	// The batch itself holds the indices.
-	// if symmetric must contain a single index range
-	// if asymmetric must contain two index ranges
-	template <typename T>
-	concept IsDirectBatch = IsBatchBase<T> && requires(const T& b) {
-		requires (
-		   (T::symmetry == BatchSymmetry::Symmetric  && HasSymmetricIndices<T>) ||
-		   (T::symmetry == BatchSymmetry::Asymmetric && HasAsymmetricIndices<T>)
-		);
-	};
-
-	// CHUNKED BATCH:
-	// The batch holds a list of items (chunks), and those items hold the indices.
-	template <typename T>
-	concept IsChunkedBatch = IsBatchBase<T> && requires(const T& b) {
-		{ b.chunks } -> std::ranges::input_range;
-
-		requires (
-			(T::symmetry == BatchSymmetry::Symmetric &&
-			 HasSymmetricIndices<std::ranges::range_value_t<decltype(b.chunks)>>)
-			||
-			(T::symmetry == BatchSymmetry::Asymmetric &&
-			 HasAsymmetricIndices<std::ranges::range_value_t<decltype(b.chunks)>>)
-		);
-	};
-
-	// UNIFIED CONCEPT
-	template <typename T>
-	concept IsBatch = IsDirectBatch<T> || IsChunkedBatch<T>;
-
-
-
-	// ---- boundary condition function concept -----
-
+	//------------
+	// BCP CONCEPT
+	//------------
 	template<typename F>
 	concept IsBCP = requires(const F& f, const vec3& v) {
 		{ f(v) } -> std::convertible_to<vec3>;
@@ -126,10 +235,73 @@ namespace april::container {
 
 
 
-	// ---- Topology batch
-	struct TopologyBatch {
-		env::ParticleID id1, id2;
-		std::vector<std::pair<env::ParticleID, env::ParticleID>> pairs;
-	};
+
+
+
+
+	//
+	// // direct batches
+	// struct SymmetricBatch : SerialBatch<BatchType::Symmetric> {
+	// 	std::vector<size_t> indices;
+	// };
+	//
+	// struct AsymmetricBatch : SerialBatch<BatchType::Asymmetric> {
+	// 	std::vector<size_t> indices1;
+	// 	std::vector<size_t> indices2;
+	// };
+
+
+
+	// // chunked batches
+	// struct SymmetricWorkUnit{
+	// 	std::vector<size_t> indices;
+	// };
+	//
+	// struct AsymmetricWorkUnit{
+	// 	std::vector<size_t> indices1;
+	// 	std::vector<size_t> indices2;
+	// };
+	//
+	// struct ChunkedSymmetricBatch : SerialBatch<BatchType::Symmetric> {
+	// 	std::vector<SymmetricWorkUnit> sym_chunks;
+	// };
+	//
+	// struct ChunkedAsymmetricBatch : SerialBatch<BatchType::Asymmetric> {
+	// 	std::vector<AsymmetricWorkUnit> asym_chunks;
+	// };
+	//
+	//
+	//
+	//
+	//
+	// struct CompoundBatch : SerialBatch<BatchType::Compound> {
+	// 	std::vector<SymmetricWorkUnit> sym_chunks;
+	// 	std::vector<AsymmetricWorkUnit> asym_chunks;
+	// };
+	//
+	//
+	// struct CompoundChunkedWorkUnit  {
+	// 	std::vector<SymmetricWorkUnit> sym_chunks;
+	// 	std::vector<AsymmetricWorkUnit> asym_chunks;
+	// };
+	//
+	// struct CompoundChunkedBatch : SerialBatch<BatchType::Compound> {
+	// 	std::vector<CompoundChunkedWorkUnit> chunks;
+	// };
+	//
+	//
+	// struct CompoundDirectWorkUnit  {
+	// 	std::vector<size_t> indices;
+	// 	std::vector<size_t> indices1;
+	// 	std::vector<size_t> indices2;
+	// };
+	//
+	// struct CompoundDirectBatch : SerialBatch<BatchType::Compound> {
+	// 	std::vector<CompoundDirectWorkUnit> chunks;
+	// };
+
 
 }
+
+
+

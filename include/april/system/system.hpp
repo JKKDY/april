@@ -294,16 +294,22 @@ namespace april::core {
 	// ---- Implementations -----
 	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::update_forces() {
+
+		// batch update lambda. passed into container::for_each_interaction_batch
 		auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
+			using Type = container::BatchType;
+			using Par = container::ParallelPolicy;
+			using Upd = container::UpdatePolicy;
+			// using Cmp = container::ComputePolicy;
+
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
-				using Sym = container::BatchSymmetry;
-				using Par = container::ParallelPolicy;
-				using Upd = container::UpdatePolicy;
 				constexpr env::FieldMask fields = ForceT::fields;
 				constexpr env::FieldMask upd_fields = env::Field::force | env::Field::position;
 				constexpr env::FieldMask all_fields = upd_fields | fields;
 
+				//---------------
 				// PHYSICS KERNEL
+				//---------------
 				auto update_force = [&](auto & p1, auto & p2) {
 					vec3 r;
 
@@ -327,80 +333,93 @@ namespace april::core {
 					}
 				};
 
-
-				// INNER LOOP
-				auto run_symmetric_parallel = [&](const auto&) {
+				//------------------------
+				// INNER LOOPS (PARTICLES)
+				//------------------------
+				auto process_symmetric_atom_parallel = [&](const container::internal::IsSymmetricAtom auto&) {
 					throw std::logic_error("parallelization not implemented");
 				};
 
-				auto run_asymmetric_parallel = [&](const auto&) {
+				auto process_asymmetric_atom_parallel = [&](const container::internal::IsAsymmetricAtom auto&) {
 					throw std::logic_error("parallelization not implemented");
 				};
 
-				auto run_symmetric_serial = [&](const auto& batch_item) {
-					for (size_t i = 0; i < batch_item.indices.size(); ++i) {
-						auto && p1 = particle_container.template restricted_at<all_fields>(batch_item.indices[i]);
-
-						for (size_t j = i + 1; j < batch_item.indices.size(); ++j) {
-							auto && p2 = particle_container.template restricted_at<all_fields>(batch_item.indices[j]);
-
+				auto process_symmetric_atom_serial = [&](const container::internal::IsSymmetricAtom auto& atom) {
+					for (size_t i = 0; i < atom.indices.size(); ++i) {
+						auto && p1 = particle_container.template restricted_at<all_fields>(atom.indices[i]);
+						for (size_t j = i + 1; j < atom.indices.size(); ++j) {
+							auto && p2 = particle_container.template restricted_at<all_fields>(atom.indices[j]);
 							update_force(p1, p2);
 						}
 					}
 				};
 
-				auto run_asymmetric_serial = [&](const auto& batch_item) {
-					for (size_t i = 0; i < batch_item.indices1.size(); ++i) {
-						auto && p1 = particle_container.template restricted_at<all_fields>(batch_item.indices1[i]);
-
-						for (size_t j = 0; j < batch_item.indices2.size(); ++j) {
-							auto && p2 = particle_container.template restricted_at<all_fields>(batch_item.indices2[j]);
-
+				auto process_asymmetric_atom_serial = [&](const container::internal::IsAsymmetricAtom auto& atom) {
+					for (size_t i = 0; i < atom.indices1.size(); ++i) {
+						auto && p1 = particle_container.template restricted_at<all_fields>(atom.indices1[i]);
+						for (size_t j = 0; j < atom.indices2.size(); ++j) {
+							auto && p2 = particle_container.template restricted_at<all_fields>(atom.indices2[j]);
 							update_force(p1, p2);
 						}
 					}
 				};
 
 
-				// INNER LOOP DISPATCHING
-				auto run_symmetric_inner_loop = [&](const auto& batch_item){
+				//----------------------------------------------
+				// WORK UNIT PROCESSING (outer loop: over atoms)
+				//----------------------------------------------
+				// a single piece of work (atom). holds indices to particles
+				auto process_atom = [&](const container::internal::IsAtom auto & atom, auto && parallel, auto && serial) {
 					if constexpr (Batch::parallel_policy == Par::InnerLoop) {
-						run_symmetric_parallel(batch_item);
+						parallel(atom);
 					} else {
-						run_symmetric_serial(batch_item);
+						serial(atom);
 					}
 				};
 
-				auto run_asymmetric_inner_loop = [&](const auto& batch_item){
-					if constexpr (Batch::parallel_policy == Par::InnerLoop) {
-						run_asymmetric_parallel(batch_item);
+				// atom ranges hold a range of either symmetric or asymmetric work atoms
+				auto process_range= [&](const auto & range, auto && parallel, auto && serial) {
+					if constexpr (Batch::parallel_policy == Par::Chunks) {
+						throw std::logic_error("parallelized chunked processing not implemented yet");
 					} else {
-						run_asymmetric_serial(batch_item);
-					}
-				};
-
-
-				// OUTER LOOP GENERIC STRATEGY
-				auto execute_strategy = [&](auto&& run_inner) {
-					if constexpr (container::IsChunkedBatch<Batch>) {
-						// Chunked Path
-						if constexpr (Batch::parallel_policy == Par::Chunks) {
-							throw std::logic_error("parallelized chunked processing not implemented yet");
-						} else {
-							for (const auto & chunk : batch.chunks) {
-								run_inner(chunk);
-							}
+						for (const auto & chunk : range) {
+							process_atom(chunk, parallel, serial);
 						}
-					} else {
-						run_inner(batch);
 					}
 				};
 
-				// OUTER LOOP DISPATCHING
-				if constexpr (Batch::symmetry == Sym::Symmetric) {
-					execute_strategy(run_symmetric_inner_loop);
-				} else if constexpr (Batch::symmetry == Sym::Asymmetric) {
-					execute_strategy(run_asymmetric_inner_loop);
+				// a work unit is either an atom or a range of atoms
+				auto process_work_unit = [&]<typename Unit>(const Unit & work_unit) {
+					if constexpr (container::internal::HasAsymmetricRange<Unit>) {
+						process_range(work_unit.asym_chunks, process_asymmetric_atom_parallel, process_asymmetric_atom_serial);
+					} else if constexpr (container::internal::IsAsymmetricAtom<Unit>) {
+						process_atom(work_unit, process_asymmetric_atom_parallel, process_asymmetric_atom_serial);
+					}
+
+					// no else because work unit can be a compound unit: we have to process both cases
+					if constexpr (container::internal::HasSymmetricRange<Unit>) {
+						process_range(work_unit.sym_chunks, process_symmetric_atom_parallel, process_symmetric_atom_serial);
+					} else if constexpr (container::internal::IsSymmetricAtom<Unit>) {
+						process_atom(work_unit, process_symmetric_atom_parallel, process_symmetric_atom_serial);
+					}
+				};
+
+
+				//--------------------------
+				// DISPATCH BATCH PROCESSING
+				//--------------------------
+				if constexpr (Batch::type == Type::Symmetric || Batch::type == Type::Asymmetric)  {
+					// symmetric and asymmetric batches are per definition work units
+					process_work_unit(batch);
+				} else if constexpr (Batch::type == Type::Compound) {
+					// a compound batch can either be a work unit or hold a range of (compound) work units
+					if (container::internal::IsWorkUnit<Batch>) {
+						process_work_unit(batch);
+					} else { // must have a range of work units
+						for (const auto & unit : batch.chunks) {
+							process_work_unit(unit);
+						}
+					}
 				}
 			};
 

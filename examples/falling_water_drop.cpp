@@ -46,7 +46,7 @@ int main() {
 		.with_controller(thermostat)
 		.with_field(gravity);
 
-	auto container = LinkedCellsAoS(3);
+	auto container = LinkedCellsAoS().with_cell_size(3);
 	auto system = build_system(env, container);
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)

@@ -15,7 +15,7 @@ namespace april::env {
     };
 
     struct ParticleCuboid {
-        vec3 origin;
+        vec3d origin;
         vec3 mean_velocity;
         uint3 particle_count;
         double distance;
@@ -29,13 +29,13 @@ namespace april::env {
         ParticleCuboid& at(const vec3& p) noexcept {
             origin = p; return *this;
         }
-        ParticleCuboid& at(const double x, const double y, const double z) noexcept {
+        ParticleCuboid& at(const vec3::type x, const vec3::type y, const vec3::type z) noexcept {
             origin = {x,y,z}; return *this;
         }
         ParticleCuboid& velocity(const vec3& v) noexcept {
             mean_velocity = v; return *this;
         }
-        ParticleCuboid& velocity(const double x, const double y, const double z) noexcept {
+        ParticleCuboid& velocity(const vec3::type x, const vec3::type y, const vec3::type z) noexcept {
             mean_velocity = {x,y,z}; return *this;
         }
         ParticleCuboid& count(const uint3& n) noexcept {
@@ -95,9 +95,9 @@ namespace april::env {
 
 
     struct ParticleSphere {
-        vec3 center;
         vec3 mean_velocity;
-        vec3 radii;  // for true sphere set all equal
+        vec3d center;
+        vec3d radii;  // for true sphere set all equal
         double distance;  // packing spacing
         double particle_mass;
         ParticleType type_idx;
@@ -109,22 +109,22 @@ namespace april::env {
         ParticleSphere& at(const vec3& c) noexcept {
             center = c; return *this;
         }
-        ParticleSphere& at(const double x, const double y, const double z) noexcept {
+        ParticleSphere& at(const vec3::type x, const vec3::type y, const vec3::type z) noexcept {
             center = {x,y,z}; return *this;
         }
         ParticleSphere& velocity(const vec3& v) noexcept {
             mean_velocity = v; return *this;
         }
-        ParticleSphere& velocity(const double x, const double y, const double z) noexcept {
+        ParticleSphere& velocity(const vec3::type x, const vec3::type y, const vec3::type z) noexcept {
             mean_velocity = {x,y,z}; return *this;
         }
         ParticleSphere& radius_xyz(const vec3& r) noexcept {
             radii = r; return *this;
         }
-        ParticleSphere& radius_xyz(const double x, const double y, const double z) noexcept {
+        ParticleSphere& radius_xyz(const vec3::type x, const vec3::type y, const vec3::type z) noexcept {
             radii = {x,y,z}; return *this;
         }
-        ParticleSphere& radius(double r) noexcept {   // convenience: uniform
+        ParticleSphere& radius(vec3::type r) noexcept {   // convenience: uniform
             radii = {r, r, r}; return *this;
         }
         ParticleSphere& spacing(const double d) noexcept {
@@ -150,7 +150,7 @@ namespace april::env {
                 throw std::logic_error("Sphere inter-particle distance is set to 0");
             }
 
-            const vec3 eff_radii = {
+            const vec3d eff_radii = {
                 std::max(radii.x, distance),
                 std::max(radii.y, distance),
                 std::max(radii.z, distance)
@@ -164,7 +164,11 @@ namespace april::env {
                 for (int y = -static_cast<int>(eff_radii.y/distance); y < static_cast<int>(eff_radii.y/distance); ++y) {
                     for (int z = -static_cast<int>(eff_radii.z/distance); z < static_cast<int>(eff_radii.z/distance); ++z) {
 
-                        const vec3 pos = {x * distance, y * distance, z * distance};
+                        const vec3 pos = vec3{
+                            static_cast<vec3::type>(x * distance),
+                            static_cast<vec3::type>(y * distance),
+                            static_cast<vec3::type>(z * distance)
+                        };
                         const vec3 pos_sq = pos * pos;
 
                         // if not in ellipsoid skip

@@ -100,9 +100,9 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPositi
 	});
 
 	EXPECT_TRUE(box.contains(p.position));
-	EXPECT_EQ(p.position.x, 9.2);
-	EXPECT_EQ(p.position.y, 5);
-	EXPECT_EQ(p.position.z, 5);
+	EXPECT_NEAR(p.position.x, 9.2, 1e-12);
+	EXPECT_NEAR(p.position.y, 5, 1e-12);
+	EXPECT_NEAR(p.position.z, 5, 1e-12);
 	EXPECT_NEAR(p.velocity.x, -1.0, 1e-12);
 	EXPECT_NEAR(p.velocity.y, 0.0, 1e-12);
 	EXPECT_NEAR(p.velocity.z, 0.0, 1e-12);

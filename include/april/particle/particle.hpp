@@ -34,13 +34,13 @@ namespace april::env {
         Particle& at(const vec3& v) noexcept {
             position = v; return *this;
         }
-        Particle& at(const double x, const double y, const double z) noexcept {
+        Particle& at(const vec3::type x, const vec3::type y, const vec3::type z) noexcept {
             position = {x,y,z}; return *this;
         }
         Particle& with_velocity(const vec3& v) noexcept {
             velocity = v; return *this;
         }
-        Particle& with_velocity(const double x, const double y, const double z) noexcept {
+        Particle& with_velocity(const vec3::type x, const vec3::type y, const vec3::type z) noexcept {
             velocity = {x,y,z}; return *this;
         }
         Particle& with_mass(const double v) noexcept {

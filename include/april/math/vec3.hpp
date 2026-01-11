@@ -29,7 +29,7 @@ namespace april::utils {
     concept IsScalar = std::convertible_to<S, T>; // Or std::arithmetic<S>
 
 
-    template <typename T>
+    template <typename T, typename Dist = double>
     requires (std::integral<std::remove_cvref_t<T>> || std::floating_point<std::remove_cvref_t<T>>)
     struct Vec3Ops {
         using type = T;
@@ -40,19 +40,31 @@ namespace april::utils {
         // vector addition
         template <IsVectorLike Other>
         Vec3<T> operator+(this const auto& self, const Other& other) noexcept {
-            return {self.x + other.x, self.y + other.y, self.z + other.z};
+            return {
+                self.x + static_cast<T>(other.x),
+                self.y + static_cast<T>(other.y),
+                self.z + static_cast<T>(other.z)
+            };
         }
 
         // vector subtraction
         template <IsVectorLike Other>
         Vec3<T> operator-(this const auto& self, const Other& other) noexcept {
-            return {self.x - other.x, self.y - other.y, self.z - other.z};
+            return {
+                self.x - static_cast<T>(other.x),
+                self.y - static_cast<T>(other.y),
+                self.z - static_cast<T>(other.z)
+            };
         }
 
         // point-wise multiplication
         template <IsVectorLike Other>
         Vec3<T> operator*(this const auto& self, const Other& other) noexcept {
-            return {self.x * other.x, self.y * other.y, self.z * other.z};
+            return {
+                self.x * static_cast<T>(other.x),
+                self.y * static_cast<T>(other.y),
+                self.z * static_cast<T>(other.z)
+            };
         }
 
         template <IsVectorLike Other>
@@ -63,7 +75,11 @@ namespace april::utils {
         // point wise division
         template <IsVectorLike Other>
         Vec3<T> operator/(this const auto& self, const Other& other) noexcept {
-            return {self.x / other.x, self.y / other.y, self.z / other.z};
+            return {
+                self.x / static_cast<T>(other.x),
+                self.y / static_cast<T>(other.y),
+                self.z / static_cast<T>(other.z)
+            };
         }
 
         template <IsVectorLike Other>
@@ -99,17 +115,17 @@ namespace april::utils {
         // --------------------
         template <IsVectorLike Other>
         auto& operator+=(this auto& self, const Other& rhs) noexcept {
-            self.x += rhs.x;
-            self.y += rhs.y;
-            self.z += rhs.z;
+            self.x += static_cast<T>(rhs.x);
+            self.y += static_cast<T>(rhs.y);
+            self.z += static_cast<T>(rhs.z);
             return self;
         }
 
         template <IsVectorLike Other>
         auto& operator-=(this auto& self, const Other& rhs) noexcept {
-            self.x -= rhs.x;
-            self.y -= rhs.y;
-            self.z -= rhs.z;
+            self.x -= static_cast<T>(rhs.x);
+            self.y -= static_cast<T>(rhs.y);
+            self.z -= static_cast<T>(rhs.z);
             return self;
         }
 
@@ -126,22 +142,25 @@ namespace april::utils {
         // -------------------
         template <IsVectorLike Other>
         T dot(this const auto& self, const Other& rhs) noexcept {
-            return self.x * rhs.x + self.y * rhs.y + self.z * rhs.z;
+            return
+                self.x * static_cast<T>(rhs.x) +
+                self.y * static_cast<T>(rhs.y) +
+                self.z * static_cast<T>(rhs.z);
         }
 
-        [[nodiscard]] double norm_squared(this const auto& self) noexcept {
+        [[nodiscard]] Dist norm_squared(this const auto& self) noexcept {
             return self.x * self.x + self.y * self.y + self.z * self.z;
         }
 
-        [[nodiscard]] double norm(this const auto& self) noexcept {
+        [[nodiscard]] Dist norm(this const auto& self) noexcept {
             return std::sqrt(self.norm_squared());
         }
 
-        [[nodiscard]] double inv_norm(this const auto& self) noexcept {
+        [[nodiscard]] Dist inv_norm(this const auto& self) noexcept {
             return 1 / std::sqrt(self.norm_squared()); // compiler may optimize with fast inverse square root
         }
 
-        [[nodiscard]] double inv_norm_sq(this const auto& self) noexcept {
+        [[nodiscard]] Dist inv_norm_sq(this const auto& self) noexcept {
             return 1 / self.norm_squared(); // compiler may optimize with fast inverse square root
         }
 
@@ -155,27 +174,38 @@ namespace april::utils {
 
         template <IsVectorLike Other>
         bool operator==(this const auto& self, const Other& other) noexcept {
-            return self.x == other.x && self.y == other.y && self.z == other.z;
+            return
+                self.x == static_cast<T>(other.x) &&
+                self.y == static_cast<T>(other.y) &&
+                self.z == static_cast<T>(other.z);
         }
 
         template <IsVectorLike Other>
         bool operator<=(this const auto& self, const Other& other) noexcept {
-            return self.x <= other.x && self.y <= other.y && self.z <= other.z;
+            return self.x <= static_cast<T>(other.x) &&
+                   self.y <= static_cast<T>(other.y) &&
+                   self.z <= static_cast<T>(other.z);
         }
 
         template <IsVectorLike Other>
         bool operator>=(this const auto& self, const Other& other) noexcept {
-            return self.x >= other.x && self.y >= other.y && self.z >= other.z;
+            return self.x >= static_cast<T>(other.x) &&
+                   self.y >= static_cast<T>(other.y) &&
+                   self.z >= static_cast<T>(other.z);
         }
 
         template <IsVectorLike Other>
         bool operator<(this const auto& self, const Other& other) noexcept {
-            return self.x < other.x && self.y < other.y && self.z < other.z;
+            return self.x < static_cast<T>(other.x) &&
+                   self.y < static_cast<T>(other.y) &&
+                   self.z < static_cast<T>(other.z);
         }
 
         template <IsVectorLike Other>
         bool operator>(this const auto& self, const Other& other) noexcept {
-            return self.x > other.x && self.y > other.y && self.z > other.z;
+            return self.x > static_cast<T>(other.x) &&
+                   self.y > static_cast<T>(other.y) &&
+                   self.z > static_cast<T>(other.z);
         }
 
 
@@ -222,7 +252,7 @@ namespace april::utils {
 
 
     template <typename T> requires std::integral<T> || std::floating_point<T>
-    struct Vec3 : Vec3Ops<T> {
+    struct Vec3 : Vec3Ops<T, double> {
         T x, y, z;
 
         Vec3() : x(0), y(0), z(0) {}
@@ -230,7 +260,7 @@ namespace april::utils {
         explicit Vec3(T v) : x(v), y(v), z(v) {}
 
         template <IsVectorLike Other>
-        Vec3(const Other& p) : x(p.x), y(p.y), z(p.z) {}
+        Vec3(const Other& p) : x(static_cast<T>(p.x)), y(static_cast<T>(p.y)), z(static_cast<T>(p.z)) {}
     };
 
 

@@ -54,8 +54,8 @@ namespace april::boundary::internal {
 		constexpr double NEG_INF = std::numeric_limits<double>::lowest() / 4; // divide by 4 to avoid overflow
 		constexpr double POS_INF = std::numeric_limits<double>::max() / 4;
 
-		const vec3 POS_INF_VEC = {POS_INF, POS_INF, POS_INF};
-		const vec3 NEG_INF_VEC = {NEG_INF, NEG_INF, NEG_INF};
+		const vec3d POS_INF_VEC = {POS_INF, POS_INF, POS_INF};
+		const vec3d NEG_INF_VEC = {NEG_INF, NEG_INF, NEG_INF};
 
 		const int  ax   = axis_of_face(face); // 0:x, 1:y, 2:z (see vec3)
 		const bool plus = face_sign_pos(face);
@@ -63,7 +63,7 @@ namespace april::boundary::internal {
 		const Topology& topology = get_topology(boundary);
 		const double thickness = topology.boundary_thickness;
 
-		vec3 min, max;
+		vec3d min, max;
 
 		if (thickness >= 0.0) { // inside the simulation domain
 			min = simulation_box.min;

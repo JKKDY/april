@@ -171,14 +171,14 @@ namespace april::env {
         }
 
         // --- Set Domain ---
-        void set_origin(const vec3& origin) {
+        void set_origin(const vec3d& origin) {
             this->data.domain.origin = origin;
         }
         void set_origin(const double x, const double y, const double z) {
             set_origin({x,y,z});
         }
 
-        void set_extent(const vec3& extent) {
+        void set_extent(const vec3d& extent) {
             this->data.domain.extent = extent;
         }
         void set_extent(const double x, const double y, const double z) {
@@ -189,18 +189,18 @@ namespace april::env {
             data.domain = domain;
         }
 
-        void auto_domain(const vec3& margin_abs) {
+        void auto_domain(const vec3d& margin_abs) {
             data.margin_abs = margin_abs;
         }
         void auto_domain(const double margin_abs) {
-            auto_domain(vec3{margin_abs});
+            auto_domain(vec3d{margin_abs});
         }
 
-        void auto_domain_factor(const vec3& margin_fac) {
+        void auto_domain_factor(const vec3d& margin_fac) {
             data.margin_fac = margin_fac;
         }
         void auto_domain_factor(const double margin_fac) {
-            auto_domain(vec3{margin_fac});
+            auto_domain(vec3d{margin_fac});
         }
 
 

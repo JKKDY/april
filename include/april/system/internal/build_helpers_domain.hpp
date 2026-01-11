@@ -13,17 +13,17 @@ namespace april::core::internal {
 	inline env::Box particle_bounding_box(const std::vector<env::Particle>& particles) {
 		if (particles.empty()) return {};
 
-		vec3 min = particles[0].position;
-		vec3 max = particles[0].position;
+		vec3d min = particles[0].position;
+		vec3d max = particles[0].position;
 
 		for (const auto& p : particles) {
-			min.x = std::min(min.x, p.position.x);
-			min.y = std::min(min.y, p.position.y);
-			min.z = std::min(min.z, p.position.z);
+			min.x = std::min(min.x, static_cast<vec3d::type>(p.position.x));
+			min.y = std::min(min.y, static_cast<vec3d::type>(p.position.y));
+			min.z = std::min(min.z, static_cast<vec3d::type>(p.position.z));
 
-			max.x = std::max(max.x, p.position.x);
-			max.y = std::max(max.y, p.position.y);
-			max.z = std::max(max.z, p.position.z);
+			max.x = std::max(max.x, static_cast<vec3d::type>(p.position.x));
+			max.y = std::max(max.y, static_cast<vec3d::type>(p.position.y));
+			max.z = std::max(max.z, static_cast<vec3d::type>(p.position.z));
 		}
 
 		return {min, max};
@@ -53,8 +53,8 @@ namespace april::core::internal {
 		// Case 4: user origin not set, user extent set
 		if (!desired_domain.origin.has_value() && desired_domain.extent.has_value()) {
 			// center the particle bounding box inside the simulation domain
-			const vec3 bbox_center = (particle_bbox.min + particle_bbox.max) * 0.5;
-			const vec3 origin = bbox_center - desired_domain.extent.value() / 2;
+			const vec3d bbox_center = (particle_bbox.min + particle_bbox.max) * 0.5;
+			const vec3d origin = bbox_center - desired_domain.extent.value() / 2;
 			return {origin, origin + desired_domain.extent.value()};
 		}
 		std::unreachable();
@@ -101,8 +101,8 @@ namespace april::core::internal {
 	inline env::Box determine_simulation_box(
 		const env::Domain& desired_domain,
 		const env::Box& particle_bbox,
-		const vec3 & margin_abs,
-		const vec3 & margin_fac
+		const vec3d & margin_abs,
+		const vec3d & margin_fac
 	) {
 		if (margin_abs.x < 0 || margin_abs.y < 0 || margin_abs.z < 0) {
 			throw std::logic_error("Absolute margin was set to negative on at least one axis. Got: " + margin_abs.to_string());
@@ -112,7 +112,7 @@ namespace april::core::internal {
 			throw std::logic_error("Margin factor was set to negative on at least one axis. Got: " + margin_fac.to_string());
 		}
 
-		const vec3 effective_margin = {
+		const vec3d effective_margin = {
 			std::max( particle_bbox.extent.x * margin_fac.x, margin_abs.x),
 			std::max( particle_bbox.extent.y * margin_fac.y, margin_abs.y),
 			std::max( particle_bbox.extent.z * margin_fac.z, margin_abs.z)

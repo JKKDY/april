@@ -224,8 +224,8 @@ namespace april::container::internal {
 		size_t n_types {}; // types range from 0 ... n_types-1
 		double global_cutoff {}; // maximum force cutoff
 
-		vec3 cell_size; // side lengths of each cell
-		vec3 inv_cell_size; // cache the inverse of each size component to avoid divisions
+		vec3d cell_size; // side lengths of each cell
+		vec3d inv_cell_size; // cache the inverse of each size component to avoid divisions
 		uint3 cells_per_axis{}; // number of cells along each axis
 
 		std::vector<cell_index_t> bin_start_indices; // maps bin id to index of first particle in that bin
@@ -331,7 +331,7 @@ namespace april::container::internal {
 						}
 
 						// calculate distance between cell at x,y,z and center cell
-						vec3 dist_vec = {
+						vec3d dist_vec = {
 							std::abs(x) > 1 ? (std::abs(x) - 1) * self.cell_size.x : 0,
 							std::abs(y) > 1 ? (std::abs(y) - 1) * self.cell_size.y : 0,
 							std::abs(z) > 1 ? (std::abs(z) - 1) * self.cell_size.z : 0,
@@ -424,17 +424,17 @@ namespace april::container::internal {
 		// gather all cell ids whose cells have an intersection with the box region
 		[[nodiscard]] std::vector<cell_index_t> get_cells_in_region(this const auto& self, const env::Box & box) {
 			//  Convert world coords to cell coords (relative to domain origin)
-			const vec3 min = (box.min - self.domain.min) * self.inv_cell_size;
-			const vec3 max = (box.max - self.domain.min) * self.inv_cell_size;
+			const vec3d min = (box.min - self.domain.min) * self.inv_cell_size;
+			const vec3d max = (box.max - self.domain.min) * self.inv_cell_size;
 
 			// clamp cell coordinates to valid ranges
-			const vec3 min_clamped = {
+			const vec3d min_clamped = {
 				std::clamp(std::floor(min.x), 0.0, static_cast<double>(self.cells_per_axis.x - 1)),
 				std::clamp(std::floor(min.y), 0.0, static_cast<double>(self.cells_per_axis.y - 1)),
 				std::clamp(std::floor(min.z), 0.0, static_cast<double>(self.cells_per_axis.z - 1))
 			};
 
-			const vec3 max_clamped = {
+			const vec3d max_clamped = {
 				std::clamp(std::ceil(max.x), 0.0, static_cast<double>(self.cells_per_axis.x - 1)),
 				std::clamp(std::ceil(max.y), 0.0, static_cast<double>(self.cells_per_axis.y - 1)),
 				std::clamp(std::ceil(max.z), 0.0, static_cast<double>(self.cells_per_axis.z - 1))

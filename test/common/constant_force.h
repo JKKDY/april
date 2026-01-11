@@ -1,15 +1,18 @@
 #pragma once
 
-#include "april/april.hpp"
+#include "april/forces/force.hpp"
+#include "april/particle/access.hpp"
 
 using namespace april;
+using namespace april::env;
+
 // A tiny force that returns a constant vector and mixes by summing
 struct ConstantForce final : force::Force {
 	static constexpr env::FieldMask fields = +env::Field::none;
 
 	vec3 v;
 
-	ConstantForce(const double x, const double y, const double z, const double cutoff = force::no_cutoff)
+	ConstantForce(const vec3::type x, const vec3::type y, const vec3::type z, const double cutoff = force::no_cutoff)
 	: Force(cutoff), v{x,y,z} {}
 
 	template<env::FieldMask M, env::IsUserData U>

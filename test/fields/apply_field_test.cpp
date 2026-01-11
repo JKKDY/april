@@ -61,7 +61,7 @@ protected:
         );
 
         for (int i = 0; i < num_particles; ++i) {
-            env.with_particle(Particle().at({static_cast<double>(i),0,0}).as_type(0).with_mass(1));
+            env.with_particle(Particle().at({static_cast<vec3::type>(i),0,0}).as_type(0).with_mass(1));
         }
 
         // Chain the rest of the setup
@@ -140,7 +140,7 @@ TEST_F(FieldTest, MultipleDifferentSpyFields) {
     );
 
     for (int i = 0; i < num_particles; ++i) {
-        env.with_particle(Particle().at({static_cast<double>(i),0,0}).as_type(0).with_mass(1));
+        env.with_particle(Particle().at({static_cast<vec3::type>(i),0,0}).as_type(0).with_mass(1));
     }
 
     // Use chained API

@@ -6,10 +6,10 @@
 namespace april::env {
 	struct Domain {
 		Domain() = default;
-		Domain(const vec3 & originIn, const vec3 & extentIn): origin(originIn), extent(extentIn) {}
+		Domain(const vec3d & originIn, const vec3d & extentIn): origin(originIn), extent(extentIn) {}
 
-		std::optional<vec3> origin;
-		std::optional<vec3> extent;
+		std::optional<vec3d> origin;
+		std::optional<vec3d> extent;
 
 		[[nodiscard]] std::optional<double> volume() const noexcept {
 			if (extent.has_value()) {
@@ -18,10 +18,10 @@ namespace april::env {
 			return std::nullopt;
 		}
 
-		[[nodiscard]] std::optional<vec3> min_corner() const {
+		[[nodiscard]] std::optional<vec3d> min_corner() const {
 			if (origin && extent) {
-				const vec3 far = origin.value() + extent.value();
-				vec3 min;
+				const vec3d far = origin.value() + extent.value();
+				vec3d min;
 				min.x = std::min(origin->x, far.x);
 				min.y = std::min(origin->y, far.y);
 				min.z = std::min(origin->z, far.z);
@@ -31,10 +31,10 @@ namespace april::env {
 			return std::nullopt;
 		}
 
-		[[nodiscard]] std::optional<vec3> max_corner() const {
+		[[nodiscard]] std::optional<vec3d> max_corner() const {
 			if (origin && extent) {
-				const vec3 far = origin.value() + extent.value();
-				vec3 max;
+				const vec3d far = origin.value() + extent.value();
+				vec3d max;
 				max.x = std::max(origin->x, far.x);
 				max.y = std::max(origin->y, far.y);
 				max.z = std::max(origin->z, far.z);
@@ -44,14 +44,14 @@ namespace april::env {
 			return std::nullopt;
 		}
 
-		[[nodiscard]] static Domain from_center_and_size(const vec3& center, const vec3& size) {
-			const vec3 origin = center - (size / 2.0);
+		[[nodiscard]] static Domain from_center_and_size(const vec3d& center, const vec3d& size) {
+			const vec3d origin = center - (size / 2.0);
 			return Domain{origin, size};
 		}
 
-		[[nodiscard]] static Domain from_min_max(const vec3& min_corner, const vec3& max_corner) {
-			const vec3 origin = min_corner;
-			const vec3 extent = max_corner - min_corner;
+		[[nodiscard]] static Domain from_min_max(const vec3d& min_corner, const vec3d& max_corner) {
+			const vec3d origin = min_corner;
+			const vec3d extent = max_corner - min_corner;
 			return Domain{origin, extent};
 		}
 	};
@@ -70,16 +70,7 @@ namespace april::env {
 			);
 		}
 
-		// 	AP_ASSERT(vec3::all(domain.origin,
-		// 		[=](auto x) {return x <= std::numeric_limits<double>::max() / 2 &&  x >= std::numeric_limits<double>::lowest() / 2;}),
-		// 		"all modulus components in origin must be within range [min/2, max/2] to avoid overflow");
-		// 	AP_ASSERT(vec3::all(domain.extent,
-		// 		[=](auto x) {return x <= std::numeric_limits<double>::max() / 2 &&  x >= std::numeric_limits<double>::lowest() / 2;}),
-		// 		"all modulus components in origin must be within range [min/2, max/2] to avoid overflow");
-		// }
-
-
-		Box(const vec3& min_corner, const vec3& max_corner):
+		Box(const vec3d& min_corner, const vec3d& max_corner):
 			min(min_corner), max(max_corner), extent(max-min) {
 
 			AP_ASSERT(min_corner.x <= max_corner.x, "min_corner.x (" + std::to_string(min_corner.x) + ") "
@@ -91,7 +82,7 @@ namespace april::env {
 		}
 
 
-		[[nodiscard]] bool contains(const vec3 & p) const noexcept{
+		[[nodiscard]] bool contains(const vec3d & p) const noexcept{
 			return (p.x >= min.x && p.x <= max.x) &&
 				  (p.y >= min.y && p.y <= max.y) &&
 				  (p.z >= min.z && p.z <= max.z);
@@ -109,7 +100,10 @@ namespace april::env {
 
 			// If the new min is greater than the new max on ANY axis, there is no intersection.
 			if (ix_min <= ix_max && iy_min <= iy_max && iz_min <= iz_max) {
-				return Box(vec3{ix_min, iy_min, iz_min}, vec3{ix_max, iy_max, iz_max});
+				return Box(
+					vec3d{ix_min, iy_min, iz_min},
+					vec3d{ix_max, iy_max, iz_max}
+					);
 			}
 
 			return std::nullopt;
@@ -119,8 +113,8 @@ namespace april::env {
 			return extent.x * extent.y * extent.z;
 		}
 
-		const vec3 min;
-		const vec3 max;
-		const vec3 extent;
+		const vec3d min;
+		const vec3d max;
+		const vec3d extent;
 	};
 }

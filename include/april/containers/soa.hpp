@@ -94,10 +94,10 @@ namespace april::container {
 
     protected:
         struct Storage {
-            std::vector<double> pos_x, pos_y, pos_z;
-            std::vector<double> vel_x, vel_y, vel_z;
-            std::vector<double> frc_x, frc_y, frc_z;
-            std::vector<double> old_x, old_y, old_z;
+            std::vector<vec3::type> pos_x, pos_y, pos_z;
+            std::vector<vec3::type> vel_x, vel_y, vel_z;
+            std::vector<vec3::type> frc_x, frc_y, frc_z;
+            std::vector<vec3::type> old_x, old_y, old_z;
 
             std::vector<double> mass;
             std::vector<env::ParticleState> state;

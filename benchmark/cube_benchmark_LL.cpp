@@ -41,7 +41,7 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	const auto container = LinkedCellsSoA()
+	const auto container = LinkedCellsAoS()
 		.with_cell_size(container::CellSize::Cutoff)
 		.with_cell_ordering(hilbert_order);
 

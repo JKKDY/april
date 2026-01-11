@@ -100,7 +100,7 @@ namespace april::env {
 			return ParticleView<M, UserDataT>(*this);
 		}
 
-		using vec3ref = utils::Vec3Proxy<double>;
+		using vec3ref = utils::Vec3Proxy<vec3::type>;
 
 		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, Field::force, M> force;
 		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, Field::position, M> position;
@@ -133,8 +133,8 @@ namespace april::env {
 			return ParticleView<M, UserDataT>(*this);
 		}
 
-		using Vec3Ref = utils::Vec3Proxy<double>;
-		using ConstVec3Ref = utils::Vec3Proxy<const double>;
+		using Vec3Ref = utils::Vec3Proxy<vec3::type>;
+		using ConstVec3Ref = utils::Vec3Proxy<const vec3::type>;
 
 
 		// everything by const reference except for force
@@ -183,7 +183,7 @@ namespace april::env {
 			, user_data    (r.user_data)
 			{}
 
-		using ConstVec3Ref = utils::Vec3Proxy<const double>;
+		using ConstVec3Ref = utils::Vec3Proxy<const vec3::type>;
 
 		// everything by const reference
 		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, Field::force, M> force;

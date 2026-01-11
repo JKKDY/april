@@ -41,12 +41,13 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	const auto container = LinkedCellsAoS()
+	const auto container = LinkedCellsSoA()
 		.with_cell_size(container::CellSize::Cutoff)
-		.with_cell_ordering(morton_order);
+		.with_cell_ordering(hilbert_order);
+
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;
-	constexpr int steps  = 10000;
+	constexpr int steps  = 5000;
 
 	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 	integrator.add_monitor(Benchmark());

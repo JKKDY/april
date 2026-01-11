@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <iostream>
 
 #include "april/common.hpp"
 #include "april/particle/fields.hpp"
@@ -24,10 +25,8 @@ namespace april::force {
 
 		template<env::FieldMask M, env::IsUserData U>
 		vec3 eval(const env::ParticleView<M, U> &, const env::ParticleView<M, U> &, const vec3& r) const noexcept {
-			const double inv_r = r.inv_norm();
-			const double inv_r2 = inv_r * inv_r;
+			const double inv_r2 = r.inv_norm_sq();
 			const double inv_r6 = inv_r2 * inv_r2 * inv_r2;
-
 			const double magnitude = (c12_force * inv_r6 - c6_force) * inv_r6 * inv_r2;
 
 			// Force vector pointing along -r

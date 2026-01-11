@@ -141,6 +141,11 @@ namespace april::utils {
             return 1 / std::sqrt(self.norm_squared()); // compiler may optimize with fast inverse square root
         }
 
+        [[nodiscard]] double inv_norm_sq(this const auto& self) noexcept {
+            return 1 / self.norm_squared(); // compiler may optimize with fast inverse square root
+        }
+
+
 
         // -------------------
         // ORDERING & EQUALITY

@@ -26,15 +26,7 @@ namespace april::container {
 
 			void build(this auto&& self, const std::vector<ParticleRecord> & particlesIn) {
 				self.build_storage(particlesIn);
-
 				self.sort_storage_by_type();
-
-				// Rebuild ID map after sort
-				for (size_t i = 0; i < self.particle_count(); i++) {
-					auto id_ptr = self.template get_field_ptr<env::Field::id>(i);
-					self.id_to_index_map[static_cast<size_t>(*id_ptr)] = i;
-				}
-
 				self.build_batches();
 			}
 
@@ -46,7 +38,7 @@ namespace april::container {
 							  (self.flags.periodic_z ? 1 : 0);
 
 				// trampoline lambda
-				auto run_with_mode = [&]<bool PX, bool PY, bool PZ>() {
+				auto run_with_mode = [&] <bool PX, bool PY, bool PZ>() {
 					auto bcp = [L=self.domain.extent](const vec3& dr) {
 						return minimum_image<PX, PY, PZ>(dr, L);
 					};
@@ -57,15 +49,15 @@ namespace april::container {
 
 				// jump table
 				switch(mode) {
-				case 0: run_with_mode.template operator()<false, false, false>(); break;
-				case 1: run_with_mode.template operator()<false, false, true >(); break;
-				case 2: run_with_mode.template operator()<false, true , false>(); break;
-				case 3: run_with_mode.template operator()<false, true , true >(); break;
-				case 4: run_with_mode.template operator()<true , false, false>(); break;
-				case 5: run_with_mode.template operator()<true , false, true >(); break;
-				case 6: run_with_mode.template operator()<true , true , false>(); break;
-				case 7: run_with_mode.template operator()<true , true , true >(); break;
-				default: std::unreachable();
+					case 0: run_with_mode.template operator()<false, false, false>(); break;
+					case 1: run_with_mode.template operator()<false, false, true >(); break;
+					case 2: run_with_mode.template operator()<false, true , false>(); break;
+					case 3: run_with_mode.template operator()<false, true , true >(); break;
+					case 4: run_with_mode.template operator()<true , false, false>(); break;
+					case 5: run_with_mode.template operator()<true , false, true >(); break;
+					case 6: run_with_mode.template operator()<true , true , false>(); break;
+					case 7: run_with_mode.template operator()<true , true , true >(); break;
+					default: std::unreachable();
 				}
 			}
 
@@ -125,6 +117,12 @@ namespace april::container {
 						current = next;
 					}
 					done[current] = true;
+				}
+
+				// Rebuild ID map after sort
+				for (size_t i = 0; i < self.particle_count(); i++) {
+					auto id_ptr = self.template get_field_ptr<env::Field::id>(i);
+					self.id_to_index_map[static_cast<size_t>(*id_ptr)] = i;
 				}
 			}
 

@@ -49,6 +49,9 @@ namespace april::container::internal {
 			if (self.flags.infinite_domain) {
 				throw std::logic_error("infinite domain not supported on linked cells");
 			}
+
+			self.sym_batch.sym_chunks.reserve(self.n_grid_cells); // avoid reallocations during push back
+			self.asym_batch.asym_chunks.reserve(self.neighbor_cell_pairs.size());
 		}
 
 
@@ -62,13 +65,8 @@ namespace april::container::internal {
 			};
 
 			// INTRA CELL
-			using range_type = std::ranges::iota_view<size_t, size_t>;
-			ChunkedSymmetricBatch<range_type> sym_batch;
-			sym_batch.sym_chunks.reserve(self.n_grid_cells); // avoid reallocations during push back
-			ChunkedAsymmetricBatch<range_type, range_type> asym_batch;
-			asym_batch.asym_chunks.reserve(self.n_grid_cells);
-			ChunkedAsymmetricBatch<range_type, range_type> asym_nieghb_batch;
-			asym_nieghb_batch.asym_chunks.reserve(self.neighbor_cell_pairs.size());
+			auto && sym_batch = self.sym_batch;
+			auto && asym_batch = self.asym_batch;
 
 			for (size_t t1 = 0; t1 < self.n_types; ++t1) {
 				sym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t1)};
@@ -241,6 +239,11 @@ namespace april::container::internal {
 		std::vector<CellPair> neighbor_cell_pairs;
 		std::vector<WrappedCellPair> wrapped_cell_pairs;
 
+		// batching structs
+		using range_type = std::ranges::iota_view<size_t, size_t>;
+		ChunkedSymmetricBatch<range_type> sym_batch;
+		ChunkedAsymmetricBatch<range_type, range_type> asym_batch;
+
 
 		//----------------
 		// SETUP FUNCTIONS
@@ -365,10 +368,10 @@ namespace april::container::internal {
 			};
 
 
-			for (unsigned int z = 0; z < self.cells_per_axis.z; z++) {
-				for (unsigned int y = 0; y < self.cells_per_axis.y; y++) {
-					for (unsigned int x = 0; x < self.cells_per_axis.x; x++) {
-						for (const auto displacement : stencil) {
+			for (const auto displacement : stencil) {
+				for (unsigned int z = 0; z < self.cells_per_axis.z; z++) {
+					for (unsigned int y = 0; y < self.cells_per_axis.y; y++) {
+						for (unsigned int x = 0; x < self.cells_per_axis.x; x++) {
 							if (displacement == int3{0,0,0}) continue;
 
 							const int3 base {  // coordinates of cell 1
@@ -484,7 +487,7 @@ namespace april::container::internal {
 		}
 
 		[[nodiscard]] uint32_t cell_pos_to_idx(this const auto & self, const uint32_t x, const uint32_t y, const uint32_t z) noexcept{
-			uint32_t flat_idx = z * self.cells_per_axis.x * self.cells_per_axis.y + y * self.cells_per_axis.x + x;
+			const uint32_t flat_idx = z * self.cells_per_axis.x * self.cells_per_axis.y + y * self.cells_per_axis.x + x;
 			return self.cell_ordering.empty() ? flat_idx : self.cell_ordering[flat_idx];
 		}
 

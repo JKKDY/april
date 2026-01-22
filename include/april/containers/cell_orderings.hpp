@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <vector>
+#include <numeric>
+#include <bit>
 
 #include "april/common.hpp"
 

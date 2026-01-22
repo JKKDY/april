@@ -7,7 +7,7 @@ namespace fs = std::filesystem;
 
 
 
-static constexpr int NX = 20, NY = 20, NZ = 20;
+static constexpr int NX = 100, NY = 100, NZ = 100;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
@@ -43,11 +43,12 @@ int main() {
 
 	const auto container = LinkedCellsAoS()
 		.with_cell_size(container::CellSize::Cutoff)
-		.with_cell_ordering(hilbert_order);
+		.with_cell_ordering(hilbert_order)
+		.with_block_size({});
 
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;
-	constexpr int steps  = 5000;
+	constexpr int steps  = 20;
 
 	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 	integrator.add_monitor(Benchmark());

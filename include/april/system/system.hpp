@@ -413,7 +413,7 @@ namespace april::core {
 					process_work_unit(batch);
 				} else if constexpr (Batch::type == Type::Compound) {
 					// a compound batch can either be a work unit or hold a range of (compound) work units
-					if (container::internal::IsWorkUnit<Batch>) {
+					if constexpr (container::internal::IsWorkUnit<Batch>) {
 						process_work_unit(batch);
 					} else { // must have a range of work units
 						for (const auto & unit : batch.chunks) {

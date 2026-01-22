@@ -338,6 +338,7 @@ namespace april::container {
 	    { c.collect_indices_in_region(region) } -> std::convertible_to<std::vector<size_t>>;
 
 	    { c.for_each_interaction_batch([](auto&&){}) };
+		{ c.for_each_topology_batch([](auto&&){}) };
 
 		// for future use
 		// { c.add_particle(p) };

@@ -15,7 +15,6 @@ namespace april::controller  {
 			return trigger(sys);
 		}
 
-		// TODO add static constexpr bool override flags so the user can explicitly state their intent to implement a CRTP method
 		template<class S>
 		void dispatch_init(this auto && self, core::SystemContext<S> & sys) {
 			if constexpr (requires { self.init(sys); }) {

@@ -19,7 +19,8 @@ namespace april::integrator {
 		using Base::Base;
 
 		static constexpr env::FieldMask pos_upd_fields =
-			env::Field::state | env::Field::velocity | env::Field::position | env::Field::mass | env::Field::old_position | env::Field::force;
+			env::Field::state | env::Field::velocity | env::Field::position | env::Field::mass |
+			env::Field::old_position | env::Field::force;
 
 		static constexpr env::FieldMask vel_upd_fields =
 			env::Field::state | env::Field::velocity | env::Field::force | env::Field::mass;

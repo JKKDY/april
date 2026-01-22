@@ -29,7 +29,7 @@ namespace april::container::internal {
 		std::optional<double> manual_cell_size;
 
 		std::optional<std::function<std::vector<uint32_t>(uint3)>> cell_ordering_fn;
-		uint8_t super_batch_size = 1;
+		uint3 block_size = {2,2,2};
 
 		auto with_cell_size(this auto&& self, const double cell_size) {
 			self.manual_cell_size = cell_size;
@@ -47,8 +47,18 @@ namespace april::container::internal {
 			return self;
 		}
 
-		auto with_super_batch_size(this auto&& self, const uint8_t super_batch_size) {
-			self.super_batch_size = super_batch_size;
+		auto with_block_size(this auto&& self, const uint3 block_size) {
+			self.block_size = block_size;
+			return self;
+		}
+
+		auto with_block_size(this auto&& self, const size_t x, const size_t y, const size_t z) {
+			self.block_size = {x,y,z};
+			return self;
+		}
+
+		auto with_block_size(this auto&& self, const size_t size) {
+			self.block_size = {size,size,size};
 			return self;
 		}
 
@@ -68,7 +78,6 @@ namespace april::container::internal {
 	// -----------------------------
 	// LINKED CELLS INTERNAL STRUCTS
 	// -----------------------------
-
 	using cell_index_t = uint32_t;
 
 	enum CellWrapFlag : uint8_t {
@@ -98,29 +107,31 @@ namespace april::container::internal {
 		std::ranges::iota_view<size_t, size_t> indices1;
 		std::ranges::iota_view<size_t, size_t> indices2;
 	};
+	static_assert(IsAsymmetricAtom<AsymLCChunk>);
+
 
 	struct SymLCChunk {
 		std::ranges::iota_view<size_t, size_t> indices;
 	};
+	static_assert(IsSymmetricAtom<SymLCChunk>);
 
 
 	// --------------
 	// Compound Batch
 	// --------------
-	struct LCWorkUnit {
+	struct UnifiedLCBatch : SerialBatch<BatchType::Compound> {
+		// Flattened structure - we don't need a vector of WorkUnits if we dispatch per block
 		std::vector<SymLCChunk> sym_chunks;
 		std::vector<AsymLCChunk> asym_chunks;
 
+		void clear() {
+			sym_chunks.clear();
+			asym_chunks.clear();
+		}
 		[[nodiscard]] bool empty() const {
 			return sym_chunks.empty() && asym_chunks.empty();
 		}
 	};
-
-	struct UnifiedLCBatch : SerialBatch<BatchType::Compound> {
-		std::vector<LCWorkUnit> chunks;
-
-		void clear() { chunks.clear(); }
-		[[nodiscard]] bool empty() const { return chunks.empty(); }
-	};
+	static_assert(IsCompoundBatch<UnifiedLCBatch>);
 
 }

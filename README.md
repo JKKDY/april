@@ -148,6 +148,106 @@ int main() {
         .with_monitor(Benchmark())                        // simple timing utility
         .run_for(0.01, 10.0);                             // dt = 0.01, T = 10.0
 }
+
+
+
+
+// Container Internal (Batching)
+april::container::internal::IsBatchBase
+april::container::internal::IsIndexRange
+april::container::internal::IsSymmetricAtom
+april::container::internal::IsAsymmetricAtom
+april::container::internal::IsAtom
+april::container::internal::IsSymmetricAtomRange
+april::container::internal::HasSymmetricRange
+april::container::internal::IsAsymmetricAtomRange
+april::container::internal::HasAsymmetricRange
+april::container::internal::IsSymmetricWorkUnit
+april::container::internal::IsAsymmetricWorkUnit
+april::container::internal::IsWorkUnit
+april::container::internal::IsCompoundWorkUnit
+april::container::internal::IsCompositeWorkRange
+april::container::internal::HasCompositeRange
+april::container::internal::IsSymmetricBatch
+april::container::internal::IsAsymmetricBatch
+april::container::internal::IsCompoundBatch
+
+// Global / Common
+april::same_as_any
+
+// Container
+april::container::HasContainerOps
+april::container::IsContainer
+april::container::IsContainerDecl
+april::container::IsBatch
+april::container::IsBCP
+
+// Boundary
+april::boundary::IsBoundary
+april::boundary::IsBoundaryPack
+april::boundary::IsScalarForce
+april::boundary::internal::IsBoundaryVariant
+
+// Controller
+april::controller::IsController
+april::controller::IsControllerPack
+
+// Core / System
+april::core::IsSystem
+april::core::IsIntegrator
+
+// Environment & Particle
+april::env::IsEnvironment
+april::env::IsUserData
+april::env::HasFields
+april::env::IsParticleGenerator
+april::env::internal::IsEnvironmentTraits
+
+// Field
+april::field::IsField
+april::field::IsFieldPack
+
+// Force
+april::force::IsForce
+april::force::IsForcePack
+april::force::internal::IsForceVariant
+
+// Monitor
+april::monitor::IsMonitor
+
+// Utils (Math)
+april::utils::IsVectorLike
+april::utils::IsScalar
+```
+
+```c++
+#include <april/april.h>
+using namespace april;
+
+// Simulation of a simple sun-planet system
+int main() {
+    
+    // 1) Define Physics
+    auto sun = Particle().at(0,0,0).with_velocity(0,0,0).with_mass(1.0).as_type(0);
+    auto planet = Particle().at(1,0,0).with_velocity(0,1,0).with_mass(1e-10).as_type(0);
+
+    auto env = Environment (forces<Gravity>, boundaries<Open>)
+        .with_particle(sun)
+        .with_particle(planet)   
+        .with_force(Gravity(), to_type(0))
+        .with_boundaries(Open(), all_faces);  // open boundaries on all sides
+
+    // 2) Choose a container (force calculator)
+    auto container = DirectSum();
+    auto system = build_system(env, container); // "compilation step"
+
+    // 3) Integrate with VelocityVerlet and attach monitors
+    auto integrator = VelocityVerlet (system, monitors<ProgressBar, BinaryOutput>)
+        .with_monitor(ProgressBar(Trigger::every(100)))    
+        .with_monitor(BinaryOutput(Trigger::every(100), "./output")
+        .with_dt(0.01).for_duration(10)
+        .run();                             
+}
 ```
 
 Further examples can be found in `examples/`:

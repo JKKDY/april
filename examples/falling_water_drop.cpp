@@ -32,8 +32,8 @@ int main() {
 	auto gravity = UniformField({0, -12.44, 0});
 
 	auto env = Environment(
-		forces<LennardJones>,
 		boundaries<Reflective>,
+		forces<LennardJones>,
 		controllers<VelocityScalingThermostat>,
 		fields<UniformField>);
 

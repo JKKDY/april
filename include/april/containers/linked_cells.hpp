@@ -40,94 +40,136 @@ namespace april::container::internal {
 		// PUBLIC METHODS
 		//---------------
 		void build(this auto&& self, const std::vector<ParticleRecord> & input_particles) {
-			self.build_storage(input_particles);
-			self.setup_cell_grid();
-			self.init_cell_order();
-			self.rebuild_structure();
-			self.compute_cell_pairs();
-
 			if (self.flags.infinite_domain) {
 				throw std::logic_error("infinite domain not supported on linked cells");
 			}
 
-			self.sym_batch.sym_chunks.reserve(self.n_grid_cells); // avoid reallocations during push back
-			self.asym_batch.asym_chunks.reserve(self.neighbor_cell_pairs.size());
+			self.build_storage(input_particles);
+			self.setup_cell_grid();
+			self.init_cell_order();
+			self.rebuild_structure();
+			self.create_neighbor_stencil();
+			self.compute_wrapped_cell_pairs();
 		}
-
 
 		template<typename F>
 		void for_each_interaction_batch(this auto && self, F && func) {
-			auto get_indices = [&](const size_t cell, const env::ParticleType type) {
-				const size_t bin_idx = self.bin_index(cell, type);
-				const size_t start = self.bin_start_indices[bin_idx];
-				const size_t end   = self.bin_start_indices[bin_idx + 1]; // +1 works because types are dense
-				return std::ranges::iota_view {start, end};
+		    const uint3 block_dim = self.config.block_size;
+		    auto& batch = self.compound_batch;
+
+		    // helper with integer bounds check for getting the neighbor cell index
+		    auto get_neighbor_idx = [&](const size_t x, const size_t y, const size_t z, const int3 offset) -> size_t {
+		        const int nx = static_cast<int>(x) + offset.x;
+		        const int ny = static_cast<int>(y) + offset.y;
+		        const int nz = static_cast<int>(z) + offset.z;
+
+		        // Check bounds (assuming non-periodic for simplicity here, or use wrapping logic)
+		        if (nx < 0 || ny < 0 || nz < 0 ||
+		            nx >= static_cast<int>(self.cells_per_axis.x) ||
+		            ny >= static_cast<int>(self.cells_per_axis.y) ||
+		            nz >= static_cast<int>(self.cells_per_axis.z)) {
+		            return self.outside_cell_id;
+		        }
+		        return self.cell_pos_to_idx(nx, ny, nz);
+		    };
+
+			// LOOP ABSTRACTIONS
+		    auto get_indices = [&](const size_t c, const size_t t) {
+		        const size_t bin_idx = self.bin_index(c, t);
+		        const size_t start = self.bin_start_indices[bin_idx];
+		        const size_t end   = self.bin_start_indices[bin_idx + 1];
+		        return std::ranges::iota_view {start, end};
+		    };
+
+			auto for_each_block = [&](auto&& fn) {
+				for (size_t bz = 0; bz < self.cells_per_axis.z; bz += block_dim.z)
+					for (size_t by = 0; by < self.cells_per_axis.y; by += block_dim.y)
+						for (size_t bx = 0; bx < self.cells_per_axis.x; bx += block_dim.x)
+							fn(bx, by, bz);
 			};
 
-			// INTRA CELL
-			auto && sym_batch = self.sym_batch;
-			auto && asym_batch = self.asym_batch;
+			auto for_each_type_pair = [&](auto&& fn) {
+				for (size_t t1 = 0; t1 < self.n_types; ++t1)
+					for (size_t t2 = t1; t2 < self.n_types; ++t2)
+						fn(t1, t2);
+			};
 
-			for (size_t t1 = 0; t1 < self.n_types; ++t1) {
-				sym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t1)};
-				sym_batch.sym_chunks.clear(); // reset size to 0 but keep capacity
+			auto for_each_cell_in_block = [&](const size_t bx, const size_t by, const size_t bz, auto&& fn) {
+				const size_t z_end = std::min(bz + block_dim.z, static_cast<size_t>(self.cells_per_axis.z));
+				const size_t y_end = std::min(by + block_dim.y, static_cast<size_t>(self.cells_per_axis.y));
+				const size_t x_end = std::min(bx + block_dim.x, static_cast<size_t>(self.cells_per_axis.x));
 
-				for (size_t c = 0; c < self.n_grid_cells; ++c) {
-					auto range = get_indices(c, t1);
-					if (range.size() < 2) continue;
-					sym_batch.sym_chunks.push_back({range});
+				for (size_t z = bz; z < z_end; ++z)
+					for (size_t y = by; y < y_end; ++y)
+						for (size_t x = bx; x < x_end; ++x)
+							fn(x, y, z);
+			};
+
+
+			// KERNEL
+			auto process_cell = [&](size_t x, size_t y, size_t z, size_t t1, size_t t2) {
+				const size_t c = self.cell_pos_to_idx(x, y, z);
+				auto range1 = get_indices(c, t1);
+
+				// intra-cell: process forces between particles inside the cell
+				if (t1 == t2) {
+					if (range1.size() > 1) batch.sym_chunks.emplace_back(range1);
+				} else {
+					auto range2 = get_indices(c, t2);
+					if (range1.size() > 0 && range2.size() > 0) {
+						batch.asym_chunks.emplace_back(range1, range2);
+					}
 				}
 
-				if (!sym_batch.sym_chunks.empty()) {
-					func(sym_batch, NoBatchBCP{});
-				}
+				// If T1==T2 and Cell(T1) is empty, neighbors don't matter.
+				// For mixed types (T1!=T2), we continue because we need the reverse check (Neighbor(T1) vs Cell(T2)).
+				if (range1.empty() && (t1 == t2)) return;
 
+				// inter-cell: process forces between particles of neighbouring cells
+				for (auto offset : self.neighbor_stencil) {
+					size_t c_n = get_neighbor_idx(x, y, z, offset);
+					if (c_n == self.outside_cell_id) continue;
 
-				for (size_t t2 = t1 + 1; t2 < self.n_types; ++t2) {
+					// Interaction 1: Cell(T1) -> Neighbor(T2)
+					auto range_n2 = get_indices(c_n, t2);
+					if (!range1.empty() && !range_n2.empty()) {
+						batch.asym_chunks.emplace_back(range1, range_n2);
+					}
 
-					asym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-					asym_batch.asym_chunks.clear();
-
-					for (size_t c = 0; c < self.n_grid_cells; ++c) {
-						auto range1 = get_indices(c, t1);
-						if (range1.empty()) continue;
-
+					// Interaction 2: Neighbor(T1) -> Cell(T2)
+					// (due to the half stencil we would otherwise never iterate over this combination)
+					if (t1 != t2) {
 						auto range2 = get_indices(c, t2);
-						if (range2.empty()) continue;
+						auto range_n1 = get_indices(c_n, t1);
 
-						asym_batch.asym_chunks.push_back({range1, range2});
-					}
-
-					if (!asym_batch.asym_chunks.empty()) {
-						func(asym_batch, NoBatchBCP{});
+						if (!range2.empty() && !range_n1.empty()) {
+							batch.asym_chunks.emplace_back(range_n1, range2);
+						}
 					}
 				}
+			};
 
-				// NEIGHBOR CELLS
-				for (size_t t2 = 0; t2 < self.n_types; ++t2) {
+			// EXECUTION
+			for_each_block([&](size_t bx, size_t by, size_t bz) {
+				for_each_type_pair([&](const size_t t1, const size_t t2) {
+					// init batch
+					batch.clear();
+					batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
 
-					asym_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-					asym_batch.asym_chunks.clear();
+					// fill the batch
+					for_each_cell_in_block(bx, by, bz, [&](size_t x, size_t y, size_t z) {
+						process_cell(x, y, z, t1, t2);
+					});
 
-					for (const auto& pair : self.neighbor_cell_pairs) {
-						auto range1 = get_indices(pair.c1, t1);
-						if (range1.empty()) continue;
-
-						auto range2 = get_indices(pair.c2, t2);
-						if (range2.empty()) continue;
-
-						asym_batch.asym_chunks.push_back({range1, range2});
+					// dispatch if work exists
+					if (!batch.empty()) {
+						func(batch, NoBatchBCP{});
 					}
+				});
+			});
 
-					if (!asym_batch.asym_chunks.empty()) {
-						func(asym_batch, NoBatchBCP{});
-					}
-				}
-			}
-
-
-			// WRAPPED CELL PAIRS
-			// (only if periodic bcp enabled)
+			// handle wrapped cell pairs 
+			if (self.wrapped_cell_pairs.empty()) return;
 			for (const auto& pair : self.wrapped_cell_pairs) {
 				// define bcp (shift) function
 				// TODO maybe later implement chunked batching by aggregating wrapped pairs by shift
@@ -141,16 +183,18 @@ namespace april::container::internal {
 						auto range2 = get_indices(pair.c2, t2);
 						if (range2.empty()) continue;
 
-						DirectAsymmetricBatch<range_type, range_type> batch;
-						batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-						batch.indices1 = range1;
-						batch.indices2 = range2;
+						using range_type = std::ranges::iota_view<size_t, size_t>;
+						DirectAsymmetricBatch<range_type, range_type> wrapped_batch;
+						wrapped_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
+						wrapped_batch.indices1 = range1;
+						wrapped_batch.indices2 = range2;
 
-						func(batch, bcp);
+						func(wrapped_batch, bcp);
 					}
 				}
 			}
 		}
+
 
 		void rebuild_structure(this auto&& self) {
 			const size_t num_bins = self.bin_start_indices.size();
@@ -236,13 +280,10 @@ namespace april::container::internal {
 
 		// cell pair info
 		std::vector<int3> neighbor_stencil;
-		std::vector<CellPair> neighbor_cell_pairs;
 		std::vector<WrappedCellPair> wrapped_cell_pairs;
 
 		// batching structs
-		using range_type = std::ranges::iota_view<size_t, size_t>;
-		ChunkedSymmetricBatch<range_type> sym_batch;
-		ChunkedAsymmetricBatch<range_type, range_type> asym_batch;
+		UnifiedLCBatch compound_batch;
 
 
 		//----------------
@@ -309,7 +350,7 @@ namespace april::container::internal {
 			}
 		}
 
-		void compute_cell_pairs(this auto && self) {
+		void create_neighbor_stencil(this auto && self) {
 			// number of cells within a box of sidelengths global_cutoff
 			// ceil ensures we really check every relevant cell
 			const auto nx = static_cast<int>(std::ceil(self.global_cutoff * self.inv_cell_size.x));
@@ -317,8 +358,6 @@ namespace april::container::internal {
 			const auto nz = static_cast<int>(std::ceil(self.global_cutoff * self.inv_cell_size.z));
 
 			const double cutoff_sq = self.global_cutoff * self.global_cutoff;
-
-			std::vector<int3> stencil;
 
 			// loop over every cell within a 2*rc sized box
 			for (int z = 0; z <= nz; ++z) {  // we only need a half sphere so we can exclude cells with z<0
@@ -338,14 +377,14 @@ namespace april::container::internal {
 						};
 
 						if (dist_vec.norm_squared() <= cutoff_sq) {
-							stencil.emplace_back(x,y,z);
+							self.neighbor_stencil.emplace_back(x,y,z);
 						}
 					}
 				}
 			}
+		}
 
-			self.neighbor_cell_pairs.reserve(self.cells_per_axis.x * self.cells_per_axis.y * self.cells_per_axis.z * stencil.size()); // heuristic
-
+		void compute_wrapped_cell_pairs(this auto && self) {
 			// check if cell index is out of bounds, wrap it to the other side and compute the spatial shift vector
 			auto try_wrap_cell = [&](int3 & n, vec3 & shift, int ax) -> CellWrapFlag {
 				const int dim_cells = static_cast<int>(self.cells_per_axis[ax]);
@@ -368,10 +407,10 @@ namespace april::container::internal {
 			};
 
 
-			for (const auto displacement : stencil) {
-				for (unsigned int z = 0; z < self.cells_per_axis.z; z++) {
-					for (unsigned int y = 0; y < self.cells_per_axis.y; y++) {
-						for (unsigned int x = 0; x < self.cells_per_axis.x; x++) {
+			for (unsigned int z = 0; z < self.cells_per_axis.z; z++) {
+				for (unsigned int y = 0; y < self.cells_per_axis.y; y++) {
+					for (unsigned int x = 0; x < self.cells_per_axis.x; x++) {
+						for (const auto displacement : self.neighbor_stencil) {
 							if (displacement == int3{0,0,0}) continue;
 
 							const int3 base {  // coordinates of cell 1
@@ -389,6 +428,8 @@ namespace april::container::internal {
 							if (self.flags.periodic_y) wrap_flags |= try_wrap_cell(n, shift, 1);
 							if (self.flags.periodic_z) wrap_flags |= try_wrap_cell(n, shift, 2);
 
+							if (shift == vec3{}) continue;
+
 							// if cell pair is not wrapped and cell 2 is outside of domain: skip pair
 							if (n.x < 0 || n.y < 0 || n.z < 0 ||
 								n.x >= static_cast<int>(self.cells_per_axis.x) ||
@@ -396,25 +437,16 @@ namespace april::container::internal {
 								n.z >= static_cast<int>(self.cells_per_axis.z)
 							) continue;
 
-							if (shift == vec3{}) {
-								self.neighbor_cell_pairs.emplace_back(
-									self.cell_pos_to_idx(x,y,z),
-									self.cell_pos_to_idx(n.x, n.y, n.z)
-								);
-							} else {
-								self.wrapped_cell_pairs.emplace_back(
-									self.cell_pos_to_idx(x,y,z),
-									self.cell_pos_to_idx(n.x, n.y, n.z),
-									static_cast<CellWrapFlag>(wrap_flags),
-									shift
-								);
-							}
+							self.wrapped_cell_pairs.emplace_back(
+								self.cell_pos_to_idx(x,y,z),
+								self.cell_pos_to_idx(n.x, n.y, n.z),
+								static_cast<CellWrapFlag>(wrap_flags),
+								shift
+							);
 						}
 					}
 				}
 			}
-
-			self.neighbor_stencil = stencil;
 		}
 
 

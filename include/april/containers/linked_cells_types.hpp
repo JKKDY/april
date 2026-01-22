@@ -52,13 +52,13 @@ namespace april::container::internal {
 			return self;
 		}
 
-		auto with_block_size(this auto&& self, const size_t x, const size_t y, const size_t z) {
-			self.block_size = {x,y,z};
+		auto with_block_size(this auto&& self, const uint3::type x, const uint3::type y, const uint3::type z) {
+			self.block_size = uint3{x,y,z};
 			return self;
 		}
 
-		auto with_block_size(this auto&& self, const size_t size) {
-			self.block_size = {size,size,size};
+		auto with_block_size(this auto&& self, const uint3::type size) {
+			self.block_size = uint3{size,size,size};
 			return self;
 		}
 

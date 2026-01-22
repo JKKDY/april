@@ -1,8 +1,6 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <algorithm>
-#include <cmath>
-#include <numeric>
 #include <unordered_set>
 
 

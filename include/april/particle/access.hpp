@@ -1,8 +1,5 @@
 #pragma once
 
-#include <string>
-#include <sstream>
-
 #include "april/common.hpp"
 #include "april/macros.hpp"
 #include "april/particle/defs.hpp"
@@ -66,6 +63,7 @@ namespace april::env {
 			return std::monostate{};
 		}
 	}
+
 
 
 	//---------------------
@@ -197,18 +195,36 @@ namespace april::env {
 		AP_NO_UNIQUE_ADDRESS field_type_t<const UserDataT&, Field::user_data, M> user_data;
 	};
 
-	// TODO maybe stick this somewhere else? like in particle.h
-	// easy terminal diagnostics
-	template<typename P>
-	std::string particle_to_string(const P & p) {
-		std::ostringstream oss;
-		oss << "Particle ID: " << p.id << "\n"
-			<< "Position: " << p.position.to_string() << "\n"
-			<< "Velocity: " << p.velocity.to_string() << "\n"
-			<< "Force: " << p.force.to_string() << "\n"
-			<< "Mass: " << p.mass << "\n"
-			<< "Type: " << p.type << "\n"
-			<< "State: " << static_cast<int>(p.state) << "\n";
-		return oss.str();
-	}
+
+
+	//---------
+	// CONCEPTS
+	//---------
+	template<typename T> struct is_restricted_ref_impl : std::false_type {};
+	template<typename T> struct is_particle_ref_impl   : std::false_type {};
+	template<typename T> struct is_particle_view_impl  : std::false_type {};
+
+	// Specialization for Accessors
+	template<auto M, typename U>
+	struct is_restricted_ref_impl<RestrictedParticleRef<M, U>> : std::true_type {};
+
+	template<auto M, typename U>
+	struct is_particle_ref_impl<ParticleRef<M, U>> : std::true_type {};
+
+	template<auto M, typename U>
+	struct is_particle_view_impl<ParticleView<M, U>> : std::true_type {};
+
+	// Concepts
+	template<typename T>
+	concept IsRestrictedRef = is_restricted_ref_impl<std::remove_cvref_t<T>>::value;
+
+	template<typename T>
+	concept IsParticleRef = is_particle_ref_impl<std::remove_cvref_t<T>>::value;
+
+	template<typename T>
+	concept IsParticleView = is_particle_view_impl<std::remove_cvref_t<T>>::value;
+
+	template<typename T>
+	concept IsAnyParticleAccessor = IsRestrictedRef<T> || IsParticleRef<T> || IsParticleView<T>;
+
 }

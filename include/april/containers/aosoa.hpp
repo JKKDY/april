@@ -67,7 +67,7 @@ namespace april::container::internal {
 			chunks.resize(n_chunks);
 		}
 
-		std::pair<size_t, size_t> locate(const size_t index) const {
+		[[nodiscard]] std::pair<size_t, size_t> locate(const size_t index) const {
 			return {index / CHUNK_SIZE, index & (CHUNK_SIZE - 1)};
 		}
 

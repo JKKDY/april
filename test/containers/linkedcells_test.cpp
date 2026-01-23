@@ -64,7 +64,12 @@ using ContainerConfigurations = testing::Types<
 	// SoA Combinations
 	TestConfig<LinkedCellsSoA, OrderDefault>,
 	TestConfig<LinkedCellsSoA, OrderMorton>,
-	TestConfig<LinkedCellsSoA, OrderHilbert>
+	TestConfig<LinkedCellsSoA, OrderHilbert>,
+
+	// AoSoA Combinations
+	TestConfig<LinkedCellsAoSoA, OrderDefault>,
+	TestConfig<LinkedCellsAoSoA, OrderMorton>,
+	TestConfig<LinkedCellsAoSoA, OrderHilbert>
 >;
 
 template <typename LinkedCellsT>

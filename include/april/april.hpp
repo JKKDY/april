@@ -32,6 +32,7 @@
 #include "april/containers/container.hpp"
 #include "april/containers/direct_sum.hpp"
 #include "april/containers/linked_cells.hpp"
+#include "april/containers/linked_cells_aosoa.hpp"
 #include "april/containers/linked_cells_types.hpp"
 #include "april/containers/cell_orderings.hpp"
 

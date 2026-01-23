@@ -5,6 +5,7 @@
 
 #include "april/containers/soa.hpp"
 #include "april/containers/aos.hpp"
+#include "april/containers/aosoa.hpp"
 #include "april/containers/batching.hpp"
 
 namespace april::container {
@@ -185,5 +186,10 @@ namespace april::container {
 	struct DirectSumSoA {
 		template <class U>
 		using impl = internal::DirectSumBase<SoAContainer<DirectSumSoA, U>>;
+	};
+
+	struct DirectSumAoSoA {
+		template <class U>
+		using impl = internal::DirectSumBase<AoSoAContainer<8, DirectSumAoSoA, U>>;
 	};
 }

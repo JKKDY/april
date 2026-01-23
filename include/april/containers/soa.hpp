@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: MIT
-// Copyright (c) 2026 Julian Deller-Yee
-
 #pragma once
 #include <vector>
 #include "april/containers/container.hpp"
@@ -94,16 +91,16 @@ namespace april::container {
 
     protected:
         struct Storage {
-            std::vector<vec3::type> pos_x, pos_y, pos_z;
-            std::vector<vec3::type> vel_x, vel_y, vel_z;
-            std::vector<vec3::type> frc_x, frc_y, frc_z;
-            std::vector<vec3::type> old_x, old_y, old_z;
+            alignas(64) std::vector<vec3::type> pos_x, pos_y, pos_z;
+            alignas(64) std::vector<vec3::type> vel_x, vel_y, vel_z;
+            alignas(64) std::vector<vec3::type> frc_x, frc_y, frc_z;
+            alignas(64) std::vector<vec3::type> old_x, old_y, old_z;
 
-            std::vector<double> mass;
-            std::vector<env::ParticleState> state;
-            std::vector<env::ParticleType> type;
-            std::vector<env::ParticleID> id;
-            std::vector<U> user_data;
+            alignas(64) std::vector<double> mass;
+            alignas(64) std::vector<env::ParticleState> state;
+            alignas(64) std::vector<env::ParticleType> type;
+            alignas(64) std::vector<env::ParticleID> id;
+            alignas(64) std::vector<U> user_data;
 
             void resize(const size_t n) {
                 pos_x.resize(n); pos_y.resize(n); pos_z.resize(n);

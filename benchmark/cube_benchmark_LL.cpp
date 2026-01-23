@@ -42,9 +42,9 @@ int main() {
 	env.set_boundaries(Reflective(), all_faces);
 
 	const auto container = LinkedCellsAoS()
-		.with_cell_size(container::CellSize::Cutoff)
-		.with_cell_ordering(hilbert_order)
-		.with_block_size(4);
+		.with_cell_size(3)
+		.with_cell_ordering(morton_order)
+		.with_block_size(8);
 
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;

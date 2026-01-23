@@ -99,6 +99,7 @@ namespace april {
 	using container::DirectSumAoSoA;
 	using container::LinkedCellsAoS;
 	using container::LinkedCellsSoA;
+	using container::LinkedCellsAoSoA;
 
 	using container::hilbert_order;
 	using container::morton_order;

@@ -41,7 +41,7 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	constexpr auto container = DirectSumAoSoA();
+	constexpr auto container = DirectSumAoSoA<32>();
 	auto system = build_system(env, container);
 
 	constexpr double dt = 0.0002;

@@ -8,13 +8,15 @@
 #include "april/containers/batching.hpp"
 #include "april/containers/aos.hpp"
 #include "april/containers/soa.hpp"
-
+#include "april/containers/aosoa.hpp"
 
 
 namespace april::container {
 	namespace internal {
 		template <class U> class LinkedCellsAoS;
 		template <class U> class LinkedCellsSoA;
+		template <class U> class LinkedCellsAoSoA;
+
 	}
 
 	struct LinkedCellsAoS : internal::LinkedCellsConfig{
@@ -23,6 +25,10 @@ namespace april::container {
 
 	struct LinkedCellsSoA : internal::LinkedCellsConfig{
 		template<class U> using impl = internal::LinkedCellsSoA<U>;
+	};
+
+	struct LinkedCellsAoSoA : internal::LinkedCellsConfig{
+		template<class U> using impl = internal::LinkedCellsAoSoA<U>;
 	};
 }// namespace april::container
 
@@ -607,6 +613,76 @@ namespace april::container::internal {
 			std::swap(data.id, tmp.id);
 			std::swap(data.user_data, tmp.user_data);
 		}
+	};
+
+	template <class U>
+	class LinkedCellsAoSoA final : public LinkedCellsBase<AoSoAContainer<8, container::LinkedCellsAoSoA, U>> {
+	    // 1. Alias the Base type
+	    using Base = LinkedCellsBase<AoSoAContainer<8, container::LinkedCellsAoSoA, U>>;
+
+	    // 2. Mirror the Storage type from the base class (ChunkedStorage<ParticleChunk<...>>)
+	    //    We need to access 'data' from Base, so we use decltype or typename Base::ChunkedStorage
+	    //    Since ChunkedStorage isn't a public type alias in AoSoAContainer, we can deduce it from 'data'.
+	    using Storage = ChunkedStorage<typename Base::ChunkType>;
+
+	    Storage tmp; // The temporary buffer for sorting
+
+	public:
+	    using Base::Base;
+	    using Base::data; // Access protected 'data' from AoSoAContainer
+
+	    // --------------------------------------------------------
+	    // REBUILD INTERFACE
+	    // --------------------------------------------------------
+
+	    void allocate_tmp_storage() {
+	       // Resize temporary storage if it's too small
+	       if (tmp.n_particles < this->particle_count()) {
+	          tmp.resize(this->particle_count());
+	       }
+	    }
+
+	    void write_to_tmp_storage(const size_t dst_i, const size_t src_i) {
+	       // 1. Locate Source in Main Data
+	       //    Use the 'locate' function we just fixed (returns {chunk_idx, lane_idx})
+	       const auto [src_c, src_l] = data.locate(src_i);
+	       const auto& src_chunk = data.chunks[src_c];
+
+	       // 2. Locate Destination in Tmp Data
+	       const auto [dst_c, dst_l] = tmp.locate(dst_i);
+	       auto& dst_chunk = tmp.chunks[dst_c];
+
+	       // 3. Copy Data (Field by Field)
+	       //    The compiler will auto-vectorize these scalar assignments since they are sequential
+	       dst_chunk.pos_x[dst_l] = src_chunk.pos_x[src_l];
+	       dst_chunk.pos_y[dst_l] = src_chunk.pos_y[src_l];
+	       dst_chunk.pos_z[dst_l] = src_chunk.pos_z[src_l];
+
+	       dst_chunk.vel_x[dst_l] = src_chunk.vel_x[src_l];
+	       dst_chunk.vel_y[dst_l] = src_chunk.vel_y[src_l];
+	       dst_chunk.vel_z[dst_l] = src_chunk.vel_z[src_l];
+
+	       dst_chunk.frc_x[dst_l] = src_chunk.frc_x[src_l];
+	       dst_chunk.frc_y[dst_l] = src_chunk.frc_y[src_l];
+	       dst_chunk.frc_z[dst_l] = src_chunk.frc_z[src_l];
+
+	       dst_chunk.old_x[dst_l] = src_chunk.old_x[src_l];
+	       dst_chunk.old_y[dst_l] = src_chunk.old_y[src_l];
+	       dst_chunk.old_z[dst_l] = src_chunk.old_z[src_l];
+
+	       dst_chunk.mass[dst_l]      = src_chunk.mass[src_l];
+	       dst_chunk.state[dst_l]     = src_chunk.state[src_l];
+	       dst_chunk.type[dst_l]      = src_chunk.type[src_l];
+	       dst_chunk.id[dst_l]        = src_chunk.id[src_l];
+	       dst_chunk.user_data[dst_l] = src_chunk.user_data[src_l];
+	    }
+
+	    void swap_tmp_storage() {
+	       // Efficiently swap the vectors of chunks
+	       std::swap(data.chunks, tmp.chunks);
+	       // Sync particle count
+	       data.n_particles = tmp.n_particles;
+	    }
 	};
 } // namespace april::container::internal
 

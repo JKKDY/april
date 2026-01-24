@@ -14,8 +14,8 @@ namespace april::container {
 		Cutoff,     // 1.0 * rc
 		Half,       // 0.5 * rc
 		Third,      // 0.33 * rc
-		Fourth,     // 0.25 * rc
-		Manual      // Custom value
+		ManualAbs,  // Custom value (absolute)
+		ManualFac   // Custom value (factor * rc)
 	};
 }
 
@@ -31,9 +31,15 @@ namespace april::container::internal {
 		std::optional<std::function<std::vector<uint32_t>(uint3)>> cell_ordering_fn;
 		uint3 block_size = {2,2,2};
 
-		auto with_cell_size(this auto&& self, const double cell_size) {
+		auto with_abs_cell_size(this auto&& self, const double cell_size) {
 			self.manual_cell_size = cell_size;
-			self.cell_size_strategy = CellSize::Manual;
+			self.cell_size_strategy = CellSize::ManualAbs;
+			return self;
+		}
+
+		auto with_cell_size_factor(this auto&& self, const double factor) {
+			self.manual_cell_size = factor;
+			self.cell_size_strategy = CellSize::ManualFac;
 			return self;
 		}
 
@@ -67,9 +73,9 @@ namespace april::container::internal {
 			case CellSize::Cutoff: return rc;
 			case CellSize::Half:   return rc / 2.0;
 			case CellSize::Third:  return rc / 3.0;
-			case CellSize::Fourth:  return rc / 4.0;
-			case CellSize::Manual: return manual_cell_size.value();
-			default:               return rc;
+			case CellSize::ManualAbs: return manual_cell_size.value();
+			case CellSize::ManualFac: return manual_cell_size.value() * rc;
+			default: std::unreachable();
 			}
 		}
 	};

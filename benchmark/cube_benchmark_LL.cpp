@@ -42,7 +42,7 @@ int main() {
 	env.set_boundaries(Reflective(), all_faces);
 
 	const auto container = LinkedCellsAoSoA()
-		.with_cell_size(6)
+		.with_abs_cell_size(6)
 		.with_cell_ordering(morton_order)
 		.with_block_size(8);
 

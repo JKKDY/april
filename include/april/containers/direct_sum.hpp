@@ -12,50 +12,6 @@ namespace april::container {
 	namespace internal {
 		template <class ContainerBase>
 		class DirectSumBase final : public ContainerBase {
-
-			struct AsymmetricBatch : SerialBatch {
-				explicit AsymmetricBatch(DirectSumBase & container) : container(container) {}
-
-				template<env::FieldMask Mask, typename Func>
-				void for_each_pair (Func && f) const {
-					for (const auto i : indices1) {
-						auto p1 = container.template restricted_at<Mask>(i);
-						for (const auto j : indices2) {
-							auto p2 = container.template restricted_at<Mask>(j);
-							f(p1, p2);
-						}
-					}
-				}
-
-				std::ranges::iota_view<size_t, size_t> indices1{};
-				std::ranges::iota_view<size_t, size_t> indices2{};
-
-			private:
-				DirectSumBase & container;
-			};
-
-			static_assert(IsBatchAtom<AsymmetricBatch>);
-
-			struct SymmetricBatch : SerialBatch {
-				explicit SymmetricBatch(DirectSumBase & container) : container(container) {}
-
-				template<env::FieldMask Mask, typename Func>
-				void for_each_pair (Func && f) const {
-					for (size_t i = start; i < end; i++) {
-						auto p1 = container.template restricted_at<Mask>(i);
-						for (size_t j = i+1; j < end; j++) {
-							auto p2 = container.template restricted_at<Mask>(j);
-							f(p1, p2);
-						}
-					}
-				}
-
-				size_t start{}, end{};
-			private:
-				DirectSumBase & container;
-			};
-
-			static_assert(IsBatchAtom<SymmetricBatch>);
 		public:
 			using typename ContainerBase::ParticleRecord;
 			using ContainerBase::ContainerBase;
@@ -126,6 +82,9 @@ namespace april::container {
 			void rebuild_structure() {}
 
 		private:
+			using SymmetricBatch = batching::SymmetricBatch<DirectSumBase>;
+			using AsymmetricBatch = batching::AsymmetricBatch<DirectSumBase>;
+
 			std::vector<SymmetricBatch> symmetric_batches;
 			std::vector<AsymmetricBatch> asymmetric_batches;
 
@@ -186,8 +145,7 @@ namespace april::container {
 				for (env::ParticleType type = 0; type < n_types; type++) {
 					SymmetricBatch batch (self);
 					batch.types = {type, type};
-					batch.start = type_ranges[type].first;
-					batch.end = type_ranges[type].second;
+					batch.range = type_ranges[type];
 					self.symmetric_batches.push_back(batch);
 				}
 
@@ -196,8 +154,8 @@ namespace april::container {
 					for (env::ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
 						AsymmetricBatch batch (self);
 						batch.types = {t1, t2};
-						batch.indices1 = std::ranges::iota_view{type_ranges[t1].first, type_ranges[t1].second};
-						batch.indices2 = std::ranges::iota_view{type_ranges[t2].first, type_ranges[t2].second};
+						batch.range1 = type_ranges[t1];
+						batch.range2 = type_ranges[t2];
 						self.asymmetric_batches.push_back(batch);
 					}
 				}

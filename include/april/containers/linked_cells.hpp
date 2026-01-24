@@ -40,26 +40,8 @@ namespace april::container::internal {
 		friend ContainerBase;
 		using typename ContainerBase::ParticleRecord;
 
-		struct AsymmetricBatch : SerialBatch {
-			explicit AsymmetricBatch(LinkedCellsBase & container) : container(container) {}
-
-			template<env::FieldMask Mask, typename Func>
-			void for_each_pair (Func && f) const {
-				for (const auto i : indices1) {
-					auto p1 = container.template restricted_at<Mask>(i);
-					for (const auto j : indices2) {
-						auto p2 = container.template restricted_at<Mask>(j);
-						f(p1, p2);
-					}
-				}
-			}
-
-			std::ranges::iota_view<size_t, size_t> indices1{};
-			std::ranges::iota_view<size_t, size_t> indices2{};
-
-		private:
-			LinkedCellsBase & container;
-		};
+		using SymmetricBatch = batching::SymmetricBatch<LinkedCellsBase>;
+		using AsymmetricBatch = batching::AsymmetricBatch<LinkedCellsBase>;
 
 	public:
 		using ContainerBase::ContainerBase;
@@ -101,18 +83,11 @@ namespace april::container::internal {
 		        return self.cell_pos_to_idx(nx, ny, nz);
 		    };
 
-			struct Range {
-				Range(const size_t start, const size_t end): start(start), end(end), size(end-start), empty(size==0) {}
-				const size_t start, end;
-				const size_t size;
-				const bool empty;
-			};
-
 		    auto get_indices = [&](const size_t c, const size_t t) {
 		        const size_t bin_idx = self.bin_index(c, t);
 		        const size_t start = self.bin_start_indices[bin_idx];
 		        const size_t end   = self.bin_start_indices[bin_idx + 1];
-		        return Range {start, end};
+		        return batching::Range {start, end};
 		    };
 
 
@@ -149,11 +124,11 @@ namespace april::container::internal {
 
 				// intra-cell: process forces between particles inside the cell
 				if (t1 == t2) {
-					if (range1.size > 1) batch.sym_chunks.emplace_back(range1.start, range1.end);
+					if (range1.size > 1) batch.add_sym_range(range1);
 				} else {
 					auto range2 = get_indices(c, t2);
 					if (range1.size > 0 && range2.size > 0) {
-						batch.asym_chunks.emplace_back(range1.start, range1.end, range2.start, range2.end);
+						batch.add_asym_range(range1, range2);
 					}
 				}
 
@@ -169,7 +144,7 @@ namespace april::container::internal {
 					// Interaction 1: Cell(T1) -> Neighbor(T2)
 					auto range_n2 = get_indices(c_n, t2);
 					if (!range1.empty && !range_n2.empty) {
-						batch.asym_chunks.emplace_back(range1.start, range1.end, range_n2.start, range_n2.end);
+						batch.add_asym_range(range1, range_n2);
 					}
 
 					// Interaction 2: Neighbor(T1) -> Cell(T2)
@@ -179,7 +154,7 @@ namespace april::container::internal {
 						auto range_n1 = get_indices(c_n, t1);
 
 						if (!range2.empty && !range_n1.empty) {
-							batch.asym_chunks.emplace_back(range_n1.start, range_n1.end, range2.start, range2.end);
+							batch.add_asym_range(range_n1, range2);
 						}
 					}
 				}
@@ -199,7 +174,7 @@ namespace april::container::internal {
 
 					// dispatch if work exists
 					if (!batch.empty()) {
-						func(batch, NoBatchBCP{});
+						func(batch, batching::NoBatchBCP{});
 					}
 				});
 			});
@@ -220,10 +195,10 @@ namespace april::container::internal {
 						auto range2 = get_indices(pair.c2, t2);
 						if (range2.empty) continue;
 
-						AsymmetricBatch wrapped_batch(self);
+						batching::AsymmetricBatch<LinkedCellsBase> wrapped_batch(self);
 						wrapped_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-						wrapped_batch.indices1 = {range1.start, range1.end};
-						wrapped_batch.indices2 = {range2.start, range2.end};
+						wrapped_batch.range1 = {range1.start, range1.end};
+						wrapped_batch.range2 = {range2.start, range2.end};
 
 						func(wrapped_batch, bcp);
 					}

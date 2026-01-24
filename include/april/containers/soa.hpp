@@ -22,7 +22,7 @@ namespace april::container {
                 const auto& prop = force_schema.interactions[i];
 
                 if (!prop.used_by_ids.empty() && prop.is_active) {
-                    TopologyBatch batch;
+                    batching::TopologyBatch batch;
                     batch.id1 = prop.used_by_ids[0].first;
                     batch.id2 = prop.used_by_ids[0].second;
                     batch.pairs = prop.used_by_ids;
@@ -158,7 +158,7 @@ namespace april::container {
         }
 
     private:
-        std::vector<TopologyBatch> topology_batches;
+        std::vector<batching::TopologyBatch> topology_batches;
         bool is_built = false;
     };
 }

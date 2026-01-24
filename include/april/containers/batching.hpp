@@ -1,12 +1,13 @@
 #pragma once
 #include <cstdint>
+#include <concepts>
 
 #include "april/common.hpp"
 #include "april/particle/defs.hpp"
 #include "april/particle/access.hpp"
 
 
-namespace april::container {
+namespace april::batching {
 
 	//---------------
 	// BATCH POLICIES
@@ -94,6 +95,70 @@ namespace april::container {
 		}
 	};
 
+
+	//--------------------
+	// PRE DEFINED BATCHES
+	//--------------------
+
+	struct Range {
+		Range() = default;
+
+		// From a pair of integers
+		template<std::integral I>
+		Range(const std::pair<I, I>& r)
+			: Range(static_cast<size_t>(r.first), static_cast<size_t>(r.second)) {}
+
+		// explicit start/end
+		Range(const size_t start, const size_t end)
+			: start(start), end(end), size(end-start), empty(size==0) {}
+
+		size_t start{}, end{};
+		size_t size{};
+		bool empty{};
+	};
+
+	template<typename Container>
+	struct AsymmetricBatch : SerialBatch {
+		explicit AsymmetricBatch(Container & container) : container(container) {}
+
+		template<env::FieldMask Mask, typename Func>
+		void for_each_pair (Func && f) const {
+			for (size_t i = range1.start; i < range1.end; ++i) {
+				auto p1 = container.template restricted_at<Mask>(i);
+
+				for (size_t j = range2.start; j < range2.end; ++j) {
+					auto p2 = container.template restricted_at<Mask>(j);
+					f(p1, p2);
+				}
+			}
+		}
+
+		Range range1;
+		Range range2;
+	private:
+		Container & container;
+	};
+
+	template<typename Container>
+	struct SymmetricBatch : SerialBatch {
+		explicit SymmetricBatch(Container & container) : container(container) {}
+
+		template<env::FieldMask Mask, typename Func>
+		void for_each_pair (Func && f) const {
+			for (size_t i = range.start; i < range.end; ++i) {
+				auto p1 = container.template restricted_at<Mask>(i);
+
+				for (size_t j = i + 1; j < range.end; ++j) {
+					auto p2 = container.template restricted_at<Mask>(j);
+					f(p1, p2);
+				}
+			}
+		}
+
+		Range range;
+	private:
+		Container & container;
+	};
 }
 
 

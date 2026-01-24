@@ -296,10 +296,10 @@ namespace april::core {
 	void System<C, Traits>::update_forces() {
 
 		// batch update lambda. passed into container::for_each_interaction_batch
-		auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
-			using Par = container::ParallelPolicy;
-			using Upd = container::UpdatePolicy;
-			using Cmp = container::ComputePolicy;
+		auto update_batch = [&]<batching::IsBatch Batch, batching::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
+			using Par = batching::ParallelPolicy;
+			using Upd = batching::UpdatePolicy;
+			using Cmp = batching::ComputePolicy;
 
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
 				constexpr env::FieldMask fields = ForceT::fields;
@@ -312,7 +312,7 @@ namespace april::core {
 				auto kernel = [&](auto & p1, auto & p2) {
 					vec3 r;
 
-					if constexpr (std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
+					if constexpr (std::is_same_v<std::decay_t<BCP>, batching::NoBatchBCP>) {
 						r = p2.position - p1.position;
 					} else {
 						r = apply_bcp(p2.position - p1.position);
@@ -352,10 +352,10 @@ namespace april::core {
 				};
 
 				// Routing
-				if constexpr (container::IsBatchAtom<Batch>) {
+				if constexpr (batching::IsBatchAtom<Batch>) {
 					execute_atom(batch);
 				}
-				else if constexpr (container::IsBatchAtomRange<Batch>) {
+				else if constexpr (batching::IsBatchAtomRange<Batch>) {
 					if constexpr (Batch::parallel_policy == Par::Inner) {
 						static_assert(Batch::parallel_policy == Cmp::Scalar, "Vectorization not implemented yet");
 						execute_range_parallel(batch);

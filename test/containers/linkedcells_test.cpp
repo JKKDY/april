@@ -27,7 +27,7 @@ struct OrderDefault {
 struct OrderMorton {
 	static auto apply(auto&& container) {
 		// Assuming morton_order is available in current scope or april namespace
-		return container.with_cell_ordering(april::morton_order);
+		return container.with_cell_ordering(morton_order);
 	}
 };
 
@@ -35,7 +35,7 @@ struct OrderMorton {
 struct OrderHilbert {
 	static auto apply(auto&& container) {
 		// Assuming hilbert_order is available in current scope or april namespace
-		return container.with_cell_ordering(april::hilbert_order);
+		return container.with_cell_ordering(hilbert_order);
 	}
 };
 

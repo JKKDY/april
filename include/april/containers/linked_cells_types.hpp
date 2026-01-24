@@ -100,65 +100,47 @@ namespace april::container::internal {
 	};
 
 
-	// ------------------------------
-	// Batch Work Units (The "Atoms")
-	// ------------------------------
-	struct SymmetricChunk {
-		size_t start;
-		size_t end; // Exclusive upper bound
-	};
 
-	struct AsymmetricChunk {
-		size_t start1;
-		size_t end1;
-
-		size_t start2;
-		size_t end2;
-	};
-
-
-	// --------------
-	// Compound Batch
-	// --------------
+	// -----
+	// Batch
+	// -----
 	template<typename Container>
-	struct LinkedCellsBatch : SerialBatch {
+	struct LinkedCellsBatch : batching::SerialBatch {
 		explicit LinkedCellsBatch(Container & container) : container(container) {}
 
 		template<env::FieldMask Mask, typename Func>
 		void for_each_pair (Func && f) const {
-			for (const auto& chunk : sym_chunks) {
-				for (size_t i = chunk.start; i < chunk.end; ++i) {
-					auto p1 = container.template restricted_at<Mask>(i);
+			for (const auto& chunk : sym_chunks)
+				chunk.template for_each_pair<Mask>(f);
 
-					for (size_t j = i + 1; j < chunk.end; ++j) {
-						auto p2 = container.template restricted_at<Mask>(j);
-						f(p1, p2);
-					}
-				}
-			}
-
-			for (const auto & chunk : asym_chunks) {
-				for (size_t i = chunk.start1; i < chunk.end1; ++i) {
-					auto p1 = container.template restricted_at<Mask>(i);
-
-					for (size_t j = chunk.start2; j < chunk.end2; ++j) {
-						auto p2 = container.template restricted_at<Mask>(j);
-						f(p1, p2);
-					}
-				}
-			}
+			for (const auto & chunk : asym_chunks)
+				chunk.template for_each_pair<Mask>(f);
 		}
 
 		void clear() {
 			sym_chunks.clear();
 			asym_chunks.clear();
 		}
+
 		[[nodiscard]] bool empty() const {
 			return sym_chunks.empty() && asym_chunks.empty();
 		}
 
-		std::vector<SymmetricChunk> sym_chunks;
-		std::vector<AsymmetricChunk> asym_chunks;
+		void add_sym_range(const batching::Range & range) {
+			batching::SymmetricBatch<Container> batch (container);
+			batch.range = range;
+			sym_chunks.push_back(batch);
+		}
+
+		void add_asym_range(const batching::Range & range1, const batching::Range & range2) {
+			batching::AsymmetricBatch<Container> batch (container);
+			batch.range1 = range1;
+			batch.range2 = range2;
+			asym_chunks.push_back(batch);
+		}
+
+		std::vector<batching::SymmetricBatch<Container>> sym_chunks;
+		std::vector<batching::AsymmetricBatch<Container>> asym_chunks;
 	private:
 		Container & container;
 	};

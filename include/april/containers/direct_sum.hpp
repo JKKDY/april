@@ -13,15 +13,49 @@ namespace april::container {
 		template <class ContainerBase>
 		class DirectSumBase final : public ContainerBase {
 
-			struct AsymmetricBatch : SerialBatch<BatchType::Asymmetric>{
+			struct AsymmetricBatch : SerialBatch {
+				explicit AsymmetricBatch(DirectSumBase & container) : container(container) {}
+
+				template<env::FieldMask Mask, typename Func>
+				void for_each_pair (Func && f) const {
+					for (const auto i : indices1) {
+						auto p1 = container.template restricted_at<Mask>(i);
+						for (const auto j : indices2) {
+							auto p2 = container.template restricted_at<Mask>(j);
+							f(p1, p2);
+						}
+					}
+				}
+
 				std::ranges::iota_view<size_t, size_t> indices1{};
 				std::ranges::iota_view<size_t, size_t> indices2{};
+
+			private:
+				DirectSumBase & container;
 			};
 
-			struct SymmetricBatch : SerialBatch<BatchType::Symmetric>{
-				std::ranges::iota_view<size_t, size_t> indices {};
+			static_assert(IsBatchAtom<AsymmetricBatch>);
+
+			struct SymmetricBatch : SerialBatch {
+				explicit SymmetricBatch(DirectSumBase & container) : container(container) {}
+
+				template<env::FieldMask Mask, typename Func>
+				void for_each_pair (Func && f) const {
+					for (size_t i = start; i < end; i++) {
+						auto p1 = container.template restricted_at<Mask>(i);
+						for (size_t j = i+1; j < end; j++) {
+							auto p2 = container.template restricted_at<Mask>(j);
+							f(p1, p2);
+						}
+					}
+				}
+
+				size_t start{}, end{};
+			private:
+				DirectSumBase & container;
 			};
 
+			static_assert(IsBatchAtom<SymmetricBatch>);
 		public:
 			using typename ContainerBase::ParticleRecord;
 			using ContainerBase::ContainerBase;
@@ -33,7 +67,7 @@ namespace april::container {
 			}
 
 			template<typename F>
-				void for_each_interaction_batch(this auto&& self, F && f) {
+			void for_each_interaction_batch(this auto&& self, F && f) {
 				// periodicity flags to jump table index
 				const int mode = (self.flags.periodic_x ? 4 : 0) |
 							  (self.flags.periodic_y ? 2 : 0) |
@@ -129,9 +163,10 @@ namespace april::container {
 			}
 
 			void build_batches(this auto&& self) {
-				std::unordered_map<env::ParticleType, std::ranges::iota_view<size_t, size_t>> type_ranges;
+				std::unordered_map<env::ParticleType, std::pair<size_t, size_t>> type_ranges;
 				if (self.particle_count() == 0) return;
 
+				// compute the range of particle indices for each type
 				size_t start = 0;
 				auto current_type = *self.template get_field_ptr<env::Field::type>(0);
 
@@ -139,30 +174,30 @@ namespace april::container {
 					auto type = *self.template get_field_ptr<env::Field::type>(i);
 
 					if (current_type != type) {
-						type_ranges[current_type] = std::ranges::iota_view(start, i);;
+						type_ranges[current_type] = {start, i};
 						start = i;
 						current_type = type;
 					}
 				}
-				type_ranges[current_type] = std::ranges::iota_view(start, self.particle_count()); // last batch
-
+				type_ranges[current_type] = {start, self.particle_count()}; // last batch
 				const env::ParticleType n_types = current_type + 1;
 
 				// create a batch for each particle type
 				for (env::ParticleType type = 0; type < n_types; type++) {
-					SymmetricBatch batch;
+					SymmetricBatch batch (self);
 					batch.types = {type, type};
-					batch.indices = type_ranges[type];
+					batch.start = type_ranges[type].first;
+					batch.end = type_ranges[type].second;
 					self.symmetric_batches.push_back(batch);
 				}
 
 				// create a batch for each distinct pair of particle types
 				for (env::ParticleType t1 = 0; t1 < n_types; t1++) {
 					for (env::ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
-						AsymmetricBatch batch;
+						AsymmetricBatch batch (self);
 						batch.types = {t1, t2};
-						batch.indices1 = type_ranges[t1];
-						batch.indices2 = type_ranges[t2];
+						batch.indices1 = std::ranges::iota_view{type_ranges[t1].first, type_ranges[t1].second};
+						batch.indices2 = std::ranges::iota_view{type_ranges[t2].first, type_ranges[t2].second};
 						self.asymmetric_batches.push_back(batch);
 					}
 				}

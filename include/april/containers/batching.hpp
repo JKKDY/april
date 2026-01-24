@@ -14,7 +14,6 @@ namespace april::container {
 	enum class ParallelPolicy : uint8_t {
 		None,       // Execute immediately on the current thread (Caller owns parallelism)
 	    Inner,		// System spawns threads for executing a single batch
-	    Outer       // Container spawns threads for executing multiple batches
 	};
 
 	enum class UpdatePolicy : uint8_t {
@@ -66,12 +65,12 @@ namespace april::container {
 	template<typename T>
 	concept IsBatchAtom = requires(const T& t) {
 		// callable must take in two particle views
-		{ t.template for_each_pair<env::Field::all>(
-			[]<typename T0, typename T1>(T0&&, T1&&)
-			requires env::IsRestrictedRef<T0> && env::IsRestrictedRef<T1>
+		{ t.template for_each_pair<+env::Field::all>(
+			[]<typename P0, typename P1>(P0&&, P1&&)
+			requires env::IsRestrictedRef<P0> && env::IsRestrictedRef<P1>
 			{}
 		) };
-};
+	};
 
 	template<typename T>
 	concept IsBatchAtomRange = std::ranges::input_range<T> && IsBatchAtom<std::ranges::range_value_t<T>>;

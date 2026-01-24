@@ -15,7 +15,7 @@ namespace april::container {
 	namespace internal {
 		template <class U> class LinkedCellsAoS;
 		template <class U> class LinkedCellsSoA;
-		// template <class U> class LinkedCellsAoSoA;
+		template <class U> class LinkedCellsAoSoA;
 
 	}
 
@@ -27,9 +27,9 @@ namespace april::container {
 		template<class U> using impl = internal::LinkedCellsSoA<U>;
 	};
 
-	// struct LinkedCellsAoSoA : internal::LinkedCellsConfig{
-	// 	template<class U> using impl = internal::LinkedCellsAoSoA<U>;
-	// };
+	struct LinkedCellsAoSoA : internal::LinkedCellsConfig{
+		template<class U> using impl = internal::LinkedCellsAoSoA<U>;
+	};
 }// namespace april::container
 
 
@@ -39,6 +39,28 @@ namespace april::container::internal {
 	class LinkedCellsBase : public ContainerBase {
 		friend ContainerBase;
 		using typename ContainerBase::ParticleRecord;
+
+		struct AsymmetricBatch : SerialBatch {
+			explicit AsymmetricBatch(LinkedCellsBase & container) : container(container) {}
+
+			template<env::FieldMask Mask, typename Func>
+			void for_each_pair (Func && f) const {
+				for (const auto i : indices1) {
+					auto p1 = container.template restricted_at<Mask>(i);
+					for (const auto j : indices2) {
+						auto p2 = container.template restricted_at<Mask>(j);
+						f(p1, p2);
+					}
+				}
+			}
+
+			std::ranges::iota_view<size_t, size_t> indices1{};
+			std::ranges::iota_view<size_t, size_t> indices2{};
+
+		private:
+			LinkedCellsBase & container;
+		};
+
 	public:
 		using ContainerBase::ContainerBase;
 
@@ -79,14 +101,22 @@ namespace april::container::internal {
 		        return self.cell_pos_to_idx(nx, ny, nz);
 		    };
 
-			// LOOP ABSTRACTIONS
+			struct Range {
+				Range(const size_t start, const size_t end): start(start), end(end), size(end-start), empty(size==0) {}
+				const size_t start, end;
+				const size_t size;
+				const bool empty;
+			};
+
 		    auto get_indices = [&](const size_t c, const size_t t) {
 		        const size_t bin_idx = self.bin_index(c, t);
 		        const size_t start = self.bin_start_indices[bin_idx];
 		        const size_t end   = self.bin_start_indices[bin_idx + 1];
-		        return std::ranges::iota_view {start, end};
+		        return Range {start, end};
 		    };
 
+
+			// LOOP ABSTRACTIONS
 			auto for_each_block = [&](auto&& fn) {
 				for (size_t bz = 0; bz < self.cells_per_axis.z; bz += block_dim.z)
 					for (size_t by = 0; by < self.cells_per_axis.y; by += block_dim.y)
@@ -112,24 +142,24 @@ namespace april::container::internal {
 			};
 
 
-			// KERNEL
-			auto process_cell = [&](size_t x, size_t y, size_t z, size_t t1, size_t t2) {
+			// BATCHING KERNEL
+			auto process_cell = [&](const size_t x, const size_t y, const size_t z, const size_t t1, const size_t t2) {
 				const size_t c = self.cell_pos_to_idx(x, y, z);
 				auto range1 = get_indices(c, t1);
 
 				// intra-cell: process forces between particles inside the cell
 				if (t1 == t2) {
-					if (range1.size() > 1) batch.sym_chunks.emplace_back(range1);
+					if (range1.size > 1) batch.sym_chunks.emplace_back(range1.start, range1.end);
 				} else {
 					auto range2 = get_indices(c, t2);
-					if (range1.size() > 0 && range2.size() > 0) {
-						batch.asym_chunks.emplace_back(range1, range2);
+					if (range1.size > 0 && range2.size > 0) {
+						batch.asym_chunks.emplace_back(range1.start, range1.end, range2.start, range2.end);
 					}
 				}
 
 				// If T1==T2 and Cell(T1) is empty, neighbors don't matter.
 				// For mixed types (T1!=T2), we continue because we need the reverse check (Neighbor(T1) vs Cell(T2)).
-				if (range1.empty() && (t1 == t2)) return;
+				if (range1.empty && (t1 == t2)) return;
 
 				// inter-cell: process forces between particles of neighbouring cells
 				for (auto offset : self.neighbor_stencil) {
@@ -138,8 +168,8 @@ namespace april::container::internal {
 
 					// Interaction 1: Cell(T1) -> Neighbor(T2)
 					auto range_n2 = get_indices(c_n, t2);
-					if (!range1.empty() && !range_n2.empty()) {
-						batch.asym_chunks.emplace_back(range1, range_n2);
+					if (!range1.empty && !range_n2.empty) {
+						batch.asym_chunks.emplace_back(range1.start, range1.end, range_n2.start, range_n2.end);
 					}
 
 					// Interaction 2: Neighbor(T1) -> Cell(T2)
@@ -148,8 +178,8 @@ namespace april::container::internal {
 						auto range2 = get_indices(c, t2);
 						auto range_n1 = get_indices(c_n, t1);
 
-						if (!range2.empty() && !range_n1.empty()) {
-							batch.asym_chunks.emplace_back(range_n1, range2);
+						if (!range2.empty && !range_n1.empty) {
+							batch.asym_chunks.emplace_back(range_n1.start, range_n1.end, range2.start, range2.end);
 						}
 					}
 				}
@@ -174,7 +204,8 @@ namespace april::container::internal {
 				});
 			});
 
-			// handle wrapped cell pairs 
+
+			// handle wrapped cell pairs
 			if (self.wrapped_cell_pairs.empty()) return;
 			for (const auto& pair : self.wrapped_cell_pairs) {
 				// define bcp (shift) function
@@ -183,17 +214,16 @@ namespace april::container::internal {
 
 				for (size_t t1 = 0; t1 < self.n_types; ++t1) {
 					auto range1 = get_indices(pair.c1, t1);
-					if (range1.empty()) continue;
+					if (range1.empty) continue;
 
 					for (size_t t2 = 0; t2 < self.n_types; ++t2) {
 						auto range2 = get_indices(pair.c2, t2);
-						if (range2.empty()) continue;
+						if (range2.empty) continue;
 
-						using range_type = std::ranges::iota_view<size_t, size_t>;
-						DirectAsymmetricBatch<range_type, range_type> wrapped_batch;
+						AsymmetricBatch wrapped_batch(self);
 						wrapped_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-						wrapped_batch.indices1 = range1;
-						wrapped_batch.indices2 = range2;
+						wrapped_batch.indices1 = {range1.start, range1.end};
+						wrapped_batch.indices2 = {range2.start, range2.end};
 
 						func(wrapped_batch, bcp);
 					}
@@ -289,7 +319,7 @@ namespace april::container::internal {
 		std::vector<WrappedCellPair> wrapped_cell_pairs;
 
 		// batching structs
-		UnifiedLCBatch compound_batch;
+		LinkedCellsBatch<LinkedCellsBase> compound_batch {*this};
 
 
 		//----------------
@@ -615,75 +645,75 @@ namespace april::container::internal {
 		}
 	};
 
-	// template <class U>
-	// class LinkedCellsAoSoA final : public LinkedCellsBase<AoSoAContainer<8, container::LinkedCellsAoSoA, U>> {
-	//     // 1. Alias the Base type
-	//     using Base = LinkedCellsBase<AoSoAContainer<8, container::LinkedCellsAoSoA, U>>;
-	//
-	//     // 2. Mirror the Storage type from the base class (ChunkedStorage<ParticleChunk<...>>)
-	//     //    We need to access 'data' from Base, so we use decltype or typename Base::ChunkedStorage
-	//     //    Since ChunkedStorage isn't a public type alias in AoSoAContainer, we can deduce it from 'data'.
-	//     using Storage = ChunkedStorage<typename Base::ChunkType>;
-	//
-	//     Storage tmp; // The temporary buffer for sorting
-	//
-	// public:
-	//     using Base::Base;
-	//     using Base::data; // Access protected 'data' from AoSoAContainer
-	//
-	//     // --------------------------------------------------------
-	//     // REBUILD INTERFACE
-	//     // --------------------------------------------------------
-	//
-	//     void allocate_tmp_storage() {
-	//        // Resize temporary storage if it's too small
-	//        if (tmp.n_particles < this->particle_count()) {
-	//           tmp.resize(this->particle_count());
-	//        }
-	//     }
-	//
-	//     void write_to_tmp_storage(const size_t dst_i, const size_t src_i) {
-	//        // 1. Locate Source in Main Data
-	//        //    Use the 'locate' function we just fixed (returns {chunk_idx, lane_idx})
-	//        const auto [src_c, src_l] = data.locate(src_i);
-	//        const auto& src_chunk = data.chunks[src_c];
-	//
-	//        // 2. Locate Destination in Tmp Data
-	//        const auto [dst_c, dst_l] = tmp.locate(dst_i);
-	//        auto& dst_chunk = tmp.chunks[dst_c];
-	//
-	//        // 3. Copy Data (Field by Field)
-	//        //    The compiler will auto-vectorize these scalar assignments since they are sequential
-	//        dst_chunk.pos_x[dst_l] = src_chunk.pos_x[src_l];
-	//        dst_chunk.pos_y[dst_l] = src_chunk.pos_y[src_l];
-	//        dst_chunk.pos_z[dst_l] = src_chunk.pos_z[src_l];
-	//
-	//        dst_chunk.vel_x[dst_l] = src_chunk.vel_x[src_l];
-	//        dst_chunk.vel_y[dst_l] = src_chunk.vel_y[src_l];
-	//        dst_chunk.vel_z[dst_l] = src_chunk.vel_z[src_l];
-	//
-	//        dst_chunk.frc_x[dst_l] = src_chunk.frc_x[src_l];
-	//        dst_chunk.frc_y[dst_l] = src_chunk.frc_y[src_l];
-	//        dst_chunk.frc_z[dst_l] = src_chunk.frc_z[src_l];
-	//
-	//        dst_chunk.old_x[dst_l] = src_chunk.old_x[src_l];
-	//        dst_chunk.old_y[dst_l] = src_chunk.old_y[src_l];
-	//        dst_chunk.old_z[dst_l] = src_chunk.old_z[src_l];
-	//
-	//        dst_chunk.mass[dst_l]      = src_chunk.mass[src_l];
-	//        dst_chunk.state[dst_l]     = src_chunk.state[src_l];
-	//        dst_chunk.type[dst_l]      = src_chunk.type[src_l];
-	//        dst_chunk.id[dst_l]        = src_chunk.id[src_l];
-	//        dst_chunk.user_data[dst_l] = src_chunk.user_data[src_l];
-	//     }
-	//
-	//     void swap_tmp_storage() {
-	//        // Efficiently swap the vectors of chunks
-	//        std::swap(data.chunks, tmp.chunks);
-	//        // Sync particle count
-	//        data.n_particles = tmp.n_particles;
-	//     }
-	// };
+	template <class U>
+	class LinkedCellsAoSoA final : public LinkedCellsBase<AoSoAContainer<8, container::LinkedCellsAoSoA, U>> {
+	    // 1. Alias the Base type
+	    using Base = LinkedCellsBase<AoSoAContainer<8, container::LinkedCellsAoSoA, U>>;
+
+	    // 2. Mirror the Storage type from the base class (ChunkedStorage<ParticleChunk<...>>)
+	    //    We need to access 'data' from Base, so we use decltype or typename Base::ChunkedStorage
+	    //    Since ChunkedStorage isn't a public type alias in AoSoAContainer, we can deduce it from 'data'.
+	    using Storage = ChunkedStorage<typename Base::ChunkType>;
+
+	    Storage tmp; // The temporary buffer for sorting
+
+	public:
+	    using Base::Base;
+	    using Base::data; // Access protected 'data' from AoSoAContainer
+
+	    // --------------------------------------------------------
+	    // REBUILD INTERFACE
+	    // --------------------------------------------------------
+
+	    void allocate_tmp_storage() {
+	       // Resize temporary storage if it's too small
+	       if (tmp.n_particles < this->particle_count()) {
+	          tmp.resize(this->particle_count());
+	       }
+	    }
+
+	    void write_to_tmp_storage(const size_t dst_i, const size_t src_i) {
+	       // 1. Locate Source in Main Data
+	       //    Use the 'locate' function we just fixed (returns {chunk_idx, lane_idx})
+	       const auto [src_c, src_l] = data.locate(src_i);
+	       const auto& src_chunk = data.chunks[src_c];
+
+	       // 2. Locate Destination in Tmp Data
+	       const auto [dst_c, dst_l] = tmp.locate(dst_i);
+	       auto& dst_chunk = tmp.chunks[dst_c];
+
+	       // 3. Copy Data (Field by Field)
+	       //    The compiler will auto-vectorize these scalar assignments since they are sequential
+	       dst_chunk.pos_x[dst_l] = src_chunk.pos_x[src_l];
+	       dst_chunk.pos_y[dst_l] = src_chunk.pos_y[src_l];
+	       dst_chunk.pos_z[dst_l] = src_chunk.pos_z[src_l];
+
+	       dst_chunk.vel_x[dst_l] = src_chunk.vel_x[src_l];
+	       dst_chunk.vel_y[dst_l] = src_chunk.vel_y[src_l];
+	       dst_chunk.vel_z[dst_l] = src_chunk.vel_z[src_l];
+
+	       dst_chunk.frc_x[dst_l] = src_chunk.frc_x[src_l];
+	       dst_chunk.frc_y[dst_l] = src_chunk.frc_y[src_l];
+	       dst_chunk.frc_z[dst_l] = src_chunk.frc_z[src_l];
+
+	       dst_chunk.old_x[dst_l] = src_chunk.old_x[src_l];
+	       dst_chunk.old_y[dst_l] = src_chunk.old_y[src_l];
+	       dst_chunk.old_z[dst_l] = src_chunk.old_z[src_l];
+
+	       dst_chunk.mass[dst_l]      = src_chunk.mass[src_l];
+	       dst_chunk.state[dst_l]     = src_chunk.state[src_l];
+	       dst_chunk.type[dst_l]      = src_chunk.type[src_l];
+	       dst_chunk.id[dst_l]        = src_chunk.id[src_l];
+	       dst_chunk.user_data[dst_l] = src_chunk.user_data[src_l];
+	    }
+
+	    void swap_tmp_storage() {
+	       // Efficiently swap the vectors of chunks
+	       std::swap(data.chunks, tmp.chunks);
+	       // Sync particle count
+	       data.n_particles = tmp.n_particles;
+	    }
+	};
 } // namespace april::container::internal
 
 

@@ -103,26 +103,51 @@ namespace april::container::internal {
 	// ------------------------------
 	// Batch Work Units (The "Atoms")
 	// ------------------------------
-	struct AsymLCChunk {
-		std::ranges::iota_view<size_t, size_t> indices1;
-		std::ranges::iota_view<size_t, size_t> indices2;
+	struct SymmetricChunk {
+		size_t start;
+		size_t end; // Exclusive upper bound
 	};
-	static_assert(IsAsymmetricAtom<AsymLCChunk>);
 
+	struct AsymmetricChunk {
+		size_t start1;
+		size_t end1;
 
-	struct SymLCChunk {
-		std::ranges::iota_view<size_t, size_t> indices;
+		size_t start2;
+		size_t end2;
 	};
-	static_assert(IsSymmetricAtom<SymLCChunk>);
 
 
 	// --------------
 	// Compound Batch
 	// --------------
-	struct UnifiedLCBatch : SerialBatch<BatchType::Compound> {
-		// Flattened structure - we don't need a vector of WorkUnits if we dispatch per block
-		std::vector<SymLCChunk> sym_chunks;
-		std::vector<AsymLCChunk> asym_chunks;
+	template<typename Container>
+	struct LinkedCellsBatch : SerialBatch {
+		explicit LinkedCellsBatch(Container & container) : container(container) {}
+
+		template<env::FieldMask Mask, typename Func>
+		void for_each_pair (Func && f) const {
+			for (const auto& chunk : sym_chunks) {
+				for (size_t i = chunk.start; i < chunk.end; ++i) {
+					auto p1 = container.template restricted_at<Mask>(i);
+
+					for (size_t j = i + 1; j < chunk.end; ++j) {
+						auto p2 = container.template restricted_at<Mask>(j);
+						f(p1, p2);
+					}
+				}
+			}
+
+			for (const auto & chunk : asym_chunks) {
+				for (size_t i = chunk.start1; i < chunk.end1; ++i) {
+					auto p1 = container.template restricted_at<Mask>(i);
+
+					for (size_t j = chunk.start2; j < chunk.end2; ++j) {
+						auto p2 = container.template restricted_at<Mask>(j);
+						f(p1, p2);
+					}
+				}
+			}
+		}
 
 		void clear() {
 			sym_chunks.clear();
@@ -131,7 +156,10 @@ namespace april::container::internal {
 		[[nodiscard]] bool empty() const {
 			return sym_chunks.empty() && asym_chunks.empty();
 		}
-	};
-	static_assert(IsCompoundBatch<UnifiedLCBatch>);
 
+		std::vector<SymmetricChunk> sym_chunks;
+		std::vector<AsymmetricChunk> asym_chunks;
+	private:
+		Container & container;
+	};
 }

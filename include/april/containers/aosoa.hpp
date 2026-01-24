@@ -98,7 +98,7 @@ namespace april::container::internal {
 }
 
 namespace april::container {
-	template<size_t chunk_size, typename Config, env::IsUserData U>
+	template<size_t size, typename Config, env::IsUserData U>
 	class AoSoAContainer : public Container<Config, U> {
 	public:
 		using Base = Container<Config, U>;
@@ -106,6 +106,12 @@ namespace april::container {
 		using Base::Base; // Inherit constructors
 		friend Base;
 
+		using Base::view;
+		using Base::at;           // Recommended to do this for 'at' too
+		using Base::restricted_at;
+		using Base::access_particle;
+
+		static constexpr size_t chunk_size = size;
 		using ChunkType = internal::ParticleChunk<U, chunk_size>;
 
 
@@ -173,6 +179,22 @@ namespace april::container {
 			}
 		}
 
+		// ACCESSORS
+		template<env::FieldMask M>
+		[[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
+			return env::ParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+		}
+
+		template<env::FieldMask M>
+		[[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
+			return env::ParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+		}
+
+		template<env::FieldMask M>
+		[[nodiscard]] auto restricted_at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
+			return env::RestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+		}
+
 		// INDEXING
 		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
 			return id_to_index_map[static_cast<size_t>(id)];
@@ -237,7 +259,57 @@ namespace april::container {
 			else if constexpr (F == env::Field::user_data) return &chunk.user_data[lane_idx];
 		}
 
+		template<env::Field F>
+		auto get_field_ptr(this auto&& self, size_t chunk_idx, size_t lane_idx) {
+			auto& chunk = self.data.chunks[chunk_idx];
+
+			// return vector pointer
+			if constexpr (F == env::Field::position)
+				return utils::Vec3Ptr { &chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx] };
+			else if constexpr (F == env::Field::velocity)
+				return utils::Vec3Ptr { &chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx] };
+			else if constexpr (F == env::Field::force)
+				return utils::Vec3Ptr { &chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx] };
+			else if constexpr (F == env::Field::old_position)
+				return utils::Vec3Ptr { &chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx] };
+
+			// return scalar pointer
+			else if constexpr (F == env::Field::mass)      return &chunk.mass[lane_idx];
+			else if constexpr (F == env::Field::state)     return &chunk.state[lane_idx];
+			else if constexpr (F == env::Field::type)      return &chunk.type[lane_idx];
+			else if constexpr (F == env::Field::id)        return &chunk.id[lane_idx];
+			else if constexpr (F == env::Field::user_data) return &chunk.user_data[lane_idx];
+		}
+
 	private:
 		std::vector<batching::TopologyBatch> topology_batches;
+
+		template<env::FieldMask M>
+		[[nodiscard]] auto access_particle(this auto&& self, size_t chunk_idx, size_t lane_idx) {
+
+			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
+			env::ParticleSource<M, U, IsConst> src;
+
+			if constexpr (env::has_field_v<M, env::Field::force>)
+				src.force = self.template invoke_get_field_ptr<env::Field::force>(chunk_idx, lane_idx);
+			if constexpr (env::has_field_v<M, env::Field::position>)
+				src.position = self.template invoke_get_field_ptr<env::Field::position>(chunk_idx, lane_idx);
+			if constexpr (env::has_field_v<M, env::Field::velocity>)
+				src.velocity = self.template invoke_get_field_ptr<env::Field::velocity>(chunk_idx, lane_idx);
+			if constexpr (env::has_field_v<M, env::Field::old_position>)
+				src.old_position = self.template invoke_get_field_ptr<env::Field::old_position>(chunk_idx, lane_idx);
+			if constexpr (env::has_field_v<M, env::Field::mass>)
+				src.mass = self.template invoke_get_field_ptr<env::Field::mass>(chunk_idx, lane_idx);
+			if constexpr (env::has_field_v<M, env::Field::state>)
+				src.state = self.template invoke_get_field_ptr<env::Field::state>(chunk_idx, lane_idx);
+			if constexpr (env::has_field_v<M, env::Field::type>)
+				src.type = self.template invoke_get_field_ptr<env::Field::type>(chunk_idx, lane_idx);
+			if constexpr (env::has_field_v<M, env::Field::id>)
+				src.id = self.template invoke_get_field_ptr<env::Field::id>(chunk_idx, lane_idx);
+			if constexpr (env::has_field_v<M, env::Field::user_data>)
+				src.user_data = self.template invoke_get_field_ptr<env::Field::user_data>(chunk_idx, lane_idx);
+
+			return src;
+		}
 	};
 }

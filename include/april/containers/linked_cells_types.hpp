@@ -133,20 +133,20 @@ namespace april::container::internal {
 		}
 
 		void add_sym_range(const batching::Range & range) {
-			batching::SymmetricBatch<Container> batch (container);
+			batching::SymmetricScalarBatch<Container> batch (container);
 			batch.range = range;
 			sym_chunks.push_back(batch);
 		}
 
 		void add_asym_range(const batching::Range & range1, const batching::Range & range2) {
-			batching::AsymmetricBatch<Container> batch (container);
+			batching::AsymmetricScalarBatch<Container> batch (container);
 			batch.range1 = range1;
 			batch.range2 = range2;
 			asym_chunks.push_back(batch);
 		}
 
-		std::vector<batching::SymmetricBatch<Container>> sym_chunks;
-		std::vector<batching::AsymmetricBatch<Container>> asym_chunks;
+		std::vector<batching::SymmetricScalarBatch<Container>> sym_chunks;
+		std::vector<batching::AsymmetricScalarBatch<Container>> asym_chunks;
 	private:
 		Container & container;
 	};

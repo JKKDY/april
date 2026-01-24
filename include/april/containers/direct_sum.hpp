@@ -82,8 +82,8 @@ namespace april::container {
 			void rebuild_structure() {}
 
 		private:
-			using SymmetricBatch = batching::SymmetricBatch<DirectSumBase>;
-			using AsymmetricBatch = batching::AsymmetricBatch<DirectSumBase>;
+			using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumBase>;
+			using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumBase>;
 
 			std::vector<SymmetricBatch> symmetric_batches;
 			std::vector<AsymmetricBatch> asymmetric_batches;

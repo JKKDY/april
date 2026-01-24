@@ -40,11 +40,12 @@ namespace april::container::internal {
 		friend ContainerBase;
 		using typename ContainerBase::ParticleRecord;
 
-		using SymmetricBatch = batching::SymmetricBatch<LinkedCellsBase>;
-		using AsymmetricBatch = batching::AsymmetricBatch<LinkedCellsBase>;
+		using SymmetricBatch = batching::SymmetricScalarBatch<LinkedCellsBase>;
+		using AsymmetricBatch = batching::AsymmetricScalarBatch<LinkedCellsBase>;
 
 	public:
 		using ContainerBase::ContainerBase;
+
 
 		//---------------
 		// PUBLIC METHODS
@@ -195,7 +196,7 @@ namespace april::container::internal {
 						auto range2 = get_indices(pair.c2, t2);
 						if (range2.empty) continue;
 
-						batching::AsymmetricBatch<LinkedCellsBase> wrapped_batch(self);
+						batching::AsymmetricScalarBatch<LinkedCellsBase> wrapped_batch(self);
 						wrapped_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
 						wrapped_batch.range1 = {range1.start, range1.end};
 						wrapped_batch.range2 = {range2.start, range2.end};

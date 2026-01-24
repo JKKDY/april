@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <concepts>
 
+#include "april/macros.hpp"
 #include "april/common.hpp"
 #include "april/particle/defs.hpp"
 #include "april/particle/access.hpp"
@@ -118,11 +119,11 @@ namespace april::batching {
 	};
 
 	template<typename Container>
-	struct AsymmetricBatch : SerialBatch {
-		explicit AsymmetricBatch(Container & container) : container(container) {}
+	struct AsymmetricScalarBatch : SerialBatch {
+		explicit AsymmetricScalarBatch(Container & container) : container(container) {}
 
 		template<env::FieldMask Mask, typename Func>
-		void for_each_pair (Func && f) const {
+		AP_FORCE_INLINE void for_each_pair (Func && f) const {
 			for (size_t i = range1.start; i < range1.end; ++i) {
 				auto p1 = container.template restricted_at<Mask>(i);
 
@@ -140,11 +141,11 @@ namespace april::batching {
 	};
 
 	template<typename Container>
-	struct SymmetricBatch : SerialBatch {
-		explicit SymmetricBatch(Container & container) : container(container) {}
+	struct SymmetricScalarBatch : SerialBatch {
+		explicit SymmetricScalarBatch(Container & container) : container(container) {}
 
 		template<env::FieldMask Mask, typename Func>
-		void for_each_pair (Func && f) const {
+		AP_FORCE_INLINE void for_each_pair (Func && f) const {
 			for (size_t i = range.start; i < range.end; ++i) {
 				auto p1 = container.template restricted_at<Mask>(i);
 
@@ -155,6 +156,84 @@ namespace april::batching {
 			}
 		}
 
+		Range range;
+	private:
+		Container & container;
+	};
+
+
+	template<typename Container>
+	requires requires(Container& c) {
+		{ Container::chunk_size } -> std::convertible_to<size_t>;
+		{ c.template restricted_at<+env::Field::position>(size_t{0}, size_t{0}) };
+	}
+	struct AsymmetricChunkedBatch : SerialBatch {
+		explicit AsymmetricChunkedBatch(Container & container) : container(container) {}
+
+		template<env::FieldMask Mask, typename Func>
+		AP_FORCE_INLINE void for_each_pair (Func && f) const {
+			// loop over chunks
+			for (size_t c1 = range1.start; c1 < range1.end; ++c1) {
+				for (size_t c2 = range2.start; c2 < range2.end; ++c2) {
+
+					// loop inside chunks
+					for (size_t i = 0; i < Container::chunk_size; ++i) {
+						auto p1 = container.template restricted_at<Mask>(c1, i);
+						for (size_t j = 0; j < Container::chunk_size; ++j) {
+							auto p2 = container.template restricted_at<Mask>(c2, j);
+							f(p1, p2);
+						}
+					}
+				}
+			}
+		}
+
+
+		// Ranges represent chunk indices! (e.g., 0 to 4 means Chunks 0,1,2,3)
+		Range range1;
+		Range range2;
+	private:
+		Container & container;
+	};
+
+
+	template<typename Container>
+	requires requires(Container& c) {
+		// Same constraints
+		{ Container::chunk_size } -> std::convertible_to<size_t>;
+		{ c.template restricted_at<env::Field::position>(size_t{0}, size_t{0}) };
+	}
+	struct SymmetricChunkedBatch : SerialBatch {
+		explicit SymmetricChunkedBatch(Container & container) : container(container) {}
+
+		template<env::FieldMask Mask, typename Func>
+		AP_FORCE_INLINE  void for_each_pair (Func && f) const {
+			// Iterate Chunks
+			for (size_t c1 = range.start; c1 < range.end; ++c1) {
+
+				// self-interaction (triangle loop within chunk)
+				for (size_t i = 0; i < Container::chunk_size; ++i) {
+					auto p1 = container.template restricted_at<Mask>(c1, i);
+					for (size_t j = i + 1; j < Container::chunk_size; ++j) {
+						auto p2 = container.template restricted_at<Mask>(c1, j);
+						f(p1, p2);
+					}
+				}
+
+				// pair-interaction (c1 with c2)
+				for (size_t c2 = c1 + 1; c2 < range.end; ++c2) {
+					for (size_t i = 0; i < Container::chunk_size; ++i) {
+						auto p1 = container.template restricted_at<Mask>(c1, i);
+						for (size_t j = 0; j < Container::chunk_size; ++j) {
+							auto p2 = container.template restricted_at<Mask>(c2, j);
+							f(p1, p2);
+						}
+					}
+				}
+			}
+		}
+
+		// Range represents chunk indices! (e.g., 0 to 4 means Chunks 0,1,2,3)
 		Range range;
 	private:
 		Container & container;

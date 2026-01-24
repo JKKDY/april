@@ -223,8 +223,6 @@ namespace april::container {
 		const force::internal::InteractionSchema force_schema;
 		const env::Box domain; // Note: in the future this may be adjustable during run time
 
-	private:
-
 		template<env::Field F>
 		auto invoke_get_field_ptr(this auto&& self, size_t i) {
 			return self.template get_field_ptr<F>(i);

@@ -2,7 +2,6 @@
 
 #include <bit>
 #include <vector>
-#include <stdexcept>
 
 #include "april/forces/force_table.hpp"
 #include "april/particle/fields.hpp"
@@ -64,11 +63,14 @@ namespace april::container {
 		void invoke_for_each_particle(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
 			// check if subclass provides implementation
 			if constexpr (requires {self.template for_each_particle<M>(func); }) {
-				self.template for_each_particle<M>(std::forward<Func>(func), state);
+				self.template for_each_particle<M>(std::forward<Func>(func), state, parallelize);
 			}
 			// if not, create default implementation
-			else {
-				for (size_t i = 0; i < self.particle_count(); i++) {
+			else if constexpr (parallelize) {
+				AP_ASSERT(false, "parallelization for method 'for_each_particle' not implemented yet")
+			} else {
+				for (size_t i = 0; i < self.capacity(); i++) {
+					if (!self.index_is_valid(i)) continue;
 					constexpr env::FieldMask fields = M | env::Field::state;
 					auto p = self.template at<fields>(i);
 					if (static_cast<int>(p.state & state)) {
@@ -101,7 +103,8 @@ namespace april::container {
 				return self.reduce(initial_value, std::forward<Mapper>(map_func), std::forward<Reducer>(reduce_func), state);
 			} else {
 				T curr = initial_value;
-				for (size_t i = 0; i < self.particle_count(); i++) {
+				for (size_t i = 0; i < self.capacity(); i++) {
+					if (!self.index_is_valid(i)) continue;
 					constexpr env::FieldMask fields = M | env::Field::state;
 					auto p = self.template view<fields>(i);
 					if (static_cast<int>(p.state & state)) {
@@ -139,12 +142,18 @@ namespace april::container {
 		// ---------
 		// MODIFIERS
 		// ---------
-		void invoke_add_particle(this auto&&, const ParticleRecord &) {
-			throw std::logic_error("dispatch_add_particle not implemented yet");
+		void invoke_add_particle(this auto&& self, const ParticleRecord & record) {
+			AP_ASSERT(false, "add_particle not supported yet");
+			self.add_particle(record);
 		}
 
-		void invoke_remove_particle(this auto&&, const env::ParticleID) {
-			throw std::logic_error("dispatch_remove_particle not implemented yet");
+		void invoke_remove_particle(this auto&& self, const env::ParticleID id) {
+			AP_ASSERT(false, "remove_particle not supported yet");
+			self.remove_particle(id);
+		}
+		void invoke_resize_domain(this auto&& self, const env::Box & new_domain) {
+			AP_ASSERT(false, "resize_domain not supported yet");
+			self.resize_domain(new_domain);
 		}
 
 
@@ -198,21 +207,38 @@ namespace april::container {
 		[[nodiscard]] env::ParticleID invoke_max_id(this const auto& self) {
 			return self.max_id();
 		}
+		[[nodiscard]] bool invoke_index_is_valid(this const auto& self, size_t index) {
+			return self.index_is_valid(index);
+		}
+		[[nodiscard]] bool invoke_contains_id(this const auto& self, env::ParticleID id) {
+			return self.contains_id(id);
+		}
+
 
 
 		// -------
 		// QUERIES
 		// -------
-		[[nodiscard]] bool invoke_contains(this const auto& self, env::ParticleID id) {
-			return self.contains(id);
+		[[nodiscard]] size_t invoke_capacity(this const auto& self) {
+			return self.capacity();
 		}
-
 		[[nodiscard]] size_t invoke_particle_count(this const auto& self) {
 			return self.particle_count();
 		}
 
 		[[nodiscard]] std::vector<size_t> invoke_collect_indices_in_region(this const auto& self, const env::Box & region) {
-			return self.collect_indices_in_region(region);
+			if constexpr (requires { self.collect_indices_in_region(region); }) {
+				return self.collect_indices_in_region(region);
+			} else {
+				std::vector<size_t> buffer;
+				self.collect_indices_in_region(region, buffer);
+				return buffer;
+			}
+		}
+
+		// TODO implement on containers, use this instead of non buffer version in system
+		void invoke_collect_indices_in_region(this const auto& self, const env::Box & region, std::vector<size_t> & buffer) {
+			return self.collect_indices_in_region(region, buffer);
 		}
 
 
@@ -238,6 +264,9 @@ namespace april::container {
 		//------------------------
 		template<env::FieldMask M>
 		[[nodiscard]] auto access_particle(this auto&& self, const size_t i) {
+			// Safety check: If Mask is empty, return empty source immediately.
+
+			if constexpr (M == 0) return env::ParticleSource<0, U, false>{};
 
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 			env::ParticleSource<M, U, IsConst> src;
@@ -326,12 +355,14 @@ namespace april::container {
 	    { c.build(particles) };
 	    { c.rebuild_structure() };
 
+		{ cc.capacity() } -> std::convertible_to<size_t>;
 	    { cc.particle_count() } -> std::convertible_to<size_t>;
 		{ cc.min_id() } -> std::convertible_to<env::ParticleID>;
 	    { cc.max_id() } -> std::convertible_to<env::ParticleID>;
 
 	    { cc.id_to_index(id) } -> std::convertible_to<size_t>;
-		{ cc.contains(id) } -> std::convertible_to<bool>;
+		{ cc.contains_id(id) } -> std::convertible_to<bool>;
+		{ cc.index_is_valid(id) } -> std::convertible_to<bool>;
 
 	    { c.collect_indices_in_region(region) } -> std::convertible_to<std::vector<size_t>>;
 

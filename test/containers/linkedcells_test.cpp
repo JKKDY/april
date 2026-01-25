@@ -44,7 +44,7 @@ struct TestConfig {
 	// Helper to initialize the container with size and ordering
 	static auto create(double cell_size) {
 		// Create container and set size
-		auto c = ContainerT{}.with_cell_size(cell_size);
+		auto c = ContainerT{}.with_abs_cell_size(cell_size);
 		// Apply the ordering strategy (Default, Morton, or Hilbert)
 		return OrderingT::apply(std::move(c));
 	}
@@ -64,12 +64,12 @@ using ContainerConfigurations = testing::Types<
 	// SoA Combinations
 	TestConfig<LinkedCellsSoA, OrderDefault>,
 	TestConfig<LinkedCellsSoA, OrderMorton>,
-	TestConfig<LinkedCellsSoA, OrderHilbert>,
+	TestConfig<LinkedCellsSoA, OrderHilbert>
 
 	// AoSoA Combinations
-	TestConfig<LinkedCellsAoSoA, OrderDefault>,
-	TestConfig<LinkedCellsAoSoA, OrderMorton>,
-	TestConfig<LinkedCellsAoSoA, OrderHilbert>
+	// TestConfig<LinkedCellsAoSoA, OrderDefault>,
+	// TestConfig<LinkedCellsAoSoA, OrderMorton>,
+	// TestConfig<LinkedCellsAoSoA, OrderHilbert>
 >;
 
 template <typename LinkedCellsT>

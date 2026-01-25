@@ -52,67 +52,29 @@ namespace april::container::internal {
 		alignas(64) std::array<env::ParticleID, Size>    id;
 		alignas(64) std::array<U, Size>                  user_data;
 	};
-
-
-	template<typename Chunk>
-	struct ChunkedStorage {
-		static constexpr size_t CHUNK_SIZE = Chunk::size;
-		std::vector<Chunk> chunks;
-		size_t n_particles = 0;
-
-		// resize the storage to fit n particles
-		void resize(const size_t n) {
-			n_particles = n;
-			size_t n_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE; // ceiling division: ceil(n / size)
-			chunks.resize(n_chunks);
-		}
-
-		[[nodiscard]] std::pair<size_t, size_t> locate(const size_t index) const {
-			return {index / CHUNK_SIZE, index & (CHUNK_SIZE - 1)};
-		}
-
-		// Swap particle i and j (Handles cross-chunk swapping)
-		void swap(const size_t i, const size_t j) {
-			if (i == j) return;
-
-			// Decode Linear Index -> (Chunk Index, Lane Index)
-			auto [c1_i, l1] = locate(i);
-			auto [c2_i, l2] = locate(j);
-
-			auto& c1 = chunks[c1_i];
-			auto& c2 = chunks[c2_i];
-
-			// swap values
-			std::swap(c1.pos_x[l1], c2.pos_x[l2]); std::swap(c1.pos_y[l1], c2.pos_y[l2]); std::swap(c1.pos_z[l1], c2.pos_z[l2]);
-			std::swap(c1.vel_x[l1], c2.vel_x[l2]); std::swap(c1.vel_y[l1], c2.vel_y[l2]); std::swap(c1.vel_z[l1], c2.vel_z[l2]);
-			std::swap(c1.frc_x[l1], c2.frc_x[l2]); std::swap(c1.frc_y[l1], c2.frc_y[l2]); std::swap(c1.frc_z[l1], c2.frc_z[l2]);
-			std::swap(c1.old_x[l1], c2.old_x[l2]); std::swap(c1.old_y[l1], c2.old_y[l2]); std::swap(c1.old_z[l1], c2.old_z[l2]);
-
-			std::swap(c1.mass[l1],      c2.mass[l2]);
-			std::swap(c1.state[l1],     c2.state[l2]);
-			std::swap(c1.type[l1],      c2.type[l2]);
-			std::swap(c1.id[l1],        c2.id[l2]);
-			std::swap(c1.user_data[l1], c2.user_data[l2]);
-		}
-	};
 }
+
+
 
 namespace april::container {
 	template<size_t size, typename Config, env::IsUserData U>
 	class AoSoAContainer : public Container<Config, U> {
 	public:
+		static constexpr size_t chunk_size = size;
+		using Chunk = internal::ParticleChunk<U, chunk_size>;
+
 		using Base = Container<Config, U>;
 		using Base::force_schema;
 		using Base::Base; // Inherit constructors
 		friend Base;
 
+		// make inherited accessors explicit.
+		// Otherwise the compiler cant find them due to existing overrides in this class
 		using Base::view;
-		using Base::at;           // Recommended to do this for 'at' too
+		using Base::at;
 		using Base::restricted_at;
 		using Base::access_particle;
 
-		static constexpr size_t chunk_size = size;
-		using ChunkType = internal::ParticleChunk<U, chunk_size>;
 
 
 		AoSoAContainer(const Config & config, const internal::ContainerCreateInfo & info)
@@ -139,17 +101,98 @@ namespace april::container {
 			}
 		}
 
+
+		template<env::FieldMask M, typename Func, bool parallelize=false>
+		void for_each_particle(this auto&& self, Func && func, const env::ParticleState state = env::ParticleState::ALL) {
+			if constexpr (parallelize) {
+				AP_ASSERT(false, "parallelization of method 'for_each_particle' not implemented yet")
+			} else {
+				for (size_t c = 0; c < self.data.size(); c++) {
+					for (size_t i = 0; i < chunk_size; i++) {
+						constexpr env::FieldMask fields = M | env::Field::state;
+						auto p = self.template at<fields>(c, i);
+						if (static_cast<int>(p.state & (state & ~env::ParticleState::INVALID))) {
+							func(p);
+						}
+					}
+				}
+			}
+		}
+
+		// ACCESSORS (chunk based)
+		template<env::FieldMask M>
+		[[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
+			return env::ParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+		}
+
+		template<env::FieldMask M>
+		[[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
+			return env::ParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+		}
+
+		template<env::FieldMask M>
+		[[nodiscard]] auto restricted_at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
+			return env::RestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+		}
+
+		// INDEXING
+		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
+			return id_to_index_map[static_cast<size_t>(id)];
+		}
+		[[nodiscard]] env::ParticleID min_id() const {
+			return 0;
+		}
+		[[nodiscard]] env::ParticleID max_id() const {
+			return static_cast<env::ParticleID>(id_to_index_map.size());
+		}
+		[[nodiscard]] size_t capacity() const {
+			return particle_capacity;
+		}
+
+
+		// QUERIES
+		[[nodiscard]] bool index_is_valid(const size_t index) const {
+			if (index >= particle_capacity) return false;
+
+			auto [c, l] = locate(index);
+			return data[c].state[l] != env::ParticleState::INVALID;
+		}
+		[[nodiscard]] bool contains_id(const env::ParticleID id) const {
+			if (static_cast<size_t>(id) >= id_to_index_map.size()) return false;
+			return id_to_index_map[static_cast<size_t>(id)] != ID_NOT_FOUND;
+		}
+		[[nodiscard]] size_t particle_count() const {
+			return n_particles;
+		}
+
+	protected:
+		static constexpr size_t chunk_mask = chunk_size - 1; // chunk_size is a power of 2
+		static constexpr size_t chunk_shift = std::countr_zero(chunk_size); // log_2(chunk_size)
+		static constexpr uint32_t ID_NOT_FOUND = std::numeric_limits<uint32_t>::max();
+
+		size_t particle_capacity{};
+		size_t n_particles{};
+		std::vector<Chunk> data;
+		std::vector<Chunk> tmp;
+		std::vector<size_t> bin_starts;
+		std::vector<uint32_t> id_to_index_map;
+
+
 		void build_storage(const std::vector<env::internal::ParticleRecord<U>>& particles) {
 			const size_t n = particles.size();
-			data.resize(n);
+
+			const size_t n_chunks = (n + chunk_size - 1) / chunk_size;
+			particle_capacity = n_chunks * chunk_size;
+
+			data.resize(n_chunks);
 			id_to_index_map.resize(n);
 
 			for (size_t i = 0; i < n; ++i) {
 				const auto& p = particles[i];
 
 				// locate destination
-				const auto [c_idx, l_idx] = data.locate(i);
-				auto& chunk = data.chunks[c_idx];
+				const auto [c_idx, l_idx] = locate(i);
+				auto& chunk = data[c_idx];
 
 				// fill chunk
 				chunk.pos_x[l_idx] = p.position.x;
@@ -177,91 +220,127 @@ namespace april::container {
 				// Map ID
 				id_to_index_map[static_cast<size_t>(p.id)] = i;
 			}
-		}
 
-		// ACCESSORS
-		template<env::FieldMask M>
-		[[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return env::ParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
-		}
-
-		template<env::FieldMask M>
-		[[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-			return env::ParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
-		}
-
-		template<env::FieldMask M>
-		[[nodiscard]] auto restricted_at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return env::RestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
-		}
-
-		// INDEXING
-		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
-			return id_to_index_map[static_cast<size_t>(id)];
-		}
-		[[nodiscard]] env::ParticleID min_id() const {
-			return 0;
-		}
-		[[nodiscard]] env::ParticleID max_id() const {
-			return static_cast<env::ParticleID>(id_to_index_map.size());
+			for (size_t i = n; i < particle_capacity; ++i) {
+				const auto [c_idx, l_idx] = locate(i);
+				data[c_idx].state[l_idx] = env::ParticleState::INVALID;
+				data[c_idx].id[l_idx] = std::numeric_limits<env::ParticleID>::max();
+			}
 		}
 
 
-		// QUERIES
-		[[nodiscard]] bool contains(const env::ParticleID id) const {
-			return id <= max_id();
+		void rebuild_storage(const std::vector<std::vector<size_t>> & bins, const bool sentinel_pad=true) {
+			tmp.clear();
+			bin_starts.clear();
+
+			// allocate space, calculate chunk index of first chunk in each bin
+			bin_starts.reserve(bins.size() + 1);
+
+			size_t n_chunks = 0;
+			for (const auto & bin : bins) {
+				bin_starts.push_back(n_chunks);
+				if (bin.empty()) continue;
+				const size_t bin_size = bin.size();
+				n_chunks +=  (bin_size + chunk_size - 1) / chunk_size;
+			}
+
+			bin_starts.push_back(n_chunks);
+			particle_capacity = n_chunks * chunk_size;
+			tmp.resize(n_chunks);
+			id_to_index_map.assign(particle_capacity, ID_NOT_FOUND);
+
+			// traversal cursors
+			size_t dst_c = 0; // destination chunk index
+			size_t dst_l = 0; // destination lane index
+
+			for (const auto & bin : bins) {
+				if (bin.empty()) continue;
+
+				for (const size_t src_idx : bin) {
+					// locate source
+					auto [src_c, src_l] = locate(src_idx);
+
+					auto& src_chunk = data[src_c];
+					auto& dst_chunk = tmp[dst_c];
+
+					// copy fields
+					dst_chunk.pos_x[dst_l] = src_chunk.pos_x[src_l];
+					dst_chunk.pos_y[dst_l] = src_chunk.pos_y[src_l];
+					dst_chunk.pos_z[dst_l] = src_chunk.pos_z[src_l];
+
+					dst_chunk.vel_x[dst_l] = src_chunk.vel_x[src_l];
+					dst_chunk.vel_y[dst_l] = src_chunk.vel_y[src_l];
+					dst_chunk.vel_z[dst_l] = src_chunk.vel_z[src_l];
+
+					dst_chunk.frc_x[dst_l] = src_chunk.frc_x[src_l];
+					dst_chunk.frc_y[dst_l] = src_chunk.frc_y[src_l];
+					dst_chunk.frc_z[dst_l] = src_chunk.frc_z[src_l];
+
+					dst_chunk.old_x[dst_l] = src_chunk.old_x[src_l];
+					dst_chunk.old_y[dst_l] = src_chunk.old_y[src_l];
+					dst_chunk.old_z[dst_l] = src_chunk.old_z[src_l];
+
+					dst_chunk.mass[dst_l]  = src_chunk.mass[src_l];
+					dst_chunk.state[dst_l] = src_chunk.state[src_l];
+					dst_chunk.type[dst_l]  = src_chunk.type[src_l];
+					dst_chunk.id[dst_l]    = src_chunk.id[src_l];
+					dst_chunk.user_data[dst_l] = src_chunk.user_data[src_l];
+
+					const size_t new_physical_idx = dst_c * chunk_size + dst_l;
+					const env::ParticleID id = dst_chunk.id[dst_l];
+					id_to_index_map[id] = new_physical_idx;
+
+					dst_l++;
+					if (dst_l == chunk_size) {
+						dst_l = 0;
+						dst_c++;
+					}
+				}
+
+				// If the bin ended mid-chunk, fill the rest with safe garbage and skip to next chunk.
+				if (sentinel_pad && dst_l > 0) {
+					auto& dst_chunk = tmp[dst_c];
+					while (dst_l < chunk_size) {
+						// mark as dead so physics kernels ignore it
+						dst_chunk.state[dst_l] = env::ParticleState::INVALID;
+
+						// move far away to be safe against distance checks
+						dst_chunk.pos_x[dst_l] = std::numeric_limits<double>::max();
+						dst_chunk.pos_y[dst_l] = std::numeric_limits<double>::max();
+						dst_chunk.pos_z[dst_l] = std::numeric_limits<double>::max();
+
+						// set ID to max to avoid map lookups
+						dst_chunk.id[dst_l] = std::numeric_limits<env::ParticleID>::max();
+
+						dst_l++;
+					}
+					// chunk is now "full"
+					dst_l = 0;
+					dst_c++;
+				}
+			}
+			std::swap(data, tmp);
 		}
-		[[nodiscard]] size_t particle_count() const {
-			return data.n_particles;
+
+
+
+		[[nodiscard]] std::pair<size_t, size_t> bin_range(const size_t bin_index) const {
+			return {bin_starts[bin_index], bin_starts[bin_index+1]};
 		}
 
-	protected:
-		internal::ChunkedStorage<ChunkType> data;
-		std::vector<uint32_t> id_to_index_map;
-		void swap_particles(size_t i, size_t j) {
-			if (i == j) return;
-
-			// get IDs before swap to update map
-			const auto [c1, l1] = data.locate(i);
-			const auto [c2, l2] = data.locate(j);
-
-			const auto id1 = data.chunks[c1].id[l1];
-			const auto id2 = data.chunks[c2].id[l2];
-
-			// swap data & ids
-			data.swap(i, j);
-			std::swap(id_to_index_map[static_cast<size_t>(id1)],
-					  id_to_index_map[static_cast<size_t>(id2)]);
+		[[nodiscard]] std::pair<size_t, size_t> locate(const size_t physical_index) const {
+			return {
+				physical_index >> chunk_shift, // physical_index / chunk_size
+				physical_index & chunk_mask    // physical_index % chunk_size
+			 };
 		}
 
 		template<env::Field F>
-		auto get_field_ptr(this auto&& self, size_t i) {
+		auto get_field_ptr(this auto&& self, const size_t i) {
 
 			// locate data
-			const auto [chunk_idx, lane_idx] = self.data.locate(i);
-			auto& chunk = self.data.chunks[chunk_idx];
-
-			// return vector pointer
-			if constexpr (F == env::Field::position)
-				return utils::Vec3Ptr { &chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx] };
-			else if constexpr (F == env::Field::velocity)
-				return utils::Vec3Ptr { &chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx] };
-			else if constexpr (F == env::Field::force)
-				return utils::Vec3Ptr { &chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx] };
-			else if constexpr (F == env::Field::old_position)
-				return utils::Vec3Ptr { &chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx] };
-
-			// return scalar pointer
-			else if constexpr (F == env::Field::mass)      return &chunk.mass[lane_idx];
-			else if constexpr (F == env::Field::state)     return &chunk.state[lane_idx];
-			else if constexpr (F == env::Field::type)      return &chunk.type[lane_idx];
-			else if constexpr (F == env::Field::id)        return &chunk.id[lane_idx];
-			else if constexpr (F == env::Field::user_data) return &chunk.user_data[lane_idx];
-		}
-
-		template<env::Field F>
-		auto get_field_ptr(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			auto& chunk = self.data.chunks[chunk_idx];
+			const auto [chunk_idx, lane_idx] = self.locate(i);
+			auto& chunk = self.data[chunk_idx];
 
 			// return vector pointer
 			if constexpr (F == env::Field::position)
@@ -290,24 +369,26 @@ namespace april::container {
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 			env::ParticleSource<M, U, IsConst> src;
 
+			auto& chunk = self.data[chunk_idx];
+
 			if constexpr (env::has_field_v<M, env::Field::force>)
-				src.force = self.template invoke_get_field_ptr<env::Field::force>(chunk_idx, lane_idx);
+				src.force = utils::Vec3Ptr { &chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx] };
 			if constexpr (env::has_field_v<M, env::Field::position>)
-				src.position = self.template invoke_get_field_ptr<env::Field::position>(chunk_idx, lane_idx);
+				src.position = utils::Vec3Ptr { &chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx] };
 			if constexpr (env::has_field_v<M, env::Field::velocity>)
-				src.velocity = self.template invoke_get_field_ptr<env::Field::velocity>(chunk_idx, lane_idx);
+				src.velocity = utils::Vec3Ptr { &chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx] };
 			if constexpr (env::has_field_v<M, env::Field::old_position>)
-				src.old_position = self.template invoke_get_field_ptr<env::Field::old_position>(chunk_idx, lane_idx);
+				src.old_position = utils::Vec3Ptr { &chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx] };
 			if constexpr (env::has_field_v<M, env::Field::mass>)
-				src.mass = self.template invoke_get_field_ptr<env::Field::mass>(chunk_idx, lane_idx);
+				src.mass = &chunk.mass[lane_idx];
 			if constexpr (env::has_field_v<M, env::Field::state>)
-				src.state = self.template invoke_get_field_ptr<env::Field::state>(chunk_idx, lane_idx);
+				src.state = &chunk.state[lane_idx];
 			if constexpr (env::has_field_v<M, env::Field::type>)
-				src.type = self.template invoke_get_field_ptr<env::Field::type>(chunk_idx, lane_idx);
+				src.type = &chunk.type[lane_idx];
 			if constexpr (env::has_field_v<M, env::Field::id>)
-				src.id = self.template invoke_get_field_ptr<env::Field::id>(chunk_idx, lane_idx);
+				src.id = &chunk.id[lane_idx];
 			if constexpr (env::has_field_v<M, env::Field::user_data>)
-				src.user_data = self.template invoke_get_field_ptr<env::Field::user_data>(chunk_idx, lane_idx);
+				src.user_data = &chunk.user_data[lane_idx];
 
 			return src;
 		}

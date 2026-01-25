@@ -57,21 +57,24 @@ namespace april::container {
 		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
 			return id_to_index_map[static_cast<size_t>(id)];
 		}
-
 		[[nodiscard]] env::ParticleID min_id() const {
 			return 0;
 		}
-
 		[[nodiscard]] env::ParticleID max_id() const {
 			return static_cast<env::ParticleID>(particles.size());
+		}
+		[[nodiscard]] bool contains_id(const env::ParticleID id) const {
+			return id <= max_id();
+		}
+		[[nodiscard]] bool index_is_valid(const size_t index) const {
+			return index < particle_count();
 		}
 
 
 		// QUERIES
-		[[nodiscard]] bool contains(const env::ParticleID id) const {
-			return id <= max_id();
+		[[nodiscard]] size_t capacity() const {
+			return particle_count();
 		}
-
 		[[nodiscard]] size_t particle_count() const {
 			return  particles.size();
 		}

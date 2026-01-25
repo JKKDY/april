@@ -39,35 +39,6 @@ namespace april::container {
             }
         }
 
-        // explode AoS input into SoA vectors
-        void build_storage(const std::vector<env::internal::ParticleRecord<U>>& particles) {
-            AP_ASSERT(!is_built, "storage already built");
-
-            size_t n = particles.size();
-            data.resize(n);
-            id_to_index_map.resize(n);
-
-            for (size_t i = 0; i < n; ++i) {
-                const auto& p = particles[i];
-
-                // Vectors
-                data.pos_x[i] = p.position.x;        data.pos_y[i] = p.position.y;        data.pos_z[i] = p.position.z;
-                data.vel_x[i] = p.velocity.x;        data.vel_y[i] = p.velocity.y;        data.vel_z[i] = p.velocity.z;
-                data.frc_x[i] = p.force.x;           data.frc_y[i] = p.force.y;           data.frc_z[i] = p.force.z;
-                data.old_x[i] = p.old_position.x;    data.old_y[i] = p.old_position.y;    data.old_z[i] = p.old_position.z;
-
-                // Scalars
-                data.mass[i] = p.mass;
-                data.state[i] = p.state;
-                data.type[i] = p.type;
-                data.id[i] = p.id;
-                data.user_data[i] = p.user_data;
-
-                // ID Map
-                id_to_index_map[static_cast<size_t>(p.id)] = i;
-            }
-            is_built = true;
-        }
 
         // INDEXING
         [[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
@@ -79,11 +50,17 @@ namespace april::container {
         [[nodiscard]] env::ParticleID max_id() const {
             return static_cast<env::ParticleID>(id_to_index_map.size());
         }
+        [[nodiscard]] bool index_is_valid(const size_t index) const {
+            return index < particle_count();
+        }
+        [[nodiscard]] bool contains_id(const env::ParticleID id) const {
+            return id <= max_id();
+        }
 
 
         // QUERIES
-        [[nodiscard]] bool contains(const env::ParticleID id) const {
-            return id <= max_id();
+        [[nodiscard]] size_t capacity() const {
+            return particle_count();
         }
         [[nodiscard]] size_t particle_count() const {
             return data.pos_x.size();
@@ -130,6 +107,36 @@ namespace april::container {
 
         Storage data;
         std::vector<uint32_t> id_to_index_map;
+
+        // explode AoS input into SoA vectors
+        void build_storage(const std::vector<env::internal::ParticleRecord<U>>& particles) {
+            AP_ASSERT(!is_built, "storage already built");
+
+            size_t n = particles.size();
+            data.resize(n);
+            id_to_index_map.resize(n);
+
+            for (size_t i = 0; i < n; ++i) {
+                const auto& p = particles[i];
+
+                // Vectors
+                data.pos_x[i] = p.position.x;        data.pos_y[i] = p.position.y;        data.pos_z[i] = p.position.z;
+                data.vel_x[i] = p.velocity.x;        data.vel_y[i] = p.velocity.y;        data.vel_z[i] = p.velocity.z;
+                data.frc_x[i] = p.force.x;           data.frc_y[i] = p.force.y;           data.frc_z[i] = p.force.z;
+                data.old_x[i] = p.old_position.x;    data.old_y[i] = p.old_position.y;    data.old_z[i] = p.old_position.z;
+
+                // Scalars
+                data.mass[i] = p.mass;
+                data.state[i] = p.state;
+                data.type[i] = p.type;
+                data.id[i] = p.id;
+                data.user_data[i] = p.user_data;
+
+                // ID Map
+                id_to_index_map[static_cast<size_t>(p.id)] = i;
+            }
+            is_built = true;
+        }
 
         void swap_particles(size_t i, size_t j) {
             data.swap(i, j);

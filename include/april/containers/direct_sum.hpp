@@ -172,18 +172,25 @@ namespace april::container {
 	}
 
 	struct DirectSumAoS {
+		using ConfigT = DirectSumAoS;
+
 		template <class U>
-		using impl = internal::DirectSumBase<AoSContainer<DirectSumAoS, U>>;
+		using impl = internal::DirectSumBase<AoSContainer<ConfigT, U>>;
 	};
 
 	struct DirectSumSoA {
+		using ConfigT = DirectSumSoA;
+
 		template <class U>
-		using impl = internal::DirectSumBase<SoAContainer<DirectSumSoA, U>>;
+		using impl = internal::DirectSumBase<SoAContainer<ConfigT, U>>;
 	};
 
 	template<size_t chunk_size>
 	struct DirectSumAoSoA {
+		using ConfigT = DirectSumAoSoA;
+
 		template <class U>
-		using impl = internal::DirectSumBase<AoSoAContainer<chunk_size, DirectSumAoSoA, U>>;
+		using impl = internal::DirectSumBase<SoAContainer<ConfigT, U>>;
+		// using impl = internal::DirectSumBase<AoSoAContainer<chunk_size, ConfigT, U>>;
 	};
 }

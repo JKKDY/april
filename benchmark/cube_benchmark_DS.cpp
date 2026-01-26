@@ -45,7 +45,7 @@ int main() {
 	auto system = build_system(env, container);
 
 	constexpr double dt = 0.0002;
-	constexpr int steps  = 200;
+	constexpr int steps  = 100;
 
 	VelocityVerlet integrator(system, monitors<Benchmark>);
 	integrator.add_monitor(Benchmark());

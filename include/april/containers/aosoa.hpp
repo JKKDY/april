@@ -186,6 +186,9 @@ namespace april::container {
 		static constexpr size_t chunk_shift = std::countr_zero(chunk_size); // log_2(chunk_size)
 		static constexpr uint32_t ID_NOT_FOUND = std::numeric_limits<uint32_t>::max();
 
+		// hoist data pointer outside and restrict
+		Chunk* AP_RESTRICT ptr_chunks = nullptr;
+
 		size_t particle_capacity{};
 		size_t n_particles{};
 		std::vector<Chunk> data;
@@ -193,6 +196,9 @@ namespace april::container {
 		std::vector<size_t> bin_starts;
 		std::vector<uint32_t> id_to_index_map;
 
+		void update_cache() {
+			ptr_chunks = data.data();
+		}
 
 		void build_storage(const std::vector<env::internal::ParticleRecord<U>>& particles) {
 			const size_t n = particles.size();
@@ -202,6 +208,8 @@ namespace april::container {
 
 			data.resize(n_chunks);
 			id_to_index_map.resize(n);
+
+			update_cache();
 
 			for (size_t i = 0; i < n; ++i) {
 				const auto& p = particles[i];
@@ -336,6 +344,7 @@ namespace april::container {
 				}
 			}
 			std::swap(data, tmp);
+			update_cache();
 		}
 
 
@@ -356,7 +365,7 @@ namespace april::container {
 
 			// locate data
 			const auto [chunk_idx, lane_idx] = self.locate(i);
-			auto& chunk = self.data[chunk_idx];
+			auto& chunk = self.ptr_chunks[chunk_idx];
 
 			// return vector pointer
 			if constexpr (F == env::Field::position)
@@ -385,7 +394,7 @@ namespace april::container {
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 			env::ParticleSource<M, U, IsConst> src;
 
-			auto& chunk = self.data[chunk_idx];
+			auto& chunk = self.ptr_chunks[chunk_idx];
 
 			if constexpr (env::has_field_v<M, env::Field::force>)
 				src.force = utils::Vec3Ptr { &chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx] };

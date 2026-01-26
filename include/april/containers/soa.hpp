@@ -97,6 +97,45 @@ namespace april::container {
             alignas(64) std::vector<env::ParticleID> id;
             alignas(64) std::vector<U> user_data;
 
+            vec3::type * AP_RESTRICT ptr_pos_x = nullptr;
+            vec3::type * AP_RESTRICT ptr_pos_y = nullptr;
+            vec3::type * AP_RESTRICT ptr_pos_z = nullptr;
+
+            // Velocities
+            vec3::type * AP_RESTRICT ptr_vel_x = nullptr;
+            vec3::type * AP_RESTRICT ptr_vel_y = nullptr;
+            vec3::type * AP_RESTRICT ptr_vel_z = nullptr;
+
+            // Forces
+            vec3::type * AP_RESTRICT ptr_frc_x = nullptr;
+            vec3::type * AP_RESTRICT ptr_frc_y = nullptr;
+            vec3::type * AP_RESTRICT ptr_frc_z = nullptr;
+
+            // Old Position
+            vec3::type * AP_RESTRICT ptr_old_x = nullptr;
+            vec3::type * AP_RESTRICT ptr_old_y = nullptr;
+            vec3::type * AP_RESTRICT ptr_old_z = nullptr;
+
+            // Scalars
+            double * AP_RESTRICT ptr_mass = nullptr;
+            env::ParticleState * AP_RESTRICT ptr_state = nullptr;
+            env::ParticleType  * AP_RESTRICT ptr_type  = nullptr;
+            env::ParticleID    * AP_RESTRICT ptr_id    = nullptr;
+            U * AP_RESTRICT ptr_user_data = nullptr;
+
+            void update_pointer_cache() {
+                ptr_pos_x = pos_x.data(); ptr_pos_y = pos_y.data(); ptr_pos_z = pos_z.data();
+                ptr_vel_x = vel_x.data(); ptr_vel_y = vel_y.data(); ptr_vel_z = vel_z.data();
+                ptr_frc_x = frc_x.data(); ptr_frc_y = frc_y.data(); ptr_frc_z = frc_z.data();
+                ptr_old_x = old_x.data(); ptr_old_y = old_y.data(); ptr_old_z = old_z.data();
+
+                ptr_mass = mass.data();
+                ptr_state = state.data();
+                ptr_type = type.data();
+                ptr_id = id.data();
+                ptr_user_data = user_data.data();
+            }
+
             void resize(const size_t n) {
                 pos_x.resize(n); pos_y.resize(n); pos_z.resize(n);
                 vel_x.resize(n); vel_y.resize(n); vel_z.resize(n);
@@ -104,6 +143,7 @@ namespace april::container {
                 old_x.resize(n); old_y.resize(n); old_z.resize(n);
                 mass.resize(n); state.resize(n); type.resize(n); id.resize(n);
                 user_data.resize(n);
+                update_pointer_cache();
             }
 
             void swap(const size_t i, const size_t j) {
@@ -161,25 +201,22 @@ namespace april::container {
             std::swap(id_to_index_map[data.id[i]], id_to_index_map[data.id[j]]); // update map
         }
 
-        // deducing this handles const correctness automatically via CTAD
         template<env::Field F>
         auto get_field_ptr(this auto&& self, size_t i) {
-            // for vectors need to use vec3ptr to capture scattered data
             if constexpr (F == env::Field::position)
-                return utils::Vec3Ptr { &self.data.pos_x[i], &self.data.pos_y[i], &self.data.pos_z[i] };
+                return utils::Vec3Ptr { self.data.ptr_pos_x + i, self.data.ptr_pos_y + i, self.data.ptr_pos_z + i };
             else if constexpr (F == env::Field::velocity)
-                return utils::Vec3Ptr { &self.data.vel_x[i], &self.data.vel_y[i], &self.data.vel_z[i] };
+                return utils::Vec3Ptr { self.data.ptr_vel_x + i, self.data.ptr_vel_y + i, self.data.ptr_vel_z + i };
             else if constexpr (F == env::Field::force)
-                return utils::Vec3Ptr { &self.data.frc_x[i], &self.data.frc_y[i], &self.data.frc_z[i] };
+                return utils::Vec3Ptr { self.data.ptr_frc_x + i, self.data.ptr_frc_y + i, self.data.ptr_frc_z + i };
             else if constexpr (F == env::Field::old_position)
-                return utils::Vec3Ptr { &self.data.old_x[i], &self.data.old_y[i], &self.data.old_z[i] };
+                return utils::Vec3Ptr { self.data.ptr_old_x + i, self.data.ptr_old_y + i, self.data.ptr_old_z + i };
 
-            // Scalars are simple pointers
-            else if constexpr (F == env::Field::mass)      return &self.data.mass[i];
-            else if constexpr (F == env::Field::state)     return &self.data.state[i];
-            else if constexpr (F == env::Field::type)      return &self.data.type[i];
-            else if constexpr (F == env::Field::id)        return &self.data.id[i];
-            else if constexpr (F == env::Field::user_data) return &self.data.user_data[i];
+            else if constexpr (F == env::Field::mass)      return self.data.ptr_mass + i;
+            else if constexpr (F == env::Field::state)     return self.data.ptr_state + i;
+            else if constexpr (F == env::Field::type)      return self.data.ptr_type + i;
+            else if constexpr (F == env::Field::id)        return self.data.ptr_id + i;
+            else if constexpr (F == env::Field::user_data) return self.data.ptr_user_data + i;
         }
 
     private:

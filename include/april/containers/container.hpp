@@ -61,26 +61,26 @@ namespace april::container {
 		// ------------------
 		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void invoke_for_each_particle(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			auto kernel = [&](size_t, env::ParticleRef<M, U> && p) { func(p); };
-			self.template invoke_iterate<M, Policy, false, decltype(kernel)>(kernel, state);
+			auto kernel = [&](size_t, auto && p) { func(p); };
+			self.template invoke_iterate<M, Policy, false>(kernel, state);
 		}
 
 		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void invoke_for_each_particle_view(this const auto& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			auto kernel = [&](size_t, env::ParticleView<M, U> && p) { func(p); };
-			self.template invoke_iterate<M,Policy,  true, decltype(kernel)>(kernel, state);
+			auto kernel = [&](size_t,  auto && p) { func(p); };
+			self.template invoke_iterate<M,Policy,  true>(kernel, state);
 		}
 
 		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func> // TODO restrict callable Func (invoke_for_each_particle)
 		void invoke_enumerate(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			auto kernel = [&](size_t i, env::ParticleRef<M, U> && p) { func(i, p); };
-			self.template invoke_iterate<M, Policy, false, decltype(kernel)>(kernel, state);
+			auto kernel = [&](size_t i, auto && p) { func(i, p); };
+			self.template invoke_iterate<M, Policy, false>(kernel, state);
 		}
 
 		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func> // TODO restrict callable Func (invoke_for_each_particle)
 		void invoke_enumerate_view(this const auto& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			auto kernel = [&](size_t i, env::ParticleView<M, U> && p) { func(i, p); };
-			self.template invoke_iterate<M, Policy, true, decltype(kernel)>(kernel, state);
+			auto kernel = [&](size_t i, auto && p) { func(i, p); };
+			self.template invoke_iterate<M, Policy, true>(kernel, state);
 		}
 
 		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>

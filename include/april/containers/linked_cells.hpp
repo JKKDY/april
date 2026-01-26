@@ -618,6 +618,7 @@ namespace april::container::internal {
 			std::swap(data.type, tmp.type);
 			std::swap(data.id, tmp.id);
 			std::swap(data.user_data, tmp.user_data);
+			data.update_pointer_cache();
 		}
 	};
 

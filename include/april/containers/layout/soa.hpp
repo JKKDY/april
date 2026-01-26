@@ -1,20 +1,23 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Julian Deller-Yee
+
 #pragma once
 #include <vector>
 #include "april/containers/container.hpp"
 #include "april/containers/batching.hpp"
 #include "april/particle/particle.hpp"
 
-namespace april::container {
+namespace april::container::layout {
 
     template<typename Config, env::IsUserData U>
-    class SoAContainer : public Container<Config, U> {
+    class SoA : public Container<Config, U> {
     public:
         using Base = Container<Config, U>;
         using Base::force_schema;
         using Base::Base;
         friend Base;
 
-        SoAContainer(const Config & config, const internal::ContainerCreateInfo & info)
+        SoA(const Config & config, const internal::ContainerCreateInfo & info)
             : Base(config, info)
         {
             // precompute topology batches (id based batches)

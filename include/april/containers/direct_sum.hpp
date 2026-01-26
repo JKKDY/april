@@ -3,9 +3,9 @@
 #include <ranges>
 #include <numeric>
 
-#include "april/containers/soa.hpp"
-#include "april/containers/aos.hpp"
-#include "april/containers/aosoa.hpp"
+#include "april/containers/layout/soa.hpp"
+#include "april/containers/layout/aos.hpp"
+#include "april/containers/layout/aosoa.hpp"
 #include "april/containers/batching.hpp"
 
 namespace april::container {
@@ -175,14 +175,14 @@ namespace april::container {
 		using ConfigT = DirectSumAoS;
 
 		template <class U>
-		using impl = internal::DirectSumBase<AoSContainer<ConfigT, U>>;
+		using impl = internal::DirectSumBase<layout::AoS<ConfigT, U>>;
 	};
 
 	struct DirectSumSoA {
 		using ConfigT = DirectSumSoA;
 
 		template <class U>
-		using impl = internal::DirectSumBase<SoAContainer<ConfigT, U>>;
+		using impl = internal::DirectSumBase<layout::SoA<ConfigT, U>>;
 	};
 
 	template<size_t chunk_size>
@@ -190,7 +190,7 @@ namespace april::container {
 		using ConfigT = DirectSumAoSoA;
 
 		template <class U>
-		using impl = internal::DirectSumBase<SoAContainer<ConfigT, U>>;
+		using impl = internal::DirectSumBase<layout::SoA<ConfigT, U>>;
 		// using impl = internal::DirectSumBase<AoSoAContainer<chunk_size, ConfigT, U>>;
 	};
 }

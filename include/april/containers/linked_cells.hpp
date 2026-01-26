@@ -1,14 +1,13 @@
 #pragma once
 
 #include <algorithm>
-#include <ranges>
 
 #include "linked_cells_types.hpp"
 #include "april/containers/cell_orderings.hpp"
 #include "april/containers/batching.hpp"
-#include "april/containers/aos.hpp"
-#include "april/containers/soa.hpp"
-#include "april/containers/aosoa.hpp"
+#include "april/containers/layout/aos.hpp"
+#include "april/containers/layout/soa.hpp"
+#include "april/containers/layout/aosoa.hpp"
 
 
 namespace april::container {
@@ -557,8 +556,8 @@ namespace april::container::internal {
 
 
 	template <class U>
-	class LinkedCellsAoS final : public LinkedCellsBase<AoSContainer<container::LinkedCellsAoS, U>> {
-		using Base = LinkedCellsBase<AoSContainer<container::LinkedCellsAoS, U>>;
+	class LinkedCellsAoS final : public LinkedCellsBase<layout::AoS<container::LinkedCellsAoS, U>> {
+		using Base = LinkedCellsBase<layout::AoS<container::LinkedCellsAoS, U>>;
 		std::vector<env::internal::ParticleRecord<U>> tmp_particles;
 	public:
 		using Base::particles;
@@ -578,8 +577,8 @@ namespace april::container::internal {
 	};
 
 	template <class U>
-	class LinkedCellsSoA final : public LinkedCellsBase<SoAContainer<container::LinkedCellsSoA, U>> {
-		using Base = LinkedCellsBase<SoAContainer<container::LinkedCellsSoA, U>>;
+	class LinkedCellsSoA final : public LinkedCellsBase<layout::SoA<container::LinkedCellsSoA, U>> {
+		using Base = LinkedCellsBase<layout::SoA<container::LinkedCellsSoA, U>>;
 
 		// mirror the Storage type from the base class
 		using Storage = typename Base::Storage;

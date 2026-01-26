@@ -4,10 +4,10 @@
 #include "april/containers/container.hpp"
 #include "april/containers/batching.hpp"
 
-namespace april::container {
+namespace april::container::layout {
 
 	template<typename Config, env::IsUserData U>
-	class AoSContainer : public Container<Config, U>{
+	class AoS : public Container<Config, U>{
 	public:
 		using Base = Container<Config, U>;
 		using Base::force_schema;
@@ -16,7 +16,7 @@ namespace april::container {
 
 		using Particle = env::internal::ParticleRecord<U>;
 
-		AoSContainer(const Config & config, const internal::ContainerCreateInfo & info):
+		AoS(const Config & config, const internal::ContainerCreateInfo & info):
 			Container<Config, U>(config, info)
 		{
 			// precompute topology batches (id based batches)

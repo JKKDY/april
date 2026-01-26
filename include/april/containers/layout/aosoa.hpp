@@ -5,14 +5,14 @@
 #include <cstddef>
 #include <bit>
 
-#include "batching.hpp"
-#include "container.hpp"
+#include "april/containers/batching.hpp"
+#include "april/containers/container.hpp"
 #include "april/common.hpp"
 #include "april/particle/defs.hpp"
 
 
 
-namespace april::container::internal {
+namespace april::container::layout {
 	template <typename U, size_t Size = 8>
 	struct alignas(64) ParticleChunk {
 		// Enforce alignment requirements (Size 8 * double 8 bytes = 64 bytes = 1 AVX-512 Register)
@@ -52,16 +52,13 @@ namespace april::container::internal {
 		alignas(64) std::array<env::ParticleID, Size>    id;
 		alignas(64) std::array<U, Size>                  user_data;
 	};
-}
 
 
-
-namespace april::container {
 	template<size_t size, typename Config, env::IsUserData U>
-	class AoSoAContainer : public Container<Config, U> {
+	class AoSoA : public Container<Config, U> {
 	public:
 		static constexpr size_t chunk_size = size;
-		using Chunk = internal::ParticleChunk<U, chunk_size>;
+		using Chunk = ParticleChunk<U, chunk_size>;
 
 		using Base = Container<Config, U>;
 		using Base::force_schema;
@@ -77,7 +74,7 @@ namespace april::container {
 
 
 
-		AoSoAContainer(const Config & config, const internal::ContainerCreateInfo & info)
+		AoSoA(const Config & config, const internal::ContainerCreateInfo & info)
 			: Base(config, info)
 		{
 			// Topology batch initialization (identical to SoA/AoS)

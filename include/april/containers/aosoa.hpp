@@ -102,21 +102,37 @@ namespace april::container {
 		}
 
 
-		template<env::FieldMask M, typename Func, bool parallelize=false>
-		void for_each_particle(this auto&& self, Func && func, const env::ParticleState state = env::ParticleState::ALL) {
-			if constexpr (parallelize) {
-				AP_ASSERT(false, "parallelization of method 'for_each_particle' not implemented yet")
-			} else {
-				for (size_t c = 0; c < self.data.size(); c++) {
-					for (size_t i = 0; i < chunk_size; i++) {
-						constexpr env::FieldMask fields = M | env::Field::state;
-						auto p = self.template at<fields>(c, i);
-						if (static_cast<int>(p.state & (state & ~env::ParticleState::INVALID))) {
-							func(p);
+		template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Kernel>
+		void iterate(this auto&& self, Kernel && kernel, const env::ParticleState state) {
+			constexpr env::FieldMask fields = M | env::Field::state;
+			const size_t n_chunks = self.data.size();
+			if (n_chunks == 0) return;
+
+			auto iter_chunk = [&](size_t c) {
+				for (size_t i = 0; i < self.chunk_size; i++) {
+
+					// peek at state to check if the data is valid or garbage
+					auto raw_state = self.data[c].state[i];
+
+					if (static_cast<int>(raw_state & (state & ~env::ParticleState::INVALID))) {
+						size_t phys_idx = c * self.chunk_size + i;
+
+						if constexpr (is_const) {// read only
+							kernel(phys_idx, self.template view<fields>(c, i));
+						} else { // read-write
+							kernel(phys_idx, self.template at<fields>(c, i));
 						}
 					}
 				}
+			};
+
+			AP_PREFETCH(&self.data[0]);
+			for (size_t c = 0; c < n_chunks - 1; c++) {
+				AP_PREFETCH(&self.data[c + 1]);
+				iter_chunk(c);
 			}
+
+			iter_chunk(n_chunks - 1);
 		}
 
 		// ACCESSORS (chunk based)

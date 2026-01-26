@@ -39,6 +39,24 @@ namespace april::container {
             }
         }
 
+        template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Kernel>
+        void iterate(this auto&& self, Kernel && kernel, const env::ParticleState state) {
+            constexpr env::FieldMask fields = M | env::Field::state;
+
+            for (size_t i = 0; i < self.capacity(); i++) {
+                if (!self.index_is_valid(i)) continue;
+                auto raw_state = self.data.state[i];
+
+                if (static_cast<int>(raw_state & (state & ~env::ParticleState::INVALID))) {
+                    if constexpr (is_const) {
+                        kernel(i, self.template view<fields>(i));
+                    } else {
+                        kernel(i, self.template at<fields>(i));
+                    }
+                }
+            }
+        }
+
 
         // INDEXING
         [[nodiscard]] size_t id_to_index(const env::ParticleID id) const {

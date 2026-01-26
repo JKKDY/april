@@ -26,5 +26,14 @@ namespace april {
 	// helpers
 	using vec3_ptr = utils::Vec3Ptr<vec3::type>;
 
+
+	// enums
+	enum class ExecutionPolicy : uint8_t {
+		Seq = 0,        // Serial (Main thread only)
+		Par = 1,        // Parallel (OMP Parallel For)
+		Simd = 2,       // Vectorized (OMP Simd)
+		ParSimd = 3     // Parallel + Vectorized
+	};
+
 } // namespace april
 

@@ -56,30 +56,62 @@ namespace april::container {
 
 
 
-		// --------------
-		// FUNCTIONAL OPS
-		// --------------
-		template<env::FieldMask M, typename Func, bool parallelize=false> // TODO restrict callable Func (invoke_for_each_particle)
+		// ------------------
+		// PARTICLE ITERATION
+		// ------------------
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void invoke_for_each_particle(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			// check if subclass provides implementation
-			if constexpr (requires {self.template for_each_particle<M>(func); }) {
-				self.template for_each_particle<M>(std::forward<Func>(func), state, parallelize);
-			}
-			// if not, create default implementation
-			else if constexpr (parallelize) {
-				AP_ASSERT(false, "parallelization for method 'for_each_particle' not implemented yet")
+			auto kernel = [&](size_t, env::ParticleRef<M, U> && p) { func(p); };
+			self.template invoke_iterate<M, Policy, false, decltype(kernel)>(kernel, state);
+		}
+
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void invoke_for_each_particle_view(this const auto& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
+			auto kernel = [&](size_t, env::ParticleView<M, U> && p) { func(p); };
+			self.template invoke_iterate<M,Policy,  true, decltype(kernel)>(kernel, state);
+		}
+
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func> // TODO restrict callable Func (invoke_for_each_particle)
+		void invoke_enumerate(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
+			auto kernel = [&](size_t i, env::ParticleRef<M, U> && p) { func(i, p); };
+			self.template invoke_iterate<M, Policy, false, decltype(kernel)>(kernel, state);
+		}
+
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func> // TODO restrict callable Func (invoke_for_each_particle)
+		void invoke_enumerate_view(this const auto& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
+			auto kernel = [&](size_t i, env::ParticleView<M, U> && p) { func(i, p); };
+			self.template invoke_iterate<M, Policy, true, decltype(kernel)>(kernel, state);
+		}
+
+		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>
+		[[nodiscard]] T invoke_reduce( // TODO restrict callable Mapper, Reducer (invoke_reduce)
+			this const auto& self,
+			T initial_value,
+			Mapper&& map_func,
+			Reducer&& reduce_func = {},
+			env::ParticleState state = env::ParticleState::ALIVE
+		) {
+			if constexpr (requires { self.reduce(initial_value, map_func, reduce_func, state); }) {
+				// custom/optimized reducer
+				return self.reduce(initial_value, std::forward<Mapper>(map_func), std::forward<Reducer>(reduce_func), state);
 			} else {
-				for (size_t i = 0; i < self.capacity(); i++) {
-					if (!self.index_is_valid(i)) continue;
-					constexpr env::FieldMask fields = M | env::Field::state;
-					auto p = self.template at<fields>(i);
-					if (static_cast<int>(p.state & state)) {
-						func(p);
-					}
-				}
+				// default implementation using iterate function
+				T curr = initial_value;
+				auto kernel = [&](size_t, auto&& p) {
+					T val = map_func(p);
+					curr = reduce_func(curr, val);
+				};
+
+				self.template invoke_iterate<M, ExecutionPolicy::Seq, true>(kernel, state);
+				return curr;
 			}
 		}
 
+
+
+		// ---------------
+		// BATCH ITERATION
+		// ---------------
 		template<typename Func> // TODO restrict callable Func (invoke_for_each_batch)
 		void invoke_for_each_interaction_batch(this auto&& self, Func && func) {
 			self.for_each_interaction_batch(std::forward<Func>(func));
@@ -90,32 +122,6 @@ namespace april::container {
 			self.for_each_topology_batch(std::forward<Func>(func));
 		}
 
-
-		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>
-		[[nodiscard]] T invoke_reduce( // TODO restrict callable Mapper, Reducer (invoke_reduce)
-			this const auto& self,
-			T initial_value,
-			Mapper&& map_func,
-			Reducer&& reduce_func = {},
-			env::ParticleState state = env::ParticleState::ALIVE
-		) {
-			if constexpr (requires {self.reduce(initial_value, std::forward<Mapper>(map_func), std::forward<Reducer>(reduce_func), state); }) {
-				return self.reduce(initial_value, std::forward<Mapper>(map_func), std::forward<Reducer>(reduce_func), state);
-			} else {
-				T curr = initial_value;
-				for (size_t i = 0; i < self.capacity(); i++) {
-					if (!self.index_is_valid(i)) continue;
-					constexpr env::FieldMask fields = M | env::Field::state;
-					auto p = self.template view<fields>(i);
-					if (static_cast<int>(p.state & state)) {
-						T val = map_func(p);
-						curr = reduce_func(curr, val);
-					}
-				}
-
-				return curr;
-			}
-		}
 
 
 
@@ -146,7 +152,6 @@ namespace april::container {
 			AP_ASSERT(false, "add_particle not supported yet");
 			self.add_particle(record);
 		}
-
 		void invoke_remove_particle(this auto&& self, const env::ParticleID id) {
 			AP_ASSERT(false, "remove_particle not supported yet");
 			self.remove_particle(id);
@@ -248,6 +253,11 @@ namespace april::container {
 		const internal::ContainerHints hints;
 		const force::internal::InteractionSchema force_schema;
 		const env::Box domain; // Note: in the future this may be adjustable during run time
+
+		template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Kernel>
+		void invoke_iterate(this auto&& self, Kernel && kernel, const env::ParticleState state) {
+			self.template iterate<M, Policy, is_const, Kernel>(kernel, state);
+		}
 
 		template<env::Field F>
 		auto invoke_get_field_ptr(this auto&& self, size_t i) {

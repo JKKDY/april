@@ -50,7 +50,7 @@ std::vector<typename System::ParticleRec> export_particles(System& sys) {
 	std::vector<typename System::ParticleRec> records;
 	records.reserve(sys.size());
 
-	sys.template enumerate_view<+env::Field::none>([&](size_t idx, auto &&) {
+	sys.template for_each_particle<+env::Field::none>([&](size_t idx, auto &&) {
 		records.push_back(get_particle(sys, idx));
 	});
 

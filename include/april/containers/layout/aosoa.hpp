@@ -98,39 +98,62 @@ namespace april::container::layout {
 			}
 		}
 
-
 		template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Kernel>
-		void iterate(this auto&& self, Kernel && kernel, const env::ParticleState state) {
-			constexpr env::FieldMask fields = M | env::Field::state;
-			const size_t n_chunks = self.data.size();
-			if (n_chunks == 0) return;
+		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+			const auto [start_chunk, start_idx] = self.locate(start);
+			const auto [end_chunk, end_idx] = self.locate(end);
 
-			auto iter_chunk = [&](size_t c) {
-				for (size_t i = 0; i < self.chunk_size; i++) {
+			size_t curr_idx = start;
+			auto * AP_RESTRICT chunks = self.ptr_chunks;
 
-					// peek at state to check if the data is valid or garbage
-					auto raw_state = self.data[c].state[i];
-
-					if (static_cast<int>(raw_state & (state & ~env::ParticleState::INVALID))) {
-						size_t phys_idx = c * self.chunk_size + i;
-
-						if constexpr (is_const) {// read only
-							kernel(phys_idx, self.template view<fields>(c, i));
-						} else { // read-write
-							kernel(phys_idx, self.template at<fields>(c, i));
-						}
-					}
+			auto exec = [&](size_t c, size_t i) {
+				if constexpr (is_const) {// read only
+					kernel(curr_idx++, self.template view<M>(c, i));
+				} else { // read-write
+					kernel(curr_idx++, self.template at<M>(c, i));
 				}
 			};
 
-			AP_PREFETCH(&self.data[0]);
-			for (size_t c = 0; c < n_chunks - 1; c++) {
-				AP_PREFETCH(&self.data[c + 1]);
-				iter_chunk(c);
+			// if start and end in the same chunk
+			if (start_chunk == end_chunk) {
+				AP_PREFETCH(chunks + start_chunk);
+				for (size_t i = start_idx; i < end_idx; ++i) {
+					exec(start_chunk, i);
+				}
 			}
 
-			iter_chunk(n_chunks - 1);
+			// if multi chunk iteration (Head -> Body -> Tail)
+			else {
+				AP_PREFETCH(chunks + start_chunk);
+
+				// prime the pipeline for the body/tail immediately
+				if (start_chunk + 1 < end_chunk || end_idx > 0) {
+					AP_PREFETCH(chunks + start_chunk + 1);
+				}
+
+				// head
+				for (size_t i = start_idx; i < self.chunk_size; ++i) {
+					exec(start_chunk, i);
+				}
+
+				// body
+				for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
+					AP_PREFETCH(chunks + c + 1);
+
+					for (size_t i = 0; i < self.chunk_size; i++) {
+						exec(c, i);
+					}
+				}
+
+				// tail
+				if (end_idx > 0) {
+					for (size_t i = 0; i < end_idx; ++i) {
+						exec(end_chunk, i);
+					}
+				}
+			}
 		}
+
 
 		// ACCESSORS (chunk based)
 		template<env::FieldMask M>
@@ -191,7 +214,8 @@ namespace april::container::layout {
 		std::vector<Chunk> data;
 		std::vector<Chunk> tmp;
 		std::vector<size_t> bin_starts;
-		std::vector<uint32_t> id_to_index_map;
+		std::vector<size_t> bin_sizes; // first chunk index of each bin
+		std::vector<uint32_t> id_to_index_map; // number of particles in each bin
 
 		void update_cache() {
 			ptr_chunks = data.data();
@@ -205,6 +229,11 @@ namespace april::container::layout {
 
 			data.resize(n_chunks);
 			id_to_index_map.resize(n_particles);
+
+			bin_sizes.resize(1);
+			bin_starts.resize(1);
+			bin_sizes[0] = particles.size();
+			bin_starts[0] = 0;
 
 			update_cache();
 
@@ -253,6 +282,7 @@ namespace april::container::layout {
 		void reorder_storage(const std::vector<std::vector<size_t>> & bins, const bool sentinel_pad=true) {
 			tmp.clear();
 			bin_starts.clear();
+			bin_sizes.clear();
 
 			// allocate space, calculate chunk index of first chunk in each bin
 			bin_starts.reserve(bins.size() + 1);
@@ -260,6 +290,7 @@ namespace april::container::layout {
 			size_t n_chunks = 0;
 			for (const auto & bin : bins) {
 				bin_starts.push_back(n_chunks);
+				bin_sizes.push_back(bin.size());
 				if (bin.empty()) continue;
 				const size_t bin_size = bin.size();
 				n_chunks +=  (bin_size + chunk_size - 1) / chunk_size;
@@ -345,8 +376,16 @@ namespace april::container::layout {
 		}
 
 
+		// return physical index range
+		[[nodiscard]] std::pair<size_t, size_t> get_physical_bin_range(const size_t type) const {
+			size_t start = bin_starts[type] * chunk_size;
+			size_t end   = start + bin_sizes[type]; 			// end is exact start + count (excludes padding)
 
-		[[nodiscard]] std::pair<size_t, size_t> bin_range(const size_t bin_index) const {
+			return {start, end};
+		}
+
+		// return range of chunk indices
+		[[nodiscard]] std::pair<size_t, size_t> get_chunk_bin_range(const size_t bin_index) const {
 			return {bin_starts[bin_index], bin_starts[bin_index+1]};
 		}
 

@@ -42,17 +42,12 @@ namespace april::container::layout {
 		}
 
 		template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Kernel>
-		void iterate(this auto&& self, Kernel && kernel, const env::ParticleState state) {
-			constexpr env::FieldMask fields = M | env::Field::state;
-
-			for (size_t i = 0; i < self.capacity(); i++) {
-				auto raw_state = self.particles[i].state;
-				if (static_cast<int>(raw_state & (state & ~env::ParticleState::INVALID))) {
-					if constexpr (is_const) {
-						kernel(i, self.template view<fields>(i));
-					} else {
-						kernel(i, self.template at<fields>(i));
-					}
+		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+			for (size_t i = start; i < end; i++) {
+				if constexpr (is_const) {
+					kernel(i, self.template view<M>(i));
+				} else {
+					kernel(i, self.template at<M>(i));
 				}
 			}
 		}

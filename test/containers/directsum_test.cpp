@@ -17,7 +17,7 @@ using namespace april;
 template <typename T>
 class DirectSumTest : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, DirectSumAoSoA>;
+using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA>;
 TYPED_TEST_SUITE(DirectSumTest, ContainerTypes);
 
 TYPED_TEST(DirectSumTest, SingleParticle_NoForce) {

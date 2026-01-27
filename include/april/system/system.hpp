@@ -164,15 +164,7 @@ namespace april::core {
 			particle_container.template for_each_particle_view<M, Policy, Func>(std::forward<Func>(func), state);
 		}
 
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
-		void enumerate(Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			particle_container.template enumerate<M, Policy, Func>(std::forward<Func>(func), state);
-		}
 
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
-		void enumerate_view(Func && func, env::ParticleState state = env::ParticleState::ALL) const {
-			particle_container.template enumerate_view<M, Policy, Func>(std::forward<Func>(func), state);
-		}
 
 
 		template<typename Func>

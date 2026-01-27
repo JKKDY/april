@@ -11,43 +11,40 @@ namespace april::container::direct_sum {
     public:
         using Base = DirectSumCore<layout::AoSoA<Config, U>>;
         using Base::chunk_size;
-        using SymmetricBatch = batching::SymmetricChunkedBatch<DirectSumAoSoAImpl>;
-        using AsymmetricBatch = batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl>;
+        using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumAoSoAImpl>;
+        using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumAoSoAImpl>;
 
         using Base::Base;
         friend Base;
 
-        void generate_batches(const std::vector<std::pair<size_t, size_t>> & /* unused_particle_ranges */) {
-            // IGNORE the input ranges! They are particle-based.
-            // We need the CHUNK ranges that we just built in reorder_storage.
+        void generate_batches(const std::vector<std::pair<size_t, size_t>> &) {
+            const auto n_types = static_cast<env::ParticleType>(this->bin_counts.size());
 
-            // Assume we can access 'bin_starts' or a helper from the base class AoSoA.
-            // Since DirectSumAoSoAImpl inherits DirectSumCore -> AoSoA, we can call 'this->bin_range(type)'.
-
-            const auto n_types = static_cast<env::ParticleType>(this->bin_starts.size() - 1); // bin_starts has N+1 entries
-
+            // build symmetric batches
             for (env::ParticleType type = 0; type < n_types; type++) {
-                auto [chunk_start, chunk_end] = this->bin_range(type);
+                // Use the new helper to get PHYSICAL indices
+                auto [start, end] = this->get_physical_bin_range(type);
 
-                if (chunk_start == chunk_end) continue; // Empty type
+                if (start == end) continue;
 
                 SymmetricBatch batch (*this);
                 batch.types = {type, type};
-                batch.range = {chunk_start, chunk_end};
+                batch.range = {start, end};
                 symmetric_batches.push_back(batch);
             }
 
+            // build symmetric batches
             for (env::ParticleType t1 = 0; t1 < n_types; t1++) {
                 for (env::ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
-                    auto [c1_start, c1_end] = this->bin_range(t1);
-                    auto [c2_start, c2_end] = this->bin_range(t2);
+                    auto [start1, end1] = this->get_physical_bin_range(t1);
+                    auto [start2, end2] = this->get_physical_bin_range(t2);
 
-                    if (c1_start == c1_end || c2_start == c2_end) continue;
+                    if (start1 == end1 || start2 == end2) continue;
 
                     AsymmetricBatch batch (*this);
                     batch.types = {t1, t2};
-                    batch.range1 = {c1_start, c1_end};
-                    batch.range2 = {c2_start, c2_end};
+                    batch.range1 = {start1, end1};
+                    batch.range2 = {start2, end2};
                     asymmetric_batches.push_back(batch);
                 }
             }

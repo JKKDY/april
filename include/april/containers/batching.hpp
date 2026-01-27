@@ -124,15 +124,13 @@ namespace april::batching {
 		explicit AsymmetricScalarBatch(Container & container) : container(container) {}
 
 		template<env::FieldMask Mask, typename Func>
-		AP_FORCE_INLINE void for_each_pair (Func && f) const {
-			for (size_t i = range1.start; i < range1.end; ++i) {
-				auto p1 = container.template restricted_at<Mask>(i);
-
-				for (size_t j = range2.start; j < range2.end; ++j) {
-					auto p2 = container.template restricted_at<Mask>(j);
+		AP_FORCE_INLINE
+		void for_each_pair (Func && f) const {
+			container.template for_each_particle<Mask> (range1.start, range1.end, [&](auto && p1) {
+				container.template for_each_particle<Mask> (range2.start, range2.end, [&](auto && p2) {
 					f(p1, p2);
-				}
-			}
+				});
+			});
 		}
 
 		Range range1;
@@ -146,15 +144,13 @@ namespace april::batching {
 		explicit SymmetricScalarBatch(Container & container) : container(container) {}
 
 		template<env::FieldMask Mask, typename Func>
-		AP_FORCE_INLINE void for_each_pair (Func && f) const {
-			for (size_t i = range.start; i < range.end; ++i) {
-				auto p1 = container.template restricted_at<Mask>(i);
-
-				for (size_t j = i + 1; j < range.end; ++j) {
-					auto p2 = container.template restricted_at<Mask>(j);
+		AP_FORCE_INLINE
+		void for_each_pair (Func && f) const {
+			container.template for_each_particle<Mask> (range.start, range.end, [&](const size_t i, auto && p1) {
+				container.template for_each_particle<Mask> (i + 1, range.end, [&](auto && p2) {
 					f(p1, p2);
-				}
-			}
+				});
+			});
 		}
 
 		Range range;
@@ -162,81 +158,5 @@ namespace april::batching {
 		Container & container;
 	};
 
-
-	template<typename Container>
-	struct AsymmetricChunkedBatch : SerialBatch {
-		explicit AsymmetricChunkedBatch(Container & container) : container(container) {}
-
-		template<env::FieldMask Mask, typename Func>
-		AP_FORCE_INLINE void for_each_pair (Func && f) const {
-			// loop over chunks
-			for (size_t c1 = range1.start; c1 < range1.end; ++c1) {
-				for (size_t c2 = range2.start; c2 < range2.end; ++c2) {
-
-					// loop inside chunks
-					for (size_t i = 0; i < Container::chunk_size; ++i) {
-						auto p1 = container.template restricted_at<Mask | env::Field::state>(c1, i);
-						if (p1.state == env::ParticleState::INVALID) continue;
-						for (size_t j = 0; j < Container::chunk_size; ++j) {
-							auto p2 = container.template restricted_at<Mask  | env::Field::state>(c2, j);
-							if (p2.state == env::ParticleState::INVALID) continue;
-							f(p1, p2);
-						}
-					}
-				}
-			}
-		}
-
-		// Ranges represent chunk indices! (e.g., 0 to 4 means Chunks 0,1,2,3)
-		Range range1;
-		Range range2;
-	private:
-		Container & container;
-	};
-
-
-	template<typename Container>
-	struct SymmetricChunkedBatch : SerialBatch {
-		explicit SymmetricChunkedBatch(Container & container) : container(container) {}
-
-
-		template<env::FieldMask Mask, typename Func>
-		AP_FORCE_INLINE  void for_each_pair (Func && f) const {
-			// Iterate Chunks
-			for (size_t c1 = range.start; c1 < range.end; ++c1) {
-
-				// self-interaction (triangle loop within chunk)
-				for (size_t i = 0; i < Container::chunk_size; ++i) {
-					auto p1 = container.template restricted_at<Mask | env::Field::state>(c1, i);
-					if (p1.state == env::ParticleState::INVALID) continue;
-					for (size_t j = i + 1; j < Container::chunk_size; ++j) {
-						auto p2 = container.template restricted_at<Mask  | env::Field::state>(c1, j);
-						if (p2.state == env::ParticleState::INVALID) continue;
-						f(p1, p2);
-					}
-				}
-
-				// pair-interaction (c1 with c2)
-				for (size_t c2 = c1 + 1; c2 < range.end; ++c2) {
-					for (size_t i = 0; i < Container::chunk_size; ++i) {
-						auto p1 = container.template restricted_at<Mask | env::Field::state>(c1, i);
-						if (p1.state == env::ParticleState::INVALID) continue;
-						for (size_t j = 0; j < Container::chunk_size; ++j) {
-							auto p2 = container.template restricted_at<Mask | env::Field::state>(c2, j);
-							if (p2.state == env::ParticleState::INVALID) continue;
-							f(p1, p2);
-						}
-					}
-				}
-			}
-		}
-
-		// Range represents chunk indices! (e.g., 0 to 4 means Chunks 0,1,2,3)
-		Range range;
-	private:
-		Container & container;
-	};
 }
-
-
 

@@ -91,81 +91,38 @@ namespace april::container {
 		}
 
 
-		// --------
-		// INDEXING
-		// --------
-		[[nodiscard]] size_t invoke_id_to_index(this const auto& self, env::ParticleID id) {
-			return self.id_to_index(id);
-		}
-
-		[[nodiscard]] env::ParticleID invoke_min_id(this const auto& self) {
-			return self.min_id();
-		}
-
-		[[nodiscard]] env::ParticleID invoke_max_id(this const auto& self) {
-			return self.max_id();
-		}
-		[[nodiscard]] bool invoke_index_is_valid(this const auto& self, size_t index) {
-			return self.index_is_valid(index);
-		}
-		[[nodiscard]] bool invoke_contains_id(this const auto& self, env::ParticleID id) {
-			return self.contains_id(id);
-		}
-
-
 
 		// ------------------
 		// PARTICLE ITERATION
 		// ------------------
-		// filter by state
+		// filter by state (safe, performs checks to skip garbage data)
 		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			auto kernel = [&](size_t, auto && p) { func(p); };
-			self.template invoke_iterate<M, Policy, false>(kernel, state);
+			self.template invoke_iterate_state<M, Policy, false>(func, state);
 		}
-
 		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle_view(this const auto& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			auto kernel = [&](size_t,  auto && p) { func(p); };
-			self.template invoke_iterate<M,Policy,  true>(kernel, state);
+			self.template invoke_iterate_state<M,Policy, true>(func, state);
 		}
 
-		// direct range based access (brnachless)
+		// direct range based access (fast & branchless but unsafe will not perform any checks)
 		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle(this auto&& self, size_t start, size_t stop, Func && func) {
-			AP_ASSERT(self.invoke_index_is_valid(start), "Invalid index: " + std::to_string(start));
-			AP_ASSERT(self.invoke_index_is_valid(stop), "Invalid index: " + std::to_string(stop));
-			auto kernel = [&](size_t, auto && p) { func(p); };
-			self.template invoke_iterate_range<M, Policy, false>(kernel, start, stop);
-		}
+			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
+			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
+			AP_ASSERT(start <= actual_stop, "Invalid range: start > stop");
 
+			self.template invoke_iterate_range<M, Policy, false>(func, start, stop);
+		}
 		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle_view(this const auto& self, size_t start, size_t stop, Func && func) {
-			AP_ASSERT(self.invoke_index_is_valid(start), "Invalid index: " + std::to_string(start));
-			AP_ASSERT(self.invoke_index_is_valid(stop), "Invalid index: " + std::to_string(stop));
-			auto kernel = [&](size_t, auto && p) { func(p); };
-			self.template invoke_iterate_range<M, Policy, true>(kernel, start, stop);
+			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
+			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
+			AP_ASSERT(start <= stop, "Invalid range");
+
+			self.template invoke_iterate_range<M, Policy, true>(func, start, stop);
 		}
 
-
-
-		// --------------------
-		// PARTICLE ENUMERATION
-		// --------------------
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func> // TODO restrict callable Func (invoke_for_each_particle)
-		void enumerate(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			self.template invoke_iterate<M, Policy, false>(func, state);
-		}
-
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func> // TODO restrict callable Func (invoke_for_each_particle)
-		void enumerate_view(this const auto& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			self.template invoke_iterate<M, Policy, true>(func, state);
-		}
-
-
-		// --------------
-		// FUNCTIONAL OPS
-		// --------------
 		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>
 		[[nodiscard]] T invoke_reduce( // TODO restrict callable Mapper, Reducer (invoke_reduce)
 			this const auto& self,
@@ -188,6 +145,25 @@ namespace april::container {
 				self.template invoke_iterate<M, ExecutionPolicy::Seq, true>(kernel, state);
 				return curr;
 			}
+		}
+
+
+		// --------
+		// INDEXING
+		// --------
+		[[nodiscard]] size_t invoke_id_to_index(this const auto& self, env::ParticleID id) {
+			return self.id_to_index(id);
+		}
+
+		[[nodiscard]] env::ParticleID invoke_min_id(this const auto& self) {
+			return self.min_id();
+		}
+
+		[[nodiscard]] env::ParticleID invoke_max_id(this const auto& self) {
+			return self.max_id();
+		}
+		[[nodiscard]] std::vector<std::pair<size_t, size_t>> safe_iteration_ranges() const {
+			return {}; // TODO implement safe_iteration_ranges
 		}
 
 
@@ -251,13 +227,18 @@ namespace april::container {
 		// -------
 		// QUERIES
 		// -------
+		[[nodiscard]] bool invoke_index_is_valid(this const auto& self, size_t index) {
+			return self.index_is_valid(index);
+		}
+		[[nodiscard]] bool invoke_contains_id(this const auto& self, env::ParticleID id) {
+			return self.contains_id(id);
+		}
 		[[nodiscard]] size_t invoke_capacity(this const auto& self) {
 			return self.capacity();
 		}
 		[[nodiscard]] size_t invoke_particle_count(this const auto& self) {
 			return self.particle_count();
 		}
-
 		[[nodiscard]] std::vector<size_t> invoke_collect_indices_in_region(this const auto& self, const env::Box & region) {
 			if constexpr (requires { self.collect_indices_in_region(region); }) {
 				return self.collect_indices_in_region(region);
@@ -281,9 +262,42 @@ namespace april::container {
 		const force::internal::InteractionSchema force_schema;
 		const env::Box domain; // Note: in the future this may be adjustable during run time
 
-		template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Kernel>
-		void invoke_iterate(this auto&& self, Kernel && kernel, const env::ParticleState state) {
-			self.template iterate<M, Policy, is_const, Kernel>(kernel, state);
+		template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Func>
+		void invoke_iterate_range(this auto&& self, Func && func, size_t start, size_t end) {
+			auto kernel = [&](size_t i, auto && p) {
+				if constexpr (requires { func(i, p); }) {
+					func(i, p); // user wants index
+				} else {
+					func(p); // user only wants particle
+				}
+			};
+
+			self.template iterate_range<M, Policy, is_const>(kernel, start, end);
+		}
+
+		template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Func>
+		void invoke_iterate_state(this auto&& self, Func && func, const env::ParticleState state) {
+			auto kernel = [&](size_t i, auto && p) {
+				if constexpr (requires { func(i, p); }) {
+					func(i, p); // user wants index
+				} else {
+					func(p); // user only wants particle
+				}
+			};
+
+			// try optimized implementation. Else fallback to default. Default assumes valid data for the entire iteration range
+			if constexpr (requires {self.template iterate<M, Policy, is_const>(kernel, state);}) {
+				self.template iterate<M, Policy, is_const>(kernel, state);
+			} else {
+				// note: iterate_range makes no checks so if it encounters memory that cannot be interpreted as
+				// particle data or memory it is not allowed to access it can crash.
+				self.template iterate_range<M | env::Field::state, Policy, is_const>(
+					[&](size_t i, auto && p) {
+					if (self.index_is_valid(i) && static_cast<int>(p.state & state)) {
+						kernel(i, p);
+					}
+				}, 0, self.capacity());
+			}
 		}
 
 		template<env::Field F>
@@ -413,33 +427,29 @@ namespace april::container {
 
 
 	template<typename C> concept IsContainer =
-		// 1. must define types (Config, UserData)
+		// must define types (Config, UserData)
 		requires {
 			typename C::Config;
 			typename C::UserData;
 		} &&
-		// 2. Config must have impl typename pointing to Container type
+		// Config must have impl typename pointing to Container type
 		// container must only depend on user data as template argument
 		requires {
 			typename C::Config::template impl<typename C::UserData>;
 			requires std::same_as<C, typename C::Config::template impl<typename C::UserData>>;
 		} &&
-		// 3. Must inherit from the Middleware (Container)
+		// Must inherit from the Container
 		std::derived_from<C, Container<
 			typename C::Config,
 			typename C::UserData
 		>> &&
-		// 4. Must implement the Structural Contract
+		// Must implement the Structural Contract
 		HasContainerOps<C>;
-
 
 
 	template<typename ContainerDecl, typename Traits> concept IsContainerDecl =
 		env::internal::IsEnvironmentTraits<Traits>
-	&&
-	requires {
-		typename ContainerDecl::template impl<typename Traits::user_data_t>;
-	} &&
-		IsContainer<typename ContainerDecl::template impl<typename Traits::user_data_t>>;
+		&& requires { typename ContainerDecl::template impl<typename Traits::user_data_t>; }
+		&& IsContainer<typename ContainerDecl::template impl<typename Traits::user_data_t>>;
 
 } // namespace april::container

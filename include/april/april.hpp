@@ -30,11 +30,14 @@
 #include "april/monitors/benchmark.hpp"
 
 #include "april/containers/container.hpp"
-#include "april/containers/direct_sum.hpp"
 #include "april/containers/linked_cells.hpp"
 // #include "april/containers/linked_cells_aosoa.hpp"
 #include "april/containers/linked_cells_types.hpp"
 #include "april/containers/cell_orderings.hpp"
+
+#include "april/containers/direct_sum/aos.hpp"
+#include "april/containers/direct_sum/soa.hpp"
+#include "april/containers/direct_sum/aosoa.hpp"
 
 #include "april/integrators/integrator.hpp"
 #include "april/integrators/velocity_verlet.hpp"
@@ -95,9 +98,9 @@ namespace april {
 
 	// Containers
 	using container::Container;
-	using container::DirectSumAoS;
-	using container::DirectSumSoA;
-	using container::DirectSumAoSoA;
+	using container::direct_sum::DirectSumAoS;
+	using container::direct_sum::DirectSumSoA;
+	using container::direct_sum::DirectSumAoSoA;
 	using container::LinkedCellsAoS;
 	using container::LinkedCellsSoA;
 	using container::LinkedCellsAoSoA;

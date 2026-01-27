@@ -54,7 +54,7 @@ namespace april::container::layout {
 	};
 
 
-	template<size_t size, typename Config, env::IsUserData U>
+	template<typename Config, env::IsUserData U, size_t size=8>
 	class AoSoA : public Container<Config, U> {
 	public:
 		static constexpr size_t chunk_size = size;
@@ -198,17 +198,17 @@ namespace april::container::layout {
 		}
 
 		void build_storage(const std::vector<env::internal::ParticleRecord<U>>& particles) {
-			const size_t n = particles.size();
+			n_particles = particles.size();
 
-			const size_t n_chunks = (n + chunk_size - 1) / chunk_size;
+			const size_t n_chunks = (n_particles + chunk_size - 1) / chunk_size;
 			particle_capacity = n_chunks * chunk_size;
 
 			data.resize(n_chunks);
-			id_to_index_map.resize(n);
+			id_to_index_map.resize(n_particles);
 
 			update_cache();
 
-			for (size_t i = 0; i < n; ++i) {
+			for (size_t i = 0; i < n_particles; ++i) {
 				const auto& p = particles[i];
 
 				// locate destination
@@ -242,7 +242,7 @@ namespace april::container::layout {
 				id_to_index_map[static_cast<size_t>(p.id)] = i;
 			}
 
-			for (size_t i = n; i < particle_capacity; ++i) {
+			for (size_t i = n_particles; i < particle_capacity; ++i) {
 				const auto [c_idx, l_idx] = locate(i);
 				data[c_idx].state[l_idx] = env::ParticleState::INVALID;
 				data[c_idx].id[l_idx] = std::numeric_limits<env::ParticleID>::max();
@@ -326,9 +326,9 @@ namespace april::container::layout {
 						dst_chunk.state[dst_l] = env::ParticleState::INVALID;
 
 						// move far away to be safe against distance checks
-						dst_chunk.pos_x[dst_l] = std::numeric_limits<double>::max();
-						dst_chunk.pos_y[dst_l] = std::numeric_limits<double>::max();
-						dst_chunk.pos_z[dst_l] = std::numeric_limits<double>::max();
+						dst_chunk.pos_x[dst_l] = 1e50;
+						dst_chunk.pos_y[dst_l] = 1e50;
+						dst_chunk.pos_z[dst_l] = 1e50;
 
 						// set ID to max to avoid map lookups
 						dst_chunk.id[dst_l] = std::numeric_limits<env::ParticleID>::max();

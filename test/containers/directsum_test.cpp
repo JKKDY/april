@@ -5,16 +5,19 @@ using testing::AnyOf;
 using testing::Eq;
 
 #include "april/common.hpp"
-#include "april/containers/direct_sum.hpp"
 #include "constant_force.h"
 #include "utils.h"
+
+#include "april/containers/direct_sum/aos.hpp"
+#include "april/containers/direct_sum/soa.hpp"
+#include "april/containers/direct_sum/aosoa.hpp"
 
 using namespace april;
 
 template <typename T>
 class DirectSumTest : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, DirectSumAoSoA<8>>;
+using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, DirectSumAoSoA>;
 TYPED_TEST_SUITE(DirectSumTest, ContainerTypes);
 
 TYPED_TEST(DirectSumTest, SingleParticle_NoForce) {

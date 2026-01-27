@@ -27,8 +27,10 @@ namespace april::batching {
 
 	enum class ComputePolicy : uint8_t { // for future use
 		Scalar,
-		Vector
+		Vector,
 	};
+
+	// missing: branchless, auto simd (e.g. omp simd)
 
 
 	//------------------------
@@ -100,7 +102,6 @@ namespace april::batching {
 	//--------------------
 	// PRE DEFINED BATCHES
 	//--------------------
-
 	struct Range {
 		Range() = default;
 
@@ -163,10 +164,6 @@ namespace april::batching {
 
 
 	template<typename Container>
-	requires requires(Container& c) {
-		{ Container::chunk_size } -> std::convertible_to<size_t>;
-		{ c.template restricted_at<+env::Field::position>(size_t{0}, size_t{0}) };
-	}
 	struct AsymmetricChunkedBatch : SerialBatch {
 		explicit AsymmetricChunkedBatch(Container & container) : container(container) {}
 
@@ -178,16 +175,17 @@ namespace april::batching {
 
 					// loop inside chunks
 					for (size_t i = 0; i < Container::chunk_size; ++i) {
-						auto p1 = container.template restricted_at<Mask>(c1, i);
+						auto p1 = container.template restricted_at<Mask | env::Field::state>(c1, i);
+						if (p1.state == env::ParticleState::INVALID) continue;
 						for (size_t j = 0; j < Container::chunk_size; ++j) {
-							auto p2 = container.template restricted_at<Mask>(c2, j);
+							auto p2 = container.template restricted_at<Mask  | env::Field::state>(c2, j);
+							if (p2.state == env::ParticleState::INVALID) continue;
 							f(p1, p2);
 						}
 					}
 				}
 			}
 		}
-
 
 		// Ranges represent chunk indices! (e.g., 0 to 4 means Chunks 0,1,2,3)
 		Range range1;
@@ -198,13 +196,9 @@ namespace april::batching {
 
 
 	template<typename Container>
-	requires requires(Container& c) {
-		// Same constraints
-		{ Container::chunk_size } -> std::convertible_to<size_t>;
-		{ c.template restricted_at<env::Field::position>(size_t{0}, size_t{0}) };
-	}
 	struct SymmetricChunkedBatch : SerialBatch {
 		explicit SymmetricChunkedBatch(Container & container) : container(container) {}
+
 
 		template<env::FieldMask Mask, typename Func>
 		AP_FORCE_INLINE  void for_each_pair (Func && f) const {
@@ -213,9 +207,11 @@ namespace april::batching {
 
 				// self-interaction (triangle loop within chunk)
 				for (size_t i = 0; i < Container::chunk_size; ++i) {
-					auto p1 = container.template restricted_at<Mask>(c1, i);
+					auto p1 = container.template restricted_at<Mask | env::Field::state>(c1, i);
+					if (p1.state == env::ParticleState::INVALID) continue;
 					for (size_t j = i + 1; j < Container::chunk_size; ++j) {
-						auto p2 = container.template restricted_at<Mask>(c1, j);
+						auto p2 = container.template restricted_at<Mask  | env::Field::state>(c1, j);
+						if (p2.state == env::ParticleState::INVALID) continue;
 						f(p1, p2);
 					}
 				}
@@ -223,9 +219,11 @@ namespace april::batching {
 				// pair-interaction (c1 with c2)
 				for (size_t c2 = c1 + 1; c2 < range.end; ++c2) {
 					for (size_t i = 0; i < Container::chunk_size; ++i) {
-						auto p1 = container.template restricted_at<Mask>(c1, i);
+						auto p1 = container.template restricted_at<Mask | env::Field::state>(c1, i);
+						if (p1.state == env::ParticleState::INVALID) continue;
 						for (size_t j = 0; j < Container::chunk_size; ++j) {
-							auto p2 = container.template restricted_at<Mask>(c2, j);
+							auto p2 = container.template restricted_at<Mask | env::Field::state>(c2, j);
+							if (p2.state == env::ParticleState::INVALID) continue;
 							f(p1, p2);
 						}
 					}

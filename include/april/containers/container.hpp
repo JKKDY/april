@@ -55,113 +55,6 @@ namespace april::container {
 		}
 
 
-
-		// ------------------
-		// PARTICLE ITERATION
-		// ------------------
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
-		void invoke_for_each_particle(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			auto kernel = [&](size_t, auto && p) { func(p); };
-			self.template invoke_iterate<M, Policy, false>(kernel, state);
-		}
-
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
-		void invoke_for_each_particle_view(this const auto& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			auto kernel = [&](size_t,  auto && p) { func(p); };
-			self.template invoke_iterate<M,Policy,  true>(kernel, state);
-		}
-
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func> // TODO restrict callable Func (invoke_for_each_particle)
-		void invoke_enumerate(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			auto kernel = [&](size_t i, auto && p) { func(i, p); };
-			self.template invoke_iterate<M, Policy, false>(kernel, state);
-		}
-
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func> // TODO restrict callable Func (invoke_for_each_particle)
-		void invoke_enumerate_view(this const auto& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			auto kernel = [&](size_t i, auto && p) { func(i, p); };
-			self.template invoke_iterate<M, Policy, true>(kernel, state);
-		}
-
-		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>
-		[[nodiscard]] T invoke_reduce( // TODO restrict callable Mapper, Reducer (invoke_reduce)
-			this const auto& self,
-			T initial_value,
-			Mapper&& map_func,
-			Reducer&& reduce_func = {},
-			env::ParticleState state = env::ParticleState::ALIVE
-		) {
-			if constexpr (requires { self.reduce(initial_value, map_func, reduce_func, state); }) {
-				// custom/optimized reducer
-				return self.reduce(initial_value, std::forward<Mapper>(map_func), std::forward<Reducer>(reduce_func), state);
-			} else {
-				// default implementation using iterate function
-				T curr = initial_value;
-				auto kernel = [&](size_t, auto&& p) {
-					T val = map_func(p);
-					curr = reduce_func(curr, val);
-				};
-
-				self.template invoke_iterate<M, ExecutionPolicy::Seq, true>(kernel, state);
-				return curr;
-			}
-		}
-
-
-
-		// ---------------
-		// BATCH ITERATION
-		// ---------------
-		template<typename Func> // TODO restrict callable Func (invoke_for_each_batch)
-		void invoke_for_each_interaction_batch(this auto&& self, Func && func) {
-			self.for_each_interaction_batch(std::forward<Func>(func));
-		}
-
-		template<typename Func>
-		void invoke_for_each_topology_batch(this auto&& self, Func&& func) {
-			self.for_each_topology_batch(std::forward<Func>(func));
-		}
-
-
-
-
-		// -----------------
-		// STRUCTURE UPDATES
-		// -----------------
-		// update container internals by scanning for all particle movements
-		void invoke_rebuild_structure(this auto&& self) {
-			self.rebuild_structure();
-		}
-
-		// perform partial container update given a list of particle indices
-		void invoke_notify_moved(this auto&& self, const std::vector<size_t>& indices) {
-			if constexpr (requires { self.notify_moved(indices); }) {
-				self.notify_moved(indices);
-			} else {
-				// fallback: rebuild entire structure
-				// useful in cases where the container cant do partial updates
-				self.invoke_rebuild_structure();
-			}
-		}
-
-
-		// ---------
-		// MODIFIERS
-		// ---------
-		void invoke_add_particle(this auto&& self, const ParticleRecord & record) {
-			AP_ASSERT(false, "add_particle not supported yet");
-			self.add_particle(record);
-		}
-		void invoke_remove_particle(this auto&& self, const env::ParticleID id) {
-			AP_ASSERT(false, "remove_particle not supported yet");
-			self.remove_particle(id);
-		}
-		void invoke_resize_domain(this auto&& self, const env::Box & new_domain) {
-			AP_ASSERT(false, "resize_domain not supported yet");
-			self.resize_domain(new_domain);
-		}
-
-
 		// ------------------
 		// PARTICLE ACCESSORS
 		// ------------------
@@ -217,6 +110,140 @@ namespace april::container {
 		}
 		[[nodiscard]] bool invoke_contains_id(this const auto& self, env::ParticleID id) {
 			return self.contains_id(id);
+		}
+
+
+
+		// ------------------
+		// PARTICLE ITERATION
+		// ------------------
+		// filter by state
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void for_each_particle(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
+			auto kernel = [&](size_t, auto && p) { func(p); };
+			self.template invoke_iterate<M, Policy, false>(kernel, state);
+		}
+
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void for_each_particle_view(this const auto& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
+			auto kernel = [&](size_t,  auto && p) { func(p); };
+			self.template invoke_iterate<M,Policy,  true>(kernel, state);
+		}
+
+		// direct range based access (brnachless)
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void for_each_particle(this auto&& self, size_t start, size_t stop, Func && func) {
+			AP_ASSERT(self.invoke_index_is_valid(start), "Invalid index: " + std::to_string(start));
+			AP_ASSERT(self.invoke_index_is_valid(stop), "Invalid index: " + std::to_string(stop));
+			auto kernel = [&](size_t, auto && p) { func(p); };
+			self.template invoke_iterate_range<M, Policy, false>(kernel, start, stop);
+		}
+
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void for_each_particle_view(this const auto& self, size_t start, size_t stop, Func && func) {
+			AP_ASSERT(self.invoke_index_is_valid(start), "Invalid index: " + std::to_string(start));
+			AP_ASSERT(self.invoke_index_is_valid(stop), "Invalid index: " + std::to_string(stop));
+			auto kernel = [&](size_t, auto && p) { func(p); };
+			self.template invoke_iterate_range<M, Policy, true>(kernel, start, stop);
+		}
+
+
+
+		// --------------------
+		// PARTICLE ENUMERATION
+		// --------------------
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func> // TODO restrict callable Func (invoke_for_each_particle)
+		void enumerate(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
+			self.template invoke_iterate<M, Policy, false>(func, state);
+		}
+
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func> // TODO restrict callable Func (invoke_for_each_particle)
+		void enumerate_view(this const auto& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
+			self.template invoke_iterate<M, Policy, true>(func, state);
+		}
+
+
+		// --------------
+		// FUNCTIONAL OPS
+		// --------------
+		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>
+		[[nodiscard]] T invoke_reduce( // TODO restrict callable Mapper, Reducer (invoke_reduce)
+			this const auto& self,
+			T initial_value,
+			Mapper&& map_func,
+			Reducer&& reduce_func = {},
+			env::ParticleState state = env::ParticleState::ALIVE
+		) {
+			if constexpr (requires { self.reduce(initial_value, map_func, reduce_func, state); }) {
+				// custom/optimized reducer
+				return self.reduce(initial_value, std::forward<Mapper>(map_func), std::forward<Reducer>(reduce_func), state);
+			} else {
+				// default implementation using iterate function
+				T curr = initial_value;
+				auto kernel = [&](size_t, auto&& p) {
+					T val = map_func(p);
+					curr = reduce_func(curr, val);
+				};
+
+				self.template invoke_iterate<M, ExecutionPolicy::Seq, true>(kernel, state);
+				return curr;
+			}
+		}
+
+
+
+
+
+		// ---------------
+		// BATCH ITERATION
+		// ---------------
+		template<typename Func> // TODO restrict callable Func (invoke_for_each_batch)
+		void invoke_for_each_interaction_batch(this auto&& self, Func && func) {
+			self.for_each_interaction_batch(std::forward<Func>(func));
+		}
+
+		template<typename Func>
+		void invoke_for_each_topology_batch(this auto&& self, Func&& func) {
+			self.for_each_topology_batch(std::forward<Func>(func));
+		}
+
+
+
+
+		// -----------------
+		// STRUCTURE UPDATES
+		// -----------------
+		// update container internals by scanning for all particle movements
+		void invoke_rebuild_structure(this auto&& self) {
+			self.rebuild_structure();
+		}
+
+		// perform partial container update given a list of particle indices
+		void invoke_notify_moved(this auto&& self, const std::vector<size_t>& indices) {
+			if constexpr (requires { self.notify_moved(indices); }) {
+				self.notify_moved(indices);
+			} else {
+				// fallback: rebuild entire structure
+				// useful in cases where the container cant do partial updates
+				self.invoke_rebuild_structure();
+			}
+		}
+
+
+		// ---------
+		// MODIFIERS
+		// ---------
+		void invoke_add_particle(this auto&& self, const ParticleRecord & record) {
+			AP_ASSERT(false, "add_particle not supported yet");
+			self.add_particle(record);
+		}
+		void invoke_remove_particle(this auto&& self, const env::ParticleID id) {
+			AP_ASSERT(false, "remove_particle not supported yet");
+			self.remove_particle(id);
+		}
+		void invoke_resize_domain(this auto&& self, const env::Box & new_domain) {
+			AP_ASSERT(false, "resize_domain not supported yet");
+			self.resize_domain(new_domain);
 		}
 
 

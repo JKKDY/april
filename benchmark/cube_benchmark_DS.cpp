@@ -1,6 +1,9 @@
 #include <april/april.hpp>
 #include <filesystem>
 
+#include "april/containers/direct_sum/aos.hpp"
+#include "april/containers/direct_sum/soa.hpp"
+#include "april/containers/direct_sum/aosoa.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;
@@ -41,7 +44,7 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	constexpr auto container = DirectSumSoA();
+	constexpr auto container = container::direct_sum::DirectSumAoSoA();
 	auto system = build_system(env, container);
 
 	constexpr double dt = 0.0002;

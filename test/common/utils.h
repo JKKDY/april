@@ -50,9 +50,9 @@ std::vector<typename System::ParticleRec> export_particles(System& sys) {
 	std::vector<typename System::ParticleRec> records;
 	records.reserve(sys.size());
 
-	for (size_t i = 0; i < sys.size(); ++i) {
-		records.push_back(get_particle(sys, i));
-	}
+	sys.template enumerate_view<+env::Field::none>([&](size_t idx, auto &&) {
+		records.push_back(get_particle(sys, idx));
+	});
 
 	return records;
 }
@@ -63,7 +63,8 @@ template<core::IsSystem System>
 void simulate_single_step(System& sys) {
 	constexpr env::FieldMask edit_fields = env::Field::old_position | env::Field::position | env::Field::velocity;
 
-	for (size_t pid = 0; pid < sys.size(); ++pid) {
+	for (size_t pid = sys.min_id(); pid < sys.max_id(); ++pid) {
+		if (!sys.contains_id(pid)) continue;
 		auto p = sys.template at<edit_fields>(pid);
 		p.old_position = p.position;
 		p.position = p.old_position + p.velocity; // simulate one step

@@ -124,8 +124,8 @@ namespace april::core {
 		}
 
 		// check if particle id is valid
-		[[nodiscard]] bool contains(const env::ParticleID id) const noexcept {
-			return particle_container.invoke_contains(id);
+		[[nodiscard]] bool contains_id(const env::ParticleID id) const noexcept {
+			return particle_container.invoke_contains_id(id);
 		}
 
 		// convert id to index
@@ -156,8 +156,24 @@ namespace april::core {
 		// --------------
 		template<env::FieldMask M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle(Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			particle_container.template invoke_for_each_particle<M, Policy, Func>(std::forward<Func>(func), state);
+			particle_container.template for_each_particle<M, Policy, Func>(std::forward<Func>(func), state);
 		}
+
+		template<env::FieldMask M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void for_each_particle_view(Func && func, env::ParticleState state = env::ParticleState::ALL) const {
+			particle_container.template for_each_particle_view<M, Policy, Func>(std::forward<Func>(func), state);
+		}
+
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void enumerate(Func && func, env::ParticleState state = env::ParticleState::ALL) {
+			particle_container.template enumerate<M, Policy, Func>(std::forward<Func>(func), state);
+		}
+
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void enumerate_view(Func && func, env::ParticleState state = env::ParticleState::ALL) const {
+			particle_container.template enumerate_view<M, Policy, Func>(std::forward<Func>(func), state);
+		}
+
 
 		template<typename Func>
 		void for_each_interaction_batch(Func && func) {
@@ -165,7 +181,7 @@ namespace april::core {
 		}
 
 		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>
-		[[nodiscard]] T invoke_reduce(
+		[[nodiscard]] T reduce(
 			T initial_value,
 			Mapper&& map_func,
 			Reducer&& reduce_func = {},
@@ -374,7 +390,7 @@ namespace april::core {
 			p.force = {};
 		};
 
-		particle_container.template invoke_for_each_particle<+env::Field::force>(reset_force);
+		particle_container.template for_each_particle<+env::Field::force>(reset_force);
 		particle_container.invoke_for_each_interaction_batch(update_batch);
 
 

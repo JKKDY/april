@@ -34,18 +34,6 @@ namespace april::container::layout {
 			}
 		}
 
-		void build_storage(const std::vector<Particle>& particles) {
-			AP_ASSERT(!is_built, "storage has already been built");
-
-			this->particles = std::vector(particles);
-			id_to_index_map.resize(particles.size());
-			for (size_t i = 0; i < particles.size(); i++) {
-				const auto id = static_cast<size_t>(particles[i].id);
-				id_to_index_map[id] = i;
-			}
-			this->is_built = true;
-		}
-
 		template<typename Func>
 		void for_each_topology_batch(Func && func) {
 			for (const auto & batch : topology_batches) {
@@ -96,6 +84,39 @@ namespace april::container::layout {
 		}
 
 	protected:
+		std::vector<Particle> tmp = {};
+		std::vector<Particle> particles = {};
+		std::vector<uint32_t> id_to_index_map; // map id to index
+
+		void build_storage(const std::vector<Particle>& particles_in) {
+			particles = std::vector(particles_in);
+			id_to_index_map.resize(particles.size());
+			for (size_t i = 0; i < particles.size(); i++) {
+				const auto id = static_cast<size_t>(particles[i].id);
+				id_to_index_map[id] = i;
+			}
+
+			tmp.resize(particles.size());
+		}
+
+		void reorder_storage(const std::vector<std::vector<size_t>> & bins, const bool = false) {
+			// scatter particles into bins
+			size_t current_idx = 0;
+			for (const auto& bin : bins) {
+				for (size_t old_idx : bin) {
+					tmp[current_idx++] = particles[old_idx];
+				}
+			}
+			// and swap storages
+			std::swap(particles, tmp);
+
+			// rebuild id map: we must update the look-up table because every particle moved
+			for (size_t i = 0; i < particles.size(); i++) {
+				const auto id = particles[i].id;
+				id_to_index_map[id] = i;
+			}
+		}
+
 		void swap_particles (uint32_t i, uint32_t j) {
 			if (i == j) return;
 
@@ -118,10 +139,7 @@ namespace april::container::layout {
 			else if constexpr (F == env::Field::user_data)		return &self.particles[i].user_data;
 		}
 
-		std::vector<Particle> particles = {};
-		std::vector<uint32_t> id_to_index_map; // map id to index
 	private:
 		std::vector<batching::TopologyBatch> topology_batches;
-		bool is_built = false;
 	};
 }

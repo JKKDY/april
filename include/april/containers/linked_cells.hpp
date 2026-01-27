@@ -581,7 +581,7 @@ namespace april::container::internal {
 		using Base = LinkedCellsBase<layout::SoA<container::LinkedCellsSoA, U>>;
 
 		// mirror the Storage type from the base class
-		using Storage = typename Base::Storage;
+		using Storage = layout::SoAStorage<U>;
 		Storage tmp;
 	public:
 		using Base::Base;

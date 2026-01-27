@@ -250,7 +250,7 @@ namespace april::container::layout {
 		}
 
 
-		void rebuild_storage(const std::vector<std::vector<size_t>> & bins, const bool sentinel_pad=true) {
+		void reorder_storage(const std::vector<std::vector<size_t>> & bins, const bool sentinel_pad=true) {
 			tmp.clear();
 			bin_starts.clear();
 

@@ -9,6 +9,102 @@
 
 namespace april::container::layout {
 
+    template<typename UserData>
+    struct SoAStorage {
+        alignas(64) std::vector<vec3::type> pos_x, pos_y, pos_z;
+        alignas(64) std::vector<vec3::type> vel_x, vel_y, vel_z;
+        alignas(64) std::vector<vec3::type> frc_x, frc_y, frc_z;
+        alignas(64) std::vector<vec3::type> old_x, old_y, old_z;
+
+        alignas(64) std::vector<double> mass;
+        alignas(64) std::vector<env::ParticleState> state;
+        alignas(64) std::vector<env::ParticleType> type;
+        alignas(64) std::vector<env::ParticleID> id;
+        alignas(64) std::vector<UserData> user_data;
+
+        vec3::type * AP_RESTRICT ptr_pos_x = nullptr;
+        vec3::type * AP_RESTRICT ptr_pos_y = nullptr;
+        vec3::type * AP_RESTRICT ptr_pos_z = nullptr;
+
+        // Velocities
+        vec3::type * AP_RESTRICT ptr_vel_x = nullptr;
+        vec3::type * AP_RESTRICT ptr_vel_y = nullptr;
+        vec3::type * AP_RESTRICT ptr_vel_z = nullptr;
+
+        // Forces
+        vec3::type * AP_RESTRICT ptr_frc_x = nullptr;
+        vec3::type * AP_RESTRICT ptr_frc_y = nullptr;
+        vec3::type * AP_RESTRICT ptr_frc_z = nullptr;
+
+        // Old Position
+        vec3::type * AP_RESTRICT ptr_old_x = nullptr;
+        vec3::type * AP_RESTRICT ptr_old_y = nullptr;
+        vec3::type * AP_RESTRICT ptr_old_z = nullptr;
+
+        // Scalars
+        double * AP_RESTRICT ptr_mass = nullptr;
+        env::ParticleState * AP_RESTRICT ptr_state = nullptr;
+        env::ParticleType  * AP_RESTRICT ptr_type  = nullptr;
+        env::ParticleID    * AP_RESTRICT ptr_id    = nullptr;
+        UserData * AP_RESTRICT ptr_user_data = nullptr;
+
+        void update_pointer_cache() {
+            ptr_pos_x = pos_x.data(); ptr_pos_y = pos_y.data(); ptr_pos_z = pos_z.data();
+            ptr_vel_x = vel_x.data(); ptr_vel_y = vel_y.data(); ptr_vel_z = vel_z.data();
+            ptr_frc_x = frc_x.data(); ptr_frc_y = frc_y.data(); ptr_frc_z = frc_z.data();
+            ptr_old_x = old_x.data(); ptr_old_y = old_y.data(); ptr_old_z = old_z.data();
+
+            ptr_mass = mass.data();
+            ptr_state = state.data();
+            ptr_type = type.data();
+            ptr_id = id.data();
+            ptr_user_data = user_data.data();
+        }
+
+        void resize(const size_t n) {
+            pos_x.resize(n); pos_y.resize(n); pos_z.resize(n);
+            vel_x.resize(n); vel_y.resize(n); vel_z.resize(n);
+            frc_x.resize(n); frc_y.resize(n); frc_z.resize(n);
+            old_x.resize(n); old_y.resize(n); old_z.resize(n);
+            mass.resize(n); state.resize(n); type.resize(n); id.resize(n);
+            user_data.resize(n);
+            update_pointer_cache();
+        }
+
+        // Copy particle data from source index to this index
+        // Used for rebuilding/sorting storage
+        void copy_from(const size_t dest_i, const SoAStorage& src, const size_t src_i) {
+            pos_x[dest_i] = src.pos_x[src_i]; pos_y[dest_i] = src.pos_y[src_i]; pos_z[dest_i] = src.pos_z[src_i];
+            vel_x[dest_i] = src.vel_x[src_i]; vel_y[dest_i] = src.vel_y[src_i]; vel_z[dest_i] = src.vel_z[src_i];
+            frc_x[dest_i] = src.frc_x[src_i]; frc_y[dest_i] = src.frc_y[src_i]; frc_z[dest_i] = src.frc_z[src_i];
+            old_x[dest_i] = src.old_x[src_i]; old_y[dest_i] = src.old_y[src_i]; old_z[dest_i] = src.old_z[src_i];
+
+            mass[dest_i]      = src.mass[src_i];
+            state[dest_i]     = src.state[src_i];
+            type[dest_i]      = src.type[src_i];
+            id[dest_i]        = src.id[src_i];
+            user_data[dest_i] = src.user_data[src_i];
+        }
+
+        void swap(const size_t i, const size_t j) {
+            if (i == j) return;
+
+            std::swap(pos_x[i], pos_x[j]); std::swap(pos_y[i], pos_y[j]); std::swap(pos_z[i], pos_z[j]);
+            std::swap(vel_x[i], vel_x[j]); std::swap(vel_y[i], vel_y[j]); std::swap(vel_z[i], vel_z[j]);
+            std::swap(frc_x[i], frc_x[j]); std::swap(frc_y[i], frc_y[j]); std::swap(frc_z[i], frc_z[j]);
+            std::swap(old_x[i], old_x[j]); std::swap(old_y[i], old_y[j]); std::swap(old_z[i], old_z[j]);
+
+            // Swap Scalars
+            std::swap(mass[i], mass[j]);
+            std::swap(state[i], state[j]);
+            std::swap(type[i], type[j]);
+            std::swap(id[i], id[j]);
+            std::swap(user_data[i], user_data[j]);
+        }
+    };
+
+
+
     template<typename Config, env::IsUserData U>
     class SoA : public Container<Config, U> {
     public:
@@ -88,91 +184,37 @@ namespace april::container::layout {
         }
 
     protected:
-        struct Storage {
-            alignas(64) std::vector<vec3::type> pos_x, pos_y, pos_z;
-            alignas(64) std::vector<vec3::type> vel_x, vel_y, vel_z;
-            alignas(64) std::vector<vec3::type> frc_x, frc_y, frc_z;
-            alignas(64) std::vector<vec3::type> old_x, old_y, old_z;
-
-            alignas(64) std::vector<double> mass;
-            alignas(64) std::vector<env::ParticleState> state;
-            alignas(64) std::vector<env::ParticleType> type;
-            alignas(64) std::vector<env::ParticleID> id;
-            alignas(64) std::vector<U> user_data;
-
-            vec3::type * AP_RESTRICT ptr_pos_x = nullptr;
-            vec3::type * AP_RESTRICT ptr_pos_y = nullptr;
-            vec3::type * AP_RESTRICT ptr_pos_z = nullptr;
-
-            // Velocities
-            vec3::type * AP_RESTRICT ptr_vel_x = nullptr;
-            vec3::type * AP_RESTRICT ptr_vel_y = nullptr;
-            vec3::type * AP_RESTRICT ptr_vel_z = nullptr;
-
-            // Forces
-            vec3::type * AP_RESTRICT ptr_frc_x = nullptr;
-            vec3::type * AP_RESTRICT ptr_frc_y = nullptr;
-            vec3::type * AP_RESTRICT ptr_frc_z = nullptr;
-
-            // Old Position
-            vec3::type * AP_RESTRICT ptr_old_x = nullptr;
-            vec3::type * AP_RESTRICT ptr_old_y = nullptr;
-            vec3::type * AP_RESTRICT ptr_old_z = nullptr;
-
-            // Scalars
-            double * AP_RESTRICT ptr_mass = nullptr;
-            env::ParticleState * AP_RESTRICT ptr_state = nullptr;
-            env::ParticleType  * AP_RESTRICT ptr_type  = nullptr;
-            env::ParticleID    * AP_RESTRICT ptr_id    = nullptr;
-            U * AP_RESTRICT ptr_user_data = nullptr;
-
-            void update_pointer_cache() {
-                ptr_pos_x = pos_x.data(); ptr_pos_y = pos_y.data(); ptr_pos_z = pos_z.data();
-                ptr_vel_x = vel_x.data(); ptr_vel_y = vel_y.data(); ptr_vel_z = vel_z.data();
-                ptr_frc_x = frc_x.data(); ptr_frc_y = frc_y.data(); ptr_frc_z = frc_z.data();
-                ptr_old_x = old_x.data(); ptr_old_y = old_y.data(); ptr_old_z = old_z.data();
-
-                ptr_mass = mass.data();
-                ptr_state = state.data();
-                ptr_type = type.data();
-                ptr_id = id.data();
-                ptr_user_data = user_data.data();
+        void reorder_storage(const std::vector<std::vector<size_t>>& bins) {
+            // scatter particles into bins
+            size_t current_idx = 0;
+            for (const auto& bin : bins) {
+                for (size_t old_idx : bin) {
+                    tmp.copy_from(current_idx, data, old_idx);
+                    current_idx++;
+                }
             }
 
-            void resize(const size_t n) {
-                pos_x.resize(n); pos_y.resize(n); pos_z.resize(n);
-                vel_x.resize(n); vel_y.resize(n); vel_z.resize(n);
-                frc_x.resize(n); frc_y.resize(n); frc_z.resize(n);
-                old_x.resize(n); old_y.resize(n); old_z.resize(n);
-                mass.resize(n); state.resize(n); type.resize(n); id.resize(n);
-                user_data.resize(n);
-                update_pointer_cache();
+            // swap buffers and update pointer caches
+            std::swap(data, tmp);
+            data.update_pointer_cache();
+            tmp.update_pointer_cache();
+
+            // rebuild iD Map
+            for (size_t i = 0; i < data.id.size(); i++) {
+                const auto id = data.id[i];
+                if (static_cast<size_t>(id) >= id_to_index_map.size()) {
+                    id_to_index_map.resize(static_cast<size_t>(id) + 1, std::numeric_limits<uint32_t>::max());
+                }
+                id_to_index_map[static_cast<size_t>(id)] = static_cast<uint32_t>(i);
             }
+        }
 
-            void swap(const size_t i, const size_t j) {
-                if (i == j) return;
-
-                std::swap(pos_x[i], pos_x[j]); std::swap(pos_y[i], pos_y[j]); std::swap(pos_z[i], pos_z[j]);
-                std::swap(vel_x[i], vel_x[j]); std::swap(vel_y[i], vel_y[j]); std::swap(vel_z[i], vel_z[j]);
-                std::swap(frc_x[i], frc_x[j]); std::swap(frc_y[i], frc_y[j]); std::swap(frc_z[i], frc_z[j]);
-                std::swap(old_x[i], old_x[j]); std::swap(old_y[i], old_y[j]); std::swap(old_z[i], old_z[j]);
-
-                // Swap Scalars
-                std::swap(mass[i], mass[j]);
-                std::swap(state[i], state[j]);
-                std::swap(type[i], type[j]);
-                std::swap(id[i], id[j]);
-                std::swap(user_data[i], user_data[j]);
-            }
-        };
-
-        Storage data;
+        SoAStorage<U> tmp;
+        SoAStorage<U> data;
         std::vector<uint32_t> id_to_index_map;
 
         // explode AoS input into SoA vectors
         void build_storage(const std::vector<env::internal::ParticleRecord<U>>& particles) {
-            AP_ASSERT(!is_built, "storage already built");
-
             size_t n = particles.size();
             data.resize(n);
             id_to_index_map.resize(n);
@@ -196,7 +238,8 @@ namespace april::container::layout {
                 // ID Map
                 id_to_index_map[static_cast<size_t>(p.id)] = i;
             }
-            is_built = true;
+
+            tmp.resize(n);
         }
 
         void swap_particles(size_t i, size_t j) {
@@ -224,6 +267,5 @@ namespace april::container::layout {
 
     private:
         std::vector<batching::TopologyBatch> topology_batches;
-        bool is_built = false;
     };
 }

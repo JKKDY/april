@@ -374,7 +374,7 @@ namespace april::container::layout {
 		}
 
 		// return physical index range
-		[[nodiscard]] std::pair<size_t, size_t> get_physical_bin_range(const size_t type) const {
+		[[nodiscard]] math::Range get_physical_bin_range(const size_t type) const {
 			size_t start = bin_starts[type] * chunk_size;
 			size_t end = start + bin_sizes[type]; // end is exact start + count (excludes padding)
 
@@ -382,7 +382,7 @@ namespace april::container::layout {
 		}
 
 		// return range of chunk indices
-		[[nodiscard]] std::pair<size_t, size_t> get_chunk_bin_range(const size_t bin_index) const {
+		[[nodiscard]] math::Range get_chunk_bin_range(const size_t bin_index) const {
 			return {bin_starts[bin_index], bin_starts[bin_index+1]};
 		}
 
@@ -402,13 +402,13 @@ namespace april::container::layout {
 
 			// return vector pointer
 			if constexpr (F == env::Field::position)
-				return utils::Vec3Ptr { &chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx] };
+				return math::Vec3Ptr { &chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx] };
 			else if constexpr (F == env::Field::velocity)
-				return utils::Vec3Ptr { &chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx] };
+				return math::Vec3Ptr { &chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx] };
 			else if constexpr (F == env::Field::force)
-				return utils::Vec3Ptr { &chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx] };
+				return math::Vec3Ptr { &chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx] };
 			else if constexpr (F == env::Field::old_position)
-				return utils::Vec3Ptr { &chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx] };
+				return math::Vec3Ptr { &chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx] };
 
 			// return scalar pointer
 			else if constexpr (F == env::Field::mass)      return &chunk.mass[lane_idx];
@@ -430,13 +430,13 @@ namespace april::container::layout {
 			auto& chunk = self.ptr_chunks[chunk_idx];
 
 			if constexpr (env::has_field_v<M, env::Field::force>)
-				src.force = utils::Vec3Ptr { &chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx] };
+				src.force = math::Vec3Ptr { &chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx] };
 			if constexpr (env::has_field_v<M, env::Field::position>)
-				src.position = utils::Vec3Ptr { &chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx] };
+				src.position = math::Vec3Ptr { &chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx] };
 			if constexpr (env::has_field_v<M, env::Field::velocity>)
-				src.velocity = utils::Vec3Ptr { &chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx] };
+				src.velocity = math::Vec3Ptr { &chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx] };
 			if constexpr (env::has_field_v<M, env::Field::old_position>)
-				src.old_position = utils::Vec3Ptr { &chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx] };
+				src.old_position = math::Vec3Ptr { &chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx] };
 			if constexpr (env::has_field_v<M, env::Field::mass>)
 				src.mass = &chunk.mass[lane_idx];
 			if constexpr (env::has_field_v<M, env::Field::state>)

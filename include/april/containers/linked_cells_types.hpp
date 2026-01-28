@@ -134,13 +134,13 @@ namespace april::container::internal {
 			return sym_chunks.empty() && asym_chunks.empty();
 		}
 
-		void add_sym_range(const Range & range) {
+		void add_sym_range(const math::Range & range) {
 			SymmetricScalarBatch<Container> batch (container);
 			batch.range = range;
 			sym_chunks.push_back(batch);
 		}
 
-		void add_asym_range(const Range & range1, const Range & range2) {
+		void add_asym_range(const math::Range & range1, const math::Range & range2) {
 			AsymmetricScalarBatch<Container> batch (container);
 			batch.range1 = range1;
 			batch.range2 = range2;

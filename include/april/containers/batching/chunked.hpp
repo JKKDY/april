@@ -2,6 +2,7 @@
 
 #include "april/macros.hpp"
 #include "april/containers/batching/common.hpp"
+#include "april/math/range.hpp"
 
 
 namespace april::container::internal {
@@ -14,13 +15,13 @@ namespace april::container::internal {
 		AP_FORCE_INLINE
    		void for_each_pair (Func && f) const {
 			// skip empty range
-		    if (range1_chunks.start == range1_chunks.end || range2_chunks.start == range2_chunks.end) return;
+		    if (range1_chunks.start == range1_chunks.stop || range2_chunks.start == range2_chunks.stop) return;
 
 		    constexpr size_t stride = Container::chunk_size;
 
 			// peel of last chunk (i.e. the tail)
-		    const size_t c1_body_end = range1_chunks.end - 1;
-		    const size_t c2_body_end = range2_chunks.end - 1;
+		    const size_t c1_body_end = range1_chunks.stop - 1;
+		    const size_t c2_body_end = range2_chunks.stop - 1;
 
 		    // if tail is 0, it means the chunk is actually full (stride)
 		    const size_t limit1_tail = (range1_tail == 0) ? stride : range1_tail;
@@ -78,10 +79,10 @@ namespace april::container::internal {
 		}
 
 		// Ranges represent chunk indices! (e.g., 0 to 4 means Chunks 0,1,2,3)
-		Range range1_chunks; // Chunk Indices [start, end)
+		math::Range range1_chunks; // Chunk Indices [start, end)
 		size_t range1_tail{};  // Number of valid items in the last chunk of range1 (0 = Full)
 
-		Range range2_chunks;
+		math::Range range2_chunks;
 		size_t range2_tail{};
 	private:
 		Container & container;
@@ -96,11 +97,11 @@ namespace april::container::internal {
 		template<env::FieldMask Mask, typename Func>
 	    AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
-	        if (range_chunks.start == range_chunks.end) return;
+	        if (range_chunks.start == range_chunks.stop) return;
 	        constexpr size_t stride = Container::chunk_size;
 
 			// peel of last chunk (i.e. the tail)
-	        const size_t c_body_end = range_chunks.end - 1;
+	        const size_t c_body_end = range_chunks.stop - 1;
 	        const size_t limit_tail = (range_tail == 0) ? stride : range_tail;
 
 	        // body (iterate c1 up to the last full chunk)
@@ -152,7 +153,7 @@ namespace april::container::internal {
 	    }
 
 		// Range represents chunk indices! (e.g., 0 to 4 means Chunks 0,1,2,3)
-		Range  range_chunks;  // Chunk Indices [start, end)
+		math::Range  range_chunks;  // Chunk Indices [start, end)
 		size_t range_tail{};  // Number of valid items in the last chunk of range1 (0 = Full)
 	private:
 		Container & container;

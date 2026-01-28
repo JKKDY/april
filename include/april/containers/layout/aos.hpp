@@ -127,7 +127,7 @@ namespace april::container::layout {
 			}
 		}
 
-		[[nodiscard]] std::pair<size_t, size_t> get_physical_bin_range(const size_t type) const {
+		[[nodiscard]] math::Range get_physical_bin_range(const size_t type) const {
 			const size_t start = bin_starts[type];
 			return {start, start + bin_sizes[type]};
 		}

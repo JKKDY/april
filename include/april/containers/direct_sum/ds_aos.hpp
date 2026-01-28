@@ -19,25 +19,25 @@ namespace april::container::internal {
         void generate_batches() {
             const auto n_types = static_cast<env::ParticleType>(this->bin_starts.size());
             for (env::ParticleType type = 0; type < n_types; type++) {
-                auto [start, end] = this->get_physical_bin_range(type);
-                if (end - start <= 1) continue;
+                auto range = this->get_physical_bin_range(type);
+                if (range.size() <= 1) continue;
 
                 SymmetricBatch batch (*this);
                 batch.types = {type, type};
-                batch.range = {start, end};
+                batch.range = range;
                 symmetric_batches.push_back(batch);
             }
 
             for (env::ParticleType t1 = 0; t1 < n_types; t1++) {
                 for (env::ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
-                    auto [start1, end1] = this->get_physical_bin_range(t1);
-                    auto [start2, end2] = this->get_physical_bin_range(t2);
-                    if (start1 == end1 || start2 == end2) continue;
+                    auto range1 = this->get_physical_bin_range(t1);
+                    auto range2 = this->get_physical_bin_range(t2);
+                    if (range1.empty() || range2.empty()) continue;
 
                     AsymmetricBatch batch (*this);
                     batch.types = {t1, t2};
-                    batch.range1 = {start1, end1};
-                    batch.range2 = {start2, end2};
+                    batch.range1 = range1;
+                    batch.range2 = range2;
                     asymmetric_batches.push_back(batch);
                 }
             }

@@ -248,7 +248,7 @@ namespace april::container::layout {
             }
         }
 
-        [[nodiscard]] std::pair<size_t, size_t> get_physical_bin_range(const size_t type) const {
+        [[nodiscard]] math::Range get_physical_bin_range(const size_t type) const {
             const size_t start = bin_starts[type];
             return {start, start + bin_sizes[type]};
         }
@@ -256,13 +256,13 @@ namespace april::container::layout {
         template<env::Field F>
         auto get_field_ptr(this auto&& self, size_t i) {
             if constexpr (F == env::Field::position)
-                return utils::Vec3Ptr { self.data.ptr_pos_x + i, self.data.ptr_pos_y + i, self.data.ptr_pos_z + i };
+                return math::Vec3Ptr { self.data.ptr_pos_x + i, self.data.ptr_pos_y + i, self.data.ptr_pos_z + i };
             else if constexpr (F == env::Field::velocity)
-                return utils::Vec3Ptr { self.data.ptr_vel_x + i, self.data.ptr_vel_y + i, self.data.ptr_vel_z + i };
+                return math::Vec3Ptr { self.data.ptr_vel_x + i, self.data.ptr_vel_y + i, self.data.ptr_vel_z + i };
             else if constexpr (F == env::Field::force)
-                return utils::Vec3Ptr { self.data.ptr_frc_x + i, self.data.ptr_frc_y + i, self.data.ptr_frc_z + i };
+                return math::Vec3Ptr { self.data.ptr_frc_x + i, self.data.ptr_frc_y + i, self.data.ptr_frc_z + i };
             else if constexpr (F == env::Field::old_position)
-                return utils::Vec3Ptr { self.data.ptr_old_x + i, self.data.ptr_old_y + i, self.data.ptr_old_z + i };
+                return math::Vec3Ptr { self.data.ptr_old_x + i, self.data.ptr_old_y + i, self.data.ptr_old_z + i };
 
             else if constexpr (F == env::Field::mass)      return self.data.ptr_mass + i;
             else if constexpr (F == env::Field::state)     return self.data.ptr_state + i;

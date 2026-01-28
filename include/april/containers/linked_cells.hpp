@@ -15,7 +15,6 @@ namespace april::container {
 		template <class U> class LinkedCellsAoS;
 		template <class U> class LinkedCellsSoA;
 		template <class U> class LinkedCellsAoSoA;
-
 	}
 
 	struct LinkedCellsAoS : internal::LinkedCellsConfig{
@@ -87,7 +86,7 @@ namespace april::container::internal {
 		        const size_t bin_idx = self.bin_index(c, t);
 		        const size_t start = self.bin_start_indices[bin_idx];
 		        const size_t end   = self.bin_start_indices[bin_idx + 1];
-		        return Range {start, end};
+		        return math::Range {start, end};
 		    };
 
 
@@ -124,17 +123,17 @@ namespace april::container::internal {
 
 				// intra-cell: process forces between particles inside the cell
 				if (t1 == t2) {
-					if (range1.size > 1) batch.add_sym_range(range1);
+					if (range1.size() > 1) batch.add_sym_range(range1);
 				} else {
 					auto range2 = get_indices(c, t2);
-					if (range1.size > 0 && range2.size > 0) {
+					if (range1.size() > 0 && range2.size() > 0) {
 						batch.add_asym_range(range1, range2);
 					}
 				}
 
 				// If T1==T2 and Cell(T1) is empty, neighbors don't matter.
 				// For mixed types (T1!=T2), we continue because we need the reverse check (Neighbor(T1) vs Cell(T2)).
-				if (range1.empty && (t1 == t2)) return;
+				if (range1.empty() && (t1 == t2)) return;
 
 				// inter-cell: process forces between particles of neighbouring cells
 				for (auto offset : self.neighbor_stencil) {
@@ -143,7 +142,7 @@ namespace april::container::internal {
 
 					// Interaction 1: Cell(T1) -> Neighbor(T2)
 					auto range_n2 = get_indices(c_n, t2);
-					if (!range1.empty && !range_n2.empty) {
+					if (!range1.empty() && !range_n2.empty()) {
 						batch.add_asym_range(range1, range_n2);
 					}
 
@@ -153,7 +152,7 @@ namespace april::container::internal {
 						auto range2 = get_indices(c, t2);
 						auto range_n1 = get_indices(c_n, t1);
 
-						if (!range2.empty && !range_n1.empty) {
+						if (!range2.empty() && !range_n1.empty()) {
 							batch.add_asym_range(range_n1, range2);
 						}
 					}
@@ -189,16 +188,16 @@ namespace april::container::internal {
 
 				for (size_t t1 = 0; t1 < self.n_types; ++t1) {
 					auto range1 = get_indices(pair.c1, t1);
-					if (range1.empty) continue;
+					if (range1.empty()) continue;
 
 					for (size_t t2 = 0; t2 < self.n_types; ++t2) {
 						auto range2 = get_indices(pair.c2, t2);
-						if (range2.empty) continue;
+						if (range2.empty()) continue;
 
 						AsymmetricScalarBatch<LinkedCellsBase> wrapped_batch(self);
 						wrapped_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
-						wrapped_batch.range1 = {range1.start, range1.end};
-						wrapped_batch.range2 = {range2.start, range2.end};
+						wrapped_batch.range1 = range1;
+						wrapped_batch.range2 = range2;
 
 						func(wrapped_batch, bcp);
 					}

@@ -15,16 +15,16 @@ namespace april {
 	concept same_as_any = (... or std::same_as<T, Ts>);
 
 	// vector aliases
-	using vec3 = utils::Vec3<VEC3_TYPE>; // general purpose vec3 (e.g. particle data)
-	using vec3f = utils::Vec3<float>; // float vec3
-	using vec3d = utils::Vec3<double>; // double vec3
+	using vec3 = math::Vec3<VEC3_TYPE>; // general purpose vec3 (e.g. particle data)
+	using vec3f = math::Vec3<float>; // float vec3
+	using vec3d = math::Vec3<double>; // double vec3
 
 
-	using int3 = utils::Vec3<int32_t>;
-	using uint3 = utils::Vec3<uint32_t>;
+	using int3 = math::Vec3<int32_t>;
+	using uint3 = math::Vec3<uint32_t>;
 
 	// helpers
-	using vec3_ptr = utils::Vec3Ptr<vec3::type>;
+	using vec3_ptr = math::Vec3Ptr<vec3::type>;
 
 
 	// enums

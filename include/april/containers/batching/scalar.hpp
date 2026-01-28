@@ -2,6 +2,7 @@
 
 #include "april/macros.hpp"
 #include "april/containers/batching/common.hpp"
+#include "april/math/range.hpp"
 
 
 namespace april::container::internal {
@@ -13,15 +14,15 @@ namespace april::container::internal {
 		template<env::FieldMask Mask, typename Func>
 		AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
-			container.template for_each_particle<Mask> (range1.start, range1.end, [&](auto && p1) {
-				container.template for_each_particle<Mask> (range2.start, range2.end, [&](auto && p2) {
+			container.template for_each_particle<Mask> (range1.start, range1.stop, [&](auto && p1) {
+				container.template for_each_particle<Mask> (range2.start, range2.stop, [&](auto && p2) {
 					f(p1, p2);
 				});
 			});
 		}
 
-		Range range1;
-		Range range2;
+		math::Range range1;
+		math::Range range2;
 	private:
 		Container & container;
 	};
@@ -33,14 +34,14 @@ namespace april::container::internal {
 		template<env::FieldMask Mask, typename Func>
 		AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
-			container.template for_each_particle<Mask> (range.start, range.end, [&](const size_t i, auto && p1) {
-				container.template for_each_particle<Mask> (i + 1, range.end, [&](auto && p2) {
+			container.template for_each_particle<Mask> (range.start, range.stop, [&](const size_t i, auto && p1) {
+				container.template for_each_particle<Mask> (i + 1, range.stop, [&](auto && p2) {
 					f(p1, p2);
 				});
 			});
 		}
 
-		Range range;
+		math::Range range;
 	private:
 		Container & container;
 	};

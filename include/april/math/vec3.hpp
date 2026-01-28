@@ -8,7 +8,7 @@
 #include "april/utility/debug.hpp"
 
 
-namespace april::utils {
+namespace april::math {
 
 
     template <typename T> requires std::integral<T> || std::floating_point<T>

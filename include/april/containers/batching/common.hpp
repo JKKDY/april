@@ -29,7 +29,7 @@ namespace april::container {
 		Vector,
 	};
 
-	// missing: branchless, auto simd (e.g. omp simd)
+	// missing: branchless, auto simd (e.g. omp simd), accumulate outside
 
 
 	//------------------------
@@ -95,27 +95,6 @@ namespace april::container {
 		constexpr T operator()(T&& v) const noexcept {
 			return std::forward<T>(v); // identity; do nothing
 		}
-	};
-
-
-	//--------------------
-	// PRE DEFINED BATCHES
-	//--------------------
-	struct Range {
-		Range() = default;
-
-		// From a pair of integers
-		template<std::integral I>
-		Range(const std::pair<I, I>& r)
-			: Range(static_cast<size_t>(r.first), static_cast<size_t>(r.second)) {}
-
-		// explicit start/end
-		Range(const size_t start, const size_t end)
-			: start(start), end(end), size(end-start), empty(size==0) {}
-
-		size_t start{}, end{};
-		size_t size{};
-		bool empty{};
 	};
 }
 

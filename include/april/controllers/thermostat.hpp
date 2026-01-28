@@ -1,7 +1,7 @@
 #pragma once
 
 #include "april/controllers/controller.hpp"
-#include "april/math/distributions.hpp"
+#include "april/math/statistics.hpp"
 namespace april::controller {
 
 	static constexpr double temperature_not_set = -1.0;

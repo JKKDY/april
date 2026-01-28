@@ -160,16 +160,15 @@ namespace april::container::layout {
 		[[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 			return env::ParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
-
 		template<env::FieldMask M>
 		[[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
 			return env::ParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
-
 		template<env::FieldMask M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 			return env::RestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
+
 
 		// INDEXING
 		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
@@ -213,9 +212,9 @@ namespace april::container::layout {
 		size_t n_particles{};
 		std::vector<Chunk> data;
 		std::vector<Chunk> tmp;
-		std::vector<size_t> bin_starts;
-		std::vector<size_t> bin_sizes; // first chunk index of each bin
-		std::vector<uint32_t> id_to_index_map; // number of particles in each bin
+		std::vector<size_t> bin_starts; // first chunk index of each bin
+		std::vector<size_t> bin_sizes;  // number of particles in each bin
+		std::vector<uint32_t> id_to_index_map;
 
 		void update_cache() {
 			ptr_chunks = data.data();
@@ -277,7 +276,6 @@ namespace april::container::layout {
 				data[c_idx].id[l_idx] = std::numeric_limits<env::ParticleID>::max();
 			}
 		}
-
 
 		void reorder_storage(const std::vector<std::vector<size_t>> & bins, const bool sentinel_pad=true) {
 			tmp.clear();
@@ -375,11 +373,10 @@ namespace april::container::layout {
 			update_cache();
 		}
 
-
 		// return physical index range
 		[[nodiscard]] std::pair<size_t, size_t> get_physical_bin_range(const size_t type) const {
 			size_t start = bin_starts[type] * chunk_size;
-			size_t end   = start + bin_sizes[type]; 			// end is exact start + count (excludes padding)
+			size_t end = start + bin_sizes[type]; // end is exact start + count (excludes padding)
 
 			return {start, end};
 		}

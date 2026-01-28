@@ -17,7 +17,7 @@ namespace april::container::direct_sum {
         using Base::Base;
         friend Base;
 
-        void generate_batches(const std::vector<std::pair<size_t, size_t>> &) {
+        void generate_batches() {
             const auto n_types = static_cast<env::ParticleType>(this->bin_starts.size() - 1); // bin_starts has N+1 entries
 
             for (env::ParticleType type = 0; type < n_types; type++) {

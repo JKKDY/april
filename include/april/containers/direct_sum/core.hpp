@@ -101,20 +101,9 @@ namespace april::container::direct_sum {
 			static_assert(requires {self.reorder_storage(buckets); }, "void rebuild_storage(bins) is not implemented");
 			self.reorder_storage(buckets);
 
-			// deduce the range of indices for each bucket
-			// vector maps a particle type to a range [start, end) of indices
-			std::vector<std::pair<size_t, size_t>> ranges(buckets.size());
-			size_t current_offset = 0;
-
-			for (size_t t = 0; t < buckets.size(); ++t) {
-				const size_t count = buckets[t].size();
-				ranges[t] = {current_offset, current_offset + count};
-				current_offset += count;
-			}
-
 			// build bucket sorted storage and create batches
-			static_assert(requires {self.generate_batches(ranges); }, "void generate_batches(ranges) is not implemented");
-			self.generate_batches(ranges);
+			static_assert(requires {self.generate_batches(); }, "void generate_batches(ranges) is not implemented");
+			self.generate_batches();
 		}
 
 		template<bool PX, bool PY, bool PZ>

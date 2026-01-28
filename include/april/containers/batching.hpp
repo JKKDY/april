@@ -238,14 +238,13 @@ namespace april::batching {
 		size_t range2_tail{};
 	private:
 		Container & container;
-		ChunkPtr * AP_RESTRICT chunks = container.ptr_chunks;
+		ChunkPtr * AP_RESTRICT const chunks = container.ptr_chunks;
 	};
 
 
 	template<typename Container, typename ChunkPtr>
 	struct SymmetricChunkedBatch : SerialBatch {
 		explicit SymmetricChunkedBatch(Container & container, ChunkPtr * chunks) : container(container), chunks(chunks) {}
-
 
 		template<env::FieldMask Mask, typename Func>
 	    AP_FORCE_INLINE void for_each_pair (Func && f) const {

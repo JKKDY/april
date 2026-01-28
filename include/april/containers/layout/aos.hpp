@@ -81,10 +81,16 @@ namespace april::container::layout {
 	protected:
 		std::vector<Particle> tmp = {};
 		std::vector<Particle> particles = {};
+		std::vector<size_t> bin_starts; // first particle index of each bin
+		std::vector<size_t> bin_sizes; // number of particles in each bin
 		std::vector<uint32_t> id_to_index_map; // map id to index
 
 		void build_storage(const std::vector<Particle>& particles_in) {
 			particles = std::vector(particles_in);
+			bin_starts.clear();
+			bin_sizes.clear();
+			bin_starts.push_back(0);
+			bin_sizes.push_back(particles.size());
 			id_to_index_map.resize(particles.size());
 			for (size_t i = 0; i < particles.size(); i++) {
 				const auto id = static_cast<size_t>(particles[i].id);
@@ -95,9 +101,17 @@ namespace april::container::layout {
 		}
 
 		void reorder_storage(const std::vector<std::vector<size_t>> & bins, const bool = false) {
+			bin_starts.clear();
+			bin_sizes.clear();
+
 			// scatter particles into bins
 			size_t current_idx = 0;
+			size_t current_offset = 0;
 			for (const auto& bin : bins) {
+				bin_starts.push_back(current_offset);
+				bin_sizes.push_back(bin.size());
+				current_offset += bin.size();
+
 				for (size_t old_idx : bin) {
 					tmp[current_idx++] = particles[old_idx];
 				}
@@ -112,12 +126,9 @@ namespace april::container::layout {
 			}
 		}
 
-		void swap_particles (uint32_t i, uint32_t j) {
-			if (i == j) return;
-
-			auto id1 = particles[i].id, id2 = particles[j].id;
-			std::swap(particles[i], particles[j]);
-			std::swap(id_to_index_map[id1], id_to_index_map[id2]);
+		[[nodiscard]] std::pair<size_t, size_t> get_physical_bin_range(const size_t type) const {
+			const size_t start = bin_starts[type];
+			return {start, start + bin_sizes[type]};
 		}
 
 		// Deducing 'this' automatically propagates constness to the return type

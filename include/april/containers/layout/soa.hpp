@@ -177,33 +177,10 @@ namespace april::container::layout {
         }
 
     protected:
-        void reorder_storage(const std::vector<std::vector<size_t>>& bins) {
-            // scatter particles into bins
-            size_t current_idx = 0;
-            for (const auto& bin : bins) {
-                for (size_t old_idx : bin) {
-                    tmp.copy_from(current_idx, data, old_idx);
-                    current_idx++;
-                }
-            }
-
-            // swap buffers and update pointer caches
-            std::swap(data, tmp);
-            data.update_pointer_cache();
-            tmp.update_pointer_cache();
-
-            // rebuild iD Map
-            for (size_t i = 0; i < data.id.size(); i++) {
-                const auto id = data.id[i];
-                if (static_cast<size_t>(id) >= id_to_index_map.size()) {
-                    id_to_index_map.resize(static_cast<size_t>(id) + 1, std::numeric_limits<uint32_t>::max());
-                }
-                id_to_index_map[static_cast<size_t>(id)] = static_cast<uint32_t>(i);
-            }
-        }
-
         SoAStorage<U> tmp;
         SoAStorage<U> data;
+        std::vector<size_t> bin_starts; // first particle index of each bin
+        std::vector<size_t> bin_sizes; // number of particles in each bin
         std::vector<uint32_t> id_to_index_map;
 
         // explode AoS input into SoA vectors
@@ -211,6 +188,11 @@ namespace april::container::layout {
             size_t n = particles.size();
             data.resize(n);
             id_to_index_map.resize(n);
+
+            bin_starts.clear();
+            bin_sizes.clear();
+            bin_starts.push_back(0);
+            bin_sizes.push_back(particles.size());
 
             for (size_t i = 0; i < n; ++i) {
                 const auto& p = particles[i];
@@ -235,9 +217,43 @@ namespace april::container::layout {
             tmp.resize(n);
         }
 
-        void swap_particles(size_t i, size_t j) {
-            data.swap(i, j);
-            std::swap(id_to_index_map[data.id[i]], id_to_index_map[data.id[j]]); // update map
+        void reorder_storage(const std::vector<std::vector<size_t>>& bins) {
+            bin_starts.clear();
+            bin_sizes.clear();
+
+            // scatter particles into bins & update bin meta data
+            size_t current_idx = 0;
+            size_t current_offset = 0;
+
+            for (const auto& bin : bins) {
+                bin_starts.push_back(current_offset);
+                bin_sizes.push_back(bin.size());
+                current_offset += bin.size();
+
+                for (size_t old_idx : bin) {
+                    tmp.copy_from(current_idx, data, old_idx);
+                    current_idx++;
+                }
+            }
+
+            // swap buffers and update pointer caches
+            std::swap(data, tmp);
+            data.update_pointer_cache();
+            tmp.update_pointer_cache();
+
+            // rebuild iD Map
+            for (size_t i = 0; i < data.id.size(); i++) {
+                const auto id = data.id[i];
+                if (static_cast<size_t>(id) >= id_to_index_map.size()) {
+                    id_to_index_map.resize(static_cast<size_t>(id) + 1, std::numeric_limits<uint32_t>::max());
+                }
+                id_to_index_map[static_cast<size_t>(id)] = static_cast<uint32_t>(i);
+            }
+        }
+
+        [[nodiscard]] std::pair<size_t, size_t> get_physical_bin_range(const size_t type) const {
+            const size_t start = bin_starts[type];
+            return {start, start + bin_sizes[type]};
         }
 
         template<env::Field F>

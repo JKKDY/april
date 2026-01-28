@@ -110,7 +110,7 @@ namespace april::container {
 		void for_each_particle(this auto&& self, size_t start, size_t stop, Func && func) {
 			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
 			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
-			AP_ASSERT(start <= actual_stop, "Invalid range: start > stop");
+			AP_ASSERT(start <= stop, "Invalid range: start > stop");
 
 			self.template invoke_iterate_range<M, Policy, false>(func, start, stop);
 		}

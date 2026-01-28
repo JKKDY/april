@@ -2,9 +2,11 @@
 #include <functional>
 #include <optional>
 
-#include "april/containers/cell_orderings.hpp"
-#include "april/containers/batching.hpp"
 #include "april/common.hpp"
+#include "april/containers/cell_orderings.hpp"
+#include "april/containers/batching/common.hpp"
+#include "april/containers/batching/scalar.hpp"
+
 
 
 
@@ -111,7 +113,7 @@ namespace april::container::internal {
 	// Batch
 	// -----
 	template<typename Container>
-	struct LinkedCellsBatch : batching::SerialBatch {
+	struct LinkedCellsBatch : SerialBatch {
 		explicit LinkedCellsBatch(Container & container) : container(container) {}
 
 		template<env::FieldMask Mask, typename Func>
@@ -132,21 +134,21 @@ namespace april::container::internal {
 			return sym_chunks.empty() && asym_chunks.empty();
 		}
 
-		void add_sym_range(const batching::Range & range) {
-			batching::SymmetricScalarBatch<Container> batch (container);
+		void add_sym_range(const Range & range) {
+			SymmetricScalarBatch<Container> batch (container);
 			batch.range = range;
 			sym_chunks.push_back(batch);
 		}
 
-		void add_asym_range(const batching::Range & range1, const batching::Range & range2) {
-			batching::AsymmetricScalarBatch<Container> batch (container);
+		void add_asym_range(const Range & range1, const Range & range2) {
+			AsymmetricScalarBatch<Container> batch (container);
 			batch.range1 = range1;
 			batch.range2 = range2;
 			asym_chunks.push_back(batch);
 		}
 
-		std::vector<batching::SymmetricScalarBatch<Container>> sym_chunks;
-		std::vector<batching::AsymmetricScalarBatch<Container>> asym_chunks;
+		std::vector<SymmetricScalarBatch<Container>> sym_chunks;
+		std::vector<AsymmetricScalarBatch<Container>> asym_chunks;
 	private:
 		Container & container;
 	};

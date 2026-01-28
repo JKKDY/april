@@ -9,7 +9,7 @@
 #include "april/particle/defs.hpp"
 #include "april/env/domain.hpp"
 
-namespace april::container::direct_sum {
+namespace april::container::internal {
 	template <class ContainerBase>
 	class DirectSumCore : public ContainerBase {
 	public:

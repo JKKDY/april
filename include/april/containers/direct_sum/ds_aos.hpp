@@ -1,17 +1,17 @@
 #pragma once
 #include "april/particle/defs.hpp"
-#include "april/containers/layout/soa.hpp"
-#include "april/containers/direct_sum/core.hpp"
-#include "april/containers/batching.hpp"
+#include "april/containers/layout/aos.hpp"
+#include "april/containers/direct_sum/ds_core.hpp"
+#include "april/containers/batching/scalar.hpp"
 
-namespace april::container::direct_sum {
+namespace april::container::internal {
 
     template <class Config, class U>
-    class DirectSumSoAImpl : public DirectSumCore<layout::SoA<Config, U>> {
+    class DirectSumAoSImpl : public DirectSumCore<layout::AoS<Config, U>> {
     public:
-        using Base = DirectSumCore<layout::SoA<Config, U>>;
-        using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumSoAImpl>;
-        using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumSoAImpl>;
+        using Base = DirectSumCore<layout::AoS<Config, U>>;
+        using SymmetricBatch = SymmetricScalarBatch<DirectSumAoSImpl>;
+        using AsymmetricBatch = AsymmetricScalarBatch<DirectSumAoSImpl>;
 
         using Base::Base;
         friend Base;
@@ -46,13 +46,14 @@ namespace april::container::direct_sum {
         std::vector<SymmetricBatch> symmetric_batches;
         std::vector<AsymmetricBatch> asymmetric_batches;
     };
+}
 
-    struct DirectSumSoA {
-        using ConfigT = DirectSumSoA;
+
+namespace april::container {
+    struct DirectSumAoS {
+        using ConfigT = DirectSumAoS;
 
         template <class U>
-        using impl = DirectSumSoAImpl<ConfigT, U>;
+        using impl = internal::DirectSumAoSImpl<ConfigT, U>;
     };
-
-
 }

@@ -1,9 +1,9 @@
 #include <april/april.hpp>
 #include <filesystem>
 
-#include "april/containers/direct_sum/aos.hpp"
-#include "april/containers/direct_sum/soa.hpp"
-#include "april/containers/direct_sum/aosoa.hpp"
+#include "april/containers/direct_sum/ds_aos.hpp"
+#include "april/containers/direct_sum/ds_soa.hpp"
+#include "april/containers/direct_sum/ds_aosoa.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;

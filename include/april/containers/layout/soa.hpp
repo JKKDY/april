@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: MIT
-// Copyright (c) 2026 Julian Deller-Yee
-
 #pragma once
 #include <vector>
 #include "april/containers/container.hpp"
-#include "april/containers/batching.hpp"
+#include "april/containers/batching/common.hpp"
 #include "april/particle/particle.hpp"
 
 namespace april::container::layout {
@@ -121,7 +118,7 @@ namespace april::container::layout {
                 const auto& prop = force_schema.interactions[i];
 
                 if (!prop.used_by_ids.empty() && prop.is_active) {
-                    batching::TopologyBatch batch;
+                    TopologyBatch batch;
                     batch.id1 = prop.used_by_ids[0].first;
                     batch.id2 = prop.used_by_ids[0].second;
                     batch.pairs = prop.used_by_ids;
@@ -275,6 +272,6 @@ namespace april::container::layout {
         }
 
     private:
-        std::vector<batching::TopologyBatch> topology_batches;
+        std::vector<TopologyBatch> topology_batches;
     };
 }

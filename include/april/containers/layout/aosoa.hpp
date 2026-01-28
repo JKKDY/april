@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <bit>
 
-#include "april/containers/batching.hpp"
+#include "april/containers/batching/common.hpp"
 #include "april/containers/container.hpp"
 #include "april/common.hpp"
 #include "april/particle/defs.hpp"
@@ -81,7 +81,7 @@ namespace april::container::layout {
 			for (size_t i = 0; i < force_schema.interactions.size(); ++i) {
 				const auto& prop = force_schema.interactions[i];
 				if (!prop.used_by_ids.empty() && prop.is_active) {
-					batching::TopologyBatch batch;
+					TopologyBatch batch;
 					batch.id1 = prop.used_by_ids[0].first;
 					batch.id2 = prop.used_by_ids[0].second;
 					batch.pairs = prop.used_by_ids;
@@ -419,7 +419,7 @@ namespace april::container::layout {
 		}
 
 	private:
-		std::vector<batching::TopologyBatch> topology_batches;
+		std::vector<TopologyBatch> topology_batches;
 
 		template<env::FieldMask M>
 		[[nodiscard]] auto access_particle(this auto&& self, size_t chunk_idx, size_t lane_idx) {

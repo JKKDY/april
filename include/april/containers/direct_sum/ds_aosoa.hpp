@@ -1,18 +1,18 @@
 #pragma once
 #include "april/particle/defs.hpp"
 #include "april/containers/layout/aosoa.hpp"
-#include "april/containers/direct_sum/core.hpp"
-#include "april/containers/batching.hpp"
+#include "april/containers/direct_sum/ds_core.hpp"
+#include "april/containers/batching/chunked.hpp"
 
-namespace april::container::direct_sum {
+namespace april::container::internal {
 
     template <class Config, class U>
     class DirectSumAoSoAImpl : public DirectSumCore<layout::AoSoA<Config, U>> {
     public:
         using Base = DirectSumCore<layout::AoSoA<Config, U>>;
         using Base::chunk_size;
-        using SymmetricBatch = batching::SymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::Chunk>;
-        using AsymmetricBatch = batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::Chunk>;
+        using SymmetricBatch = SymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::Chunk>;
+        using AsymmetricBatch = AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::Chunk>;
 
         using Base::Base;
         friend Base;
@@ -56,13 +56,14 @@ namespace april::container::direct_sum {
         std::vector<SymmetricBatch> symmetric_batches;
         std::vector<AsymmetricBatch> asymmetric_batches;
     };
+}
 
+
+namespace april::container {
     struct DirectSumAoSoA {
         using ConfigT = DirectSumAoSoA;
 
         template <class U>
-        using impl = DirectSumAoSoAImpl<ConfigT, U>;
+        using impl = internal::DirectSumAoSoAImpl<ConfigT, U>;
     };
-
-
 }

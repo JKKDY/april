@@ -2,7 +2,7 @@
 
 #include "april/particle/particle.hpp"
 #include "april/containers/container.hpp"
-#include "april/containers/batching.hpp"
+#include "april/containers/batching/common.hpp"
 
 namespace april::container::layout {
 
@@ -19,12 +19,13 @@ namespace april::container::layout {
 		AoS(const Config & config, const internal::ContainerCreateInfo & info):
 			Container<Config, U>(config, info)
 		{
+			// TODO move topology batch related code into the core implementations instead of the layouts
 			// precompute topology batches (id based batches)
 			for (size_t i = 0; i < force_schema.interactions.size(); ++i) {
 				const auto& prop = force_schema.interactions[i];
 
 				if (!prop.used_by_ids.empty() && prop.is_active) {
-					batching::TopologyBatch batch;
+					TopologyBatch batch;
 					batch.id1 = prop.used_by_ids[0].first;
 					batch.id2 = prop.used_by_ids[0].second;
 					batch.pairs = prop.used_by_ids;
@@ -146,6 +147,6 @@ namespace april::container::layout {
 		}
 
 	private:
-		std::vector<batching::TopologyBatch> topology_batches;
+		std::vector<TopologyBatch> topology_batches;
 	};
 }

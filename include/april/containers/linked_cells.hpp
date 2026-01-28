@@ -4,7 +4,7 @@
 
 #include "linked_cells_types.hpp"
 #include "april/containers/cell_orderings.hpp"
-#include "april/containers/batching.hpp"
+#include "april/containers/batching/common.hpp"
 #include "april/containers/layout/aos.hpp"
 #include "april/containers/layout/soa.hpp"
 #include "april/containers/layout/aosoa.hpp"
@@ -39,8 +39,8 @@ namespace april::container::internal {
 		friend ContainerBase;
 		using typename ContainerBase::ParticleRecord;
 
-		using SymmetricBatch = batching::SymmetricScalarBatch<LinkedCellsBase>;
-		using AsymmetricBatch = batching::AsymmetricScalarBatch<LinkedCellsBase>;
+		using SymmetricBatch = SymmetricScalarBatch<LinkedCellsBase>;
+		using AsymmetricBatch = AsymmetricScalarBatch<LinkedCellsBase>;
 
 	public:
 		using ContainerBase::ContainerBase;
@@ -87,7 +87,7 @@ namespace april::container::internal {
 		        const size_t bin_idx = self.bin_index(c, t);
 		        const size_t start = self.bin_start_indices[bin_idx];
 		        const size_t end   = self.bin_start_indices[bin_idx + 1];
-		        return batching::Range {start, end};
+		        return Range {start, end};
 		    };
 
 
@@ -174,7 +174,7 @@ namespace april::container::internal {
 
 					// dispatch if work exists
 					if (!batch.empty()) {
-						func(batch, batching::NoBatchBCP{});
+						func(batch, NoBatchBCP{});
 					}
 				});
 			});
@@ -195,7 +195,7 @@ namespace april::container::internal {
 						auto range2 = get_indices(pair.c2, t2);
 						if (range2.empty) continue;
 
-						batching::AsymmetricScalarBatch<LinkedCellsBase> wrapped_batch(self);
+						AsymmetricScalarBatch<LinkedCellsBase> wrapped_batch(self);
 						wrapped_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
 						wrapped_batch.range1 = {range1.start, range1.end};
 						wrapped_batch.range2 = {range2.start, range2.end};

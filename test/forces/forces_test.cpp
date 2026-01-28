@@ -2,7 +2,7 @@
 
 // #include "april/april.hpp"
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/forces/force.hpp"
 #include "april/forces/coulomb.hpp"
 #include "april/forces/gravity.hpp"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "april/macros.hpp"
+#include "april/base/macros.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
 

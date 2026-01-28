@@ -2,7 +2,7 @@
 
 #include <random>
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 
 // we use a constant seed for repeatability.
 // random engine needs static lifetime otherwise it would be recreated for every call.

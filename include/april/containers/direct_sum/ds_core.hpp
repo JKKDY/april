@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <utility>
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/particle/defs.hpp"
 #include "april/env/domain.hpp"
 

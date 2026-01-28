@@ -1,7 +1,7 @@
 #pragma once
 
-#include "april/common.hpp"
-#include "april/macros.hpp"
+#include "april/base/types.hpp"
+#include "april/base/macros.hpp"
 #include "april/particle/defs.hpp"
 #include "april/particle/fields.hpp"
 

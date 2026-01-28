@@ -5,7 +5,7 @@
 #include <utility>
 #include <limits>
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/particle/fields.hpp"
 #include "april/particle/defs.hpp"
 #include "april/particle/access.hpp"

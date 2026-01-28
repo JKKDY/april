@@ -2,7 +2,7 @@
 #include <functional>
 #include <optional>
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/containers/cell_orderings.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/containers/batching/scalar.hpp"

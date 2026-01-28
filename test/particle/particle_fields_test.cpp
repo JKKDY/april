@@ -3,7 +3,7 @@
 #include <variant> // std::monostate
 #include <type_traits> // std::is_same_v
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/particle/access.hpp"
 #include "april/particle/particle.hpp"
 

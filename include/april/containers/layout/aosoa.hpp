@@ -7,7 +7,7 @@
 
 #include "april/containers/batching/common.hpp"
 #include "april/containers/container.hpp"
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/particle/defs.hpp"
 
 

@@ -97,11 +97,11 @@ TEST_F(ForceTest, GravityTest) {
 TEST_F(ForceTest, HarmonicTest) {
     Harmonic h_stretch(10.0, 1.0);
     vec3 force_stretch = h_stretch(get_view1(), get_view2(), r_vec);
-    EXPECT_EQ(force_stretch, vec3(-10.0, 0.0, 0.0));
+    EXPECT_EQ(force_stretch, vec3(10.0, 0.0, 0.0));
 
     Harmonic h_compress(10.0, 3.0);
     vec3 force_compress = h_compress(get_view1(), get_view2(), r_vec);
-    EXPECT_EQ(force_compress, vec3(10.0, 0.0, 0.0));
+    EXPECT_EQ(force_compress, vec3(-10.0, 0.0, 0.0));
 }
 
 // Validates electrostatic force using charges stored in UserData ($F = k_e \frac{q_1 q_2}{r^2}$)

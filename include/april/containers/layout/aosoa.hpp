@@ -73,7 +73,6 @@ namespace april::container::layout {
 		using Base::access_particle;
 
 
-
 		AoSoA(const Config & config, const internal::ContainerCreateInfo & info)
 			: Base(config, info)
 		{

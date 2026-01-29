@@ -6,7 +6,10 @@ using testing::AnyOf;
 using testing::Eq;
 
 
-#include "april/containers/linked_cells.hpp"
+#include "april/containers/linked_cells/lc_aos.hpp"
+#include "april/containers/linked_cells/lc_soa.hpp"
+#include "april/containers/linked_cells/lc_aosoa.hpp"
+
 
 #include "orbit_monitor.h"
 #include "constant_force.h"
@@ -64,12 +67,12 @@ using ContainerConfigurations = testing::Types<
 	// SoA Combinations
 	TestConfig<LinkedCellsSoA, OrderDefault>,
 	TestConfig<LinkedCellsSoA, OrderMorton>,
-	TestConfig<LinkedCellsSoA, OrderHilbert>
+	TestConfig<LinkedCellsSoA, OrderHilbert>,
 
 	// AoSoA Combinations
-	// TestConfig<LinkedCellsAoSoA, OrderDefault>,
-	// TestConfig<LinkedCellsAoSoA, OrderMorton>,
-	// TestConfig<LinkedCellsAoSoA, OrderHilbert>
+	TestConfig<LinkedCellsAoSoA, OrderDefault>,
+	TestConfig<LinkedCellsAoSoA, OrderMorton>,
+	TestConfig<LinkedCellsAoSoA, OrderHilbert>
 >;
 
 template <typename LinkedCellsT>

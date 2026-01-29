@@ -57,7 +57,7 @@ namespace april::container::internal {
 			}
 
 			// repopulate assignment vector
-			for (size_t i = 0; i < self.bin_starts.size(); i++) {
+			for (size_t i = 0; i < self.bin_sizes.size(); i++) {
 				size_t start = self.bin_starts[i];
 				size_t end = start + self.bin_sizes[i];
 				self.template for_each_particle_view <env::Field::type | env::Field::position>(start, end,
@@ -291,9 +291,143 @@ namespace april::container::internal {
 		}
 
 
+        // -----------------
+        // LOOP ABSTRACTIONS
+        // -----------------
+        // Iterates over spatial blocks (cache blocking)
+        template <typename Func>
+        AP_FORCE_INLINE void for_each_block(Func&& fn) const {
+            const auto& bdim = this->config.block_size;
+            for (size_t bz = 0; bz < cells_per_axis.z; bz += bdim.z)
+                for (size_t by = 0; by < cells_per_axis.y; by += bdim.y)
+                    for (size_t bx = 0; bx < cells_per_axis.x; bx += bdim.x)
+                        fn(bx, by, bz);
+        }
+
+		// Iterates over all unique pairs of types (T1, T2) where T2 >= T1
+		template <typename Func>
+		AP_FORCE_INLINE void for_each_type_pair(Func&& fn) const {
+			for (size_t t1 = 0; t1 < this->n_types; ++t1)
+				for (size_t t2 = t1; t2 < this->n_types; ++t2)
+					fn(t1, t2);
+		}
+
+        // Iterates over the cells inside a specific block
+        template <typename Func>
+        AP_FORCE_INLINE void for_each_cell_in_block(size_t bx, size_t by, size_t bz, Func&& fn) const {
+            const auto& bdim = this->config.block_size;
+
+            // Calculate limits (handling edge blocks that might be smaller)
+            const size_t z_end = std::min(bz + bdim.z, static_cast<size_t>(cells_per_axis.z));
+            const size_t y_end = std::min(by + bdim.y, static_cast<size_t>(cells_per_axis.y));
+            const size_t x_end = std::min(bx + bdim.x, static_cast<size_t>(cells_per_axis.x));
+
+            for (size_t z = bz; z < z_end; ++z)
+                for (size_t y = by; y < y_end; ++y)
+                    for (size_t x = bx; x < x_end; ++x)
+                        fn(x, y, z);
+        }
+
+
+
+		// ---------------------
+		// BATCH ITERATOR KERNEL
+		// ---------------------
+		template <typename GetRange, typename AddSym, typename AddAsym>
+		AP_FORCE_INLINE void process_cell_interactions(
+			size_t x, size_t y, size_t z,
+			size_t t1, size_t t2,
+			GetRange&& get_range,
+			AddSym&& add_sym,
+			AddAsym&& add_asym
+		) const {
+			const size_t c = this->cell_pos_to_idx(x, y, z);
+			auto range1 = get_range(c, t1);
+
+			// intra-cell: process forces between particles inside the cell
+			if (t1 == t2) {
+				if (range1.size() > 1) add_sym(range1);
+			} else {
+				auto range2 = get_range(c, t2);
+				if (range1.size() > 0 && range2.size() > 0) {
+					add_asym(range1, range2);
+				}
+			}
+
+			// If T1==T2 and Cell(T1) is empty, neighbors don't matter.
+			// For mixed types (T1!=T2), we continue because we need the reverse check (Neighbor(T1) vs Cell(T2)).
+			if (range1.empty() && (t1 == t2)) return;
+
+			// inter-cell: process forces between particles of neighbouring cells
+			for (auto offset : this->neighbor_stencil) {
+				size_t c_n = this->get_neighbor_idx(x, y, z, offset);
+				if (c_n == this->outside_cell_id) continue;
+
+				// Interaction 1: Cell(T1) -> Neighbor(T2)
+				auto range_n2 = get_range(c_n, t2);
+				if (!range1.empty() && !range_n2.empty()) {
+					add_asym(range1, range_n2);
+				}
+
+				// Interaction 2: Neighbor(T1) -> Cell(T2)
+				// (due to the half stencil we would otherwise never iterate over this combination)
+				if (t1 != t2) {
+					auto range2 = get_range(c, t2);
+					auto range_n1 = get_range(c_n, t1);
+
+					if (!range2.empty() && !range_n1.empty()) {
+						add_asym(range_n1, range2);
+					}
+				}
+			}
+		}
+
+		template <typename Func, typename GetIndices, typename ProcessBatch>
+		AP_FORCE_INLINE void for_each_wrapped_interaction(
+			Func&& func,
+			GetIndices&& get_indices,
+			ProcessBatch&& process_batch
+		) const {
+			if (this->wrapped_cell_pairs.empty()) return;
+
+			for (const auto& pair : this->wrapped_cell_pairs) {
+				auto bcp = [&pair](const vec3& diff) { return diff + pair.shift; };
+
+				for (size_t t1 = 0; t1 < this->n_types; ++t1) {
+					auto range1 = get_indices(pair.c1, t1);
+					if (range1.empty()) continue;
+
+					for (size_t t2 = 0; t2 < this->n_types; ++t2) {
+						auto range2 = get_indices(pair.c2, t2);
+						if (range2.empty()) continue;
+
+						process_batch(func, range1, range2, t1, t2, bcp);
+					}
+				}
+			}
+		}
+
+
+
 		//----------
 		// UTILITIES
 		//----------
+		[[nodiscard]] AP_FORCE_INLINE size_t get_neighbor_idx(size_t x, size_t y, size_t z, int3 offset) const {
+			const int nx = static_cast<int>(x) + offset.x;
+			const int ny = static_cast<int>(y) + offset.y;
+			const int nz = static_cast<int>(z) + offset.z;
+
+			// Note: If you implement periodic BCs via ghost cells, this check might change.
+			// For now, it clamps to "Outside".
+			if (nx < 0 || ny < 0 || nz < 0 ||
+				nx >= static_cast<int>(this->cells_per_axis.x) ||
+				ny >= static_cast<int>(this->cells_per_axis.y) ||
+				nz >= static_cast<int>(this->cells_per_axis.z)) {
+				return this->outside_cell_id;
+				}
+			return this->cell_pos_to_idx(nx, ny, nz);
+		}
+
 		// gather all cell ids whose cells have an intersection with the box region
 		[[nodiscard]] std::vector<cell_index_t> get_cells_in_region(this const auto& self, const env::Box & box) {
 			//  Convert world coords to cell coords (relative to domain origin)

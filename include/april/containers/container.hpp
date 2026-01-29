@@ -302,11 +302,13 @@ namespace april::container {
 
 		template<env::Field F>
 		auto invoke_get_field_ptr(this auto&& self, size_t i) {
+			AP_ASSERT(i < self.capacity(), "Index lies outside of capacity: " + std::to_string(i));
 			return self.template get_field_ptr<F>(i);
 		}
 
 		template<env::Field F>
 		auto invoke_get_field_ptr_id(this auto&& self, env::ParticleID id) {
+			AP_ASSERT(self.contains_id(id), "Got invalid Id: " + std::to_string(id));
 			return self.template get_field_ptr_id<F>(id);
 		}
 
@@ -316,7 +318,6 @@ namespace april::container {
 		template<env::FieldMask M>
 		[[nodiscard]] auto access_particle(this auto&& self, const size_t i) {
 			// Safety check: If Mask is empty, return empty source immediately.
-
 			if constexpr (M == 0) return env::ParticleSource<0, U, false>{};
 
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;

@@ -30,10 +30,10 @@
 #include "april/monitors/benchmark.hpp"
 
 #include "april/containers/container.hpp"
-#include "april/containers/linked_cells.hpp"
 #include "april/containers/linked_cells/lc_aos.hpp"
 #include "april/containers/linked_cells/lc_soa.hpp"
-// #include "april/containers/linked_cells_aosoa.hpp"
+#include "april/containers/linked_cells/lc_aosoa.hpp"
+
 #include "april/containers/linked_cells/lc_config.hpp"
 #include "april/containers/cell_orderings.hpp"
 
@@ -105,7 +105,7 @@ namespace april {
 	using container::DirectSumAoSoA;
 	using container::LinkedCellsAoS;
 	using container::LinkedCellsSoA;
-	// using container::LinkedCellsAoSoA;
+	using container::LinkedCellsAoSoA;
 
 	using container::hilbert_order;
 	using container::morton_order;

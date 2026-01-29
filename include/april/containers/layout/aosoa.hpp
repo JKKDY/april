@@ -177,7 +177,7 @@ namespace april::container::layout {
 			return 0;
 		}
 		[[nodiscard]] env::ParticleID max_id() const {
-			return static_cast<env::ParticleID>(id_to_index_map.size());
+			return static_cast<env::ParticleID>(n_particles);
 		}
 		[[nodiscard]] size_t capacity() const {
 			return particle_capacity;

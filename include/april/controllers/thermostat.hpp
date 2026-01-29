@@ -26,7 +26,7 @@ namespace april::controller {
 			for (size_t i = 0; i < sys.size(); ++i) {
 				auto p = sys.template at<mass_vel>(i);
 				const double sigma = std::sqrt(init_temp / p.mass);
-				p.velocity = shared::maxwell_boltzmann_velocity_distribution(sigma, dimensions(sys));
+				p.velocity = math::maxwell_boltzmann_velocity(sigma, dimensions(sys));
 			}
 		}
 		template<class S>
@@ -47,7 +47,7 @@ namespace april::controller {
 				for (size_t i = 0; i < sys.size(); ++i) {
 					auto p = sys.template at<mass_vel>(i);
 					const double sigma = std::sqrt(new_T / p.mass);
-					p.velocity = avg_v + shared::maxwell_boltzmann_velocity_distribution(sigma, dimensions(sys));
+					p.velocity = avg_v + math::maxwell_boltzmann_velocity(sigma, dimensions(sys));
 				}
 			} else {
 				const double factor = std::sqrt(new_T / current_T);

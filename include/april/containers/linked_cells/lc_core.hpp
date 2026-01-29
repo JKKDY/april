@@ -40,7 +40,37 @@ namespace april::container::internal {
 		using ContainerBase::build_storage;
 		using typename ContainerBase::ParticleRecord;
 
+		void build (this auto&& self, const std::vector<ParticleRecord>& particles) {
+			self.setup_cell_grid();
+			self.init_cell_order();
+			self.create_neighbor_stencil();
+			self.compute_wrapped_cell_pairs();
+			self.build_storage(particles);
+			self.pre_allocate_assignment_bins();
+			self.rebuild_structure();
+		}
 
+		void rebuild_structure(this auto&& self) {
+			// reset assignment vector
+			for (auto& bin : self.bin_assignments) {
+				bin.clear();
+			}
+
+			// repopulate assignment vector
+			for (size_t i = 0; i < self.bin_starts.size(); i++) {
+				size_t start = self.bin_starts[i];
+				size_t end = start + self.bin_sizes[i];
+				self.template for_each_particle_view <env::Field::type | env::Field::position>(start, end,
+					[&](const size_t idx, const auto & p) {
+						const size_t cid = self.cell_index_from_position(p.position);
+						const size_t bin = self.bin_index(cid, p.type);
+						self.bin_assignments[bin].push_back(idx);
+					}
+				);
+			}
+
+			self.reorder_storage(self.bin_assignments);
+		}
 
 		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const env::Box & region) {
 			std::vector<cell_index_t> cells = self.get_cells_in_region(region);
@@ -55,9 +85,9 @@ namespace april::container::internal {
 				const auto [start_idx, end_idx] = self.cell_index_range(cid);
 				if (start_idx == end_idx) continue;
 
-				self.template for_each_particle<env::Field::position | env::Field::state>(start_idx, end_idx,
+				self.template for_each_particle_view<env::Field::position | env::Field::state>(start_idx, end_idx,
 					[&](const size_t i, const auto & particle) {
-						if (static_cast<uint8_t>(particle.state & env::ParticleState::ALIVE),
+						if (static_cast<uint8_t>(particle.state & env::ParticleState::ALIVE) &&
 							region.contains(particle.position)) {
 							ret.push_back(i);
 						}
@@ -79,28 +109,17 @@ namespace april::container::internal {
 		vec3d inv_cell_size; // cache the inverse of each size component to avoid divisions
 		uint3 cells_per_axis{}; // number of cells along each axis
 
-		std::vector<cell_index_t> bin_start_indices; // maps bin id to index of first particle in that bin
+		std::vector<std::vector<size_t>> bin_assignments;
 		std::vector<cell_index_t> cell_ordering; // map x,y,z flat index (Nx*Ny*z+Nx*y+x) to ordering index
-
-		// used for cell rebuilding
-		std::vector<size_t> write_ptr;
 
 		// cell pair info
 		std::vector<int3> neighbor_stencil;
 		std::vector<WrappedCellPair> wrapped_cell_pairs;
 
 
-
 		//------
 		// SETUP
 		//------
-		void init_cell_structures() {
-			setup_cell_grid();
-			init_cell_order();
-			create_neighbor_stencil();
-			compute_wrapped_cell_pairs();
-		}
-
 		void setup_cell_grid(this auto&& self) {
 			// determine the physical cutoff (max_rc) from interactions
 			double max_cutoff = 0;
@@ -150,8 +169,8 @@ namespace april::container::internal {
 			self.global_cutoff = max_cutoff;
 
 			// allocate buffers
-			self.bin_start_indices.resize(self.n_cells * self.n_types + 1); // size = (total Cells * types) + sentinel
-			self.write_ptr.resize(self.n_cells * self.n_types + 1);
+			self.bin_starts.resize(self.n_cells * self.n_types);
+			self.bin_assignments.resize(self.n_cells * self.n_types);
 		}
 
 		void init_cell_order(this auto && self) {
@@ -260,6 +279,17 @@ namespace april::container::internal {
 			}
 		}
 
+		void pre_allocate_assignment_bins() {
+			const size_t num_bins = n_types * n_cells;
+			bin_assignments.resize(num_bins); // +1 for sentinal buffer
+
+			// for each bin assume somewhat uniform distribution + 50% buffer
+			const size_t est_per_bin = (this->particle_count() / std::max<size_t>(1, num_bins)) * 1.5;
+			for(auto& bin : bin_assignments) {
+				bin.reserve(est_per_bin);
+			}
+		}
+
 
 		//----------
 		// UTILITIES
@@ -321,12 +351,11 @@ namespace april::container::internal {
 		}
 
 		[[nodiscard]] std::pair<size_t, size_t> cell_index_range(this auto && self, const uint32_t cid) {
-			const size_t start_bin_idx = bin_index(cid);
-
-			return {
-				self.bin_starts[start_bin_idx],
-				self.bin_starts [start_bin_idx + n_types]
-			};
+			const size_t start_bin_idx = self.bin_index(cid);
+			size_t start = self.bin_starts[start_bin_idx];
+			size_t end = start_bin_idx + self.n_types >= self.bin_starts.size() ? self.capacity() : self.bin_starts[start_bin_idx + self.n_types];
+			// size_t end = self.bin_starts[start_bin_idx + self.n_types]
+			return {start, end};
 
 		}
 

@@ -1,6 +1,8 @@
 #include <april/april.hpp>
 #include <filesystem>
-
+#include "april/containers/linked_cells/lc_aos.hpp"
+#include "april/containers/linked_cells/lc_soa.hpp"
+#include "april/containers/linked_cells/lc_config.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;
@@ -41,14 +43,14 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	const auto container = LinkedCellsSoA()
+	const auto container = container::LinkedCellsSoA()
 		.with_cell_size(container::CellSize::Cutoff)
 		.with_cell_ordering(hilbert_order)
 		.with_block_size(8);
 
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;
-	constexpr int steps  = 10000;
+	constexpr int steps  = 1000;
 
 	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 	integrator.add_monitor(Benchmark());

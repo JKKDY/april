@@ -1,12 +1,11 @@
 #pragma once
 
-#include "april/containers/cell_orderings.hpp"
 #include "april/containers/batching/common.hpp"
 
 
 namespace april::container::internal {
 
-	template<typename SymmetricBatch, typename AsymmetricBatch>
+	template<typename AsymmetricBatch, typename SymmetricBatch>
 	struct LinkedCellsBatch : SerialBatch {
 
 		template<env::FieldMask Mask, typename Func>

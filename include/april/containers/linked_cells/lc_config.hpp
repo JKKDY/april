@@ -3,9 +3,6 @@
 #include <optional>
 
 #include "april/base/types.hpp"
-#include "april/containers/cell_orderings.hpp"
-#include "april/containers/batching/scalar.hpp"
-
 
 namespace april::container {
 	enum class CellSize {

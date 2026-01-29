@@ -58,7 +58,7 @@ namespace april::container::layout {
 	class AoSoA : public Container<Config, U> {
 	public:
 		static constexpr size_t chunk_size = size;
-		using Chunk = ParticleChunk<U, chunk_size>;
+		using ChunkT = ParticleChunk<U, chunk_size>;
 
 		using Base = Container<Config, U>;
 		using Base::force_schema;
@@ -205,12 +205,12 @@ namespace april::container::layout {
 		static constexpr uint32_t ID_NOT_FOUND = std::numeric_limits<uint32_t>::max();
 
 		// hoist data pointer outside and restrict
-		Chunk* AP_RESTRICT ptr_chunks = nullptr;
+		ChunkT* AP_RESTRICT ptr_chunks = nullptr;
 
 		size_t particle_capacity{};
 		size_t n_particles{};
-		std::vector<Chunk> data;
-		std::vector<Chunk> tmp;
+		std::vector<ChunkT> data;
+		std::vector<ChunkT> tmp;
 		std::vector<size_t> bin_starts; // first chunk index of each bin
 		std::vector<size_t> bin_sizes;  // number of particles in each bin
 		std::vector<uint32_t> id_to_index_map;
@@ -286,15 +286,16 @@ namespace april::container::layout {
 
 			size_t n_chunks = 0;
 			for (const auto & bin : bins) {
-				bin_starts.push_back(n_chunks);
+				bin_starts.push_back(n_chunks * chunk_size);
 				bin_sizes.push_back(bin.size());
 				if (bin.empty()) continue;
 				const size_t bin_size = bin.size();
 				n_chunks +=  (bin_size + chunk_size - 1) / chunk_size;
 			}
 
-			bin_starts.push_back(n_chunks);
 			particle_capacity = n_chunks * chunk_size;
+			bin_starts.push_back(particle_capacity);
+
 			tmp.resize(n_chunks);
 			id_to_index_map.assign(particle_capacity, ID_NOT_FOUND);
 
@@ -374,21 +375,16 @@ namespace april::container::layout {
 
 		// return physical index range
 		[[nodiscard]] math::Range get_physical_bin_range(const size_t type) const {
-			size_t start = bin_starts[type] * chunk_size;
+			size_t start = bin_starts[type];
 			size_t end = start + bin_sizes[type]; // end is exact start + count (excludes padding)
 
 			return {start, end};
 		}
 
-		// return range of chunk indices
-		[[nodiscard]] math::Range get_chunk_bin_range(const size_t bin_index) const {
-			return {bin_starts[bin_index], bin_starts[bin_index+1]};
-		}
-
 		[[nodiscard]] std::pair<size_t, size_t> locate(const size_t physical_index) const {
 			return {
-				physical_index >> chunk_shift, // physical_index / chunk_size
-				physical_index & chunk_mask    // physical_index % chunk_size
+				physical_index >> chunk_shift, // chunk_index = physical_index / chunk_size
+				physical_index & chunk_mask    // lane_index = physical_index % chunk_size
 			 };
 		}
 

@@ -281,7 +281,7 @@ namespace april::container::internal {
 
 		void pre_allocate_assignment_bins() {
 			const size_t num_bins = n_types * n_cells;
-			bin_assignments.resize(num_bins); // +1 for sentinal buffer
+			bin_assignments.resize(num_bins);
 
 			// for each bin assume somewhat uniform distribution + 50% buffer
 			const size_t est_per_bin = (this->particle_count() / std::max<size_t>(1, num_bins)) * 1.5;
@@ -350,7 +350,7 @@ namespace april::container::internal {
 			return cell_id * n_types + static_cast<size_t>(type);
 		}
 
-		[[nodiscard]] std::pair<size_t, size_t> cell_index_range(this auto && self, const uint32_t cid) {
+		[[nodiscard]] std::pair<size_t, size_t> cell_index_range(this const auto & self, const uint32_t cid) {
 			const size_t start_bin_idx = self.bin_index(cid);
 			size_t start = self.bin_starts[start_bin_idx];
 			size_t end = start_bin_idx + self.n_types >= self.bin_starts.size() ? self.capacity() : self.bin_starts[start_bin_idx + self.n_types];

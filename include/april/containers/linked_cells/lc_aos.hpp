@@ -177,8 +177,6 @@ namespace april::container::internal {
 				}
 			}
 		}
-
-
     };
 }
 

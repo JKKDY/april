@@ -2,6 +2,7 @@
 #include <filesystem>
 #include "april/containers/linked_cells/lc_aos.hpp"
 #include "april/containers/linked_cells/lc_soa.hpp"
+#include "april/containers/linked_cells/lc_aosoa.hpp"
 #include "april/containers/linked_cells/lc_config.hpp"
 
 using namespace april;
@@ -43,9 +44,9 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	const auto container = container::LinkedCellsSoA()
+	const auto container = container::LinkedCellsAoSoA()
 		.with_cell_size(container::CellSize::Cutoff)
-		.with_cell_ordering(hilbert_order)
+		// .with_cell_ordering(hilbert_order)
 		.with_block_size(8);
 
 	auto system = build_system(env, container);

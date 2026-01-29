@@ -141,7 +141,9 @@ namespace april::core {
 			// TODO implement this method (system::size) properly
 			return particle_container.invoke_particle_count();
 		}
-
+		[[nodiscard]] size_t capacity() const noexcept {
+			return particle_container.capacity();
+		}
 		[[nodiscard]] std::vector<size_t> query_region(const env::Box & region) const {
 			return particle_container.invoke_collect_indices_in_region(region);
 		}
@@ -164,14 +166,6 @@ namespace april::core {
 			particle_container.template for_each_particle_view<M, Policy, Func>(std::forward<Func>(func), state);
 		}
 
-
-
-
-		template<typename Func>
-		void for_each_interaction_batch(Func && func) {
-			particle_container.invoke_for_each_interaction_batch(std::forward<Func>(func));
-		}
-
 		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>
 		[[nodiscard]] T reduce(
 			T initial_value,
@@ -181,6 +175,14 @@ namespace april::core {
 		) const {
 			return particle_container.template invoke_reduce<M>(initial_value, map_func, reduce_func, state);
 		}
+
+
+
+		template<typename Func>
+		void for_each_interaction_batch(Func && func) {
+			particle_container.invoke_for_each_interaction_batch(std::forward<Func>(func));
+		}
+
 
 
 		// -----------------

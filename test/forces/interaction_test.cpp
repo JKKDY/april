@@ -149,7 +149,7 @@ TEST(InteractionManagerTest, MixingForces) {
         vec3 result{0,0,0};
         force_table.dispatch(t1, t2, [&](const auto& force) {
             if constexpr (std::is_same_v<std::decay_t<decltype(force)>, ConstantForce>) {
-                 result = force.v; // UPDATED: Using .v
+                 result = force.v;
             }
         });
         return result;

@@ -386,3 +386,52 @@ TYPED_TEST(DirectSumTest, Asymmetric_TypeChaining) {
     // P1 is pulled -X towards P0 and +Y towards P2
     EXPECT_EQ(get_force(1), vec3(-100, 10, 0));
 }
+
+
+TYPED_TEST(DirectSumTest, IdBasedAccess_ReadWrite) {
+    constexpr size_t N = 20;
+    Environment e(forces<NoForce>);
+    e.set_extent({N * 1.0, 10, 10});
+
+    // setup: add particles
+    for (ParticleID i = 0; i < N; ++i) {
+        const double coord = static_cast<double>(i) + 0.5;
+        e.add_particle(make_particle(0, {coord, 0.5, 0.5}, {0, 0, 0}, 1.0, ParticleState::ALIVE, i));
+    }
+    e.add_force(NoForce(), to_type(0));
+
+    BuildInfo info;
+    auto sys = build_system(e, TypeParam(), &info);
+
+    // test view_id (Read Only)
+    for (size_t i = 0; i < N; ++i) {
+        // Resolve the internal ID used by the system
+        const auto sys_id = info.id_map[i];
+    	auto view = sys.template view_id<env::Field::position | env::Field::id>(sys_id);
+        EXPECT_EQ(view.id, sys_id);
+        EXPECT_DOUBLE_EQ(view.position.x, static_cast<double>(i) + 0.5);
+    }
+
+    // test at_id (Read/Write)
+    for (size_t i = 0; i < N; ++i) {
+        const auto sys_id = info.id_map[i];
+
+        // Modify velocity using ID access
+        auto ref = sys.template at_id<+env::Field::velocity>(sys_id);
+        const auto val = static_cast<double>(i);
+        ref.velocity = {val, val * 2, val * 3};
+    }
+
+    // test restricted_at_id (Read Verification of previous Write)
+    for (size_t i = 0; i < N; ++i) {
+        const auto sys_id = info.id_map[i];
+        const auto val = static_cast<double>(i);
+
+        // Verify the write persisted and can be read back via restricted interface
+        auto res_view = sys.template restricted_at_id<env::Field::velocity | env::Field::force>(sys_id);
+
+        EXPECT_EQ(res_view.velocity.x, val);
+        EXPECT_EQ(res_view.velocity.y, val * 2);
+        EXPECT_EQ(res_view.velocity.z, val * 3);
+    }
+}

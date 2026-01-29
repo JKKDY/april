@@ -9,8 +9,8 @@
 
 namespace april::container::internal {
 
-    template <class Config, class U>
-    class LinkedCellsAoSoAImpl : public LinkedCellsCore<layout::AoSoA<Config, U>> {
+    template <class Config, class U, size_t ChunkSize>
+    class LinkedCellsAoSoAImpl : public LinkedCellsCore<layout::AoSoA<Config, U, ChunkSize>> {
     public:
     	using Base = LinkedCellsCore<layout::AoSoA<Config, U>>;
 		using AsymBatch = AsymmetricChunkedBatch<LinkedCellsAoSoAImpl, typename Base::ChunkT>;
@@ -108,10 +108,19 @@ namespace april::container::internal {
 
 
 namespace april::container {
+
     struct LinkedCellsAoSoA : internal::LinkedCellsConfig{
         using ConfigT = LinkedCellsAoSoA;
 
         template <class U>
-        using impl = internal::LinkedCellsAoSoAImpl<ConfigT, U>;
+        using impl = internal::LinkedCellsAoSoAImpl<ConfigT, U, 8>;
     };
+
+	template<size_t ChunkSize>
+	struct LinkedCellsAoSoA_withChunkSize : internal::LinkedCellsConfig{
+		using ConfigT = LinkedCellsAoSoA_withChunkSize;
+
+		template <class U>
+		using impl = internal::LinkedCellsAoSoAImpl<ConfigT, U, ChunkSize>;
+	};
 }

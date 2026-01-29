@@ -284,7 +284,7 @@ namespace april::container::internal {
 			bin_assignments.resize(num_bins);
 
 			// for each bin assume somewhat uniform distribution + 50% buffer
-			const size_t est_per_bin = (this->particle_count() / std::max<size_t>(1, num_bins)) * 1.5;
+			const size_t est_per_bin = static_cast<size_t>((this->particle_count() / std::max<size_t>(1, num_bins)) * 1.5);
 			for(auto& bin : bin_assignments) {
 				bin.reserve(est_per_bin);
 			}

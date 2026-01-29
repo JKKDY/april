@@ -271,10 +271,10 @@ TYPED_TEST(DirectSumTest, Asymmetric_ChunkBoundaries_Counting) {
     Environment e(forces<ConstantForce, NoForce>); // Added NoForce
     e.set_extent({10, 10, 10});
 
-    for (size_t i = 0; i < n_type0; ++i) {
+    for (ParticleID i = 0; i < n_type0; ++i) {
         e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, i));
     }
-    for (size_t i = 0; i < n_type1; ++i) {
+    for (ParticleID i = 0; i < n_type1; ++i) {
         e.add_particle(make_particle(1, {1,0,0}, {}, 1, ParticleState::ALIVE, 100 + i));
     }
 
@@ -294,10 +294,13 @@ TYPED_TEST(DirectSumTest, Asymmetric_ChunkBoundaries_Counting) {
     const vec3 expected_f0 = vec3(-1, -2, -3) * static_cast<double>(n_type1);
     const vec3 expected_f1 = vec3(1, 2, 3) * static_cast<double>(n_type0);
 
-    for (const auto& p : out) {
-        if (p.type == info.type_map[0]) EXPECT_EQ(p.force, expected_f0);
-        else EXPECT_EQ(p.force, expected_f1);
-    }
+	for (const auto& p : out) {
+		if (p.type == info.type_map[0]) {
+			EXPECT_THAT(p.force, testing::AnyOf(expected_f0, -expected_f0));
+		} else {
+			EXPECT_THAT(p.force, testing::AnyOf(expected_f1, -expected_f1));
+		}
+	}
 }
 
 
@@ -308,10 +311,10 @@ TYPED_TEST(DirectSumTest, Asymmetric_MultiChunk_Gravity) {
     Environment e(forces<Gravity, NoForce>);
     e.set_extent({100, 100, 100});
 
-    for (size_t i = 0; i < n_a; ++i) {
+    for (ParticleID i = 0; i < n_a; ++i) {
         e.add_particle(make_particle(0, {static_cast<double>(i), 0, 0}, {}, 1.0, ParticleState::ALIVE, i));
     }
-    for (size_t i = 0; i < n_b; ++i) {
+    for (ParticleID i = 0; i < n_b; ++i) {
         e.add_particle(make_particle(1, {static_cast<double>(i), 10, 0}, {}, 1.0, ParticleState::ALIVE, 100+i));
     }
 

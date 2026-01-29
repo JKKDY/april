@@ -432,10 +432,10 @@ TYPED_TEST(LinkedCellsTest, Asymmetric_ChunkBoundaries_Counting) {
     Environment e(forces<Harmonic, NoForce>);
     e.set_extent({10, 10, 10});
 
-    for (size_t i = 0; i < n_type0; ++i) {
+    for (ParticleID i = 0; i < n_type0; ++i) {
         e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, i));
     }
-    for (size_t i = 0; i < n_type1; ++i) {
+    for (ParticleID i = 0; i < n_type1; ++i) {
         e.add_particle(make_particle(1, {1,0,0}, {}, 1, ParticleState::ALIVE, 100 + i));
     }
 
@@ -472,11 +472,11 @@ TYPED_TEST(LinkedCellsTest, Asymmetric_MultiChunk_Gravity_WithCutoff) {
     e.set_extent({100, 100, 100});
 
     // Line of Type 0 at y=0
-    for (size_t i = 0; i < n_a; ++i) {
+    for (ParticleID i = 0; i < n_a; ++i) {
         e.add_particle(make_particle(0, {static_cast<double>(i), 0, 0}, {}, 1.0, ParticleState::ALIVE, i));
     }
     // Line of Type 1 at y=10 (dist ~10.0)
-    for (size_t i = 0; i < n_b; ++i) {
+    for (ParticleID i = 0; i < n_b; ++i) {
         e.add_particle(make_particle(1, {static_cast<double>(i), 10, 0}, {}, 1.0, ParticleState::ALIVE, 100+i));
     }
 

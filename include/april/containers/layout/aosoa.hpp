@@ -13,7 +13,7 @@
 
 
 namespace april::container::layout {
-	template <typename U, size_t Size = 8>
+	template <typename U, size_t Size>
 	struct alignas(64) ParticleChunk {
 		// Enforce alignment requirements (Size 8 * double 8 bytes = 64 bytes = 1 AVX-512 Register)
 		static_assert(std::has_single_bit(Size),
@@ -54,10 +54,10 @@ namespace april::container::layout {
 	};
 
 
-	template<typename Config, env::IsUserData U, size_t size=8>
+	template<typename Config, env::IsUserData U, size_t ChunkSize=8>
 	class AoSoA : public Container<Config, U> {
 	public:
-		static constexpr size_t chunk_size = size;
+		static constexpr size_t chunk_size = ChunkSize;
 		using ChunkT = ParticleChunk<U, chunk_size>;
 
 		using Base = Container<Config, U>;

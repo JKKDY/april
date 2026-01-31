@@ -3,7 +3,7 @@
 #include <any>
 #include <stdexcept>
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/particle/particle.hpp"
 #include "april/particle/generators.hpp"
 

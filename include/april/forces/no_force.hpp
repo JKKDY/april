@@ -1,6 +1,6 @@
 #pragma once
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/particle/fields.hpp"
 #include "april/forces/force.hpp"
 

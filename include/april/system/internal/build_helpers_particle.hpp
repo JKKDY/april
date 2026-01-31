@@ -5,7 +5,7 @@
 #include <unordered_set>
 #include <memory>
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/forces/force.hpp"
 #include "april/particle/generators.hpp"
 

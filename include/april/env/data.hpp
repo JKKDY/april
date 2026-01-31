@@ -5,7 +5,7 @@
 #include <unordered_set>
 #include <array>
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/env/domain.hpp"
 #include "april/forces/force.hpp"
 #include "april/boundaries/boundary.hpp"

@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/particle/fields.hpp"
 #include "april/forces/force.hpp"
 
@@ -26,11 +26,12 @@ namespace april::force {
 			return mag * inv_r * r;  // Force vector pointing along +r
 		}
 
-		[[nodiscard]] Coulomb mix(Coulomb const& other) const noexcept {
+		[[nodiscard]] Coulomb mix(Coulomb const& other) const {
 			// Arithmetic average of pre-factor and cutoff
-			const double mixed_factor = 0.5 * (coulomb_constant + other.coulomb_constant);
-			const double mixed_cutoff = 0.5 * (cutoff() + other.cutoff());
-			return Coulomb(static_cast<uint8_t>(std::round(mixed_factor)), mixed_cutoff);
+			if (std::abs(coulomb_constant - other.coulomb_constant) > 1e-9) {
+				throw std::invalid_argument("Cannot mix different Coulomb Constants!");
+			}
+			return Coulomb(coulomb_constant, std::max(cutoff(), other.cutoff()));
 		}
 
 		bool operator==(const Coulomb&) const = default;

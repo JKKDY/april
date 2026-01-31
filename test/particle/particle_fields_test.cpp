@@ -3,7 +3,7 @@
 #include <variant> // std::monostate
 #include <type_traits> // std::is_same_v
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/particle/access.hpp"
 #include "april/particle/particle.hpp"
 
@@ -134,7 +134,7 @@ TEST_F(ParticleViewsTest, ParticleRefPartialMask) {
 
     // check present fields are correct
     EXPECT_EQ(ref.position, particle_data.position);
-    EXPECT_TRUE((std::is_same_v<decltype(ref.position), utils::Vec3Proxy<vec3::type>>));
+    EXPECT_TRUE((std::is_same_v<decltype(ref.position), math::Vec3Proxy<vec3::type>>));
     EXPECT_EQ(ref.mass, particle_data.mass);
     EXPECT_TRUE((std::is_same_v<decltype(ref.mass), double&>));
     EXPECT_EQ(ref.user_data, particle_data.user_data);
@@ -160,7 +160,7 @@ TEST_F(ParticleViewsTest, ParticleViewIsConst) {
     EXPECT_EQ(view.user_data, particle_data.user_data);
 
     // check types are const (or copies)
-    EXPECT_TRUE((std::is_same_v<decltype(view.position), const utils::Vec3Proxy<const vec3::type>>));
+    EXPECT_TRUE((std::is_same_v<decltype(view.position), const math::Vec3Proxy<const vec3::type>>));
     EXPECT_TRUE((std::is_same_v<decltype(view.mass), const double&>)); // copy
     EXPECT_TRUE((std::is_same_v<decltype(view.user_data), const TestUserDataT&>));
 }
@@ -174,10 +174,10 @@ TEST_F(ParticleViewsTest, RestrictedParticleRefAccess) {
     RestrictedParticleRef<mask, TestUserDataT> restricted_ref(src);
 
     // check that 'force' is mutable
-    EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.force), utils::Vec3Proxy<vec3::type>>));
+    EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.force), math::Vec3Proxy<vec3::type>>));
 
     // check that other fields are const or copies
-    EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.position), const utils::Vec3Proxy<const vec3::type>>));
+    EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.position), const math::Vec3Proxy<const vec3::type>>));
     EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.id), const ParticleID>)); // copy
     EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.user_data), const TestUserDataT&>));
 

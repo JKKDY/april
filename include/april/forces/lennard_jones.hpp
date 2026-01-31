@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cmath>
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/particle/fields.hpp"
 
 

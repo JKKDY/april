@@ -4,6 +4,8 @@
 #include <vector>
 #include <cstdint>
 #include <cstring>
+#include <utils.h>
+#include <gmock/gmock.h>
 
 #include "april/april.hpp"
 
@@ -198,4 +200,44 @@ TEST_F(BinaryOutputTest, MultipleParticles) {
 		EXPECT_EQ(read_binary<uint32_t>(in), i.id);
 		EXPECT_EQ(read_binary<uint8_t>(in), static_cast<uint8_t>(i.state));
 	}
+}
+
+
+
+using testing::HasSubstr;
+
+TEST(BenchmarkTest, Integration_CapturesStatistics) {
+	auto p1 = make_particle(0, {0,0,0}, {0,0,0}, 1.0);
+	auto p2 = make_particle(0, {1.5,0,0}, {0,0,0}, 1.0);
+
+	auto env = Environment(forces<LennardJones>, boundaries<Reflective>)
+	   .with_particles({p1, p2})
+	   .with_extent(10, 10, 10)
+	   .with_force(LennardJones(1, 1), to_type(0));
+
+	// Using AoS for simplicity
+	auto container = LinkedCellsAoS();
+	auto system = build_system(env, container);
+
+	testing::internal::CaptureStdout();
+
+	// Run for 5 steps (dt=0.001, duration=0.005) to generate stats
+	VelocityVerlet(system, monitors<Benchmark>)
+	   .with_monitor(Benchmark())
+	   .run_for_duration(0.001, 0.005);
+
+	std::string output = testing::internal::GetCapturedStdout();
+
+	// Verify Header
+	EXPECT_THAT(output, HasSubstr("[APRIL BENCHMARK REPORT]"));
+
+	// Verify Stats
+	// We ran 5 steps with 2 particles = 10 updates
+	EXPECT_THAT(output, HasSubstr("Steps processed:    5"));
+	EXPECT_THAT(output, HasSubstr("Particles processed: 10"));
+
+	// Verify Metrics exist (MUPS, Throughput, Std Dev)
+	EXPECT_THAT(output, HasSubstr("Performance:"));
+	EXPECT_THAT(output, HasSubstr("MUPS"));
+	EXPECT_THAT(output, HasSubstr("Std Deviation:"));
 }

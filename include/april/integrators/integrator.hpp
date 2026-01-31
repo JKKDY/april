@@ -3,7 +3,7 @@
 
 #include "april/system/system.hpp"
 #include "april/monitors/monitor.hpp"
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 
 #include "april/utility/pack_storage.hpp"
 

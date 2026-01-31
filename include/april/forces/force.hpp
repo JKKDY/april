@@ -5,7 +5,7 @@
 #include <utility>
 #include <limits>
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/particle/fields.hpp"
 #include "april/particle/defs.hpp"
 #include "april/particle/access.hpp"
@@ -13,7 +13,7 @@
 
 namespace april::force {
 
-    constexpr double no_cutoff = std::numeric_limits<double>::max();
+    constexpr double no_cutoff = 1.0e150; // 1.0e150 squared is 1.0e300 <  max of double = 1.79e308
 
     struct Force {
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
@@ -65,7 +65,7 @@ namespace april::force {
         }
 
         [[nodiscard]] bool has_cutoff() const noexcept{
-            return cutoff() != no_cutoff;
+            return cutoff() < no_cutoff;
         }
 
         [[nodiscard]] double cutoff() const noexcept{

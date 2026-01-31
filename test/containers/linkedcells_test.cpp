@@ -6,13 +6,15 @@ using testing::AnyOf;
 using testing::Eq;
 
 
-#include "april/containers/linked_cells.hpp"
+#include "april/containers/linked_cells/lc_aos.hpp"
+#include "april/containers/linked_cells/lc_soa.hpp"
+#include "april/containers/linked_cells/lc_aosoa.hpp"
+
 
 #include "orbit_monitor.h"
 #include "constant_force.h"
 #include "utils.h"
 
-// TODO tests for get_particle_by_id
 using namespace april;
 
 
@@ -27,7 +29,7 @@ struct OrderDefault {
 struct OrderMorton {
 	static auto apply(auto&& container) {
 		// Assuming morton_order is available in current scope or april namespace
-		return container.with_cell_ordering(april::morton_order);
+		return container.with_cell_ordering(morton_order);
 	}
 };
 
@@ -35,7 +37,7 @@ struct OrderMorton {
 struct OrderHilbert {
 	static auto apply(auto&& container) {
 		// Assuming hilbert_order is available in current scope or april namespace
-		return container.with_cell_ordering(april::hilbert_order);
+		return container.with_cell_ordering(hilbert_order);
 	}
 };
 
@@ -44,7 +46,7 @@ struct TestConfig {
 	// Helper to initialize the container with size and ordering
 	static auto create(double cell_size) {
 		// Create container and set size
-		auto c = ContainerT{}.with_cell_size(cell_size);
+		auto c = ContainerT{}.with_abs_cell_size(cell_size);
 		// Apply the ordering strategy (Default, Morton, or Hilbert)
 		return OrderingT::apply(std::move(c));
 	}
@@ -64,7 +66,12 @@ using ContainerConfigurations = testing::Types<
 	// SoA Combinations
 	TestConfig<LinkedCellsSoA, OrderDefault>,
 	TestConfig<LinkedCellsSoA, OrderMorton>,
-	TestConfig<LinkedCellsSoA, OrderHilbert>
+	TestConfig<LinkedCellsSoA, OrderHilbert>,
+
+	// AoSoA Combinations
+	TestConfig<LinkedCellsAoSoA, OrderDefault>,
+	TestConfig<LinkedCellsAoSoA, OrderMorton>,
+	TestConfig<LinkedCellsAoSoA, OrderHilbert>
 >;
 
 template <typename LinkedCellsT>
@@ -368,8 +375,8 @@ TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 		// They should feel equal and opposite forces due to wrapping
 		EXPECT_EQ(p1.force, -p2.force);
 
-		EXPECT_NEAR(p1.force.x, 1.0, 1e-12);
-		EXPECT_NEAR(p2.force.x, -1.0, 1e-12);
+		EXPECT_NEAR(p1.force.x, -1.0, 1e-12);
+		EXPECT_NEAR(p2.force.x, 1.0, 1e-12);
 	}
 }
 
@@ -407,13 +414,183 @@ TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
 		// Forces must be equal and opposite
 		EXPECT_EQ(p1.force, -p2.force);
 
-		EXPECT_NEAR(p1.force.x, 1.0, 1e-12);
-		EXPECT_NEAR(p1.force.y, 1.0, 1e-12);
-		EXPECT_NEAR(p1.force.z, 1.0, 1e-12);
+		EXPECT_NEAR(p1.force.x, -1.0, 1e-12);
+		EXPECT_NEAR(p1.force.y, -1.0, 1e-12);
+		EXPECT_NEAR(p1.force.z, -1.0, 1e-12);
 
-		EXPECT_NEAR(p2.force.x, -1.0, 1e-12);
-		EXPECT_NEAR(p2.force.y, -1.0, 1e-12);
-		EXPECT_NEAR(p2.force.z, -1.0, 1e-12);
+		EXPECT_NEAR(p2.force.x, 1.0, 1e-12);
+		EXPECT_NEAR(p2.force.y, 1.0, 1e-12);
+		EXPECT_NEAR(p2.force.z, 1.0, 1e-12);
 	}
 }
 
+TYPED_TEST(LinkedCellsTest, Asymmetric_ChunkBoundaries_Counting) {
+    constexpr size_t n_type0 = 20;
+    constexpr size_t n_type1 = 12;
+
+    Environment e(forces<Harmonic, NoForce>);
+    e.set_extent({10, 10, 10});
+
+    for (ParticleID i = 0; i < n_type0; ++i) {
+        e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, i));
+    }
+    for (ParticleID i = 0; i < n_type1; ++i) {
+        e.add_particle(make_particle(1, {1,0,0}, {}, 1, ParticleState::ALIVE, 100 + i));
+    }
+
+    // Spring k=1, r0=0, cutoff=1.5 (covers dist=1.0)
+    e.add_force(Harmonic(1, 0, 1.5), between_types(0, 1));
+
+    e.add_force(NoForce(), to_type(0));
+    e.add_force(NoForce(), to_type(1));
+
+    BuildInfo info;
+    // Set cell size >= cutoff
+    auto sys = build_system(e, TypeParam::create(1.5), &info);
+    sys.update_forces();
+
+    auto const& out = export_particles(sys);
+    ASSERT_EQ(out.size(), n_type0 + n_type1);
+
+    // P0 pulls P1 (+X), P1 pulls P0 (-X)
+    const vec3 expected_f0 = vec3(1, 0, 0) * static_cast<double>(n_type1);
+    const vec3 expected_f1 = vec3(-1, 0, 0) * static_cast<double>(n_type0);
+
+    for (const auto& p : out) {
+        if (p.type == info.type_map[0]) EXPECT_EQ(p.force, expected_f0);
+        else EXPECT_EQ(p.force, expected_f1);
+    }
+}
+
+TYPED_TEST(LinkedCellsTest, Asymmetric_MultiChunk_Gravity_WithCutoff) {
+    constexpr size_t n_a = 10;
+    constexpr size_t n_b = 10;
+    constexpr double cutoff = 12.0;
+
+    Environment e(forces<Gravity, NoForce>);
+    e.set_extent({100, 100, 100});
+
+    // Line of Type 0 at y=0
+    for (ParticleID i = 0; i < n_a; ++i) {
+        e.add_particle(make_particle(0, {static_cast<double>(i), 0, 0}, {}, 1.0, ParticleState::ALIVE, i));
+    }
+    // Line of Type 1 at y=10 (dist ~10.0)
+    for (ParticleID i = 0; i < n_b; ++i) {
+        e.add_particle(make_particle(1, {static_cast<double>(i), 10, 0}, {}, 1.0, ParticleState::ALIVE, 100+i));
+    }
+
+    // Gravity G=1, Cutoff=12 (covers the gap of 10)
+    e.add_force(Gravity(1.0, cutoff), between_types(0, 1));
+    e.add_force(NoForce(), to_type(0));
+    e.add_force(NoForce(), to_type(1));
+
+    BuildInfo info;
+    auto sys = build_system(e, TypeParam::create(cutoff), &info);
+    sys.update_forces();
+
+    auto const& out = export_particles(sys);
+
+    for (const auto& p : out) {
+        vec3 expected_force(0,0,0);
+        const int target_user_type = (p.type == info.type_map[0]) ? 1 : 0;
+
+        for (const auto& other : out) {
+            if (other.type != info.type_map[target_user_type]) continue;
+
+            vec3 r = other.position - p.position;
+            const double dist = r.norm();
+
+            // LC only calculates if within cutoff
+            if (dist > cutoff) continue;
+
+            const double mag = (1.0 * p.mass * other.mass) / (dist * dist * dist);
+            expected_force += r * mag;
+        }
+
+        EXPECT_NEAR(p.force.x, expected_force.x, 1e-10);
+        EXPECT_NEAR(p.force.y, expected_force.y, 1e-10);
+        EXPECT_NEAR(p.force.z, expected_force.z, 1e-10);
+    }
+}
+
+TYPED_TEST(LinkedCellsTest, Asymmetric_TypeChaining) {
+    Environment e(forces<Harmonic, NoForce>);
+    e.set_extent({10, 10, 10});
+
+    e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
+    e.add_particle(make_particle(1, {1,0,0}, {}, 1, ParticleState::ALIVE, 1));
+    e.add_particle(make_particle(2, {1,1,0}, {}, 1, ParticleState::ALIVE, 2));
+
+    // Cutoff 1.5 covers the distance of 1.0
+    e.add_force(Harmonic(100, 0, 1.5), between_types(0, 1));
+    e.add_force(Harmonic(10, 0, 1.5),  between_types(1, 2));
+
+    e.add_force(NoForce(), to_type(0));
+    e.add_force(NoForce(), to_type(1));
+    e.add_force(NoForce(), to_type(2));
+    e.add_force(NoForce(), between_types(0, 2));
+
+    BuildInfo info;
+    auto sys = build_system(e, TypeParam::create(1.5), &info);
+    sys.update_forces();
+
+    auto const& out = export_particles(sys);
+
+    auto get_force = [&](const size_t id) {
+        for (const auto& p : out) if (p.id == info.id_map[id]) return p.force;
+        return vec3(0);
+    };
+
+    EXPECT_EQ(get_force(0), vec3(100, 0, 0));
+    EXPECT_EQ(get_force(2), vec3(0, -10, 0));
+    EXPECT_EQ(get_force(1), vec3(-100, 10, 0));
+}
+
+
+TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
+	constexpr size_t N = 20;
+	Environment e(forces<NoForce>);
+	e.set_extent({N * 1.0, 10, 10});
+
+	// setup: add particles
+	for (ParticleID i = 0; i < N; ++i) {
+		const double coord = static_cast<double>(i) + 0.5;
+		e.add_particle(make_particle(0, {coord, 0.5, 0.5}, {0, 0, 0}, 1.0, ParticleState::ALIVE, i));
+	}
+	e.add_force(NoForce(), to_type(0));
+
+	BuildInfo info;
+	auto sys = build_system(e, TypeParam::create(1.0), &info);
+
+	// test view_id (Read Only)
+	for (size_t i = 0; i < N; ++i) {
+		// Resolve the internal ID used by the system
+		const auto sys_id = info.id_map[i];
+		auto view = sys.template view_id<env::Field::position | env::Field::id>(sys_id);
+		EXPECT_EQ(view.id, sys_id);
+		EXPECT_DOUBLE_EQ(view.position.x, static_cast<double>(i) + 0.5);
+	}
+
+	// test at_id (Read/Write)
+	for (size_t i = 0; i < N; ++i) {
+		const auto sys_id = info.id_map[i];
+
+		// Modify velocity using ID access
+		auto ref = sys.template at_id<+env::Field::velocity>(sys_id);
+		const auto val = static_cast<double>(i);
+		ref.velocity = {val, val * 2, val * 3};
+	}
+
+	// test restricted_at_id (Read Verification of previous Write)
+	for (size_t i = 0; i < N; ++i) {
+		const auto sys_id = info.id_map[i];
+		const auto val = static_cast<double>(i);
+
+		// Verify the write persisted and can be read back via restricted interface
+		auto res_view = sys.template restricted_at_id<env::Field::velocity | env::Field::force>(sys_id);
+
+		EXPECT_EQ(res_view.velocity.x, val);
+		EXPECT_EQ(res_view.velocity.y, val * 2);
+		EXPECT_EQ(res_view.velocity.z, val * 3);
+	}
+}

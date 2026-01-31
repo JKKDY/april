@@ -1,10 +1,7 @@
 #pragma once
 
-#include <string>
-#include <sstream>
-
-#include "april/common.hpp"
-#include "april/macros.hpp"
+#include "april/base/types.hpp"
+#include "april/base/macros.hpp"
 #include "april/particle/defs.hpp"
 #include "april/particle/fields.hpp"
 
@@ -25,7 +22,7 @@ namespace april::env {
 	    template<typename T>
 	    using Ptr = std::conditional_t<IsConst, const T*, T*>;
 
-		using Vec3PtrT = utils::Vec3Ptr<std::conditional_t<IsConst, const vec3::type, vec3::type>>;
+		using Vec3PtrT = math::Vec3Ptr<std::conditional_t<IsConst, const vec3::type, vec3::type>>;
 
 	    // data pointers (optimized away if not in M)
 	    AP_NO_UNIQUE_ADDRESS field_type_t<Vec3PtrT, Field::force, M> force;
@@ -68,6 +65,7 @@ namespace april::env {
 	}
 
 
+
 	//---------------------
 	// CONTROLLED ACCESSORS
 	//---------------------
@@ -100,7 +98,7 @@ namespace april::env {
 			return ParticleView<M, UserDataT>(*this);
 		}
 
-		using vec3ref = utils::Vec3Proxy<vec3::type>;
+		using vec3ref = math::Vec3Proxy<vec3::type>;
 
 		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, Field::force, M> force;
 		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, Field::position, M> position;
@@ -133,8 +131,8 @@ namespace april::env {
 			return ParticleView<M, UserDataT>(*this);
 		}
 
-		using Vec3Ref = utils::Vec3Proxy<vec3::type>;
-		using ConstVec3Ref = utils::Vec3Proxy<const vec3::type>;
+		using Vec3Ref = math::Vec3Proxy<vec3::type>;
+		using ConstVec3Ref = math::Vec3Proxy<const vec3::type>;
 
 
 		// everything by const reference except for force
@@ -183,7 +181,7 @@ namespace april::env {
 			, user_data    (r.user_data)
 			{}
 
-		using ConstVec3Ref = utils::Vec3Proxy<const vec3::type>;
+		using ConstVec3Ref = math::Vec3Proxy<const vec3::type>;
 
 		// everything by const reference
 		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, Field::force, M> force;
@@ -197,18 +195,36 @@ namespace april::env {
 		AP_NO_UNIQUE_ADDRESS field_type_t<const UserDataT&, Field::user_data, M> user_data;
 	};
 
-	// TODO maybe stick this somewhere else? like in particle.h
-	// easy terminal diagnostics
-	template<typename P>
-	std::string particle_to_string(const P & p) {
-		std::ostringstream oss;
-		oss << "Particle ID: " << p.id << "\n"
-			<< "Position: " << p.position.to_string() << "\n"
-			<< "Velocity: " << p.velocity.to_string() << "\n"
-			<< "Force: " << p.force.to_string() << "\n"
-			<< "Mass: " << p.mass << "\n"
-			<< "Type: " << p.type << "\n"
-			<< "State: " << static_cast<int>(p.state) << "\n";
-		return oss.str();
-	}
+
+
+	//---------
+	// CONCEPTS
+	//---------
+	template<typename T> struct is_restricted_ref_impl : std::false_type {};
+	template<typename T> struct is_particle_ref_impl   : std::false_type {};
+	template<typename T> struct is_particle_view_impl  : std::false_type {};
+
+	// Specialization for Accessors
+	template<auto M, typename U>
+	struct is_restricted_ref_impl<RestrictedParticleRef<M, U>> : std::true_type {};
+
+	template<auto M, typename U>
+	struct is_particle_ref_impl<ParticleRef<M, U>> : std::true_type {};
+
+	template<auto M, typename U>
+	struct is_particle_view_impl<ParticleView<M, U>> : std::true_type {};
+
+	// Concepts
+	template<typename T>
+	concept IsRestrictedRef = is_restricted_ref_impl<std::remove_cvref_t<T>>::value;
+
+	template<typename T>
+	concept IsParticleRef = is_particle_ref_impl<std::remove_cvref_t<T>>::value;
+
+	template<typename T>
+	concept IsParticleView = is_particle_view_impl<std::remove_cvref_t<T>>::value;
+
+	template<typename T>
+	concept IsAnyParticleAccessor = IsRestrictedRef<T> || IsParticleRef<T> || IsParticleView<T>;
+
 }

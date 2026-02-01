@@ -182,53 +182,26 @@ namespace april::core {
 			particle_container.invoke_for_each_interaction_batch(std::forward<Func>(func));
 		}
 
-
 		template<env::FieldMask M, typename Func>
 		void for_each_interaction_pair(Func && func) { // func(particle, particle, dist)
-			using Par = container::ParallelPolicy;
-			using Cmp = container::ComputePolicy;
-
 			auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
 				auto kernel = [&](auto && p1, auto && p2) {
 					vec3 r = {};
 					if constexpr (env::has_field_v<M, env::Field::position> &&
 						std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
 						r = p2.position - p1.position;
-					} else {
-						r = apply_bcp(p2.position - p1.position);
-					}
+						} else {
+							r = apply_bcp(p2.position - p1.position);
+						}
 
 					func(p1, p2, r);
 				};
 
-				// execute kernel
-				auto execute_atom = [&](const auto& atom) {
-					if constexpr (Batch::compute_policy == Cmp::Scalar) {
-						atom.template for_each_pair<M>(kernel);
-					} else {
-						static_assert(Batch::compute_policy != Cmp::Scalar, "Vectorization not implemented yet");
-					}
-				};
-
-				// Routing
-				if constexpr (container::IsBatchAtom<Batch>) {
-					execute_atom(batch);
-				}
-				else if constexpr (container::IsBatchAtomRange<Batch>) {
-					if constexpr (Batch::parallel_policy == Par::Inner) {
-						static_assert(Batch::parallel_policy == Cmp::Scalar, "Vectorization not implemented yet");
-						std::unreachable();
-					} else {
-						for (const auto& atom : batch) {
-							execute_atom(atom);
-						}
-					}
-				}
+				execute_batch_kernel<M>(batch, kernel);
 			};
 
 			particle_container.invoke_for_each_interaction_batch(update_batch);
 		}
-
 
 
 
@@ -269,11 +242,19 @@ namespace april::core {
 		// --------
 		// CONTEXTS
 		// --------
-		[[nodiscard]] SysContext & context() { return system_context; }
-		[[nodiscard]] TrigContext & trigger_context() { return trig_context; }
+		[[nodiscard]] SysContext & context() {
+			return system_context;
+		}
+		[[nodiscard]] TrigContext & trigger_context() {
+			return trig_context;
+		}
 
-		[[nodiscard]] const SysContext & context() const { return system_context; }
-		[[nodiscard]] const TrigContext & trigger_context() const { return trig_context; }
+		[[nodiscard]] const SysContext & context() const {
+			return system_context;
+		}
+		[[nodiscard]] const TrigContext & trigger_context() const {
+			return trig_context;
+		}
 
 
 	private:
@@ -328,44 +309,54 @@ namespace april::core {
 			 const Container& container,
 			 BuildInfo * build_info
 		);
+
+		template<env::FieldMask M, typename Batch, typename Kernel>
+		void execute_batch_kernel(const Batch& batch, Kernel&& kernel) {
+			using Par = container::ParallelPolicy;
+			using Cmp = container::ComputePolicy;
+
+			// execute kernel
+			auto execute_atom = [&](const auto& atom) {
+				if constexpr (Batch::compute_policy == Cmp::Scalar) {
+					atom.template for_each_pair<M>(kernel);
+				} else {
+					static_assert(Batch::compute_policy != Cmp::Scalar, "Vectorization not implemented yet");
+				}
+			};
+
+			// Routing
+			if constexpr (container::IsBatchAtom<Batch>) {
+				execute_atom(batch);
+			}
+			else if constexpr (container::IsBatchAtomRange<Batch>) {
+				if constexpr (Batch::parallel_policy == Par::Inner) {
+					static_assert(Batch::parallel_policy == Cmp::Scalar, "Vectorization not implemented yet");
+					std::unreachable();
+				} else {
+					for (const auto& atom : batch) {
+						execute_atom(atom);
+					}
+				}
+			}
+		}
+
+
 	};
 
 
-
-
-	// Default: assume any type is not a System
-	template<typename>
-	inline constexpr bool is_system_v = false;
-
-	// Specialization: mark all System<C, Env> instantiations as true
-	template<class C, env::internal::IsEnvironmentTraits Traits>
-	inline constexpr bool is_system_v<System<C, Traits>> = true;
-
-	// Concept: true if T (after removing cv/ref) is a System specialization
-	template<typename T>
-	concept IsSystem = is_system_v<std::remove_cvref_t<T>>;
-
-
-
-
-	// ---- Implementations -----
+	//----------------
+	// IMPLEMENTATIONS
+	//----------------
 	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::update_forces() {
 
 		// batch update lambda. passed into container::for_each_interaction_batch
 		auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
-			using Par = container::ParallelPolicy;
 			using Upd = container::UpdatePolicy;
-			using Cmp = container::ComputePolicy;
 
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr env::FieldMask fields = ForceT::fields;
-				constexpr env::FieldMask upd_fields = env::Field::force | env::Field::position;
-				constexpr env::FieldMask all_fields = upd_fields | fields;
+				constexpr env::FieldMask M = ForceT::fields | env::Field::force | env::Field::position;
 
-				//---------------
-				// PHYSICS KERNEL
-				//---------------
 				auto kernel = [&](auto & p1, auto & p2) {
 					vec3 r;
 
@@ -389,49 +380,16 @@ namespace april::core {
 					}
 				};
 
-				// Execution
-				auto execute_atom = [&](const auto& atom) {
-					if constexpr (Batch::compute_policy == Cmp::Scalar) {
-						atom.template for_each_pair<all_fields>(kernel);
-					} else {
-						static_assert(Batch::compute_policy != Cmp::Scalar, "Vectorization not implemented yet");
-					}
-				};
-
-				auto execute_range_serial = [&](const auto& range) {
-					for (const auto& atom : range) {
-						execute_atom(atom);
-					}
-				};
-
-				auto execute_range_parallel = [&](const auto&) {
-					std::unreachable();
-				};
-
-				// Routing
-				if constexpr (container::IsBatchAtom<Batch>) {
-					execute_atom(batch);
-				}
-				else if constexpr (container::IsBatchAtomRange<Batch>) {
-					if constexpr (Batch::parallel_policy == Par::Inner) {
-						static_assert(Batch::parallel_policy == Cmp::Scalar, "Vectorization not implemented yet");
-						execute_range_parallel(batch);
-					} else {
-						execute_range_serial(batch);
-					}
-				}
-
+				execute_batch_kernel<M>(batch, kernel);
 			};
 
 			auto [t1, t2] = batch.types;
 			force_table.dispatch(t1, t2, apply_batch_update);
 		};
 
-		auto reset_force = [](auto && p) {
-			p.force = {};
-		};
-
-		particle_container.template for_each_particle<+env::Field::force>(reset_force);
+		particle_container.template for_each_particle<+env::Field::force>(
+			[](auto && p) { p.force = {}; } // reset forces
+		);
 		particle_container.invoke_for_each_interaction_batch(update_batch);
 
 
@@ -439,13 +397,11 @@ namespace april::core {
 		auto update_global_batch = [&](const auto & batch) {
 
 			auto apply_batch_update = [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr env::FieldMask F = ForceT::fields;
-				constexpr env::FieldMask upd_fields = env::Field::force | env::Field::position;
-				constexpr env::FieldMask all_fields = upd_fields | F;
+				constexpr env::FieldMask M = ForceT::fields | env::Field::force | env::Field::position;
 
 				for (const auto & [id1, id2] : batch.pairs) {
-					auto && p1 = particle_container.template restricted_at_id<all_fields>(id1);
-					auto && p2 = particle_container.template restricted_at_id<all_fields>(id2);
+					auto && p1 = particle_container.template restricted_at_id<M>(id1);
+					auto && p2 = particle_container.template restricted_at_id<M>(id2);
 
 					vec3 r = p2.position - p1.position;
 					const vec3 f = force(p1.to_view(), p2.to_view(), r);
@@ -562,6 +518,22 @@ namespace april::core {
 			controller.template dispatch_update<System>(system_context);
 		});
 	}
+
+
+
+	// Default: assume any type is not a System
+	template<typename>
+	inline constexpr bool is_system_v = false;
+
+	// Specialization: mark all System<C, Env> instantiations as true
+	template<class C, env::internal::IsEnvironmentTraits Traits>
+	inline constexpr bool is_system_v<System<C, Traits>> = true;
+
+	// Concept: true if T (after removing cv/ref) is a System specialization
+	template<typename T>
+	concept IsSystem = is_system_v<std::remove_cvref_t<T>>;
+
+
 }
 
 

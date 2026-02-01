@@ -108,6 +108,11 @@ namespace april::core {
 			system.for_each_interaction_batch(std::forward<Func>(func));
 		}
 
+		template<env::FieldMask M, typename Func>
+		void for_each_interaction_pair(Func && func) {
+			system.template for_each_interaction_pair<M>(func);
+		}
+
 
 		// -----------------
 		// STRUCTURE UPDATES

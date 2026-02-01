@@ -266,9 +266,9 @@ namespace april::container {
 		void invoke_iterate_range(this auto&& self, Func && func, size_t start, size_t end) {
 			auto kernel = [&](size_t i, auto && p) {
 				if constexpr (requires { func(i, p); }) {
-					func(i, p); // user wants index
+					return func(i, p); // user wants index
 				} else {
-					func(p); // user only wants particle
+					return func(p); // user only wants particle
 				}
 			};
 

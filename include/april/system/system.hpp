@@ -27,17 +27,16 @@ namespace april::core {
 		BuildInfo * build_info = nullptr
 	);
 
-
 	template <class ContainerDecl, env::internal::IsEnvironmentTraits Traits>
 	requires container::IsContainerDecl<ContainerDecl, Traits>
 	class System final {
 		// --------------
 		// INTERNAL TYPES
 		// --------------
-		using ControllerStorage = typename Traits::controller_storage_t;
-		using FieldStorage	    = typename Traits::field_storage_t;
-		using ForceTable     	= typename Traits::force_table_t;
-		using BoundaryTable  	= typename Traits::boundary_table_t;
+		using ControllerStorage = Traits::controller_storage_t;
+		using FieldStorage	    = Traits::field_storage_t;
+		using ForceTable     	= Traits::force_table_t;
+		using BoundaryTable  	= Traits::boundary_table_t;
 
 	public:
 
@@ -46,17 +45,17 @@ namespace april::core {
 		// ----------------
 		using SysContext = SystemContext<System>;
 		using TrigContext = shared::TriggerContextImpl<System>;
-		using Container = typename ContainerDecl::template impl<typename Traits::user_data_t>;
-		using ParticleRec = typename Traits::particle_record_t;
+		using Container = ContainerDecl::template impl<typename Traits::user_data_t>;
+		using ParticleRec = Traits::particle_record_t;
 
 		template<env::FieldMask M>
-		using ParticleRef = typename Traits::template particle_ref_t<M>;
+		using ParticleRef = Traits::template particle_ref_t<M>;
 
 		template<env::FieldMask M>
-		using ParticleView = typename Traits::template particle_view_t<M>;
+		using ParticleView = Traits::template particle_view_t<M>;
 
 		template<env::FieldMask M>
-		using RestrictedParticleRef = typename Traits::template restricted_particle_ref_t<M>;
+		using RestrictedParticleRef = Traits::template restricted_particle_ref_t<M>;
 
 
 		// -----------------
@@ -179,9 +178,57 @@ namespace april::core {
 
 
 		template<typename Func>
-		void for_each_interaction_batch(Func && func) {
+		void for_each_interaction_batch(Func && func) { // func(batch, bcp)
 			particle_container.invoke_for_each_interaction_batch(std::forward<Func>(func));
 		}
+
+
+		template<env::FieldMask M, typename Func>
+		void for_each_interaction_pair(Func && func) { // func(particle, particle, dist)
+			using Par = container::ParallelPolicy;
+			using Cmp = container::ComputePolicy;
+
+			auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
+				auto kernel = [&](auto && p1, auto && p2) {
+					vec3 r = {};
+					if constexpr (env::has_field_v<M, env::Field::position> &&
+						std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
+						r = p2.position - p1.position;
+					} else {
+						r = apply_bcp(p2.position - p1.position);
+					}
+
+					func(p1, p2, r);
+				};
+
+				// execute kernel
+				auto execute_atom = [&](const auto& atom) {
+					if constexpr (Batch::compute_policy == Cmp::Scalar) {
+						atom.template for_each_pair<M>(kernel);
+					} else {
+						static_assert(Batch::compute_policy != Cmp::Scalar, "Vectorization not implemented yet");
+					}
+				};
+
+				// Routing
+				if constexpr (container::IsBatchAtom<Batch>) {
+					execute_atom(batch);
+				}
+				else if constexpr (container::IsBatchAtomRange<Batch>) {
+					if constexpr (Batch::parallel_policy == Par::Inner) {
+						static_assert(Batch::parallel_policy == Cmp::Scalar, "Vectorization not implemented yet");
+						std::unreachable();
+					} else {
+						for (const auto& atom : batch) {
+							execute_atom(atom);
+						}
+					}
+				}
+			};
+
+			particle_container.invoke_for_each_interaction_batch(update_batch);
+		}
+
 
 
 
@@ -392,9 +439,9 @@ namespace april::core {
 		auto update_global_batch = [&](const auto & batch) {
 
 			auto apply_batch_update = [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr env::FieldMask fields = ForceT::fields;
+				constexpr env::FieldMask F = ForceT::fields;
 				constexpr env::FieldMask upd_fields = env::Field::force | env::Field::position;
-				constexpr env::FieldMask all_fields = upd_fields | fields;
+				constexpr env::FieldMask all_fields = upd_fields | F;
 
 				for (const auto & [id1, id2] : batch.pairs) {
 					auto && p1 = particle_container.template restricted_at_id<all_fields>(id1);

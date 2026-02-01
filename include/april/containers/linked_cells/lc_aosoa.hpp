@@ -12,7 +12,7 @@ namespace april::container::internal {
     template <class Config, class U, size_t ChunkSize>
     class LinkedCellsAoSoAImpl : public LinkedCellsCore<layout::AoSoA<Config, U, ChunkSize>> {
     public:
-    	using Base = LinkedCellsCore<layout::AoSoA<Config, U>>;
+    	using Base = LinkedCellsCore<layout::AoSoA<Config, U, ChunkSize>>;
 		using AsymBatch = AsymmetricChunkedBatch<LinkedCellsAoSoAImpl, typename Base::ChunkT>;
     	using SymBatch = SymmetricChunkedBatch<LinkedCellsAoSoAImpl, typename Base::ChunkT>;
 

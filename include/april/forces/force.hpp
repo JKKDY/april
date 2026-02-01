@@ -64,6 +64,8 @@ namespace april::force {
             return self.mix(other);
         }
 
+
+
         [[nodiscard]] bool has_cutoff() const noexcept{
             return cutoff() < no_cutoff;
         }
@@ -73,6 +75,12 @@ namespace april::force {
         }
         [[nodiscard]] double cutoff2() const noexcept{
             return force_cutoff2;
+        }
+
+        auto with_cutoff(this auto && self, const double c) {
+            self.force_cutoff = c;
+            self.force_cutoff2 = c*c;
+            return self;
         }
 
         bool equals(this const auto & self, const auto & other) {

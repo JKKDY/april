@@ -11,14 +11,21 @@ namespace april::force {
 	struct LennardJones : Force{
 		static constexpr env::FieldMask fields = +env::Field::none;
 
-		LennardJones(const double epsilon_, const double sigma_, const double cutoff = -1.0)
-		: Force(cutoff < 0.0 ? 3.0 * sigma_ : cutoff), epsilon(epsilon_), sigma(sigma_) {
-			const vec3::type sigma2 = sigma * sigma;
-			const vec3::type sigma6 = sigma2 * sigma2 * sigma2;
-			const vec3::type sigma12 = sigma6 * sigma6;
+		LennardJones(const double epsilon, const double sigma, const double cutoff = -1.0)
+		: Force(cutoff < 0.0 ? 3.0 * sigma : cutoff), epsilon_(epsilon), sigma_(sigma) {
+			calculate_constants();
+		}
 
-			c6_force = 24.0 * epsilon * sigma6;
-			c12_force = 48.0 * epsilon * sigma12;
+		auto epsilon(const double e)  {
+			epsilon_ = e;
+			calculate_constants();
+			return *this;
+		}
+
+		auto sigma(const double s)  {
+			sigma_ = s;
+			calculate_constants();
+			return *this;
 		}
 
 		template<env::FieldMask M, env::IsUserData U>
@@ -34,19 +41,29 @@ namespace april::force {
 
 		[[nodiscard]] LennardJones mix(LennardJones const& other) const noexcept {
 			// Lorentz-Berthelot mixing rules
-			const double mixed_epsilon = std::sqrt(epsilon * other.epsilon);
-			const double mixed_sigma = 0.5 * (sigma + other.sigma);
+			const double mixed_epsilon = std::sqrt(epsilon_ * other.epsilon_);
+			const double mixed_sigma = 0.5 * (sigma_ + other.sigma_);
 			const double mixed_cutoff = std::sqrt(cutoff() * other.cutoff());
 			return {mixed_epsilon, mixed_sigma, mixed_cutoff};
 		}
 
 		bool operator==(const LennardJones&) const = default;
+
 	private:
+		void calculate_constants() {
+			const vec3::type sigma2 = sigma_ * sigma_;
+			const vec3::type sigma6 = sigma2 * sigma2 * sigma2;
+			const vec3::type sigma12 = sigma6 * sigma6;
+
+			c6_force = 24.0 * epsilon_ * sigma6;
+			c12_force = 48.0 * epsilon_ * sigma12;
+		}
+
 		// Precomputed force constants
 		vec3::type c12_force;
 		vec3::type c6_force;
 
-		double epsilon; // Depth of the potential well
-		double sigma; // Distance at which potential is zero
+		double epsilon_; // Depth of the potential well
+		double sigma_; // Distance at which potential is zero
 	};
 }

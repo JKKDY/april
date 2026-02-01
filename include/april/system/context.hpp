@@ -93,9 +93,14 @@ namespace april::core {
 		// --------------
 		// FUNCTIONAL OPS
 		// --------------
-		template<env::FieldMask M, typename Func, bool parallelize=false>
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle(Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			system.template for_each_particle<M, Func, parallelize>(std::forward<Func>(func, state));
+			system.template for_each_particle<M, Policy, Func>(std::forward<Func>(func), state);
+		}
+
+		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void for_each_particle_view(Func && func, env::ParticleState state = env::ParticleState::ALL) const {
+			system.template for_each_particle_view<M, Policy, Func>(std::forward<Func>(func), state);
 		}
 
 		template<typename Func>

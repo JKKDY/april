@@ -375,6 +375,269 @@
 
 
 
+
+-------------- APRIL DIRECT SUM SOA ----------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    200
+  Particles processed: 1600000
+  Wall time (total):  6.08947 s
+  Integration time:   6.04804 s
+----------------------------------------
+  Throughput:         33.07 it/s
+  Performance:        0.26 MUPS
+----------------------------------------
+  Avg step time:      0.030240 s
+  Median step time:   0.029376 s
+  Min step time:      0.026333 s
+  Max step time:      0.043701 s
+  Std Deviation:      0.003097 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    200
+  Particles processed: 1600000
+  Wall time (total):  6.13942 s
+  Integration time:   6.09596 s
+----------------------------------------
+  Throughput:         32.81 it/s
+  Performance:        0.26 MUPS
+----------------------------------------
+  Avg step time:      0.030480 s
+  Median step time:   0.029853 s
+  Min step time:      0.026483 s
+  Max step time:      0.040539 s
+  Std Deviation:      0.003011 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    200
+  Particles processed: 1600000
+  Wall time (total):  6.01896 s
+  Integration time:   5.96866 s
+----------------------------------------
+  Throughput:         33.51 it/s
+  Performance:        0.27 MUPS
+----------------------------------------
+  Avg step time:      0.029843 s
+  Median step time:   0.028791 s
+  Min step time:      0.026301 s
+  Max step time:      0.042828 s
+  Std Deviation:      0.003015 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    200
+  Particles processed: 1600000
+  Wall time (total):  6.08659 s
+  Integration time:   6.04508 s
+----------------------------------------
+  Throughput:         33.08 it/s
+  Performance:        0.26 MUPS
+----------------------------------------
+  Avg step time:      0.030225 s
+  Median step time:   0.029613 s
+  Min step time:      0.026924 s
+  Max step time:      0.049345 s
+  Std Deviation:      0.003059 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    200
+  Particles processed: 1600000
+  Wall time (total):  6.05044 s
+  Integration time:   6.00312 s
+----------------------------------------
+  Throughput:         33.32 it/s
+  Performance:        0.27 MUPS
+----------------------------------------
+  Avg step time:      0.030016 s
+  Median step time:   0.029549 s
+  Min step time:      0.026748 s
+  Max step time:      0.041193 s
+  Std Deviation:      0.002851 s
+----------------------------------------
+
+
+
+-------------- APRIL DIRECT SUM AOS ----------------
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    200
+  Particles processed: 1600000
+  Wall time (total):  6.25200 s
+  Integration time:   6.21022 s
+----------------------------------------
+  Throughput:         32.20 it/s
+  Performance:        0.26 MUPS
+----------------------------------------
+  Avg step time:      0.031051 s
+  Median step time:   0.030073 s
+  Min step time:      0.027632 s
+  Max step time:      0.046950 s
+  Std Deviation:      0.002932 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    200
+  Particles processed: 1600000
+  Wall time (total):  6.13291 s
+  Integration time:   6.10078 s
+----------------------------------------
+  Throughput:         32.78 it/s
+  Performance:        0.26 MUPS
+----------------------------------------
+  Avg step time:      0.030504 s
+  Median step time:   0.029798 s
+  Min step time:      0.028072 s
+  Max step time:      0.037416 s
+  Std Deviation:      0.001913 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    200
+  Particles processed: 1600000
+  Wall time (total):  6.16221 s
+  Integration time:   6.13099 s
+----------------------------------------
+  Throughput:         32.62 it/s
+  Performance:        0.26 MUPS
+----------------------------------------
+  Avg step time:      0.030655 s
+  Median step time:   0.029987 s
+  Min step time:      0.027855 s
+  Max step time:      0.038511 s
+  Std Deviation:      0.002148 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    200
+  Particles processed: 1600000
+  Wall time (total):  6.25192 s
+  Integration time:   6.21883 s
+----------------------------------------
+  Throughput:         32.16 it/s
+  Performance:        0.26 MUPS
+----------------------------------------
+  Avg step time:      0.031094 s
+  Median step time:   0.030485 s
+  Min step time:      0.028063 s
+  Max step time:      0.038746 s
+  Std Deviation:      0.002086 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    200
+  Particles processed: 1600000
+  Wall time (total):  6.09647 s
+  Integration time:   6.06783 s
+----------------------------------------
+  Throughput:         32.96 it/s
+  Performance:        0.26 MUPS
+----------------------------------------
+  Avg step time:      0.030339 s
+  Median step time:   0.029744 s
+  Min step time:      0.027700 s
+  Max step time:      0.037904 s
+  Std Deviation:      0.001948 s
+----------------------------------------
+
+
+
+
+---------- HARDCODED DIRECT SUM AOS -----------
+
+Particles: 8000
+Steps: 200
+Time elapsed: 6.12285 s
+Steps/sec: 32.6645
+Pair interactions/sec: 1.04527e+09
+
+Particles: 8000
+Steps: 200
+Time elapsed: 6.16214 s
+Steps/sec: 32.4563
+Pair interactions/sec: 1.0386e+09
+
+Particles: 8000
+Steps: 200
+Time elapsed: 6.08241 s
+Steps/sec: 32.8817
+Pair interactions/sec: 1.05221e+09
+
+Particles: 8000
+Steps: 200
+Time elapsed: 6.18293 s
+Steps/sec: 32.3471
+Pair interactions/sec: 1.03511e+09
+
+Particles: 8000
+Steps: 200
+Time elapsed: 6.18295 s
+Steps/sec: 32.347
+Pair interactions/sec: 1.0351e+09
+
+
+---------- HARDCODED DIRECT SUM SOA -----------
+
+Particles: 8000
+Steps: 200
+Time elapsed: 6.47403 s
+Steps/sec: 30.8926
+Pair interactions/sec: 9.88564e+08
+
+Particles: 8000
+Steps: 200
+Time elapsed: 6.50767 s
+Steps/sec: 30.733
+Pair interactions/sec: 9.83455e+08
+
+Particles: 8000
+Steps: 200
+Time elapsed: 6.40857 s
+Steps/sec: 31.2082
+Pair interactions/sec: 9.98663e+08
+
+Particles: 8000
+Steps: 200
+Time elapsed: 6.43531 s
+Steps/sec: 31.0785
+Pair interactions/sec: 9.94512e+08
+
+Particles: 8000
+Steps: 200
+Time elapsed: 6.49957 s
+Steps/sec: 30.7713
+Pair interactions/sec: 9.8468e+08
+
+
+Run #,April SOA (s),April AOS (s),Hardcoded AOS (s),Hardcoded SOA (s)
+1,6.04804,6.21022,6.12285,6.47403
+2,6.09596,6.10078,6.16214,6.50767
+3,5.96866,6.13099,6.08241,6.40857
+4,6.04508,6.21883,6.18293,6.43531
+5,6.00312,6.06783,6.18295,6.49957
+
+
 ---------- LAMMPS PARITY LINKED CELLS -----------
 
 Loop time of 62.7816 on 1 procs for 10000 steps with 8000 atoms
@@ -404,6 +667,9 @@ Loop time of 5.60747 on 1 procs for 10000 steps with 1000 atoms
 
 
 
+
+
+
 ---------- LAMMPS PRODUCTION LINKED CELLS -----------
 Loop time of 23.9355 on 1 procs for 10000 steps with 8000 atoms
 Loop time of 23.8695 on 1 procs for 10000 steps with 8000 atoms
@@ -428,6 +694,10 @@ Loop time of 2.10185 on 1 procs for 10000 steps with 1000 atoms
 Loop time of 2.08135 on 1 procs for 10000 steps with 1000 atoms
 Loop time of 2.12546 on 1 procs for 10000 steps with 1000 atoms
 Loop time of 2.15556 on 1 procs for 10000 steps with 1000 atoms
+
+
+
+
 
 
 ---------- HOOMD PARITY LINKED CELLS -----------
@@ -477,6 +747,11 @@ Ran 10000 steps for N=1000 in 18.426 s => 543 steps/s
 Neighbor list buffer: 0.0 | LJ mode: none | r_cut=3.0
 
 
+
+
+
+
+
 ---------- HOOMD PRODUCTION LINKED CELLS -----------
 
 
@@ -523,4 +798,346 @@ Ran 10000 steps for N=1000 in 4.103 s => 2,437 steps/s
 Neighbor list buffer: 0.3 | LJ mode: none | r_cut=3.0
 Ran 10000 steps for N=1000 in 4.070 s => 2,457 steps/s
 Neighbor list buffer: 0.3 | LJ mode: none | r_cut=3.0
+
+
+
+
+
+
+---------- LAMMPS FORCE EVAL PERF -----------
+Performance: 0.029 tau/day, 3.375 timesteps/s, 3.375 Matom-step/s
+100.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Metric,Value (s)
+Median,5.7627
+Average,5.7634
+Min,5.7539
+Max,5.7714
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.761      | 5.761      | 5.761      |   0.0 | 97.20
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 6.8592e-05 | 6.8592e-05 | 6.8592e-05 |   0.0 |  0.00
+Output  | 0.0019154  | 0.0019154  | 0.0019154  |   0.0 |  0.03
+Modify  | 0.15163    | 0.15163    | 0.15163    |   0.0 |  2.56
+Other   |            | 0.01217    |            |       |  0.21
+
+Nlocal:          1e+06 ave       1e+06 max       1e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    7.04457e+07 ave 7.04457e+07 max 7.04457e+07 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 70445724
+Ave neighs/atom = 70.445724
+Neighbor list builds = 0
+Dangerous builds = 0
+Total wall time: 0:00:08
+
+Performance: 0.029 tau/day, 3.367 timesteps/s, 3.367 Matom-step/s
+99.7% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.7714     | 5.7714     | 5.7714     |   0.0 | 97.16
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 5.9066e-05 | 5.9066e-05 | 5.9066e-05 |   0.0 |  0.00
+Output  | 0.001765   | 0.001765   | 0.001765   |   0.0 |  0.03
+Modify  | 0.15506    | 0.15506    | 0.15506    |   0.0 |  2.61
+Other   |            | 0.01207    |            |       |  0.20
+
+Nlocal:          1e+06 ave       1e+06 max       1e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    7.04457e+07 ave 7.04457e+07 max 7.04457e+07 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 70445724
+Ave neighs/atom = 70.445724
+Neighbor list builds = 0
+Dangerous builds = 0
+Total wall time: 0:00:08
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.768      | 5.768      | 5.768      |   0.0 | 97.24
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 5.8409e-05 | 5.8409e-05 | 5.8409e-05 |   0.0 |  0.00
+Output  | 0.0019802  | 0.0019802  | 0.0019802  |   0.0 |  0.03
+Modify  | 0.14985    | 0.14985    | 0.14985    |   0.0 |  2.53
+Other   |            | 0.01179    |            |       |  0.20
+
+Nlocal:          1e+06 ave       1e+06 max       1e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    7.04457e+07 ave 7.04457e+07 max 7.04457e+07 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 70445724
+Ave neighs/atom = 70.445724
+Neighbor list builds = 0
+Dangerous builds = 0
+Total wall time: 0:00:08
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.7539     | 5.7539     | 5.7539     |   0.0 | 97.25
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 7.8007e-05 | 7.8007e-05 | 7.8007e-05 |   0.0 |  0.00
+Output  | 0.0018029  | 0.0018029  | 0.0018029  |   0.0 |  0.03
+Modify  | 0.14897    | 0.14897    | 0.14897    |   0.0 |  2.52
+Other   |            | 0.01196    |            |       |  0.20
+
+Nlocal:          1e+06 ave       1e+06 max       1e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    7.04457e+07 ave 7.04457e+07 max 7.04457e+07 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 70445724
+Ave neighs/atom = 70.445724
+Neighbor list builds = 0
+Dangerous builds = 0
+Total wall time: 0:00:09
+
+
+Per MPI rank memory allocation (min/avg/max) = 452.7 | 452.7 | 452.7 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press
+         1   1.5358512e-12 -19.707761      0             -19.707761      10.103884
+        21   6.7752653e-10 -19.725772      0             -19.725772      10.099523
+Loop time of 5.92706 on 1 procs for 20 steps with 1000000 atoms
+
+Performance: 0.029 tau/day, 3.374 timesteps/s, 3.374 Matom-step/s
+100.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.7627     | 5.7627     | 5.7627     |   0.0 | 97.23
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 6.2181e-05 | 6.2181e-05 | 6.2181e-05 |   0.0 |  0.00
+Output  | 0.0019544  | 0.0019544  | 0.0019544  |   0.0 |  0.03
+Modify  | 0.15056    | 0.15056    | 0.15056    |   0.0 |  2.54
+Other   |            | 0.0118     |            |       |  0.20
+
+Nlocal:          1e+06 ave       1e+06 max       1e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    7.04457e+07 ave 7.04457e+07 max 7.04457e+07 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 70445724
+Ave neighs/atom = 70.445724
+Neighbor list builds = 0
+Dangerous builds = 0
+Total wall time: 0:00:08
+
+
+
+---------- APRIL FORCE EVAL PERF + HARDCODE -----------
+
+s/interaction April (full)3.053333
+ns/interaction April (update_forces call only) 3.024462
+ns/interaction absolute max perf (no memory calls): 1.224949
+ns/interaction realistic1 (reads from a vector): 2.247596
+ns/interaction realistic2 (performs triangle traversal & force updates): 2.636114
+ns/interaction realistic2 with SoA: 3.163822
+
+
+ns/interaction April (full)3.017544
+ns/interaction April (update_forces call only) 2.976330
+ns/interaction absolute max perf (no memory calls): 1.096007
+ns/interaction realistic1 (reads from a vector): 2.190060
+ns/interaction realistic2 (performs triangle traversal & force updates): 2.599756
+ns/interaction realistic2 with SoA: 3.035453
+
+
+ns/interaction April (full)3.007182
+ns/interaction April (update_forces call only) 2.933888
+ns/interaction absolute max perf (no memory calls): 1.093688
+ns/interaction realistic1 (reads from a vector): 2.203600
+ns/interaction realistic2 (performs triangle traversal & force updates): 2.567240
+ns/interaction realistic2 with SoA: 3.003550
+
+
+ns/interaction April (full)2.983067
+ns/interaction April (update_forces call only) 2.961365
+ns/interaction absolute max perf (no memory calls): 1.093216
+ns/interaction realistic1 (reads from a vector): 2.144599
+ns/interaction realistic2 (performs triangle traversal & force updates): 2.639367
+ns/interaction realistic2 with SoA: 3.031808
+
+
+
+ns/interaction April (full)2.986056
+ns/interaction April (update_forces call only) 2.928168
+ns/interaction absolute max perf (no memory calls): 1.091538
+ns/interaction realistic1 (reads from a vector): 2.195812
+ns/interaction realistic2 (performs triangle traversal & force updates): 2.634297
+ns/interaction realistic2 with SoA: 3.062124
+
+
+
+------------ APRIL LC FORCE EVAL (INTERACTION BENCHMARK) -----------
+
+/mnt/d/Dev/april/cmake-build-release/benchmark/interaction_benchmark
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    25
+  Particles processed: 3125000
+  Wall time (total):  2.40513 s
+  Integration time:   2.31844 s
+----------------------------------------
+  Throughput:         10.78 it/s
+  Performance:        1.35 MUPS
+----------------------------------------
+  Avg step time:      0.092737 s
+  Median step time:   0.092486 s
+  Min step time:      0.091114 s
+  Max step time:      0.096773 s
+  Std Deviation:      0.001300 s
+----------------------------------------
+
+#interactions: 728575900
+ns / interaction: 3.182148
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    25
+  Particles processed: 3125000
+  Wall time (total):  2.41084 s
+  Integration time:   2.32178 s
+----------------------------------------
+  Throughput:         10.77 it/s
+  Performance:        1.35 MUPS
+----------------------------------------
+  Avg step time:      0.092871 s
+  Median step time:   0.092378 s
+  Min step time:      0.091175 s
+  Max step time:      0.098388 s
+  Std Deviation:      0.001775 s
+----------------------------------------
+
+#interactions: 728575900
+ns / interaction: 3.186732
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    25
+  Particles processed: 3125000
+  Wall time (total):  2.40145 s
+  Integration time:   2.31393 s
+----------------------------------------
+  Throughput:         10.80 it/s
+  Performance:        1.35 MUPS
+----------------------------------------
+  Avg step time:      0.092557 s
+  Median step time:   0.092160 s
+  Min step time:      0.091304 s
+  Max step time:      0.097750 s
+  Std Deviation:      0.001431 s
+----------------------------------------
+
+#interactions: 728575900
+ns / interaction: 3.175962
+
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    25
+  Particles processed: 3125000
+  Wall time (total):  2.40441 s
+  Integration time:   2.31770 s
+----------------------------------------
+  Throughput:         10.79 it/s
+  Performance:        1.35 MUPS
+----------------------------------------
+  Avg step time:      0.092708 s
+  Median step time:   0.092462 s
+  Min step time:      0.090326 s
+  Max step time:      0.101909 s
+  Std Deviation:      0.002095 s
+----------------------------------------
+
+#interactions: 728575900
+ns / interaction: 3.181138
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    25
+  Particles processed: 3125000
+  Wall time (total):  2.40360 s
+  Integration time:   2.31830 s
+----------------------------------------
+  Throughput:         10.78 it/s
+  Performance:        1.35 MUPS
+----------------------------------------
+  Avg step time:      0.092732 s
+  Median step time:   0.092402 s
+  Min step time:      0.091207 s
+  Max step time:      0.098965 s
+  Std Deviation:      0.001588 s
+----------------------------------------
+
+#interactions: 728575900
+ns / interaction: 3.181966
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    25
+  Particles processed: 3125000
+  Wall time (total):  2.40350 s
+  Integration time:   2.31593 s
+----------------------------------------
+  Throughput:         10.79 it/s
+  Performance:        1.35 MUPS
+----------------------------------------
+  Avg step time:      0.092637 s
+  Median step time:   0.092636 s
+  Min step time:      0.090252 s
+  Max step time:      0.095549 s
+  Std Deviation:      0.001372 s
+----------------------------------------
+
+#interactions: 728575900
+ns / interaction: 3.178704
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    25
+  Particles processed: 3125000
+  Wall time (total):  2.41018 s
+  Integration time:   2.32355 s
+----------------------------------------
+  Throughput:         10.76 it/s
+  Performance:        1.34 MUPS
+----------------------------------------
+  Avg step time:      0.092942 s
+  Median step time:   0.092323 s
+  Min step time:      0.090583 s
+  Max step time:      0.096089 s
+  Std Deviation:      0.001588 s
+----------------------------------------
+
+#interactions: 728575900
+ns / interaction: 3.189169
+
 

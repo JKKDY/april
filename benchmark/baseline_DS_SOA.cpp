@@ -3,9 +3,9 @@
 #include <chrono>
 
 // --- Configuration ---
-static constexpr int NX = 40;
-static constexpr int NY = 40;
-static constexpr int NZ = 40;
+static constexpr int NX = 20;
+static constexpr int NY = 20;
+static constexpr int NZ = 20;
 static constexpr double A = 1.1225;
 static constexpr double MASS = 1.0;
 
@@ -20,7 +20,7 @@ static constexpr double R_CUT2 = R_CUT * R_CUT;
 
 // Simulation settings
 static constexpr double DT = 0.0002;
-static constexpr int STEPS = 5;
+static constexpr int STEPS = 200;
 // Pre-calculate constant for half-kick: 0.5 * dt / mass
 static constexpr double DT_HALF_MASS = 0.5 * DT / MASS;
 

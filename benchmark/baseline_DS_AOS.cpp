@@ -21,7 +21,7 @@ double R_CUT2 = R_CUT * R_CUT;
 
 // Simulation settings
 double DT = 0.0002;
-int STEPS = 500;
+int STEPS = 200;
 
 
 using april::vec3;

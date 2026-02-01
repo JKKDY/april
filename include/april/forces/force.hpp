@@ -3,7 +3,6 @@
 #include <variant>
 #include <concepts>
 #include <utility>
-#include <limits>
 
 #include "april/base/types.hpp"
 #include "april/particle/fields.hpp"
@@ -100,7 +99,7 @@ namespace april::force {
 
         bool operator==(const Force&) const = default;
 
-    private:
+    protected:
         double force_cutoff;
         double force_cutoff2;
     };

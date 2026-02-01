@@ -13,7 +13,7 @@ static constexpr int NX = 20, NY = 20, NZ = 20;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
-// static constexpr double r_cut = 3 * sigma;
+static constexpr double r_cut = 3 * sigma;
 
 // Grid physical span
 static constexpr double Lx = (NX - 1) * a;
@@ -37,26 +37,28 @@ int main() {
 	const vec3 extent = 1.5 * box;
 	const vec3 origin = - 0.5 * extent;
 
-	Environment env (forces<LennardJones>, boundaries<Reflective>);
-	env.add_particles(grid);
-	env.set_origin(origin);
-	env.set_extent(extent);
-	env.add_force(LennardJones(epsilon, sigma, 200), to_type(0));
-	env.set_boundaries(Reflective(), all_faces);
+	for (int i = 0; i < 5; i++) {
+		Environment env (forces<LennardJones>, boundaries<Reflective>);
+		env.add_particles(grid);
+		env.set_origin(origin);
+		env.set_extent(extent);
+		env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
+		env.set_boundaries(Reflective(), all_faces);
 
-	constexpr auto container = DirectSumAoSoA();
-	auto system = build_system(env, container);
+		constexpr auto container = DirectSumAoS();
+		auto system = build_system(env, container);
 
-	constexpr double dt = 0.0002;
-	constexpr int steps  = 100;
+		constexpr double dt = 0.0002;
+		constexpr int steps  = 200;
 
-	VelocityVerlet integrator(system, monitors<Benchmark>);
-	integrator.add_monitor(Benchmark());
-	// integrator.add_monitor(ProgressBar(Trigger::every(200)));
-	integrator.run_for_steps(dt, steps);
+		VelocityVerlet integrator(system, monitors<Benchmark>);
+		integrator.add_monitor(Benchmark());
+		// integrator.add_monitor(ProgressBar(Trigger::every(200)));
+		integrator.run_for_steps(dt, steps);
 
-	std::cout << "Particles: " << NX * NY * NZ << "\n"
-			 << "Steps: " << steps << "\n"
-			 << "dt: " << dt << "\n";
+	}
+	// std::cout << "Particles: " << NX * NY * NZ << "\n"
+	// 		 << "Steps: " << steps << "\n"
+	// 		 << "dt: " << dt << "\n";
 }
 

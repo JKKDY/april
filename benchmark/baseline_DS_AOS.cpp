@@ -2,7 +2,7 @@
 #include <vector>
 #include <chrono>
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/particle/particle.hpp"
 
 // --- Configuration ---
@@ -54,19 +54,19 @@ int main() {
     std::cout<< sizeof(april::env::internal::ParticleRecord<april::env::NoUserData>) << std::endl;
 
     // 1. Initialization
-    size_t N = NX * NY * NZ;
+    const size_t N = NX * NY * NZ;
 
     std::vector<Particle> particles;
     particles.reserve(N);
 
     // Grid Setup
-    double Lx = (NX - 1) * A;
-    double Ly = (NY - 1) * A;
-    double Lz = (NZ - 1) * A;
+    constexpr double Lx = (NX - 1) * A;
+    constexpr double Ly = (NY - 1) * A;
+    constexpr double Lz = (NZ - 1) * A;
 
-    double off_x = -0.5 * Lx;
-    double off_y = -0.5 * Ly;
-    double off_z = -0.5 * Lz;
+    constexpr double off_x = -0.5 * Lx;
+    constexpr double off_y = -0.5 * Ly;
+    constexpr double off_z = -0.5 * Lz;
 
     for (int k = 0; k < NZ; ++k) {
         for (int j = 0; j < NY; ++j) {
@@ -121,14 +121,13 @@ int main() {
         }
     }
 
-    auto end_time = std::chrono::high_resolution_clock::now();
-//    std::cout << end_time;
-    std::chrono::duration<double> diff = end_time - start_time;
+    const auto end_time = std::chrono::high_resolution_clock::now();
+    const std::chrono::duration<double> diff = end_time - start_time;
 
     std::cout << "Done.\n";
     std::cout << "Time elapsed: " << diff.count() << " s\n";
     std::cout << "Steps/sec: " << STEPS / diff.count() << "\n";
-    std::cout << "Pair interactions/sec: " << (double(N)*double(N)/2.0 * STEPS) / diff.count() << "\n";
+    std::cout << "Pair interactions/sec: " << (static_cast<double>(N)*static_cast<double>(N)/2.0 * STEPS) / diff.count() << "\n";
 
     return 0;
 }

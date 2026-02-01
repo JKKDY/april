@@ -78,7 +78,7 @@ for n in [[20,20,20], [20,15,15], [10,15,15], [10,10,10]]:
         # ----------------------------
         # Forces: Lennard-Jones 12-6
         # ----------------------------
-        # Cell neighbor list with buffer=0.0 (rebuilds as needed ~every step for tiny dt)
+        # Cell neighbor list with buffer=0.3 (rebuilds as needed ~every step for tiny dt)
         nl = hoomd.md.nlist.Cell(buffer=0.3)  # for more performance skin = 0.3-0.5
         lj = hoomd.md.pair.LJ(nlist=nl, mode='none')  # 'none' = unshifted, plain truncation
         lj.params[('A', 'A')] = dict(epsilon=epsilon, sigma=sigma)

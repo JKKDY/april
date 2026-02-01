@@ -1,280 +1,378 @@
 
 ---------- APRIL LINKED CELLS -----------
-8000
 
-Total integration time: 59.9706 s
-Total program time:     60.5277 s
-Avg. per step:          0.00599706 s
-Avg. MUPS:              1.33399MU/s
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 80000000
+  Wall time (total):  34.21815 s
+  Integration time:   34.21423 s
+----------------------------------------
+  Throughput:         292.28 it/s
+  Performance:        2.34 MUPS
+----------------------------------------
+  Avg step time:      0.003421 s
+  Median step time:   0.003964 s
+  Min step time:      0.002160 s
+  Max step time:      0.007448 s
+  Std Deviation:      0.000943 s
+----------------------------------------
 
-Total integration time: 58.1973 s
-Total program time:     58.7173 s
-Avg. per step:          0.00581973 s
-Avg. MUPS:              1.37463MU/s
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 80000000
+  Wall time (total):  34.28233 s
+  Integration time:   34.27839 s
+----------------------------------------
+  Throughput:         291.73 it/s
+  Performance:        2.33 MUPS
+----------------------------------------
+  Avg step time:      0.003428 s
+  Median step time:   0.003936 s
+  Min step time:      0.002212 s
+  Max step time:      0.007155 s
+  Std Deviation:      0.000891 s
+----------------------------------------
 
-Total integration time: 57.665 s
-Total program time:     58.1493 s
-Avg. per step:          0.0057665 s
-Avg. MUPS:              1.38732MU/s
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 80000000
+  Wall time (total):  34.12731 s
+  Integration time:   34.12382 s
+----------------------------------------
+  Throughput:         293.05 it/s
+  Performance:        2.34 MUPS
+----------------------------------------
+  Avg step time:      0.003412 s
+  Median step time:   0.003948 s
+  Min step time:      0.002165 s
+  Max step time:      0.006806 s
+  Std Deviation:      0.000927 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 80000000
+  Wall time (total):  34.01392 s
+  Integration time:   34.01012 s
+----------------------------------------
+  Throughput:         294.03 it/s
+  Performance:        2.35 MUPS
+----------------------------------------
+  Avg step time:      0.003401 s
+  Median step time:   0.003885 s
+  Min step time:      0.002169 s
+  Max step time:      0.007693 s
+  Std Deviation:      0.000930 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 80000000
+  Wall time (total):  33.96660 s
+  Integration time:   33.96248 s
+----------------------------------------
+  Throughput:         294.44 it/s
+  Performance:        2.36 MUPS
+----------------------------------------
+  Avg step time:      0.003396 s
+  Median step time:   0.003914 s
+  Min step time:      0.002161 s
+  Max step time:      0.007144 s
+  Std Deviation:      0.000884 s
+----------------------------------------
 
 
-Total integration time: 57.6734 s
-Total program time:     58.1823 s
-Avg. per step:          0.00576734 s
-Avg. MUPS:              1.38712MU/s
-  
-Total integration time: 57.7642 s
-Total program time:     58.271 s
-Avg. per step:          0.00577642 s
-Avg. MUPS:              1.38494MU/s
+4500 = 20 x 15 x 15
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 45000000
+  Wall time (total):  19.05680 s
+  Integration time:   19.05453 s
+----------------------------------------
+  Throughput:         524.81 it/s
+  Performance:        2.36 MUPS
+----------------------------------------
+  Avg step time:      0.001905 s
+  Median step time:   0.002155 s
+  Min step time:      0.001160 s
+  Max step time:      0.005158 s
+  Std Deviation:      0.000464 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 45000000
+  Wall time (total):  18.80146 s
+  Integration time:   18.79837 s
+----------------------------------------
+  Throughput:         531.96 it/s
+  Performance:        2.39 MUPS
+----------------------------------------
+  Avg step time:      0.001880 s
+  Median step time:   0.002136 s
+  Min step time:      0.001160 s
+  Max step time:      0.004011 s
+  Std Deviation:      0.000455 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 45000000
+  Wall time (total):  19.03119 s
+  Integration time:   19.02905 s
+----------------------------------------
+  Throughput:         525.51 it/s
+  Performance:        2.36 MUPS
+----------------------------------------
+  Avg step time:      0.001903 s
+  Median step time:   0.002159 s
+  Min step time:      0.001159 s
+  Max step time:      0.005168 s
+  Std Deviation:      0.000492 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 45000000
+  Wall time (total):  18.86613 s
+  Integration time:   18.86381 s
+----------------------------------------
+  Throughput:         530.12 it/s
+  Performance:        2.39 MUPS
+----------------------------------------
+  Avg step time:      0.001886 s
+  Median step time:   0.002117 s
+  Min step time:      0.001161 s
+  Max step time:      0.004628 s
+  Std Deviation:      0.000481 s
+----------------------------------------
+
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 45000000
+  Wall time (total):  18.80478 s
+  Integration time:   18.80256 s
+----------------------------------------
+  Throughput:         531.84 it/s
+  Performance:        2.39 MUPS
+----------------------------------------
+  Avg step time:      0.001880 s
+  Median step time:   0.002074 s
+  Min step time:      0.001159 s
+  Max step time:      0.003659 s
+  Std Deviation:      0.000472 s
+----------------------------------------
 
 
-4500 = 15 x 15 x 10
-
-Total integration time: 31.334 s
-Total program time:     31.5871 s
-Avg. per step:          0.0031334 s
-Avg. MUPS:              1.43614MU/s
-
-Total integration time: 31.1656 s
-Total program time:     31.4173 s
-Avg. per step:          0.00311656 s
-Avg. MUPS:              1.4439MU/s
-
-Total integration time: 31.3674 s
-Total program time:     31.6228 s
-Avg. per step:          0.00313674 s
-Avg. MUPS:              1.43461MU/s
-
-Total integration time: 31.5899 s
-Total program time:     31.8571 s
-Avg. per step:          0.00315899 s
-Avg. MUPS:              1.42451MU/s
-
-Total integration time: 31.4348 s
-Total program time:     31.6908 s
-Avg. per step:          0.00314348 s
-Avg. MUPS:              1.43153MU/s
-  
-  
-  
 2250 = 10 x 15 x 15
 
-Total integration time: 13.9206 s
-Total program time:     14.0522 s
-Avg. per step:          0.00139206 s
-Avg. MUPS:              1.61631MU/s
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 22500000
+  Wall time (total):  8.93364 s
+  Integration time:   8.93243 s
+----------------------------------------
+  Throughput:         1119.52 it/s
+  Performance:        2.52 MUPS
+----------------------------------------
+  Avg step time:      0.000893 s
+  Median step time:   0.000990 s
+  Min step time:      0.000507 s
+  Max step time:      0.002585 s
+  Std Deviation:      0.000200 s
+----------------------------------------
 
-Total integration time: 13.9783 s
-Total program time:     14.1035 s
-Avg. per step:          0.00139783 s
-Avg. MUPS:              1.60964MU/s
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 22500000
+  Wall time (total):  8.96515 s
+  Integration time:   8.96400 s
+----------------------------------------
+  Throughput:         1115.57 it/s
+  Performance:        2.51 MUPS
+----------------------------------------
+  Avg step time:      0.000896 s
+  Median step time:   0.000983 s
+  Min step time:      0.000509 s
+  Max step time:      0.002147 s
+  Std Deviation:      0.000225 s
+----------------------------------------
 
-Total integration time: 14.1389 s
-Total program time:     14.2657 s
-Avg. per step:          0.00141389 s
-Avg. MUPS:              1.59135MU/s
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 22500000
+  Wall time (total):  9.06640 s
+  Integration time:   9.06535 s
+----------------------------------------
+  Throughput:         1103.10 it/s
+  Performance:        2.48 MUPS
+----------------------------------------
+  Avg step time:      0.000907 s
+  Median step time:   0.001010 s
+  Min step time:      0.000506 s
+  Max step time:      0.002286 s
+  Std Deviation:      0.000207 s
+----------------------------------------
 
-Total integration time: 14.2207 s
-Total program time:     14.348 s
-Avg. per step:          0.00142207 s
-Avg. MUPS:              1.5822MU/s
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 22500000
+  Wall time (total):  8.91198 s
+  Integration time:   8.91083 s
+----------------------------------------
+  Throughput:         1122.23 it/s
+  Performance:        2.53 MUPS
+----------------------------------------
+  Avg step time:      0.000891 s
+  Median step time:   0.000992 s
+  Min step time:      0.000511 s
+  Max step time:      0.002040 s
+  Std Deviation:      0.000202 s
+----------------------------------------
 
-Total integration time: 14.2582 s
-Total program time:     14.3856 s
-Avg. per step:          0.00142582 s
-Avg. MUPS:              1.57804MU/s
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 22500000
+  Wall time (total):  8.89800 s
+  Integration time:   8.89690 s
+----------------------------------------
+  Throughput:         1123.99 it/s
+  Performance:        2.53 MUPS
+----------------------------------------
+  Avg step time:      0.000890 s
+  Median step time:   0.000993 s
+  Min step time:      0.000507 s
+  Max step time:      0.002142 s
+  Std Deviation:      0.000215 s
+----------------------------------------
+
   
   
   
 1000 = 10 x 10 x 10
 
-[Benchmark Monitor]
-Total integration time: 4.46012 s
-Total program time:     4.51684 s
-Avg. per step:          0.000446012 s
-Avg. MUPS:              2.24209MU/s
-Particles: 1000
-Steps: 10000
-dt: 0.0002
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 10000000
+  Wall time (total):  3.32537 s
+  Integration time:   3.32461 s
+----------------------------------------
+  Throughput:         3007.87 it/s
+  Performance:        3.01 MUPS
+----------------------------------------
+  Avg step time:      0.000332 s
+  Median step time:   0.000335 s
+  Min step time:      0.000239 s
+  Max step time:      0.002239 s
+  Std Deviation:      0.000044 s
+----------------------------------------
 
-[Benchmark Monitor]
-Total integration time: 4.53004 s
-Total program time:     4.58735 s
-Avg. per step:          0.000453004 s
-Avg. MUPS:              2.20748MU/s
-Particles: 1000
-Steps: 10000
-dt: 0.0002
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 10000000
+  Wall time (total):  3.20399 s
+  Integration time:   3.20333 s
+----------------------------------------
+  Throughput:         3121.75 it/s
+  Performance:        3.12 MUPS
+----------------------------------------
+  Avg step time:      0.000320 s
+  Median step time:   0.000330 s
+  Min step time:      0.000235 s
+  Max step time:      0.000549 s
+  Std Deviation:      0.000040 s
+----------------------------------------
 
-[Benchmark Monitor]
-Total integration time: 4.48247 s
-Total program time:     4.5392 s
-Avg. per step:          0.000448247 s
-Avg. MUPS:              2.23091MU/s
-Particles: 1000
-Steps: 10000
-dt: 0.0002
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 10000000
+  Wall time (total):  3.21764 s
+  Integration time:   3.21698 s
+----------------------------------------
+  Throughput:         3108.51 it/s
+  Performance:        3.11 MUPS
+----------------------------------------
+  Avg step time:      0.000322 s
+  Median step time:   0.000332 s
+  Min step time:      0.000235 s
+  Max step time:      0.001489 s
+  Std Deviation:      0.000043 s
+----------------------------------------
 
-[Benchmark Monitor]
-Total integration time: 4.57127 s
-Total program time:     4.62909 s
-Avg. per step:          0.000457127 s
-Avg. MUPS:              2.18758MU/s
-Particles: 1000
-Steps: 10000
-dt: 0.0002
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 10000000
+  Wall time (total):  3.33916 s
+  Integration time:   3.33843 s
+----------------------------------------
+  Throughput:         2995.42 it/s
+  Performance:        3.00 MUPS
+----------------------------------------
+  Avg step time:      0.000334 s
+  Median step time:   0.000348 s
+  Min step time:      0.000236 s
+  Max step time:      0.001498 s
+  Std Deviation:      0.000051 s
+----------------------------------------
 
-[Benchmark Monitor]
-Total integration time: 4.52671 s
-Total program time:     4.5843 s
-Avg. per step:          0.000452671 s
-Avg. MUPS:              2.20911MU/s
-Particles: 1000
-Steps: 10000
-dt: 0.0002
-
-
-
----------- APRIL DIRECT SUM -----------
-
-4000
-
-[Benchmark Monitor]
-  Total integration time: 236.915 s
-  Total program time:     237.18 s
-  Avg. per step:          0.0236915 s
-  Avg. MUPS:              0.189942MU/s
-
-[Benchmark Monitor]
-  Total integration time: 235.9 s
-  Total program time:     236.163 s
-  Avg. per step:          0.02359 s
-  Avg. MUPS:              0.190758MU/s
-
-[Benchmark Monitor]
-  Total integration time: 235.52 s
-  Total program time:     235.782 s
-  Avg. per step:          0.023552 s
-  Avg. MUPS:              0.191067MU/s
-
-[Benchmark Monitor]
-  Total integration time: 236.247 s
-  Total program time:     236.512 s
-  Avg. per step:          0.0236247 s
-  Avg. MUPS:              0.190479MU/s
-
-2250
-
-[Benchmark Monitor]
-  Total integration time: 60.6141 s
-  Total program time:     60.7422 s
-  Avg. per step:          0.00606141 s
-  Avg. MUPS:              0.371201MU/s
-
-[Benchmark Monitor]
-  Total integration time: 60.7414 s
-  Total program time:     60.8698 s
-  Avg. per step:          0.00607414 s
-  Avg. MUPS:              0.370423MU/s
-
-[Benchmark Monitor]
-  Total integration time: 60.9067 s
-  Total program time:     61.0352 s
-  Avg. per step:          0.00609067 s
-  Avg. MUPS:              0.369417MU/s
-
-[Benchmark Monitor]
-  Total integration time: 62.7497 s
-  Total program time:     62.8833 s
-  Avg. per step:          0.00627497 s
-  Avg. MUPS:              0.358567MU/s
-
-[Benchmark Monitor]
-  Total integration time: 68.8618 s
-  Total program time:     69.018 s
-  Avg. per step:          0.00688618 s
-  Avg. MUPS:              0.326742MU/s
-
-1000
-
-[Benchmark Monitor]
-  Total integration time: 12.1926 s
-  Total program time:     12.2534 s
-  Avg. per step:          0.00121926 s
-  Avg. MUPS:              0.820173MU/s
-Particles: 1000
-Steps: 10000
-dt: 0.0002
-
-[Benchmark Monitor]
-  Total integration time: 12.3237 s
-  Total program time:     12.3852 s
-  Avg. per step:          0.00123237 s
-  Avg. MUPS:              0.811442MU/s
-Particles: 1000
-Steps: 10000
-dt: 0.0002
-
-[Benchmark Monitor]
-  Total integration time: 12.2354 s
-  Total program time:     12.2966 s
-  Avg. per step:          0.00122354 s
-  Avg. MUPS:              0.8173MU/s
-Particles: 1000
-Steps: 10000
-dt: 0.0002
-
-[Benchmark Monitor]
-  Total integration time: 12.2538 s
-  Total program time:     12.315 s
-  Avg. per step:          0.00122538 s
-  Avg. MUPS:              0.816075MU/s
-Particles: 1000
-Steps: 10000
-dt: 0.0002
-
-[Benchmark Monitor]
-  Total integration time: 12.2311 s
-  Total program time:     12.2921 s
-  Avg. per step:          0.00122311 s
-  Avg. MUPS:              0.817591MU/s
-Particles: 1000
-Steps: 10000
-dt: 0.0002
+----------------------------------------
+ [APRIL BENCHMARK REPORT]
+----------------------------------------
+  Steps processed:    10000
+  Particles processed: 10000000
+  Wall time (total):  3.32904 s
+  Integration time:   3.32834 s
+----------------------------------------
+  Throughput:         3004.50 it/s
+  Performance:        3.00 MUPS
+----------------------------------------
+  Avg step time:      0.000333 s
+  Median step time:   0.000345 s
+  Min step time:      0.000244 s
+  Max step time:      0.001522 s
+  Std Deviation:      0.000042 s
+----------------------------------------
 
 
-500 
-
-[Benchmark Monitor]
-  Total integration time: 3.12023 s
-  Total program time:     3.15014 s
-  Avg. per step:          0.000312023 s
-  Avg. MUPS:              1.60245MU/s
-
-[Benchmark Monitor]
-  Total integration time: 3.15417 s
-  Total program time:     3.18433 s
-  Avg. per step:          0.000315417 s
-  Avg. MUPS:              1.5852MU/s
-
-[Benchmark Monitor]
-  Total integration time: 3.20089 s
-  Total program time:     3.23138 s
-  Avg. per step:          0.000320089 s
-  Avg. MUPS:              1.56206MU/s
-
-[Benchmark Monitor]
-  Total integration time: 3.14749 s
-  Total program time:     3.17749 s
-  Avg. per step:          0.000314749 s
-  Avg. MUPS:              1.58857MU/s
-
-[Benchmark Monitor]
-  Total integration time: 3.27349 s
-  Total program time:     3.30445 s
-  Avg. per step:          0.000327349 s
-  Avg. MUPS:              1.52742MU/s
 
 
 ---------- LAMMPS PARITY LINKED CELLS -----------

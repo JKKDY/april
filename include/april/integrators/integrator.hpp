@@ -78,7 +78,7 @@ namespace april::integrator {
 		auto&& run(this auto&& self) {
 			if (self.dt <= 0) {
 				throw std::invalid_argument(
-					"time step cannot be negative. Got delta_t=" + std::to_string(self.dt)
+					"time step cannot be negative or zero. Got delta_t=" + std::to_string(self.dt)
 				);
 			}
 

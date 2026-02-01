@@ -2,101 +2,129 @@
 
 #include <chrono>
 #include <numeric>
-#include <algorithm> // for sort
-#include <cmath>     // for sqrt
-#include <iomanip>   // for setprecision
+#include <algorithm>
+#include <cmath>
+#include <iomanip>
+#include <vector>
+#include <iostream>
 
 #include "april/monitors/monitor.hpp"
 
 namespace april::monitor {
-	class Benchmark : public Monitor {
-	public:
-		Benchmark() : Monitor(shared::Trigger::always()) {}
 
-		void initialize() {
-			glob_start_time = std::chrono::steady_clock::now();
-			timings.reserve(num_steps);
-		}
+    struct BenchmarkResult {
+        size_t steps;
+        uint64_t total_updates;
+        double wall_time_sec;
+        double integration_time_s;
+        double its_per_sec;
+        double mups; // million updates per second
+        double avg_step_sec;
+        double median_step_sec;
+        double min_step_sec;
+        double max_step_sec;
+        double std_dev_sec;
 
-		template<class S>
-		void before_step(const core::SystemContext<S> & sys) {
-			updates += sys.size();
-			start_time = std::chrono::steady_clock::now();
-		}
+        void print_report() const {
+            std::cout << "\n" << std::string(40, '-') << "\n";
+            std::cout << " [APRIL BENCHMARK REPORT] \n";
+            std::cout << std::string(40, '-') << "\n";
 
-		template<class S>
-		void record(const core::SystemContext<S> &) {
-			end_time = std::chrono::steady_clock::now();
-			const auto elapsed = std::chrono::duration<double>(end_time - start_time).count();
-			timings.push_back(elapsed);
-		}
+            std::cout << std::fixed << std::setprecision(5);
+            std::cout << "  Steps processed:    " << steps << "\n";
+            std::cout << "  Particles processed: " << total_updates << "\n";
+            std::cout << "  Wall time (total):  " << wall_time_sec << " s\n";
+            std::cout << "  Integration time:   " << integration_time_s << " s\n";
+            std::cout << std::string(40, '-') << "\n";
 
-		void finalize() {
-			if (timings.empty()) return;
+            std::cout << std::setprecision(2);
+            // Reverting to your original labels: Throughput and Performance
+            std::cout << "  Throughput:         " << its_per_sec << " it/s\n";
+            std::cout << "  Performance:        " << mups << " MUPS\n";
+            std::cout << std::string(40, '-') << "\n";
 
-			glob_end_time = std::chrono::steady_clock::now();
+            std::cout << std::setprecision(6);
+            std::cout << "  Avg step time:      " << avg_step_sec << " s\n";
+            std::cout << "  Median step time:   " << median_step_sec << " s\n";
+            std::cout << "  Min step time:      " << min_step_sec << " s\n";
+            std::cout << "  Max step time:      " << max_step_sec << " s\n";
+            std::cout << "  Std Deviation:      " << std_dev_sec << " s\n";
+            std::cout << std::string(40, '-') << "\n\n";
+        }
+    };
 
-			// basic sums
+    class Benchmark : public Monitor {
+    public:
+       Benchmark() : Monitor(shared::Trigger::always()) {}
+       explicit Benchmark(BenchmarkResult * res) : Monitor(shared::Trigger::always()), result(res) {}
+
+       void initialize() {
+          glob_start_time = std::chrono::steady_clock::now();
+       }
+
+       template<class S>
+       void before_step(const core::SystemContext<S> & sys) {
+          current_step_updates = sys.size();
+          start_time = std::chrono::steady_clock::now();
+       }
+
+       template<class S>
+       void record(const core::SystemContext<S> &) {
+          end_time = std::chrono::steady_clock::now();
+          const auto elapsed = std::chrono::duration<double>(end_time - start_time).count();
+          timings.push_back(elapsed);
+          updates += current_step_updates;
+       }
+
+       void finalize() {
+          if (timings.empty()) return;
+
+          glob_end_time = std::chrono::steady_clock::now();
+
+          // Calculate and store the results internally
+          auto res = calculate_results();
+          res.print_report();
+
+          if (result) {
+             *result = res;
+          }
+       }
+
+    private:
+       BenchmarkResult calculate_results() {
           const double glob_total_s = std::chrono::duration<double>(glob_end_time - glob_start_time).count();
           const double total_integ_s = std::accumulate(timings.begin(), timings.end(), 0.0);
           const size_t steps = timings.size();
 
-          // averages and throughput
-          const double avg_s = total_integ_s / static_cast<double>(steps);
-          const double its_per_sec = 1.0 / avg_s; // Iterations per second
-          const double mups = (static_cast<double>(updates) / total_integ_s) / 1'000'000.0;
+          std::vector<double> sorted = timings;
+          std::ranges::sort(sorted);
 
-          // statistical analysis (Min, Max, Median)
-          // we sort a copy to find median/percentiles without altering original order if needed later
-          std::vector<double> sorted_timings = timings;
-          std::ranges::sort(sorted_timings);
+          const double avg = total_integ_s / static_cast<double>(steps);
 
-          const double min_s = sorted_timings.front();
-          const double max_s = sorted_timings.back();
-          const double median_s = sorted_timings[steps / 2];
+          double variance = 0.0;
+          for (const double t : timings) variance += (t - avg) * (t - avg);
 
-          // standard deviation
-          double variance_accum = 0.0;
-          for (const double t : timings) {
-             variance_accum += (t - avg_s) * (t - avg_s);
-          }
-          const double std_dev = std::sqrt(variance_accum / static_cast<double>(steps));
+          return BenchmarkResult{
+              .steps = steps,
+              .total_updates = updates,
+              .wall_time_sec = glob_total_s,
+              .integration_time_s = total_integ_s,
+              .its_per_sec = 1.0 / avg,
+              .mups = (static_cast<double>(updates) / total_integ_s) / 1'000'000.0,
+              .avg_step_sec = avg,
+              .median_step_sec = sorted[steps / 2],
+              .min_step_sec = sorted.front(),
+              .max_step_sec = sorted.back(),
+              .std_dev_sec = std::sqrt(variance / static_cast<double>(steps))
+          };
+       }
 
-          // Output
-          std::cout << "\n" << std::string(40, '-') << "\n";
-          std::cout << " [APRIL BENCHMARK REPORT] \n";
-          std::cout << std::string(40, '-') << "\n";
+       using Clock = std::chrono::steady_clock;
+       Clock::time_point glob_start_time, glob_end_time, start_time, end_time;
 
-          std::cout << std::fixed << std::setprecision(5);
-          std::cout << "  Steps processed:    " << steps << "\n";
-          std::cout << "  Particles processed: " << updates << "\n";
-          std::cout << "  Wall time (total):  " << glob_total_s << " s\n";
-          std::cout << "  Integration time:   " << total_integ_s << " s\n";
-          std::cout << std::string(40, '-') << "\n";
-
-          std::cout << std::setprecision(2);
-          std::cout << "  Throughput:         " << its_per_sec << " it/s\n";
-          std::cout << "  Performance:        " << mups << " MUPS\n";
-          std::cout << std::string(40, '-') << "\n";
-
-          std::cout << std::setprecision(6);
-          std::cout << "  Avg step time:      " << avg_s << " s\n";
-          std::cout << "  Median step time:   " << median_s << " s\n";
-          std::cout << "  Min step time:      " << min_s << " s\n";
-          std::cout << "  Max step time:      " << max_s << " s\n";
-          std::cout << "  Std Deviation:      " << std_dev << " s\n";
-          std::cout << std::string(40, '-') << "\n\n";
-		}
-
-	private:
-		using Clock = std::chrono::steady_clock;
-		Clock::time_point glob_start_time;
-		Clock::time_point glob_end_time;
-		Clock::time_point start_time;
-		Clock::time_point end_time;
-		std::vector<double> timings;
-		uint64_t updates = 0;
-	};
-
+       std::vector<double> timings;
+       uint64_t updates = 0;
+       size_t current_step_updates = 0;
+       BenchmarkResult * result = nullptr;
+    };
 }
-

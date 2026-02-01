@@ -10,6 +10,7 @@ endfunction()
 add_benchmark(cube_benchmarkLL cube_benchmark_LL.cpp cube_benchmarkLL)
 add_benchmark(cube_benchmarkDS cube_benchmark_DS.cpp cube_benchmarkDS)
 add_benchmark(force_kernel_benchmark force_kernel_benchmark.cpp force_kernel_benchmark)
+add_benchmark(interaction_benchmark interaction_benchmark.cpp interaction_benchmark)
 
 add_benchmark(no_overhead_DS_SOA baseline_DS_SOA.cpp no_overhead_DS_SOA)
 add_benchmark(baseline_DS_AOS baseline_DS_AOS.cpp baseline_DS_AOS)

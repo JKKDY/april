@@ -28,9 +28,7 @@ namespace april::force {
 			return *this;
 		}
 
-		template<env::FieldMask M, env::IsUserData U>
-		vec3 eval(const env::ParticleView<M, U> &, const env::ParticleView<M, U> &, const vec3& r) const noexcept {
-
+		vec3 eval(auto, auto, const vec3& r) const noexcept {
 			const vec3::type inv_r2 = static_cast<vec3::type>(1.0) / (r.x*r.x + r.y*r.y + r.z * r.z);
 			const vec3::type inv_r6 = inv_r2 * inv_r2 * inv_r2;
 			const vec3::type magnitude = (c12_force * inv_r6 - c6_force) * inv_r6 * inv_r2;

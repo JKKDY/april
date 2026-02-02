@@ -16,8 +16,7 @@ namespace april::force {
         explicit Gravity(const double grav_const = 1.0, const double cutoff = no_cutoff)
             : Force(cutoff), grav_constant(grav_const) {}
 
-        template<env::FieldMask M, env::IsUserData U>
-        vec3 eval(const env::ParticleView<M, U> & p1, const env::ParticleView<M, U> & p2, const vec3& r) const noexcept {
+        vec3 eval(const auto & p1, const auto & p2, const vec3& r) const noexcept {
             const double inv_r = 1.0 / r.norm();
             const double mag = grav_constant * p1.mass * p2.mass * inv_r * inv_r;
 

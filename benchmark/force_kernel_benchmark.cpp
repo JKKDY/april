@@ -155,8 +155,12 @@ int main() {
 		for (size_t i = 1; i < n_interactions+1; i++) {
 			const auto j = static_cast<double>(i);
 			vec3 f = lj.eval(vec3{j} );
+
+#if defined(__GNUC__) || defined(__clang__)
 			asm volatile("" : : "r,m"(f) : "memory");
-			// acc+= f;
+#else
+			 acc+= f;
+#endif
 		}
 		auto end_f = std::chrono::steady_clock::now();
 
@@ -203,8 +207,6 @@ int main() {
 
 	{
 		auto lj = LJ(epsilon, sigma);
-
-		vec3 acc = {};
 		double total_f_time = 0.0;
 
 		std::vector<vec3> pos1;
@@ -240,7 +242,6 @@ int main() {
 	{
 		auto lj = LJ_AoS(epsilon, sigma);
 
-		vec3 acc = {};
 		double total_f_time = 0.0;
 
 		std::vector<double> posx;

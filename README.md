@@ -144,8 +144,8 @@ int main() {
         .mass(1.0)
         .type(0)
         .thermal([](vec3 /*pos*/) {
-            constexpr double sigma = 1;
-            return math::maxwell_boltzmann_velocity(sigma);
+            constexpr double avg_vel = 1.0;
+            return math::maxwell_boltzmann_velocity(avg_vel);
         });
 
 	// 2) Define the Environment
@@ -230,12 +230,12 @@ April does not introduce measurable abstraction overhead compared to handwritten
 To assess force kernel dispatch efficiency, the amortized time per force evaluation was measured for April’s DirectSum and LinkedCells implementations. These results are compared against a very simple hardcoded force update loop (which gives an upper bound to the maximum possible performance) and LAMMPS force evaluation performance. 
 
 
-| Configuration                  | ns / interaction |
-| :----------------------------- | ---------------: |
-| Handwritten minimal kernel     | 2.63             |
-| April DirectSum                | 3.01             |
-| April LinkedCells              | 3.18             |
-| LAMMPS                         | 4.09             |
+| Configuration              | ns / interaction |
+|:---------------------------|-----------------:|
+| Handwritten minimal kernel |             2.63 |
+| April DirectSum            |             3.01 |
+| April LinkedCells          |             3.18 |
+| LAMMPS                     |             4.09 |
 
 
 April's force evaluation performance is close to the scalar single-core limit and is on par or faster than LAMMPS in terms of amortized force dispatch cost.  
@@ -350,7 +350,7 @@ April is licensed under **AGPLv3**.
 Small users (individuals, academia, non-profits, and SMEs) are granted an exception via an explicit license exception that **waives the AGPL network-use (Section 13) requirement**, allowing private internal services and APIs.
 Larger organizations must comply with AGPLv3 or obtain a commercial license.
 
-See `LICENSE` and `LICENSE-EXCEPTION.md` for details.
+See `LICENSE` and `EXCEPTION.md` for details.
 
 
 

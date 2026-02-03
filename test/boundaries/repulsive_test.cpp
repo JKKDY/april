@@ -22,6 +22,19 @@ struct ConstantForce {
 	}
 };
 
+// A "Spy" force that simply returns the distance passed to it.
+// Used to verify if simulate_halo doubles the distance correctly.
+struct LinearIdentityForce {
+	double rc;
+	explicit LinearIdentityForce(double rc = 100.0) : rc(rc) {}
+
+	[[nodiscard]] double cutoff() const noexcept { return rc; }
+
+	[[nodiscard]] double apply(const double dist) const noexcept {
+		return dist;
+	}
+};
+
 inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& pos) {
 	env::internal::ParticleRecord<env::NoUserData> p;
 	p.id = 0;
@@ -167,4 +180,130 @@ TYPED_TEST(RepulsiveBoundarySystemTestT, EachFace_AppliesInwardForce) {
 		EXPECT_NEAR(p.force.y, expected[uid].y, 1e-12);
 		EXPECT_NEAR(p.force.z, expected[uid].z, 1e-12);
 	}
+}
+
+
+TEST(RepulsiveBoundaryTest, ExponentialForce_CalculatesCorrectly) {
+    // A=10, lambda=2.0, rc=10
+    // Formula: 10 * exp(-d / 2.0)
+    boundary::ExponentialForce exp_force{10.0, 2.0, 10.0};
+    const boundary::Repulsive rep(exp_force);
+    constexpr env::FieldMask Mask = boundary::Repulsive<boundary::ExponentialForce>::fields;
+
+    // Particle 1.0 unit away from 0.0 (XMinus wall)
+    auto p = make_particle({1.0, 5, 5});
+    auto src = make_source<Mask>(p);
+    env::ParticleRef<Mask, env::NoUserData> ref(src);
+    const env::Box box({0,0,0}, {10,10,10});
+
+    rep.apply(ref, box, Face::XMinus);
+
+    // Expected: 10 * exp(-0.5) = 10 * 0.60653... = 6.0653...
+    double expected = 10.0 * std::exp(-0.5);
+
+    // Direction: XMinus wall pushes INWARD (Positive X)
+    EXPECT_NEAR(p.force.x, expected, 1e-6);
+}
+
+TEST(RepulsiveBoundaryTest, PowerLawForce_CalculatesCorrectly) {
+    // A=2.0, n=2.0, rc=10
+    // Formula: 2.0 / d^2
+    boundary::PowerLawForce pow_force{2.0, 2.0, 10.0};
+    const boundary::Repulsive rep(pow_force);
+    constexpr env::FieldMask Mask = boundary::Repulsive<boundary::PowerLawForce>::fields;
+
+    // Particle 2.0 units away from 0.0
+    auto p = make_particle({2.0, 5, 5});
+    auto src = make_source<Mask>(p);
+    env::ParticleRef<Mask, env::NoUserData> ref(src);
+    const env::Box box({0,0,0}, {10,10,10});
+
+    rep.apply(ref, box, Face::XMinus);
+
+    // Expected: 2.0 / (2.0^2) = 0.5
+    EXPECT_NEAR(p.force.x, 0.5, 1e-6);
+}
+
+TEST(RepulsiveBoundaryTest, LennardJones93Force_CalculatesCorrectly) {
+    // eps=1, sigma=1, rc=5
+    boundary::LennardJones93Force lj93{1.0, 1.0, 5.0};
+    const boundary::Repulsive rep(lj93);
+    constexpr env::FieldMask Mask = decltype(rep)::fields;
+
+    // Distance = 1.0 (sigma)
+    // Formula: 4*eps * (3*(s/r)^3 - 9*(s/r)^9)
+    // At r=s: 4 * (3 - 9) = -24
+    auto p = make_particle({1.0, 5, 5});
+    auto src = make_source<Mask>(p);
+    env::ParticleRef<Mask, env::NoUserData> ref(src);
+    const env::Box box({0,0,0}, {10,10,10});
+
+    rep.apply(ref, box, Face::XMinus);
+
+    // Note: The formula provided in the snippet returns a negative value (-24) at sigma.
+    // Repulsive::apply does: force += direction * magnitude.
+    // XMinus direction is +1. Magnitude is -24. Result force X should be -24.
+    // (This implies the 9-3 potential is attractive at this distance).
+    EXPECT_NEAR(p.force.x, -24.0, 1e-6);
+}
+
+TEST(RepulsiveBoundaryTest, AdhesiveLJForce_IsAlwaysRepulsive) {
+    // This force uses std::abs, so it should always push away from the wall
+    boundary::AdhesiveLJForce adj_lj{1.0, 1.0, 5.0};
+    const boundary::Repulsive rep(adj_lj);
+    constexpr env::FieldMask Mask = decltype(rep)::fields;
+
+    // At sigma (1.0), standard LJ Force is 24 * eps * (2 - 1) = 24.
+    auto p = make_particle({1.0, 5, 5});
+    auto src = make_source<Mask>(p);
+    env::ParticleRef<Mask, env::NoUserData> ref(src);
+    const env::Box box({0,0,0}, {10,10,10});
+
+    rep.apply(ref, box, Face::XMinus);
+
+    EXPECT_GT(p.force.x, 0.0) << "AdhesiveLJ should return positive magnitude, pushing X+";
+    EXPECT_NEAR(p.force.x, 24.0, 1e-6);
+}
+
+// -----------------------------------------------------------------------------
+// Halo Functionality Test
+// -----------------------------------------------------------------------------
+
+TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
+    LinearIdentityForce lin_force; // Returns distance as magnitude
+    constexpr env::FieldMask Mask = boundary::Repulsive<LinearIdentityForce>::fields;
+    const env::Box box({0,0,0}, {10,10,10});
+
+    // Case 1: Halo OFF
+    {
+        // simulate_halo = false
+        const boundary::Repulsive rep_no_halo(lin_force, false);
+
+        // Particle at distance 2.0 from X- wall (pos=2.0)
+        auto p = make_particle({2.0, 5, 5});
+        auto src = make_source<Mask>(p);
+        env::ParticleRef<Mask, env::NoUserData> ref(src);
+
+        rep_no_halo.apply(ref, box, Face::XMinus);
+
+        // Force magnitude = distance = 2.0. Direction XMinus is +1.
+        EXPECT_NEAR(p.force.x, 2.0, 1e-12);
+    }
+
+    // Case 2: Halo ON
+    {
+        // simulate_halo = true
+        const boundary::Repulsive rep_halo(lin_force, true);
+
+        // Particle at distance 2.0 from X- wall (pos=2.0)
+        auto p = make_particle({2.0, 5, 5});
+        auto src = make_source<Mask>(p);
+        env::ParticleRef<Mask, env::NoUserData> ref(src);
+
+        rep_halo.apply(ref, box, Face::XMinus);
+
+        // Internal distance becomes distance * 2 = 4.0.
+        // Force magnitude = 4.0. Direction XMinus is +1.
+        EXPECT_NEAR(p.force.x, 4.0, 1e-12) << "Halo should double the effective distance passed to the force";
+    }
 }

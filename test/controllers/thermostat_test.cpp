@@ -105,12 +105,16 @@ TEST(ThermostatBehaviorTest, SetInitialTemperature) {
                             .type(0)
                             .mass(1);
 
+        auto thermostat = VelocityScalingThermostat(Trigger::always())
+            .init_temp(t)
+            .target_temp(0)
+            .max_temp_change(30);
+
         const auto env = Environment (forces<NoForce>, controllers<VelocityScalingThermostat>)
             .with_particles(cuboid)
             .with_force(NoForce(), to_type(0))
             .with_extent(100, 100, 100)
-            .with_controller(VelocityScalingThermostat(t, 0, 30, Trigger::always()));
-
+            .with_controller(VelocityScalingThermostat(thermostat));
         auto system = build_system(env, DirectSumAoS());
 
         const auto particles = export_particles(system);
@@ -257,5 +261,4 @@ TEST(ThermostatBehaviorTest, Apply_HeatsThenCoolsWithTriggers) {
     auto v_cooled = get_system_avg_v(p_cooled);
     auto T_cooled = get_system_temp(p_cooled, v_cooled, system.box());
     EXPECT_NEAR(T_cooled, T_cool, 0.1);
-
 }

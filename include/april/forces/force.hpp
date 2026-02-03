@@ -3,9 +3,8 @@
 #include <variant>
 #include <concepts>
 #include <utility>
-#include <limits>
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/particle/fields.hpp"
 #include "april/particle/defs.hpp"
 #include "april/particle/access.hpp"
@@ -13,7 +12,7 @@
 
 namespace april::force {
 
-    constexpr double no_cutoff = std::numeric_limits<double>::max();
+    constexpr double no_cutoff = 1.0e150; // 1.0e150 squared is 1.0e300 <  max of double = 1.79e308
 
     struct Force {
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
@@ -28,7 +27,6 @@ namespace april::force {
                 requires { {self.eval(p1, p2, r)} -> std::same_as<vec3>; },
                 "Force must implement eval(env::internal::Particle, env::internal::Particle, const vec3&)"
             );
-
 
             using Derived = std::remove_cvref_t<decltype(self)>;
 
@@ -61,11 +59,19 @@ namespace april::force {
             static_assert(std::same_as<SelfT, OtherT>,
                 "Force::mix() requires both operands to be of the same type.");
 
-            return self.mix(other);
+            if constexpr (requires{self.mix(other);}) {
+                return self.mix(other);
+            } else {
+                if (!self.equals(other)) {
+                    throw std::invalid_argument("Mixing disabled by default for this force");
+                } else {
+                    return self;
+                }
+            }
         }
 
         [[nodiscard]] bool has_cutoff() const noexcept{
-            return cutoff() != no_cutoff;
+            return cutoff() < no_cutoff;
         }
 
         [[nodiscard]] double cutoff() const noexcept{
@@ -73,6 +79,12 @@ namespace april::force {
         }
         [[nodiscard]] double cutoff2() const noexcept{
             return force_cutoff2;
+        }
+
+        auto with_cutoff(this auto && self, const double c) {
+            self.force_cutoff = c;
+            self.force_cutoff2 = c*c;
+            return self;
         }
 
         bool equals(this const auto & self, const auto & other) {
@@ -92,7 +104,7 @@ namespace april::force {
 
         bool operator==(const Force&) const = default;
 
-    private:
+    protected:
         double force_cutoff;
         double force_cutoff2;
     };

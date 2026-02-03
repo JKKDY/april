@@ -4,8 +4,9 @@
 #include <unordered_set>
 
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/containers/cell_orderings.hpp"
+#include "april/math/sfc.hpp"
 
 using namespace april;
 
@@ -71,7 +72,7 @@ protected:
 
         for (const uint32_t flat_idx : curve_path) {
             const uint3 p = Unflatten(flat_idx, dims);
-            uint64_t current_key = container::internal::hilbert_encode_3d(p.x, p.y, p.z, bits);
+            uint64_t current_key = math::sfc::hilbert_key(p, bits);
 
             if (!first) {
                 // Key must be >= previous key. 
@@ -191,15 +192,15 @@ protected:
     // 0b111 (7) should become 0b001001001 (73)
     // 0b11 (3)  should become 0b001001 (9)
     void VerifyBitSplit() {
-        EXPECT_EQ(container::internal::split_by_3(0), 0);
-        EXPECT_EQ(container::internal::split_by_3(1), 1);
-        EXPECT_EQ(container::internal::split_by_3(2), 8);  // 10 -> 001000
-        EXPECT_EQ(container::internal::split_by_3(3), 9);  // 11 -> 001001
-        EXPECT_EQ(container::internal::split_by_3(7), 73); // 111 -> 001001001
+        EXPECT_EQ(math::sfc::split_by_3(0), 0);
+        EXPECT_EQ(math::sfc::split_by_3(1), 1);
+        EXPECT_EQ(math::sfc::split_by_3(2), 8);  // 10 -> 001000
+        EXPECT_EQ(math::sfc::split_by_3(3), 9);  // 11 -> 001001
+        EXPECT_EQ(math::sfc::split_by_3(7), 73); // 111 -> 001001001
 
         // Check max valid input (21 bits) preserves high bit
-        uint32_t max_input = (1 << 21) - 1;
-        uint64_t max_output = container::internal::split_by_3(max_input);
+        const uint32_t max_input = (1 << 21) - 1;
+        const uint64_t max_output = math::sfc::split_by_3(max_input);
         EXPECT_GT(max_output, 0);
     }
 
@@ -230,7 +231,7 @@ protected:
 
         for (uint32_t flat_idx : curve_path) {
             const uint3 p = Unflatten(flat_idx, dims);
-            uint64_t current_key = container::internal::morton_3d_64(p.x, p.y, p.z);
+            uint64_t current_key = math::sfc::morton_key(p.x, p.y, p.z);
 
             if (!first) {
                 // If this fails, the sorting logic inside morton_order is wrong

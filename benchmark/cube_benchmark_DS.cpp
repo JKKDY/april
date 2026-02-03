@@ -1,6 +1,9 @@
 #include <april/april.hpp>
 #include <filesystem>
 
+#include "april/containers/direct_sum/ds_aos.hpp"
+#include "april/containers/direct_sum/ds_soa.hpp"
+#include "april/containers/direct_sum/ds_aosoa.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;
@@ -34,26 +37,28 @@ int main() {
 	const vec3 extent = 1.5 * box;
 	const vec3 origin = - 0.5 * extent;
 
-	Environment env (forces<LennardJones>, boundaries<Reflective>);
-	env.add_particles(grid);
-	env.set_origin(origin);
-	env.set_extent(extent);
-	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
-	env.set_boundaries(Reflective(), all_faces);
+	for (int i = 0; i < 5; i++) {
+		Environment env (forces<LennardJones>, boundaries<Reflective>);
+		env.add_particles(grid);
+		env.set_origin(origin);
+		env.set_extent(extent);
+		env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
+		env.set_boundaries(Reflective(), all_faces);
 
-	constexpr auto container = DirectSumAoS();
-	auto system = build_system(env, container);
+		constexpr auto container = DirectSumAoS();
+		auto system = build_system(env, container);
 
-	constexpr double dt = 0.0002;
-	constexpr int steps  = 500;
+		constexpr double dt = 0.0002;
+		constexpr int steps  = 200;
 
-	VelocityVerlet integrator(system, monitors<Benchmark>);
-	integrator.add_monitor(Benchmark());
-	// integrator.add_monitor(ProgressBar(Trigger::every(200)));
-	integrator.run_for_steps(dt, steps);
+		VelocityVerlet integrator(system, monitors<Benchmark>);
+		integrator.add_monitor(Benchmark());
+		// integrator.add_monitor(ProgressBar(Trigger::every(200)));
+		integrator.run_for_steps(dt, steps);
 
-	std::cout << "Particles: " << NX * NY * NZ << "\n"
-			 << "Steps: " << steps << "\n"
-			 << "dt: " << dt << "\n";
+	}
+	// std::cout << "Particles: " << NX * NY * NZ << "\n"
+	// 		 << "Steps: " << steps << "\n"
+	// 		 << "dt: " << dt << "\n";
 }
 

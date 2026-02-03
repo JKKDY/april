@@ -1,10 +1,12 @@
 #include <april/april.hpp>
 #include <filesystem>
-
+#include "april/containers/linked_cells/lc_aos.hpp"
+#include "april/containers/linked_cells/lc_soa.hpp"
+#include "april/containers/linked_cells/lc_aosoa.hpp"
+#include "april/containers/linked_cells/lc_config.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;
-
 
 
 static constexpr int NX = 100, NY = 100, NZ = 100;
@@ -23,12 +25,12 @@ int main() {
 	const vec3 box = {Lx, Ly, Lz};
 
 	ParticleCuboid grid = ParticleCuboid{}
-		.at(-0.5*box)
-		.velocity({0,0,0})
-		.count({NX, NY, NZ})
-		.mass(1.0)
-		.spacing(a)
-		.type(0);
+	.at(-0.5*box)
+	.velocity({0,0,0})
+	.count({NX, NY, NZ})
+	.mass(1.0)
+	.spacing(a)
+	.type(0);
 
 	// Box with margin >= r_cut around grid (non-periodic)
 	const vec3 extent = 1.5 * box;
@@ -41,10 +43,10 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	const auto container = LinkedCellsAoS()
+	const auto container = container::LinkedCellsSoA()
 		.with_cell_size(container::CellSize::Cutoff)
 		.with_cell_ordering(hilbert_order)
-		.with_block_size(4);
+		.with_block_size(8);
 
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;
@@ -53,6 +55,7 @@ int main() {
 	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 	integrator.add_monitor(Benchmark());
 	integrator.run_for_steps(dt, steps);
+
 
 	std::cout << "Particles: " << NX * NY * NZ << "\n"
 			 << "Steps: " << steps << "\n"

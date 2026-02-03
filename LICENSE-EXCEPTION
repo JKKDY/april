@@ -1,0 +1,50 @@
+APRIL USE EXCEPTION 1.0
+Copyright (c) 2026 Julian Deller-Yee
+
+This software is licensed under the GNU Affero General Public License v3.0 ("AGPLv3").
+However, the Licensor (Julian Deller-Yee) grants specific Additional Permissions under Section 7 of the AGPLv3
+to specific users, as set forth below.
+
+1. THE GRANT
+You are granted a "Commercial Use Exception" to the AGPLv3 requirements if and only if
+you ("The Licensee") meet one of the following criteria:
+
+    (a) You are a private individual using the software for personal purposes;
+    (b) You are an accredited educational institution, or a student/researcher
+        employed by such an institution (strictly for non-commercial academic research);
+    (c) You are a registered Non-Profit Organization; OR
+    (d) You are a Business Entity (including all parent companies, subsidiaries, and affiliates)
+        that meets BOTH of the following financial criteria:
+        i.  Annual Gross Revenue of LESS THAN $10,000,000 USD; AND
+        ii. Total Cumulative Funding/Investment of LESS THAN $50,000,000 USD.
+
+2. THE PERMISSION
+If you are a Qualified User under Section 1, you may modify, distribute, and convey this
+Software (and works based on it) without complying with the AGPLv3 Section 13 requirement
+to provide your derivative source code to network users, PROVIDED THAT:
+
+    (a) You do not sub-license this Software or your modifications under any license other
+        than the AGPLv3 (subject to this Exception); AND
+    (b) You retain this Exception file and the original copyright notices in all copies.
+
+3. NO FORKING TO PERMISSIVE LICENSES
+For the avoidance of doubt, this Exception does NOT grant you the right to re-license
+the Software (or any portion thereof) under permissive terms such as MIT, BSD, Apache,
+or similar licenses. Any distribution must remain under the AGPLv3 + This Exception.
+
+4. TERMINATION & GRACE PERIOD
+If The Licensee at any point ceases to meet the criteria in Section 1 (e.g., your revenue
+exceeds $10M or your total funding exceeds $50M), this Exception will terminate
+ninety (90) days after the date on which the criteria are no longer met ("Grace Period").
+
+During the Grace Period, The Licensee must either:
+    (a) Purchase a Commercial License from the Licensor to continue private use; OR
+    (b) Bring their use into full compliance with the standard AGPLv3 (by open-sourcing
+        their derivative works).
+
+After the 90-day Grace Period expires, any continued use of the Software without a
+Commercial License or AGPLv3 compliance constitutes copyright infringement.
+
+5. MISCELLANEOUS
+This Exception is granted by the Copyright Holder and does not apply to code contributed
+by third parties unless they have explicitly assigned their rights or agreed to these terms.

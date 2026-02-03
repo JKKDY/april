@@ -2,7 +2,7 @@
 #include <vector>
 #include <chrono>
 
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 
 // --- Configuration ---
 static constexpr int NX = 40;

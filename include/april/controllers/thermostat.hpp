@@ -1,7 +1,7 @@
 #pragma once
 
 #include "april/controllers/controller.hpp"
-#include "april/math/distributions.hpp"
+#include "april/math/statistics.hpp"
 namespace april::controller {
 
 	static constexpr double temperature_not_set = -1.0;
@@ -11,33 +11,34 @@ namespace april::controller {
 		static constexpr env::FieldMask vel = to_field_mask(env::Field::velocity);
 
 	public:
+		explicit VelocityScalingThermostat(const shared::Trigger & trig): Controller(trig) {}
 		VelocityScalingThermostat(const double init_T, const double target_T, const double max_dT, const shared::Trigger & trig)
 		: Controller(trig),
-		 init_temp(init_T),
-		 target_temp(target_T),
-		 max_temp_change(max_dT) {}
+		 _init_temp(init_T),
+		 _target_temp(target_T),
+		 _max_temp_change(max_dT) {}
 
 
 		template<class S>
 		void init(core::SystemContext<S> & sys) const {
 			AP_ASSERT(sys.size() > 1, "For the thermostat to work correctly, there should be at least two particles");
 
-			if (init_temp == temperature_not_set) return;
+			if (_init_temp == temperature_not_set) return;
 			for (size_t i = 0; i < sys.size(); ++i) {
 				auto p = sys.template at<mass_vel>(i);
-				const double sigma = std::sqrt(init_temp / p.mass);
-				p.velocity = shared::maxwell_boltzmann_velocity_distribution(sigma, dimensions(sys));
+				const double sigma = std::sqrt(_init_temp / p.mass);
+				p.velocity = math::maxwell_boltzmann_velocity(sigma, dimensions(sys));
 			}
 		}
 		template<class S>
 		void apply(core::SystemContext<S> & sys) const {
 			AP_ASSERT(sys.size() > 1, "For the thermostat to work correctly, there should be at least two particles");
 
-			if (target_temp == temperature_not_set) return;
+			if (_target_temp == temperature_not_set) return;
 			const vec3 avg_v = average_velocity<S>(sys);
 			const double current_T = temperature(sys, avg_v);
-			const double diff = target_temp - current_T;
-			const double new_T = current_T + std::clamp(diff, -max_temp_change, max_temp_change);
+			const double diff = _target_temp - current_T;
+			const double new_T = current_T + std::clamp(diff, -_max_temp_change, _max_temp_change);
 			if (std::abs(new_T - current_T) < 1e-12) return;
 
 			if (current_T < 1e-12) {
@@ -47,7 +48,7 @@ namespace april::controller {
 				for (size_t i = 0; i < sys.size(); ++i) {
 					auto p = sys.template at<mass_vel>(i);
 					const double sigma = std::sqrt(new_T / p.mass);
-					p.velocity = avg_v + shared::maxwell_boltzmann_velocity_distribution(sigma, dimensions(sys));
+					p.velocity = avg_v + math::maxwell_boltzmann_velocity(sigma, dimensions(sys));
 				}
 			} else {
 				const double factor = std::sqrt(new_T / current_T);
@@ -55,10 +56,25 @@ namespace april::controller {
 			}
 		}
 
+		auto init_temp(const double temp) {
+			_init_temp = temp;
+			return *this;
+		};
+
+		auto target_temp(const double temp) {
+			_target_temp = temp;
+			return *this;
+		};
+
+		auto max_temp_change(const double temp) {
+			_max_temp_change = temp;
+			return *this;
+		};
+
 	private:
-		double init_temp;
-		double target_temp;
-		double max_temp_change;
+		double _init_temp = temperature_not_set;
+		double _target_temp = temperature_not_set;
+		double _max_temp_change = temperature_not_set;
 
 		template<class S>
 		static vec3 average_velocity(const core::SystemContext<S> & sys) {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <optional>
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 
 namespace april::env {
 	struct Domain {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <utility>
-#include "april/common.hpp"
+#include "april/base/types.hpp"
 #include "april/env/domain.hpp"
 #include "april/particle/generators.hpp"
 

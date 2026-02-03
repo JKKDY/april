@@ -121,7 +121,7 @@ namespace april::env::internal {
 	};
 
 	template<template<class ...> class Pack, class ... Packs>
-	using get_pack_t = typename get_pack<Pack, std::remove_cvref_t<Packs>...>::type;
+	using get_pack_t = get_pack<Pack, std::remove_cvref_t<Packs>...>::type;
 
 
 	// TMP utilities for finding and locating user data type
@@ -151,7 +151,7 @@ namespace april::env::internal {
 	};
 
 	template<class... Args>
-	using get_user_data_t = typename get_user_data<std::remove_cvref_t<Args>...>::type;
+	using get_user_data_t = get_user_data<std::remove_cvref_t<Args>...>::type;
 
 
 	template<class T> static constexpr bool is_any_pack_v =

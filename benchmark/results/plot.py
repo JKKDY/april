@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 # ---------- config ----------
 CSV_PATH = "results/bench.csv"
 TITLE = "Linked Cells benchmark (10k steps, 1 CPU thread)"
-SAVE_PNG = False
-PNG_PATH = "bench_LC.png"
+SAVE_PNG = True
+PNG_PATH = "results/bench_LC.png"
 
 # base hues per family (parity & production share the same hue)
 FAMILY_COLOR = {
@@ -27,17 +27,17 @@ GRID_ALPHA = 0.5
 # desired legend order (will show only those present in the CSV)
 IMPL_ORDER = [
     "APRIL LinkedCells",
-    "LAMMPS Parity LC",
-    "LAMMPS Production LC",
-    "HOOMD Parity LC",
-    "HOOMD Production LC",
+    # "LAMMPS Parity LC",
+    "LAMMPS",
+    # "HOOMD Parity LC",
+    "HOOMD",
 ]
 
 # ---------- load & filter ----------
 df = pd.read_csv(CSV_PATH)
 
 # keep only linked-cells style lines; drop direct-sum
-df = df[df["Impl"].str.contains(r"(LinkedCells|LC)", case=False, regex=True)]
+df = df[df["Impl"].str.contains(r"(LinkedCells|LC)|", case=False, regex=True)]
 df = df[~df["Impl"].str.contains(r"DirectSum", case=False, regex=True)]
 
 # ---------- helpers ----------

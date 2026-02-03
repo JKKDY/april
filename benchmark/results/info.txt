@@ -1,5 +1,7 @@
-Windows 10, 11th Gen Intel(R) Core(TM) i7-11370H @ 3.30GHz
+Windows 10, 11th Gen Intel(R) Core(TM) i7-11370H @ 3.30GHz, 16GB, Surface Laptop Studio 2
+WSL 2 Ubuntu 24.04.
+Single CPU Thread, no explicit SIMD
 
-APRIL: Clang, WSL
-LAMMPS: 22 Jul 2025
-HOOMD: v5.3.1, WSL 
+- APRIL: (Clang 18.1.3)
+- LAMMPS: 22 Jul 2025 - Update 3 with Kokkos package (but with vanilla forces) (Clang 18.1.3)
+- HOOMD: v5.3.1 (pip install)

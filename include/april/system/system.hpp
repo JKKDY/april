@@ -6,7 +6,7 @@
 #include "april/containers/container.hpp"
 #include "april/env/domain.hpp"
 #include "april/system/context.hpp"
-#include "april/containers/batching.hpp"
+#include "april/containers/batching/common.hpp"
 #include "april/boundaries/boundary.hpp"
 
 
@@ -27,17 +27,16 @@ namespace april::core {
 		BuildInfo * build_info = nullptr
 	);
 
-
 	template <class ContainerDecl, env::internal::IsEnvironmentTraits Traits>
 	requires container::IsContainerDecl<ContainerDecl, Traits>
 	class System final {
 		// --------------
 		// INTERNAL TYPES
 		// --------------
-		using ControllerStorage = typename Traits::controller_storage_t;
-		using FieldStorage	    = typename Traits::field_storage_t;
-		using ForceTable     	= typename Traits::force_table_t;
-		using BoundaryTable  	= typename Traits::boundary_table_t;
+		using ControllerStorage = Traits::controller_storage_t;
+		using FieldStorage	    = Traits::field_storage_t;
+		using ForceTable     	= Traits::force_table_t;
+		using BoundaryTable  	= Traits::boundary_table_t;
 
 	public:
 
@@ -46,17 +45,17 @@ namespace april::core {
 		// ----------------
 		using SysContext = SystemContext<System>;
 		using TrigContext = shared::TriggerContextImpl<System>;
-		using Container = typename ContainerDecl::template impl<typename Traits::user_data_t>;
-		using ParticleRec = typename Traits::particle_record_t;
+		using Container = ContainerDecl::template impl<typename Traits::user_data_t>;
+		using ParticleRec = Traits::particle_record_t;
 
 		template<env::FieldMask M>
-		using ParticleRef = typename Traits::template particle_ref_t<M>;
+		using ParticleRef = Traits::template particle_ref_t<M>;
 
 		template<env::FieldMask M>
-		using ParticleView = typename Traits::template particle_view_t<M>;
+		using ParticleView = Traits::template particle_view_t<M>;
 
 		template<env::FieldMask M>
-		using RestrictedParticleRef = typename Traits::template restricted_particle_ref_t<M>;
+		using RestrictedParticleRef = Traits::template restricted_particle_ref_t<M>;
 
 
 		// -----------------
@@ -124,8 +123,8 @@ namespace april::core {
 		}
 
 		// check if particle id is valid
-		[[nodiscard]] bool contains(const env::ParticleID id) const noexcept {
-			return particle_container.invoke_contains(id);
+		[[nodiscard]] bool contains_id(const env::ParticleID id) const noexcept {
+			return particle_container.invoke_contains_id(id);
 		}
 
 		// convert id to index
@@ -141,7 +140,9 @@ namespace april::core {
 			// TODO implement this method (system::size) properly
 			return particle_container.invoke_particle_count();
 		}
-
+		[[nodiscard]] size_t capacity() const noexcept {
+			return particle_container.capacity();
+		}
 		[[nodiscard]] std::vector<size_t> query_region(const env::Box & region) const {
 			return particle_container.invoke_collect_indices_in_region(region);
 		}
@@ -154,18 +155,18 @@ namespace april::core {
 		// --------------
 		// FUNCTIONAL OPS
 		// --------------
-		template<env::FieldMask M, typename Func, bool parallelize=false>
+		template<env::FieldMask M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle(Func && func, env::ParticleState state = env::ParticleState::ALL) {
-			particle_container.template invoke_for_each_particle<M, Func, parallelize>(std::forward<Func>(func), state);
+			particle_container.template for_each_particle<M, Policy, Func>(std::forward<Func>(func), state);
 		}
 
-		template<typename Func>
-		void for_each_interaction_batch(Func && func) {
-			particle_container.invoke_for_each_interaction_batch(std::forward<Func>(func));
+		template<env::FieldMask M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void for_each_particle_view(Func && func, env::ParticleState state = env::ParticleState::ALL) const {
+			particle_container.template for_each_particle_view<M, Policy, Func>(std::forward<Func>(func), state);
 		}
 
 		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>
-		[[nodiscard]] T invoke_reduce(
+		[[nodiscard]] T reduce(
 			T initial_value,
 			Mapper&& map_func,
 			Reducer&& reduce_func = {},
@@ -173,6 +174,35 @@ namespace april::core {
 		) const {
 			return particle_container.template invoke_reduce<M>(initial_value, map_func, reduce_func, state);
 		}
+
+
+
+		template<typename Func>
+		void for_each_interaction_batch(Func && func) { // func(batch, bcp)
+			particle_container.invoke_for_each_interaction_batch(std::forward<Func>(func));
+		}
+
+		template<env::FieldMask M, typename Func>
+		void for_each_interaction_pair(Func && func) { // func(particle, particle, dist)
+			auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
+				auto kernel = [&](auto && p1, auto && p2) {
+					vec3 r = {};
+					if constexpr (env::has_field_v<M, env::Field::position> &&
+						std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
+						r = p2.position - p1.position;
+						} else {
+							r = apply_bcp(p2.position - p1.position);
+						}
+
+					func(p1, p2, r);
+				};
+
+				execute_batch_kernel<M>(batch, kernel);
+			};
+
+			particle_container.invoke_for_each_interaction_batch(update_batch);
+		}
+
 
 
 		// -----------------
@@ -212,11 +242,19 @@ namespace april::core {
 		// --------
 		// CONTEXTS
 		// --------
-		[[nodiscard]] SysContext & context() { return system_context; }
-		[[nodiscard]] TrigContext & trigger_context() { return trig_context; }
+		[[nodiscard]] SysContext & context() {
+			return system_context;
+		}
+		[[nodiscard]] TrigContext & trigger_context() {
+			return trig_context;
+		}
 
-		[[nodiscard]] const SysContext & context() const { return system_context; }
-		[[nodiscard]] const TrigContext & trigger_context() const { return trig_context; }
+		[[nodiscard]] const SysContext & context() const {
+			return system_context;
+		}
+		[[nodiscard]] const TrigContext & trigger_context() const {
+			return trig_context;
+		}
 
 
 	private:
@@ -271,46 +309,55 @@ namespace april::core {
 			 const Container& container,
 			 BuildInfo * build_info
 		);
+
+		template<env::FieldMask M, typename Batch, typename Kernel>
+		void execute_batch_kernel(const Batch& batch, Kernel&& kernel) {
+			using Par = container::ParallelPolicy;
+			using Cmp = container::ComputePolicy;
+
+			// execute kernel
+			auto execute_atom = [&](const auto& atom) {
+				if constexpr (Batch::compute_policy == Cmp::Scalar) {
+					atom.template for_each_pair<M>(kernel);
+				} else {
+					static_assert(Batch::compute_policy != Cmp::Scalar, "Vectorization not implemented yet");
+				}
+			};
+
+			// Routing
+			if constexpr (container::IsBatchAtom<Batch>) {
+				execute_atom(batch);
+			}
+			else if constexpr (container::IsBatchAtomRange<Batch>) {
+				if constexpr (Batch::parallel_policy == Par::Inner) {
+					static_assert(Batch::parallel_policy == Cmp::Scalar, "Vectorization not implemented yet");
+					std::unreachable();
+				} else {
+					for (const auto& atom : batch) {
+						execute_atom(atom);
+					}
+				}
+			}
+		}
+
+
 	};
 
 
-
-
-	// Default: assume any type is not a System
-	template<typename>
-	inline constexpr bool is_system_v = false;
-
-	// Specialization: mark all System<C, Env> instantiations as true
-	template<class C, env::internal::IsEnvironmentTraits Traits>
-	inline constexpr bool is_system_v<System<C, Traits>> = true;
-
-	// Concept: true if T (after removing cv/ref) is a System specialization
-	template<typename T>
-	concept IsSystem = is_system_v<std::remove_cvref_t<T>>;
-
-
-
-
-	// ---- Implementations -----
+	//----------------
+	// IMPLEMENTATIONS
+	//----------------
 	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::update_forces() {
 
 		// batch update lambda. passed into container::for_each_interaction_batch
 		auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
-			using Type = container::BatchType;
-			using Par = container::ParallelPolicy;
 			using Upd = container::UpdatePolicy;
-			// using Cmp = container::ComputePolicy;
 
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr env::FieldMask fields = ForceT::fields;
-				constexpr env::FieldMask upd_fields = env::Field::force | env::Field::position;
-				constexpr env::FieldMask all_fields = upd_fields | fields;
+				constexpr env::FieldMask M = ForceT::fields | env::Field::force | env::Field::position;
 
-				//---------------
-				// PHYSICS KERNEL
-				//---------------
-				auto update_force = [&](auto & p1, auto & p2) {
+				auto kernel = [&](auto & p1, auto & p2) {
 					vec3 r;
 
 					if constexpr (std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
@@ -326,112 +373,23 @@ namespace april::core {
 					const vec3 f = force(p1.to_view(), p2.to_view(), r);
 
 					if constexpr (Batch::update_policy == Upd::Atomic) {
-						throw std::logic_error("atomic force update not implemented yet");
+						static_assert(Batch::update_policy == Upd::Atomic, "atomic force update not implemented yet");
 					} else {
 						p1.force += f;
 						p2.force -= f;
 					}
 				};
 
-				//------------------------
-				// INNER LOOPS (PARTICLES)
-				//------------------------
-				auto process_symmetric_atom_parallel = [&](const container::internal::IsSymmetricAtom auto&) {
-					throw std::logic_error("parallelization not implemented");
-				};
-
-				auto process_asymmetric_atom_parallel = [&](const container::internal::IsAsymmetricAtom auto&) {
-					throw std::logic_error("parallelization not implemented");
-				};
-
-				auto process_symmetric_atom_serial = [&](const container::internal::IsSymmetricAtom auto& atom) {
-					for (size_t i = 0; i < atom.indices.size(); ++i) {
-						auto && p1 = particle_container.template restricted_at<all_fields>(atom.indices[i]);
-						for (size_t j = i + 1; j < atom.indices.size(); ++j) {
-							auto && p2 = particle_container.template restricted_at<all_fields>(atom.indices[j]);
-							update_force(p1, p2);
-						}
-					}
-				};
-
-				auto process_asymmetric_atom_serial = [&](const container::internal::IsAsymmetricAtom auto& atom) {
-					for (size_t i = 0; i < atom.indices1.size(); ++i) {
-						auto && p1 = particle_container.template restricted_at<all_fields>(atom.indices1[i]);
-						for (size_t j = 0; j < atom.indices2.size(); ++j) {
-							auto && p2 = particle_container.template restricted_at<all_fields>(atom.indices2[j]);
-							update_force(p1, p2);
-						}
-					}
-				};
-
-
-				//----------------------------------------------
-				// WORK UNIT PROCESSING (outer loop: over atoms)
-				//----------------------------------------------
-				// a single piece of work (atom). holds indices to particles
-				auto process_atom = [&](const container::internal::IsAtom auto & atom, auto && parallel, auto && serial) {
-					if constexpr (Batch::parallel_policy == Par::InnerLoop) {
-						parallel(atom);
-					} else {
-						serial(atom);
-					}
-				};
-
-				// atom ranges hold a range of either symmetric or asymmetric work atoms
-				auto process_range= [&](const auto & range, auto && parallel, auto && serial) {
-					if constexpr (Batch::parallel_policy == Par::Chunks) {
-						throw std::logic_error("parallelized chunked processing not implemented yet");
-					} else {
-						for (const auto & chunk : range) {
-							process_atom(chunk, parallel, serial);
-						}
-					}
-				};
-
-				// a work unit is either an atom or a range of atoms
-				auto process_work_unit = [&]<typename Unit>(const Unit & work_unit) {
-					if constexpr (container::internal::HasAsymmetricRange<Unit>) {
-						process_range(work_unit.asym_chunks, process_asymmetric_atom_parallel, process_asymmetric_atom_serial);
-					} else if constexpr (container::internal::IsAsymmetricAtom<Unit>) {
-						process_atom(work_unit, process_asymmetric_atom_parallel, process_asymmetric_atom_serial);
-					}
-
-					// no else because work unit can be a compound unit: we have to process both cases
-					if constexpr (container::internal::HasSymmetricRange<Unit>) {
-						process_range(work_unit.sym_chunks, process_symmetric_atom_parallel, process_symmetric_atom_serial);
-					} else if constexpr (container::internal::IsSymmetricAtom<Unit>) {
-						process_atom(work_unit, process_symmetric_atom_parallel, process_symmetric_atom_serial);
-					}
-				};
-
-
-				//--------------------------
-				// DISPATCH BATCH PROCESSING
-				//--------------------------
-				if constexpr (Batch::type == Type::Symmetric || Batch::type == Type::Asymmetric)  {
-					// symmetric and asymmetric batches are per definition work units
-					process_work_unit(batch);
-				} else if constexpr (Batch::type == Type::Compound) {
-					// a compound batch can either be a work unit or hold a range of (compound) work units
-					if constexpr (container::internal::IsWorkUnit<Batch>) {
-						process_work_unit(batch);
-					} else { // must have a range of work units
-						for (const auto & unit : batch.chunks) {
-							process_work_unit(unit);
-						}
-					}
-				}
+				execute_batch_kernel<M>(batch, kernel);
 			};
 
 			auto [t1, t2] = batch.types;
 			force_table.dispatch(t1, t2, apply_batch_update);
 		};
 
-		auto reset_force = [](auto && p) {
-			p.force = {};
-		};
-
-		particle_container.template invoke_for_each_particle<+env::Field::force>(reset_force);
+		particle_container.template for_each_particle<+env::Field::force>(
+			[](auto && p) { p.force = {}; } // reset forces
+		);
 		particle_container.invoke_for_each_interaction_batch(update_batch);
 
 
@@ -439,13 +397,11 @@ namespace april::core {
 		auto update_global_batch = [&](const auto & batch) {
 
 			auto apply_batch_update = [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr env::FieldMask fields = ForceT::fields;
-				constexpr env::FieldMask upd_fields = env::Field::force | env::Field::position;
-				constexpr env::FieldMask all_fields = upd_fields | fields;
+				constexpr env::FieldMask M = ForceT::fields | env::Field::force | env::Field::position;
 
 				for (const auto & [id1, id2] : batch.pairs) {
-					auto && p1 = particle_container.template restricted_at_id<all_fields>(id1);
-					auto && p2 = particle_container.template restricted_at_id<all_fields>(id2);
+					auto && p1 = particle_container.template restricted_at_id<M>(id1);
+					auto && p2 = particle_container.template restricted_at_id<M>(id2);
 
 					vec3 r = p2.position - p1.position;
 					const vec3 f = force(p1.to_view(), p2.to_view(), r);
@@ -562,6 +518,22 @@ namespace april::core {
 			controller.template dispatch_update<System>(system_context);
 		});
 	}
+
+
+
+	// Default: assume any type is not a System
+	template<typename>
+	inline constexpr bool is_system_v = false;
+
+	// Specialization: mark all System<C, Env> instantiations as true
+	template<class C, env::internal::IsEnvironmentTraits Traits>
+	inline constexpr bool is_system_v<System<C, Traits>> = true;
+
+	// Concept: true if T (after removing cv/ref) is a System specialization
+	template<typename T>
+	concept IsSystem = is_system_v<std::remove_cvref_t<T>>;
+
+
 }
 
 

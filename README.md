@@ -14,7 +14,7 @@ The design is fully modular. Components such as forces, boundaries, containers, 
 > **Next**: SIMD integration
 
 
-## Minimal Example
+# Minimal Example
 
 ```c++
 #include <april/april.hpp>
@@ -46,11 +46,12 @@ int main() {
 }
 ```
 
+<br>
 
-## Core Features
+# Core Features
 
 
-#### 1. Modular Architecture
+### 1. Modular Architecture
 
 April offers several different types of component classes. Components of a given type can be swapped interchangeably.
 
@@ -65,7 +66,7 @@ April offers several different types of component classes. Components of a given
 Users can also build any custom component they desire by satisfying the corresponding interface.
 
 
-#### 2. Static Configuration & Memory Abstraction
+### 2. Static Configuration & Memory Abstraction
 
 
 April is built around static configuration and strict separation between physics code and data representation.
@@ -75,7 +76,7 @@ April is built around static configuration and strict separation between physics
 * **Zero-Cost Accessors**: Physics code does not access particle storage directly. Instead, components operate on lightweight accessor (“ghost”) structs that abstract the underlying memory layout and are fully optimized away by the compiler.
 
 
-#### 3. Built-in Components
+### 3. Built-in Components
 
 April ships with a number of ready-to-use components:
 
@@ -89,16 +90,16 @@ April ships with a number of ready-to-use components:
 
 April also provides AoS, SoA, and AoSoA container base classes to facilitate implementing new container algorithms.
 
+<br>
 
+# Getting Started
 
-## Getting Started
-
-#### 1. Requirements
+### 1. Requirements
 - **C++23 capable compiler** (e.g. gcc-14, clang 18)
 - **CMake ≥ 3.28** (only for examples, tests, benchmarks)
 - **GoogleTest** (Optional/Dev): Required for the test suite. The project's CMake is configured to automatically fetch this dependency.
 
-#### 2. How to Build (examples, benchmarks, tests)
+### 2. How to Build (examples, benchmarks, tests)
 
 Since April is a header-only library, simply copy the headers and `#include <april/april.hpp>`. You can automate this process in CMake with ``FetchContent``:
 ````CMake
@@ -125,7 +126,7 @@ cd build
 ctest --output-on-failure --build-config Debug
 ```
 
-#### 3. Example
+### 3. Example
 This example demonstrates a many-particle simulation with short-range interactions, boundary conditions, and gravity, using linked cells for particle traversal. 
 
 
@@ -173,9 +174,9 @@ int main() {
 }
 ```
 
+<br>
 
-
-## Performance
+# Performance
 
 All benchmarks were performed on a single CPU thread without explicit SIMD.  
 
@@ -185,7 +186,7 @@ All benchmarks were performed on a single CPU thread without explicit SIMD.
 All benchmark code and raw data are available in `/benchmarks`.
 
 
-#### 1. End-to-End Runtime Comparison
+### 1. End-to-End Runtime Comparison
 
 
 Comparative benchmarks were conducted for 10k integration steps with Lennard-Jones (12-6) interactions (ε = 5, σ = 1, cutoff = 3σ, dt = 0.0002).
@@ -210,7 +211,7 @@ Comparative benchmarks were conducted for 10k integration steps with Lennard-Jon
 April is competitive with both LAMMPS and HOOMD, outperforming HOOMD in this configuration. LAMMPS achieves lower runtimes primarily due to algorithmic differences such as Verlet neighbor lists, which reduce the number of non-interacting particle pairs evaluated per step.
 
 
-#### 2. Zero-Overhead Code Generation
+### 2. Zero-Overhead Code Generation
 
 To evaluate overhead of April's code generation, the DirectSum implementation is benchmarked against equivalent handwritten integration loops:
 
@@ -224,7 +225,7 @@ To evaluate overhead of April's code generation, the DirectSum implementation is
 April does not introduce measurable abstraction overhead compared to handwritten loops. In the SoA case, April slightly outperforms the manual implementation, due to improved aliasing assumptions available to the compiler (usage of the `restrict` compiler hint).
 
 
-#### 3. Force Kernel Dispatch Efficiency
+### 3. Force Kernel Dispatch Efficiency
 
 To assess force kernel dispatch efficiency, the amortized time per force evaluation was measured for April’s DirectSum and LinkedCells implementations. These results are compared against a very simple hardcoded force update loop (which gives an upper bound to the maximum possible performance) and LAMMPS force evaluation performance. 
 
@@ -239,11 +240,11 @@ To assess force kernel dispatch efficiency, the amortized time per force evaluat
 
 April's force evaluation performance is close to the scalar single-core limit and is on par or faster than LAMMPS in terms of amortized force dispatch cost.  
 
+<br>
 
+# Architecture
 
-## Architecture
-
-#### 1. Lifecycle
+### 1. Lifecycle
 
 
 The following diagram shows the typical flow of a program using April:
@@ -293,7 +294,7 @@ Since April primarily relies on static composition, all component types (e.g. wh
 
 
 
-#### 2. Design
+### 2. Design
 
 April has three architectural goals which dictate its design: 
 1. **Easy to use**: clean & expressive API, clear setup path, good discoverability
@@ -301,35 +302,28 @@ April has three architectural goals which dictate its design:
 3. **Maximum Performance**: Abstraction layers must not introduce overhead
 
 Modern C++ (templates, concepts, `if constexpr`, `deduce this`, CRTP, CTAD) makes these goals compatible with one another by making all code paths visible to the compiler while keeping the user-facing API clean.
-
 These goals lead to the following design decisions:
+<br>
 
-**Declarative API with an Explicit Build Step**
+#### **Declarative API with an Explicit Build Step**
+User-facing objects are either *declarative* (like `Particle` & containers) and hold no executable simulation state or *functional* (e.g. forces and boundaries). Functional objects do not prescribe or expose mutable state through their interface contract; any state they carry is user-defined and opaque to the system.  
+During the `build_system` step, declarative objects are materialized into internal representations. Functional components are integrated as callable behavior.   
+This design discourages API misuse and establishes a clear, canonical setup path. The declarative style also makes simulations easier to write, reason about, and review.  
+<br>
 
-User-facing objects are either *declarative* (like `Particle` & containers) and hold no executable simulation state or *functional* (e.g. forces and boundaries). Functional objects do not prescribe or expose mutable state through their interface contract; any state they carry is user-defined and opaque to the system.
-
-During the `build_system` step, declarative objects are materialized into internal representations. Functional components are integrated as callable behavior. 
-
-This design discourages API misuse and establishes a clear, canonical setup path. The declarative style also makes simulations easier to write, reason about, and review.
-
-
-**Static composition over runtime polymorphism and type erasure**
-Virtual dispatch introduces indirection (vtable lookups) and prevents inlining which is detrimental in hot paths. 
-
-April therefore uses static composition via `deduce this`, CRTP and traits to eliminate virtual calls and make all code paths visible to the compiler.
-
+#### **Static composition over runtime polymorphism and type erasure**
+Virtual dispatch introduces indirection (vtable lookups) and prevents inlining which is detrimental in hot paths.   
+April therefore uses static composition via `deduce this`, CRTP and traits to eliminate virtual calls and make all code paths visible to the compiler.  
 Where runtime selection is unavoidable (e.g. multiple force types), `std::variant` (generates a static jump table) and `std::visit` are used. Dispatch points are hoisted outside of inner loops to amortize lookup costs. 
+This approach increases compile times due to extensive template instantiation. This is an intentional tradeoff for increased runtime performance.   
+<br>
 
-This approach increases compile times due to extensive template instantiation. This is an intentional tradeoff for increased runtime performance. 
-
-
-**Extensibility via concepts and inheritance**
-April's extensibility model is based on static, inheritance-based interfaces. Interface base classes expose extension points via `deduce this` methods, which either call the corresponding subclass implementation or - in some cases where implementation is optional - fall back to a default implementation. Corresponding concepts check for inheritance and ensure the required interface is satisfied.
-
-User-defined components are compiled into the same execution paths as built-in ones i.e., there is no architectural difference between built-in and user components. 
+#### **Extensibility via concepts and inheritance**
+April's extensibility model is based on static, inheritance-based interfaces. Interface base classes expose extension points via `deduce this` methods, which either call the corresponding subclass implementation or - in some cases where implementation is optional - fall back to a default implementation. Corresponding concepts check for inheritance and ensure the required interface is satisfied.  
+User-defined components are compiled into the same execution paths as built-in ones i.e., there is no architectural difference between built-in and user components.   
 
 
-#### 3. Extending April (Quick Look)
+### 3. Extending April (Quick Look)
 
 The following demonstrates how to extend April, exemplified by implementing a custom force. Forces implement an `eval` function which produces a force vector given two particles and their relative displacement vector `r`.
 
@@ -350,7 +344,7 @@ struct MyForce : Force{
 };
 ```
 
-## License
+# License
 
 April is licensed under **AGPLv3**.
 Small users (individuals, academia, non-profits, and SMEs) are granted an exception via an explicit license exception that **waives the AGPL network-use (Section 13) requirement**, allowing private internal services and APIs.
@@ -361,7 +355,7 @@ See `LICENSE` and `LICENSE-EXCEPTION.md` for details.
 
 
 
-## Roadmap
+# Roadmap
 
 Planned additions (subject to change)
 

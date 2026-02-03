@@ -28,7 +28,6 @@ namespace april::force {
                 "Force must implement eval(env::internal::Particle, env::internal::Particle, const vec3&)"
             );
 
-
             using Derived = std::remove_cvref_t<decltype(self)>;
 
             // check for fields requirements
@@ -60,10 +59,16 @@ namespace april::force {
             static_assert(std::same_as<SelfT, OtherT>,
                 "Force::mix() requires both operands to be of the same type.");
 
-            return self.mix(other);
+            if constexpr (requires{self.mix(other);}) {
+                return self.mix(other);
+            } else {
+                if (!self.equals(other)) {
+                    throw std::invalid_argument("Mixing disabled by default for this force");
+                } else {
+                    return self;
+                }
+            }
         }
-
-
 
         [[nodiscard]] bool has_cutoff() const noexcept{
             return cutoff() < no_cutoff;

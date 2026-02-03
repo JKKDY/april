@@ -20,6 +20,16 @@ endif()
 # project name: April. Language: C++
 project(April LANGUAGES CXX)
 
+include(FetchContent)
+
+# This xsimd and makes it available
+FetchContent_Declare(
+        xsimd
+        GIT_REPOSITORY https://github.com/xtensor-stack/xsimd.git
+        GIT_TAG       14.0.0
+)
+FetchContent_MakeAvailable(xsimd)
+
 
 
 # option to enable test coverage. Set with -DAPRIL_ENABLE_COVERAGE=ON/OFF
@@ -43,7 +53,7 @@ target_sources(April INTERFACE ${APRIL_HEADERS})  # add headers to the target so
 target_include_directories(April INTERFACE
         ${PROJECT_SOURCE_DIR}/include
 )
-
+target_link_libraries(April INTERFACE xsimd)
 target_compile_features(April INTERFACE cxx_std_23) # targets must use C++23
 
 
@@ -90,7 +100,7 @@ function(set_target_build_flags target_name)
             $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang>>:
                 -O3                      # Maximum optimization level
                 -march=native            # Use all CPU instructions available on host
-                -ffast-math              # Allow unsafe floating-point optimizations for speed
+#                -ffast-math              # Allow unsafe floating-point optimizations for speed
                 # -flto                  # Link-time optimization
                 -fomit-frame-pointer     # Omit frame pointer for slightly faster calls
                 -finline-functions       # Enable function inlining where profitable

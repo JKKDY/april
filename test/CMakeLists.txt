@@ -39,6 +39,8 @@ add_executable(test_april
         math/simd_test.cpp
         math/vec3_test.cpp
         math/simd_ref_test.cpp
+        math/vec3_ref_test.cpp
+        math/simd_vec3_ref_tests.cpp
 )
 
 target_include_directories(test_april PRIVATE

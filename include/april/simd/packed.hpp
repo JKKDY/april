@@ -85,6 +85,7 @@ namespace april::simd {
 
         // CONVERSIONS & ASSIGNMENT
 
+        // TODO right now we are just using the default load and store, but later we can template on a bool to aligned/unaligned access
         // Implicit Load
         operator PackedT() const {
             return PackedT::load(ptr);

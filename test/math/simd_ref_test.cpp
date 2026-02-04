@@ -191,3 +191,5 @@ TYPED_TEST(SimdRefTest, Comparisons) {
     auto mask2 = (a > 50.0);
     EXPECT_FALSE(any(mask2));
 }
+
+

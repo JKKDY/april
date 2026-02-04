@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <vector>
 #include <stdexcept>
 
 #include "april/math/vec3.hpp"

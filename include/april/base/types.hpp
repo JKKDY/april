@@ -18,9 +18,9 @@ namespace april {
 	using vec3f = math::Vec3<float, double>; // float vec3
 	using vec3d = math::Vec3<double>; // double vec3
 
-	using packed_vec3 = math::Vec3<simd::Packed<VEC3_TYPE>>;
-	using packed_vec3f = math::Vec3<simd::Packed<float>>;
-	using packed_vec3d = math::Vec3<simd::Packed<double>>;
+	using pvec3 = math::Vec3<simd::Packed<VEC3_TYPE>>;
+	using pvec3f = math::Vec3<simd::Packed<float>>;
+	using pvec3d = math::Vec3<simd::Packed<double>>;
 
 	using int3 = math::Vec3<int32_t>;
 	using uint3 = math::Vec3<uint32_t>;

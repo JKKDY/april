@@ -207,3 +207,4 @@ TYPED_TEST(Vec3Test, ArithmeticMishMash) {
     this->ExpectEq(next_pos.y, 9.9);          // 10 + 0    - 0.1
     this->ExpectEq(next_pos.z, 9.01);         // 10 - 0.99 + 0
 }
+

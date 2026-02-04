@@ -6,6 +6,7 @@
 
 #include "april/base/macros.hpp"
 #include "april/simd/simd_traits.hpp"
+#include "april/simd/packed.hpp"
 #include "april/utility/debug.hpp"
 
 
@@ -33,7 +34,7 @@ namespace april::math {
     template <IsVectorSuitable T, typename Scalar=T>
     struct Vec3;
 
-    template <typename T> requires std::integral<T> || std::floating_point<T>
+    template <typename T>
     struct Vec3Proxy;
 
     // needed for ADL to work
@@ -352,7 +353,7 @@ namespace april::math {
     // ----------
     // VEC3 PROXY
     // ----------
-    template <typename T> requires std::integral<T> || std::floating_point<T>
+    template <typename T>
     struct Vec3Proxy : Vec3Ops<T, double> {
         T& AP_RESTRICT x;
         T& AP_RESTRICT y;
@@ -385,6 +386,52 @@ namespace april::math {
 
         // implicit conversion to Value
         operator Vec3<T>() const { return Vec3<T>(x, y, z); }
+    };
+
+    // specialization for packed types
+    template <simd::IsSimdType T>
+    struct Vec3Proxy<T> : Vec3Ops<T, T> {
+        using Ref = simd::PackedRef<T>;
+        using Scalar = T::value_type;
+
+        // Members are "Reference Wrappers", not C++ references
+        Ref x;
+        Ref y;
+        Ref z;
+
+        // Constructor from POINTERS (SoA style)
+        // This is crucial for SIMD iterators!
+        Vec3Proxy(Scalar* ptr_x, Scalar* ptr_y, Scalar* ptr_z)
+            : x(ptr_x), y(ptr_y), z(ptr_z) {}
+
+        // Assignment from Value (Vec3<Packed>)
+        // "p.pos = result_vec;"
+        Vec3Proxy& operator=(const Vec3<T>& rhs) {
+            x = rhs.x; // Calls PackedRef::operator=(Packed) -> Stores to memory
+            y = rhs.y;
+            z = rhs.z;
+            return *this;
+        }
+
+        // Assignment from other Proxy (Copy Memory to Memory)
+        // "p.pos = p.old_pos;"
+        Vec3Proxy& operator=(const Vec3Proxy& rhs) {
+            if (this != &rhs) {
+                x = rhs.x; // Calls PackedRef::operator=(PackedRef)
+                y = rhs.y;
+                z = rhs.z;
+            }
+            return *this;
+        }
+
+        // Implicit conversion to Value
+        operator Vec3<T>() const { return Vec3<T>(x, y, z); }
+
+        // Inherit Math
+        // using Vec3Ops<T, T>::operator+=;
+        // using Vec3Ops<T, T>::operator-=;
+        // using Vec3Ops<T, T>::operator*=;
+        // using Vec3Ops<T, T>::operator/=;
     };
 
 

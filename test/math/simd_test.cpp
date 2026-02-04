@@ -4,8 +4,8 @@
 #include <cmath>
 #include <algorithm>
 
-#include "april/simd/wide_std_simd.hpp"
-#include "april/simd/wide_xsimd.hpp"
+#include "april/simd/backend_std_simd.hpp"
+#include "april/simd/backend_xsimd.hpp"
 #include "april/simd/concepts.hpp"
 
 using BackendTypes = testing::Types<
@@ -28,13 +28,13 @@ public:
 
 TYPED_TEST_SUITE(SimdWideTest, BackendTypes);
 
-// --- 1. Concept Verification ---
+// Concept Verification
 TYPED_TEST(SimdWideTest, SatisfiesSimdConcept) {
     static_assert(april::simd::IsSimdType<typename TestFixture::WideType>,
         "Type does not satisfy IsSimdType concept");
 }
 
-// --- 2. Load / Store / Broadcast ---
+// Load / Store / Broadcast
 TYPED_TEST(SimdWideTest, LoadStoreBroadcast) {
     using Wide = TestFixture::WideType;
     using Scalar = TestFixture::Scalar;
@@ -61,7 +61,7 @@ TYPED_TEST(SimdWideTest, LoadStoreBroadcast) {
     }
 }
 
-// --- 3. Arithmetic Operations ---
+// Check Arithmetic Operations
 TYPED_TEST(SimdWideTest, Arithmetic) {
     using Wide = typename TestFixture::WideType;
     using Scalar = typename TestFixture::Scalar;
@@ -96,7 +96,7 @@ TYPED_TEST(SimdWideTest, Arithmetic) {
     for (auto v : res_compound) EXPECT_DOUBLE_EQ(v, 12.0);
 }
 
-// --- 4. Math Functions (ADL Check) ---
+// Check free Math Functions (ADL Check)
 TYPED_TEST(SimdWideTest, MathFunctions) {
     using Wide = TestFixture::WideType;
     using Scalar = TestFixture::Scalar;
@@ -119,7 +119,7 @@ TYPED_TEST(SimdWideTest, MathFunctions) {
     }
 }
 
-// --- 5. Rotation ---
+// Rotation
 TYPED_TEST(SimdWideTest, Rotation) {
     using Wide = TestFixture::WideType;
     using Scalar = TestFixture::Scalar;
@@ -143,10 +143,10 @@ TYPED_TEST(SimdWideTest, Rotation) {
     }
 }
 
-// --- 6. Gather (Indirect Load) ---
+// Check Gather (Indirect Load)
 TYPED_TEST(SimdWideTest, Gather) {
-    using Wide = typename TestFixture::WideType;
-    using Scalar = typename TestFixture::Scalar;
+    using Wide = TestFixture::WideType;
+    using Scalar = TestFixture::Scalar;
     size_t N = TestFixture::Size;
 
     // Source memory: [100, 101, 102, ... 120]

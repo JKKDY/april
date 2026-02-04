@@ -37,6 +37,7 @@ add_executable(test_april
         forces/forces_test.cpp
         math/range_test.cpp
         math/simd_test.cpp
+        math/vec3_test.cpp
 )
 
 target_include_directories(test_april PRIVATE

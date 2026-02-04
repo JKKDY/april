@@ -5,18 +5,20 @@
 #include <concepts>
 
 #include "april/base/macros.hpp"
+#include "april/simd/concepts.hpp"
 #include "april/utility/debug.hpp"
 
 
 namespace april::math {
 
 
-    template <typename T> requires std::integral<T> || std::floating_point<T>
-    struct Vec3;
 
-    template <typename T> requires std::integral<T> || std::floating_point<T>
-    struct Vec3Proxy;
+    // Concepts
+    template <typename T>
+    concept IsScalar =  std::floating_point<T> || std::integral<T>;
 
+    template<typename T>
+    concept IsVectorSuitable = IsScalar<T> || april::simd::IsSimdType<T>;
 
     template <typename V>
     concept IsVectorLike = requires(V v) {
@@ -25,12 +27,24 @@ namespace april::math {
         { v.z };
     };
 
-    template <typename S, typename T>
-    concept IsScalar = std::convertible_to<S, T>; // Or std::arithmetic<S>
 
 
-    template <typename T, typename Dist = double>
-    requires (std::integral<std::remove_cvref_t<T>> || std::floating_point<std::remove_cvref_t<T>>)
+    // Forward Declarations
+    template <IsVectorSuitable T, typename Scalar=T>
+    struct Vec3;
+
+    template <typename T> requires std::integral<T> || std::floating_point<T>
+    struct Vec3Proxy;
+
+    // needed for ADL to work
+    template<IsScalar T>
+    AP_FORCE_INLINE T rsqrt(T val) {
+        return T(1) / std::sqrt(val);
+    }
+
+
+    // Ops Mixin
+    template <IsVectorSuitable T, typename Scalar>
     struct Vec3Ops {
         using type = T;
 
@@ -103,9 +117,9 @@ namespace april::math {
         }
 
         // Friend function for scalar multiplication with the scalar on the left
-        template <typename Scalar>
-        requires std::convertible_to<Scalar, T>
-        friend Vec3<T> operator*(Scalar scalar, const auto& rhs) noexcept {
+        template <typename S>
+        requires std::convertible_to<S, T>
+        friend Vec3<T> operator*(S scalar, const auto& rhs) noexcept {
             return rhs * static_cast<T>(scalar);
         }
 
@@ -148,19 +162,20 @@ namespace april::math {
                 self.z * static_cast<T>(rhs.z);
         }
 
-        [[nodiscard]] Dist norm_squared(this const auto& self) noexcept {
-            return self.x * self.x + self.y * self.y + self.z * self.z;
+        [[nodiscard]] Scalar norm_squared(this const auto& self) noexcept {
+            return self.dot(self);
         }
 
-        [[nodiscard]] Dist norm(this const auto& self) noexcept {
-            return std::sqrt(self.norm_squared());
+        [[nodiscard]] Scalar norm(this const auto& self) noexcept {
+            using std::sqrt;
+            return sqrt(self.norm_squared());
         }
 
-        [[nodiscard]] Dist inv_norm(this const auto& self) noexcept {
-            return 1 / std::sqrt(self.norm_squared()); // compiler may optimize with fast inverse square root
+        [[nodiscard]] Scalar inv_norm(this const auto& self) noexcept {
+            return rsqrt(self.norm_squared()); // compiler may optimize with fast inverse square root
         }
 
-        [[nodiscard]] Dist inv_norm_sq(this const auto& self) noexcept {
+        [[nodiscard]] Scalar inv_norm_sq(this const auto& self) noexcept {
             return 1 / self.norm_squared(); // compiler may optimize with fast inverse square root
         }
 
@@ -251,8 +266,8 @@ namespace april::math {
 
 
 
-    template <typename T> requires std::integral<T> || std::floating_point<T>
-    struct Vec3 : Vec3Ops<T, double> {
+    template <IsVectorSuitable T, typename Scalar>
+    struct Vec3 : Vec3Ops<T, Scalar> {
         T x, y, z;
 
         Vec3() : x(0), y(0), z(0) {}
@@ -282,17 +297,17 @@ namespace april::math {
 
         template <typename U>
         requires std::convertible_to<const U*, T*>
-        Vec3Ptr(const Vec3<U>* other)
+        Vec3Ptr(const Vec3<U>* AP_RESTRICT other)
            : x(&other->x), y(&other->y), z(&other->z) {
             AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
-        Vec3Ptr(T& x_ref, T& y_ref, T& z_ref)
+        Vec3Ptr(T& AP_RESTRICT x_ref, T& AP_RESTRICT y_ref, T& AP_RESTRICT z_ref)
            : x(&x_ref), y(&y_ref), z(&z_ref) {
             AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
-        Vec3Ptr(T* x_ptr, T* y_ptr, T* z_ptr)
+        Vec3Ptr(T* AP_RESTRICT x_ptr, T* AP_RESTRICT y_ptr, T* AP_RESTRICT z_ptr)
             : x(x_ptr), y(y_ptr), z(z_ptr) {
             AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
@@ -313,9 +328,6 @@ namespace april::math {
             return *this;
         }
 
-        // Vec3Ptr(T* x_ptr, T* y_ptr, T* z_ptr)
-        //   : x(x_ptr), y(y_ptr), z(z_ptr) {}
-
         Vec3Proxy<T> operator*() const {
             return Vec3Proxy<T>(*x, *y, *z);
         }
@@ -323,7 +335,7 @@ namespace april::math {
 
 
     template <typename T> requires std::integral<T> || std::floating_point<T>
-    struct Vec3Proxy : Vec3Ops<T> {
+    struct Vec3Proxy : Vec3Ops<T, double> {
         T& AP_RESTRICT x;
         T& AP_RESTRICT y;
         T& AP_RESTRICT z;

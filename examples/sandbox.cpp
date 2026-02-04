@@ -5,8 +5,8 @@
 #include <cmath>
 
 // Assuming you saved the backend implementation here
-#include <april/simd/wide_xsimd.hpp>
-#include <april/simd/wide_std_simd.hpp>
+#include <april/simd/backend_xsimd.hpp>
+#include <april/simd/backend_std_simd.hpp>
 #include <april/simd/concepts.hpp>
 
 

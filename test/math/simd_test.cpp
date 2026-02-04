@@ -9,10 +9,10 @@
 #include "april/simd/simd_traits.hpp"
 
 using BackendTypes = testing::Types<
-    april::simd::internal::xsimd::Wide<double>,
-    april::simd::internal::std_simd::Wide<double>,
-    april::simd::internal::xsimd::Wide<float>,
-    april::simd::internal::std_simd::Wide<float>
+    april::simd::internal::xsimd::Packed<double>,
+    april::simd::internal::std_simd::Packed<double>,
+    april::simd::internal::xsimd::Packed<float>,
+    april::simd::internal::std_simd::Packed<float>
 >;
 
 

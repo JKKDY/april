@@ -11,7 +11,7 @@
 
 
 using namespace april::simd;
-using WideD = internal::xsimd::Wide<float>;
+using WideD = internal::xsimd::Packed<float>;
 
 AP_SIMD_IMPORT_WIDE_MATH(april::simd::internal::xsimd)
 

@@ -9,11 +9,11 @@ using namespace april;
 
 // We test:
 // - double
-// - Wide<double> (SIMD physics)
+// - Packed<double> (SIMD physics)
 using Vec3Types = testing::Types<
     double, 
-    simd::internal::xsimd::Wide<double>,
-    simd::internal::std_simd::Wide<double>
+    simd::internal::xsimd::Packed<double>,
+    simd::internal::std_simd::Packed<double>
 >;
 
 template <typename T>
@@ -21,7 +21,7 @@ class Vec3Test : public testing::Test {
 public:
     // Helper to abstract the "Verification" step.
     // If T is double, we check equality directly.
-    // If T is Wide, we check all lanes.
+    // If T is Packed, we check all lanes.
     void ExpectEq(const T& actual, double expected_val, double tolerance = 1e-15) {
         if constexpr (std::is_same_v<T, double>) {
             EXPECT_DOUBLE_EQ(actual, expected_val);
@@ -36,7 +36,7 @@ public:
     }
 
     // Helper to construct a value
-    // If T is Wide, it broadcasts 'val'.
+    // If T is Packed, it broadcasts 'val'.
     T Val(double val) { return T(val); }
 };
 
@@ -139,10 +139,10 @@ TYPED_TEST(Vec3Test, CompoundAssignment) {
     this->ExpectEq(v.x, 22.0);
 }
 
-// Mixed Vector Arithmetic (Vec3<Wide> vs Vec3<double>)
+// Mixed Vector Arithmetic (Vec3<Packed> vs Vec3<double>)
 TYPED_TEST(Vec3Test, MixedVectorArithmetic) {
-    using T = TypeParam;                 // The Testing Type (likely Wide<double>)
-    using Vec3T = april::math::Vec3<T>;  // The Target Vector (Vec3<Wide>)
+    using T = TypeParam;                 // The Testing Type (likely Packed<double>)
+    using Vec3T = april::math::Vec3<T>;  // The Target Vector (Vec3<Packed>)
     using Vec3S = april::math::Vec3<double>; // The Source Scalar Vector
 
     // Setup
@@ -150,30 +150,30 @@ TYPED_TEST(Vec3Test, MixedVectorArithmetic) {
     Vec3T wide_vec(10.0, 20.0, 30.0); // "Particle" vector
 
     // Construction from Scalar Vector (Broadcast)
-    // "Vec3<Wide> w = v_scalar;"
+    // "Vec3<Packed> w = v_scalar;"
     Vec3T converted(scalar_vec);
     this->ExpectEq(converted.x, 1.0);
     this->ExpectEq(converted.y, 2.0);
     this->ExpectEq(converted.z, 3.0);
 
-    // Addition (Wide + ScalarVec)
+    // Addition (Packed + ScalarVec)
     Vec3T sum = wide_vec + scalar_vec;
     this->ExpectEq(sum.x, 11.0); // 10 + 1
     this->ExpectEq(sum.y, 22.0); // 20 + 2
     this->ExpectEq(sum.z, 33.0); // 30 + 3
 
-    // Subtraction (Wide - ScalarVec)
+    // Subtraction (Packed - ScalarVec)
     Vec3T diff = wide_vec - scalar_vec;
     this->ExpectEq(diff.x, 9.0);
     this->ExpectEq(diff.y, 18.0);
 
-    // Hadamard Product (Wide * ScalarVec)
+    // Hadamard Product (Packed * ScalarVec)
     Vec3T prod = wide_vec * scalar_vec;
     this->ExpectEq(prod.x, 10.0); // 10 * 1
     this->ExpectEq(prod.y, 40.0); // 20 * 2
     this->ExpectEq(prod.z, 90.0); // 30 * 3
 
-    // Compound Assignment (Wide += ScalarVec)
+    // Compound Assignment (Packed += ScalarVec)
     wide_vec += scalar_vec;
     this->ExpectEq(wide_vec.x, 11.0);
     this->ExpectEq(wide_vec.y, 22.0);
@@ -196,10 +196,10 @@ TYPED_TEST(Vec3Test, ArithmeticMishMash) {
     // next_pos = pos + (pos - old_pos) * damping + gravity * (dt * dt)
 
     // Breakdown:
-    // 1. (pos - old_pos): Vec3<Wide> result -> {1, 0, -1}
-    // 2. * damping:       Vec3<Wide> result -> {0.99, 0, -0.99}
+    // 1. (pos - old_pos): Vec3<Packed> result -> {1, 0, -1}
+    // 2. * damping:       Vec3<Packed> result -> {0.99, 0, -0.99}
     // 3. gravity * dt*dt: Vec3<Scalar> * double -> Vec3<Scalar> {0, -0.1, 0}
-    // 4. Vec3<Wide> + Vec3<Scalar>: Broadcast add
+    // 4. Vec3<Packed> + Vec3<Scalar>: Broadcast add
 
     Vec3T next_pos = pos + (pos - old_pos) * damping + gravity * (dt * dt);
 

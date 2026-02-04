@@ -4,20 +4,20 @@
 
 #include "april/simd/backend_std_simd.hpp"
 #include "april/simd/backend_xsimd.hpp"
-#include "april/simd/wide.hpp"
+#include "april/simd/packed.hpp"
 
 // Define the Wide types to test
 using BackendTypes = testing::Types<
-    april::simd::internal::xsimd::Wide<double>,
-    april::simd::internal::std_simd::Wide<double>
+    april::simd::internal::xsimd::Packed<double>,
+    april::simd::internal::std_simd::Packed<double>
 >;
 
 template <typename T>
 class SimdRefTest : public ::testing::Test {
 public:
-    using Wide = T;
+    using Packed = T;
     using Scalar = T::value_type;
-    using Ref = april::simd::SimdRef<T>; // Ensure this matches your alias
+    using Ref = april::simd::PackedRef<T>; // Ensure this matches your alias
 
     // Backing memory must be large enough for at least one SIMD vector
     std::vector<Scalar> buffer;
@@ -25,15 +25,15 @@ public:
     void SetUp() override {
         // Resize to safe width (e.g., 8 doubles is enough for AVX-512)
         // We ensure we have enough space for the widest supported register.
-        size_t safe_size = std::max<size_t>(Wide::size(), 16);
+        size_t safe_size = std::max<size_t>(Packed::size(), 16);
         buffer.resize(safe_size);
 
         // Initialize with zeros or a pattern
         std::fill(buffer.begin(), buffer.end(), 0.0);
     }
 
-    // Helper to verify all lanes in a Wide match a value
-    void ExpectAll(const Wide& w, Scalar expected) {
+    // Helper to verify all lanes in a packed match a value
+    void ExpectAll(const Packed& w, Scalar expected) {
         auto arr = w.to_array();
         for (auto v : arr) {
             EXPECT_DOUBLE_EQ(v, expected);
@@ -42,7 +42,7 @@ public:
 
     // Helper to verify backing memory was updated correctly
     void ExpectMemory(Scalar expected) {
-        for (size_t i = 0; i < Wide::size(); ++i) {
+        for (size_t i = 0; i < Packed::size(); ++i) {
             EXPECT_DOUBLE_EQ(buffer[i], expected)
                 << "Memory mismatch at index " << i;
         }
@@ -53,7 +53,7 @@ TYPED_TEST_SUITE(SimdRefTest, BackendTypes);
 
 // --- 1. Load, Store, Broadcast ---
 TYPED_TEST(SimdRefTest, LoadStoreInteraction) {
-    using Wide = TestFixture::Wide;
+    using Packed = TestFixture::Packed;
     using Ref = TestFixture::Ref;
 
     // 1. Setup Memory: [10, 10, 10, 10...]
@@ -63,7 +63,7 @@ TYPED_TEST(SimdRefTest, LoadStoreInteraction) {
     Ref ref(this->buffer.data());
 
     // 2. Read (Implicit Load)
-    Wide w = ref;
+    Packed w = ref;
     this->ExpectAll(w, 10.0);
 
     // 3. Write Scalar (Broadcast & Store)
@@ -72,51 +72,51 @@ TYPED_TEST(SimdRefTest, LoadStoreInteraction) {
     this->ExpectMemory(20.0);
 
     // 4. Write Wide (Store)
-    Wide w2(30.0);
+    Packed w2(30.0);
     ref = w2;
     this->ExpectMemory(30.0);
 }
 
 // --- 2. Mixed Arithmetic (Ref, Wide, Scalar) ---
 TYPED_TEST(SimdRefTest, MixedArithmetic) {
-    using Wide = TestFixture::Wide;
+    using Packed = TestFixture::Packed;
     using Scalar = TestFixture::Scalar;
     using Ref = TestFixture::Ref;
 
     // We need TWO independent memory blocks for this test
-    std::vector<Scalar> buf_a(Wide::size(), 10.0);
-    std::vector<Scalar> buf_b(Wide::size(), 2.0);
+    std::vector<Scalar> buf_a(Packed::size(), 10.0);
+    std::vector<Scalar> buf_b(Packed::size(), 2.0);
 
     Ref a(buf_a.data());
     Ref b(buf_b.data());
 
-    Wide w(5.0);
+    Packed w(5.0);
     Scalar s = 3.0;
 
     // 1. Ref + Ref (10 + 2)
-    Wide res1 = a + b;
+    Packed res1 = a + b;
     this->ExpectAll(res1, 12.0);
 
     // 2. Ref + Scalar (10 + 3)
-    Wide res2 = a + s;
+    Packed res2 = a + s;
     this->ExpectAll(res2, 13.0);
 
     // 3. Scalar + Ref (3 + 10)
-    Wide res3 = s + a;
+    Packed res3 = s + a;
     this->ExpectAll(res3, 13.0);
 
     // 4. Ref + Wide (10 + 5)
-    Wide res4 = a + w;
+    Packed res4 = a + w;
     this->ExpectAll(res4, 15.0);
 
     // 5. Unary Minus (-10)
-    Wide res5 = -a;
+    Packed res5 = -a;
     this->ExpectAll(res5, -10.0);
 }
 
 // --- 3. Compound Assignments ---
 TYPED_TEST(SimdRefTest, CompoundAssignments) {
-    using Wide = TestFixture::Wide;
+    using Packed = TestFixture::Packed;
     using Scalar = TestFixture::Scalar;
     using Ref = TestFixture::Ref;
 
@@ -129,11 +129,11 @@ TYPED_TEST(SimdRefTest, CompoundAssignments) {
     this->ExpectMemory(12.0);
 
     // 2. *= Wide (12 * 2 = 24)
-    r *= Wide(2.0);
+    r *= Packed(2.0);
     this->ExpectMemory(24.0);
 
     // 3. -= Ref (Requires second buffer)
-    std::vector<Scalar> buf_other(Wide::size(), 4.0);
+    std::vector<Scalar> buf_other(Packed::size(), 4.0);
     Ref other(buf_other.data());
 
     r -= other; // 24 - 4 = 20
@@ -142,7 +142,7 @@ TYPED_TEST(SimdRefTest, CompoundAssignments) {
 
 // --- 4. Math Functions (ADL & Implicit Conversion) ---
 TYPED_TEST(SimdRefTest, MathFunctions) {
-    using Wide = TestFixture::Wide;
+    using Packed = TestFixture::Packed;
     using Ref = TestFixture::Ref;
 
     // Setup: [25, 25...]
@@ -150,28 +150,28 @@ TYPED_TEST(SimdRefTest, MathFunctions) {
     Ref r(this->buffer.data());
 
     // sqrt(Ref) -> calls friend sqrt(SimdRef) -> returns Wide
-    Wide root = sqrt(r);
+    Packed root = sqrt(r);
     this->ExpectAll(root, 5.0);
 
     // min(Ref, Scalar) interaction
     // Relies on Ref converting to Wide, and implicit Wide(Scalar) ctor
-    Wide m = min(r, 5.0); // min(25, 5) -> 5
+    Packed m = min(r, 5.0); // min(25, 5) -> 5
     this->ExpectAll(m, 5.0);
 
-    Wide m2 = max(r, 5.0); // max(25, 5) -> 25
+    Packed m2 = max(r, 5.0); // max(25, 5) -> 25
     this->ExpectAll(m2, 25.0);
 }
 
 // --- 5. Comparisons (The Mask Check) ---
 TYPED_TEST(SimdRefTest, Comparisons) {
-    using Wide = TestFixture::Wide;
+    using Packed = TestFixture::Packed;
     using Scalar = TestFixture::Scalar;
     using Ref = TestFixture::Ref;
 
     // Buffer A: [10, 10...]
-    std::vector<Scalar> buf_a(Wide::size(), 10.0);
+    std::vector<Scalar> buf_a(Packed::size(), 10.0);
     // Buffer B: [20, 20...]
-    std::vector<Scalar> buf_b(Wide::size(), 20.0);
+    std::vector<Scalar> buf_b(Packed::size(), 20.0);
 
     Ref a(buf_a.data());
     Ref b(buf_b.data());

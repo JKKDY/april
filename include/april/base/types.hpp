@@ -9,7 +9,7 @@
 #endif
 
 #include "april/math/vec3.hpp"
-#include "april/simd/wide.hpp"
+#include "april/simd/packed.hpp"
 
 
 namespace april {
@@ -18,14 +18,9 @@ namespace april {
 	using vec3f = math::Vec3<float, double>; // float vec3
 	using vec3d = math::Vec3<double>; // double vec3
 
-	using wide = simd::Wide<VEC3_TYPE>;
-	using widef = simd::Wide<float>;
-	using wided = simd::Wide<double>;
-
-	using wide_vec3 = math::Vec3<wide>;
-	using wide_vec3f = math::Vec3<widef>;
-	using wide_vec3d = math::Vec3<wided>;
-
+	using packed_vec3 = math::Vec3<simd::Packed<VEC3_TYPE>>;
+	using packed_vec3f = math::Vec3<simd::Packed<float>>;
+	using packed_vec3d = math::Vec3<simd::Packed<double>>;
 
 	using int3 = math::Vec3<int32_t>;
 	using uint3 = math::Vec3<uint32_t>;

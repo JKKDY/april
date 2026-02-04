@@ -52,7 +52,7 @@ namespace april::simd::internal::std_simd {
     // Width == 0: Use Native ABI (Best fit for hardware, e.g. 4 doubles on AVX2)
     // Width > 0:  Use Fixed Size ABI (Compiler manages register spanning, e.g. 16 doubles)
     template<typename T, size_t Width = 0>
-    struct Wide {
+    struct Packed {
         using value_type = T;
 
         using native_type = std::conditional_t<
@@ -63,25 +63,25 @@ namespace april::simd::internal::std_simd {
 
         static constexpr size_t size() { return native_type::size(); }
 
-        Wide() = default;
-        Wide(T scalar) : data(scalar) {}
-        Wide(native_type d) : data(d) {}
+        Packed() = default;
+        Packed(T scalar) : data(scalar) {}
+        Packed(native_type d) : data(d) {}
 
 
         // DATA LOADS
-        static Wide load(const T* ptr) {
+        static Packed load(const T* ptr) {
             native_type tmp;
             tmp.copy_from(ptr, stdx::element_aligned);
             return { tmp };
         }
 
-        static Wide load_aligned(const T* ptr) {
+        static Packed load_aligned(const T* ptr) {
             native_type tmp;
             tmp.copy_from(ptr, stdx::vector_aligned);
             return { tmp };
         }
 
-        static Wide load_unaligned(const T* ptr) {
+        static Packed load_unaligned(const T* ptr) {
             native_type tmp;
             tmp.copy_from(ptr, stdx::element_aligned);
             return { tmp };
@@ -89,11 +89,11 @@ namespace april::simd::internal::std_simd {
         // Implemented via Generator Constructor:
         // "Construct a SIMD vector where the i-th element is base[offsets[i]]"
         template<typename IndexType>
-        static Wide gather(const T* base_addr, const IndexType& offsets) {
+        static Packed gather(const T* base_addr, const IndexType& offsets) {
             return { native_type([&](size_t i) { return base_addr[offsets.data[i]]; }) };
         }
 
-        static Wide gather(const T* const* pointers) {
+        static Packed gather(const T* const* pointers) {
             return { native_type([&](size_t i) { return *pointers[i]; }) };
         }
 
@@ -123,20 +123,20 @@ namespace april::simd::internal::std_simd {
         // PERMUTES AND SHUFFLES
         // Uses generator + constexpr array to map compile-time indices to runtime generator access
         template<size_t... Indices>
-        [[nodiscard]] Wide permute() const {
+        [[nodiscard]] Packed permute() const {
             return { native_type([&](size_t i) {
                 constexpr std::array<size_t, sizeof...(Indices)> idxs = {Indices...};
                 return data[idxs[i]];
             }) };
         }
         template<unsigned K = 1>
-        [[nodiscard]] Wide rotate_left() const {
+        [[nodiscard]] Packed rotate_left() const {
             return { native_type([&](size_t i) {
                 return data[(i + K) % size()];
             }) };
         }
         template<unsigned K = 1>
-        [[nodiscard]] Wide rotate_right() const {
+        [[nodiscard]] Packed rotate_right() const {
             return { native_type([&](size_t i) {
                return data[(i + size() - (K % size())) % size()];
             }) };
@@ -144,42 +144,42 @@ namespace april::simd::internal::std_simd {
 
 
         // ARITHMETIC
-        Wide operator+() {return *this;}
-        Wide operator-() {data = -data; return *this;}
-        friend Wide operator+(const Wide& lhs, const Wide& rhs) { return { lhs.data + rhs.data }; }
-        friend Wide operator-(const Wide& lhs, const Wide& rhs) { return { lhs.data - rhs.data }; }
-        friend Wide operator*(const Wide& lhs, const Wide& rhs) { return { lhs.data * rhs.data }; }
-        friend Wide operator/(const Wide& lhs, const Wide& rhs) { return { lhs.data / rhs.data }; }
+        Packed operator+() {return *this;}
+        Packed operator-() {data = -data; return *this;}
+        friend Packed operator+(const Packed& lhs, const Packed& rhs) { return { lhs.data + rhs.data }; }
+        friend Packed operator-(const Packed& lhs, const Packed& rhs) { return { lhs.data - rhs.data }; }
+        friend Packed operator*(const Packed& lhs, const Packed& rhs) { return { lhs.data * rhs.data }; }
+        friend Packed operator/(const Packed& lhs, const Packed& rhs) { return { lhs.data / rhs.data }; }
 
-        Wide& operator+=(const Wide& rhs) { data += rhs.data; return *this; }
-        Wide& operator-=(const Wide& rhs) { data -= rhs.data; return *this; }
-        Wide& operator*=(const Wide& rhs) { data *= rhs.data; return *this; }
-        Wide& operator/=(const Wide& rhs) { data /= rhs.data; return *this; }
+        Packed& operator+=(const Packed& rhs) { data += rhs.data; return *this; }
+        Packed& operator-=(const Packed& rhs) { data -= rhs.data; return *this; }
+        Packed& operator*=(const Packed& rhs) { data *= rhs.data; return *this; }
+        Packed& operator/=(const Packed& rhs) { data /= rhs.data; return *this; }
 
         // COMPARISONS
-        friend Mask<T> operator==(const Wide& lhs, const Wide& rhs) { return { lhs.data == rhs.data }; }
-        friend Mask<T> operator!=(const Wide& lhs, const Wide& rhs) { return { lhs.data != rhs.data }; }
-        friend Mask<T> operator<(const Wide& lhs, const Wide& rhs)  { return { lhs.data < rhs.data }; }
-        friend Mask<T> operator<=(const Wide& lhs, const Wide& rhs) { return { lhs.data <= rhs.data }; }
-        friend Mask<T> operator>(const Wide& lhs, const Wide& rhs)  { return { lhs.data > rhs.data }; }
-        friend Mask<T> operator>=(const Wide& lhs, const Wide& rhs) { return { lhs.data >= rhs.data }; }
+        friend Mask<T> operator==(const Packed& lhs, const Packed& rhs) { return { lhs.data == rhs.data }; }
+        friend Mask<T> operator!=(const Packed& lhs, const Packed& rhs) { return { lhs.data != rhs.data }; }
+        friend Mask<T> operator<(const Packed& lhs, const Packed& rhs)  { return { lhs.data < rhs.data }; }
+        friend Mask<T> operator<=(const Packed& lhs, const Packed& rhs) { return { lhs.data <= rhs.data }; }
+        friend Mask<T> operator>(const Packed& lhs, const Packed& rhs)  { return { lhs.data > rhs.data }; }
+        friend Mask<T> operator>=(const Packed& lhs, const Packed& rhs) { return { lhs.data >= rhs.data }; }
 
 
         // MATH FUNCTIONS
-        friend Wide sqrt(const Wide& x) {
+        friend Packed sqrt(const Packed& x) {
             return stdx::sqrt(x.data);
         }
-        friend Wide rsqrt(const Wide& x) {
+        friend Packed rsqrt(const Packed& x) {
             return static_cast<value_type>(1.0) / sqrt(x.data);
         }
-        friend Wide abs(const Wide& x) {
+        friend Packed abs(const Packed& x) {
             return stdx::abs(x.data);
         }
 
         // Min/Max/FMA
-        friend Wide min(const Wide& a, const Wide& b) { return stdx::min(a.data, b.data) ; }
-        friend Wide max(const Wide& a, const Wide& b) { return stdx::max(a.data, b.data) ; }
-        friend Wide fma(const Wide& a, const Wide& b, const Wide& c) { return stdx::fma(a.data, b.data, c.data) ; }
+        friend Packed min(const Packed& a, const Packed& b) { return stdx::min(a.data, b.data) ; }
+        friend Packed max(const Packed& a, const Packed& b) { return stdx::max(a.data, b.data) ; }
+        friend Packed fma(const Packed& a, const Packed& b, const Packed& c) { return stdx::fma(a.data, b.data, c.data) ; }
 
 
         // DEBUGGING
@@ -208,36 +208,36 @@ namespace april::simd::internal::std_simd {
 
 
 
-    template<typename T> Wide<T> sqrt(const Wide<T>& x) {
+    template<typename T> Packed<T> sqrt(const Packed<T>& x) {
         using stdx::sqrt;
         return { sqrt(x.data) };
     }
 
-    template<typename T> Wide<T> rsqrt(const Wide<T>& x) {
+    template<typename T> Packed<T> rsqrt(const Packed<T>& x) {
         // std::simd has no direct rsqrt, fallback to 1.0 / sqrt
         using stdx::sqrt;
-        return { Wide<T>(1.0) / sqrt(x.data) };
+        return { Packed<T>(1.0) / sqrt(x.data) };
     }
 
-    template<typename T> Wide<T> abs(const Wide<T>& x) {
+    template<typename T> Packed<T> abs(const Packed<T>& x) {
         using stdx::abs;
         return { abs(x.data) };
     }
 
-    template<typename T> Wide<T> min(const Wide<T>& a, const Wide<T>& b) {
+    template<typename T> Packed<T> min(const Packed<T>& a, const Packed<T>& b) {
         using stdx::min;
         return { min(a.data, b.data) };
     }
 
-    template<typename T> Wide<T> max(const Wide<T>& a, const Wide<T>& b) {
+    template<typename T> Packed<T> max(const Packed<T>& a, const Packed<T>& b) {
         using stdx::max;
         return { max(a.data, b.data) };
     }
 
-    template<typename T> Wide<T> fma(const Wide<T>& a, const Wide<T>& b, const Wide<T>& c) {
+    template<typename T> Packed<T> fma(const Packed<T>& a, const Packed<T>& b, const Packed<T>& c) {
         return { std::experimental::fma(a.data, b.data, c.data) };
     }
 
-    static_assert(IsSimdType<Wide<double>>);
+    static_assert(IsSimdType<Packed<double>>);
     static_assert(IsSimdMask<Mask<double>>);
 }

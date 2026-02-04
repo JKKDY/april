@@ -36,6 +36,7 @@ add_executable(test_april
         particle/particle_generators_test.cpp
         forces/forces_test.cpp
         math/range_test.cpp
+        math/simd_test.cpp
 )
 
 target_include_directories(test_april PRIVATE

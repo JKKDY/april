@@ -1,6 +1,7 @@
 #pragma once
 #include <xsimd/xsimd.hpp>
 #include <utility>
+#include <string>
 
 #include "april/simd/concepts.hpp"
 
@@ -18,10 +19,14 @@ namespace april::simd::internal::xsimd {
         operator native_type() const { return data; }
     };
 
-    template<typename T>
+    template<typename T, size_t Width = 0>
     struct Wide {
         using value_type = T;
-        using native_type = ::xsimd::batch<T>;
+        using native_type = std::conditional_t<
+            Width == 0,
+            ::xsimd::batch<T>,
+            ::xsimd::make_sized_batch_t<T, Width>
+        >;
 
         static constexpr size_t size() { return native_type::size; }
 
@@ -108,6 +113,21 @@ namespace april::simd::internal::xsimd {
         template<typename U> friend Wide<U> min(const Wide<U>&, const Wide<U>&);
         template<typename U> friend Wide<U> max(const Wide<U>&, const Wide<U>&);
         template<typename U> friend Wide<U> fma(const Wide<U>&, const Wide<U>&, const Wide<U>&);
+
+        std::string to_string() const {
+            std::stringstream ss;
+            // Create a temporary buffer on the stack
+            alignas(64) T buffer[size()];
+            store(buffer); // Uses the existing store_unaligned internally
+
+            ss << "[";
+            for (size_t i = 0; i < size(); ++i) {
+                ss << buffer[i];
+                if (i < size() - 1) ss << ", ";
+            }
+            ss << "]";
+            return ss.str();
+        }
 
     private:
         template<size_t... Is>

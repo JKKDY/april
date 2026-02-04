@@ -2,11 +2,12 @@
 
 #include <experimental/simd>
 #include <array>
+#include <string>
 
 #include "wide_std_simd.hpp"
 #include "april/simd/concepts.hpp"
 
-namespace april::simd::internal::stdsimd {
+namespace april::simd::internal::std_simd {
 
     // Alias for brevity
     namespace stdx = std::experimental;
@@ -24,10 +25,17 @@ namespace april::simd::internal::stdsimd {
     };
 
 
-    template<typename T>
+    // Width == 0: Use Native ABI (Best fit for hardware, e.g. 4 doubles on AVX2)
+    // Width > 0:  Use Fixed Size ABI (Compiler manages register spanning, e.g. 16 doubles)
+    template<typename T, size_t Width = 0>
     struct Wide {
         using value_type = T;
-        using native_type = stdx::simd<T>;
+
+        using native_type = std::conditional_t<
+            Width == 0,
+            stdx::simd<T>,                                     // Default/Native ABI
+            stdx::simd<T, stdx::simd_abi::fixed_size<Width>>   // Fixed Size ABI
+        >;
 
         static constexpr size_t size() { return native_type::size(); }
 
@@ -53,7 +61,6 @@ namespace april::simd::internal::stdsimd {
             tmp.copy_from(ptr, stdx::element_aligned);
             return { tmp };
         }
-
 
 
         // Implemented via Generator Constructor:
@@ -141,6 +148,20 @@ namespace april::simd::internal::stdsimd {
         template<typename U> friend Wide<U> max(const Wide<U>&, const Wide<U>&);
         template<typename U> friend Wide<U> fma(const Wide<U>&, const Wide<U>&, const Wide<U>&);
 
+        std::string to_string() const {
+            std::stringstream ss;
+            // Create a temporary buffer on the stack
+            alignas(64) T buffer[size()];
+            store(buffer); // Uses the existing copy_to internally
+
+            ss << "[";
+            for (size_t i = 0; i < size(); ++i) {
+                ss << buffer[i];
+                if (i < size() - 1) ss << ", ";
+            }
+            ss << "]";
+            return ss.str();
+        }
     private:
         native_type data;
     };
@@ -155,7 +176,7 @@ namespace april::simd::internal::stdsimd {
     template<typename T> Wide<T> rsqrt(const Wide<T>& x) {
         // std::simd has no direct rsqrt, fallback to 1.0 / sqrt
         using stdx::sqrt;
-        return { 1.0 / sqrt(x.data) };
+        return { Wide<T>(1.0) / sqrt(x.data) };
     }
 
     template<typename T> Wide<T> abs(const Wide<T>& x) {

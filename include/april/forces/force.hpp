@@ -4,6 +4,7 @@
 #include <concepts>
 #include <utility>
 
+#include "april/base/traits.hpp"
 #include "april/base/types.hpp"
 #include "april/particle/fields.hpp"
 #include "april/particle/defs.hpp"

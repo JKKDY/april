@@ -6,7 +6,7 @@
 
 #include "april/simd/backend_std_simd.hpp"
 #include "april/simd/backend_xsimd.hpp"
-#include "april/simd/concepts.hpp"
+#include "april/simd/simd_traits.hpp"
 
 using BackendTypes = testing::Types<
     april::simd::internal::xsimd::Wide<double>,
@@ -15,8 +15,6 @@ using BackendTypes = testing::Types<
     april::simd::internal::std_simd::Wide<float>
 >;
 
-AP_SIMD_IMPORT_WIDE_MATH(xsimd)
-AP_SIMD_IMPORT_WIDE_MATH(std_simd)
 
 template <typename T>
 class SimdWideTest : public testing::Test {
@@ -63,8 +61,8 @@ TYPED_TEST(SimdWideTest, LoadStoreBroadcast) {
 
 // Check Arithmetic Operations
 TYPED_TEST(SimdWideTest, Arithmetic) {
-    using Wide = typename TestFixture::WideType;
-    using Scalar = typename TestFixture::Scalar;
+    using Wide = TestFixture::WideType;
+    using Scalar = TestFixture::Scalar;
     size_t N = TestFixture::Size;
 
     Wide a(10.0);
@@ -81,6 +79,125 @@ TYPED_TEST(SimdWideTest, Arithmetic) {
     diff.store(res_diff.data());
     prod.store(res_prod.data());
     quot.store(res_quot.data());
+
+    for (size_t i = 0; i < N; ++i) {
+        EXPECT_DOUBLE_EQ(res_sum[i], 12.0);
+        EXPECT_DOUBLE_EQ(res_diff[i], 8.0);
+        EXPECT_DOUBLE_EQ(res_prod[i], 20.0);
+        EXPECT_DOUBLE_EQ(res_quot[i], 5.0);
+    }
+
+    // Compound Assignment
+    a += b; // a is now 12
+    std::vector<Scalar> res_compound(N);
+    a.store(res_compound.data());
+    for (auto v : res_compound) EXPECT_DOUBLE_EQ(v, 12.0);
+}
+
+// check mixed arithmetic (wide + scalar)
+TYPED_TEST(SimdWideTest, ArithmeticScalarLeftf) {
+    using Wide = TestFixture::WideType;
+    size_t N = TestFixture::Size;
+
+    float a = 10.0;
+    Wide b = 2.0;
+
+    // Basic Ops
+    Wide sum = a + b;
+    Wide diff = a - b;
+    Wide prod = a * b;
+    Wide quot = a / b;
+
+    auto res_sum =  sum.to_array();
+    auto res_diff = diff.to_array();
+    auto res_prod = prod.to_array();
+    auto res_quot = quot.to_array();
+
+    for (size_t i = 0; i < N; ++i) {
+        EXPECT_DOUBLE_EQ(res_sum [i], 12.0);
+        EXPECT_DOUBLE_EQ(res_diff[i], 8.0);
+        EXPECT_DOUBLE_EQ(res_prod[i], 20.0);
+        EXPECT_DOUBLE_EQ(res_quot[i], 5.0);
+    }
+}
+
+TYPED_TEST(SimdWideTest, ArithmeticScalarLeftd) {
+    using Wide = TestFixture::WideType;
+    size_t N = TestFixture::Size;
+
+    double a = 10.0;
+    Wide b = 2.0;
+
+    // Basic Ops
+    Wide sum = a + b;
+    Wide diff = a - b;
+    Wide prod = a * b;
+    Wide quot = a / b;
+
+    auto res_sum =  sum.to_array();
+    auto res_diff = diff.to_array();
+    auto res_prod = prod.to_array();
+    auto res_quot = quot.to_array();
+
+    for (size_t i = 0; i < N; ++i) {
+        EXPECT_DOUBLE_EQ(res_sum [i], 12.0);
+        EXPECT_DOUBLE_EQ(res_diff[i], 8.0);
+        EXPECT_DOUBLE_EQ(res_prod[i], 20.0);
+        EXPECT_DOUBLE_EQ(res_quot[i], 5.0);
+    }
+}
+
+TYPED_TEST(SimdWideTest, ArithmeticScalarRightF) {
+    using Wide = TestFixture::WideType;
+    using Scalar = TestFixture::Scalar;
+    size_t N = TestFixture::Size;
+
+    Wide a = 10.0;
+    float b = 2.0;
+
+    // Basic Ops
+    Wide sum = a + b;
+    Wide diff = a - b;
+    Wide prod = a * b;
+    Wide quot = a / b;
+
+    auto res_sum =  sum.to_array();
+    auto res_diff = diff.to_array();
+    auto res_prod = prod.to_array();
+    auto res_quot = quot.to_array();
+
+    for (size_t i = 0; i < N; ++i) {
+        EXPECT_DOUBLE_EQ(res_sum[i], 12.0);
+        EXPECT_DOUBLE_EQ(res_diff[i], 8.0);
+        EXPECT_DOUBLE_EQ(res_prod[i], 20.0);
+        EXPECT_DOUBLE_EQ(res_quot[i], 5.0);
+    }
+
+    // Compound Assignment
+    a += b; // a is now 12
+    std::vector<Scalar> res_compound(N);
+    a.store(res_compound.data());
+    for (auto v : res_compound) EXPECT_DOUBLE_EQ(v, 12.0);
+}
+
+TYPED_TEST(SimdWideTest, ArithmeticScalarRightD) {
+    using Wide = TestFixture::WideType;
+    using Scalar = TestFixture::Scalar;
+    size_t N = TestFixture::Size;
+
+    Wide a = 10.0;
+    double b = 2.0;
+
+    // Basic Ops
+    Wide sum = a + b;
+    Wide diff = a - b;
+    Wide prod = a * b;
+    Wide quot = a / b;
+
+    auto res_sum =  sum.to_array();
+    auto res_diff = diff.to_array();
+    auto res_prod = prod.to_array();
+    auto res_quot = quot.to_array();
 
     for (size_t i = 0; i < N; ++i) {
         EXPECT_DOUBLE_EQ(res_sum[i], 12.0);

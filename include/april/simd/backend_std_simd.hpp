@@ -3,10 +3,8 @@
 #include <experimental/simd>
 #include <array>
 #include <string>
-#include <array>
 
-#include "backend_std_simd.hpp"
-#include "april/simd/concepts.hpp"
+#include "april/simd/simd_traits.hpp"
 
 namespace april::simd::internal::std_simd {
 
@@ -23,6 +21,31 @@ namespace april::simd::internal::std_simd {
         Mask(bool val) : data(val) {}
 
         operator native_type() const { return data; }
+
+        friend bool all(const Mask& m) {
+            return stdx::all_of(m.data);
+        }
+
+        friend bool any(const Mask& m) {
+            return stdx::any_of(m.data);
+        }
+
+        // Logical Not (!)
+        friend Mask operator!(const Mask& m) {
+            return { !m.data };
+        }
+
+        // Note: std::simd uses && and || for element-wise boolean logic
+        friend Mask operator&&(const Mask& lhs, const Mask& rhs) { return { lhs.data && rhs.data }; }
+        friend Mask operator||(const Mask& lhs, const Mask& rhs) { return { lhs.data || rhs.data }; }
+
+        // Also support bitwise operators just in case
+        friend Mask operator&(const Mask& lhs, const Mask& rhs) { return { lhs.data && rhs.data }; }
+        friend Mask operator|(const Mask& lhs, const Mask& rhs) { return { lhs.data || rhs.data }; }
+
+        // equality
+        friend Mask operator==(const Mask& lhs, const Mask& rhs) { return { lhs.data == rhs.data }; }
+        friend Mask operator!=(const Mask& lhs, const Mask& rhs) { return { lhs.data != rhs.data }; }
     };
 
 
@@ -45,6 +68,7 @@ namespace april::simd::internal::std_simd {
         Wide(native_type d) : data(d) {}
 
 
+        // DATA LOADS
         static Wide load(const T* ptr) {
             native_type tmp;
             tmp.copy_from(ptr, stdx::element_aligned);
@@ -62,8 +86,6 @@ namespace april::simd::internal::std_simd {
             tmp.copy_from(ptr, stdx::element_aligned);
             return { tmp };
         }
-
-
         // Implemented via Generator Constructor:
         // "Construct a SIMD vector where the i-th element is base[offsets[i]]"
         template<typename IndexType>
@@ -76,6 +98,7 @@ namespace april::simd::internal::std_simd {
         }
 
 
+        // DATA STORES
         void store(T* ptr) const {
             data.copy_to(ptr, stdx::element_aligned);
         }
@@ -87,8 +110,6 @@ namespace april::simd::internal::std_simd {
         void store_unaligned(T* ptr) const {
             data.copy_to(ptr, stdx::element_aligned);
         }
-
-
         // std::simd has no direct scatter, so we scalarize the loop.
         // Compilers (GCC/Clang) are very good at auto-vectorizing this pattern.
         template<typename IndexType>
@@ -99,6 +120,32 @@ namespace april::simd::internal::std_simd {
         }
 
 
+        // PERMUTES AND SHUFFLES
+        // Uses generator + constexpr array to map compile-time indices to runtime generator access
+        template<size_t... Indices>
+        [[nodiscard]] Wide permute() const {
+            return { native_type([&](size_t i) {
+                constexpr std::array<size_t, sizeof...(Indices)> idxs = {Indices...};
+                return data[idxs[i]];
+            }) };
+        }
+        template<unsigned K = 1>
+        [[nodiscard]] Wide rotate_left() const {
+            return { native_type([&](size_t i) {
+                return data[(i + K) % size()];
+            }) };
+        }
+        template<unsigned K = 1>
+        [[nodiscard]] Wide rotate_right() const {
+            return { native_type([&](size_t i) {
+               return data[(i + size() - (K % size())) % size()];
+            }) };
+        }
+
+
+        // ARITHMETIC
+        Wide operator+() {return *this;}
+        Wide operator-() {data = -data; return *this;}
         friend Wide operator+(const Wide& lhs, const Wide& rhs) { return { lhs.data + rhs.data }; }
         friend Wide operator-(const Wide& lhs, const Wide& rhs) { return { lhs.data - rhs.data }; }
         friend Wide operator*(const Wide& lhs, const Wide& rhs) { return { lhs.data * rhs.data }; }
@@ -109,7 +156,7 @@ namespace april::simd::internal::std_simd {
         Wide& operator*=(const Wide& rhs) { data *= rhs.data; return *this; }
         Wide& operator/=(const Wide& rhs) { data /= rhs.data; return *this; }
 
-
+        // COMPARISONS
         friend Mask<T> operator==(const Wide& lhs, const Wide& rhs) { return { lhs.data == rhs.data }; }
         friend Mask<T> operator!=(const Wide& lhs, const Wide& rhs) { return { lhs.data != rhs.data }; }
         friend Mask<T> operator<(const Wide& lhs, const Wide& rhs)  { return { lhs.data < rhs.data }; }
@@ -118,43 +165,29 @@ namespace april::simd::internal::std_simd {
         friend Mask<T> operator>=(const Wide& lhs, const Wide& rhs) { return { lhs.data >= rhs.data }; }
 
 
-        // Uses generator + constexpr array to map compile-time indices to runtime generator access
-        template<size_t... Indices>
-        [[nodiscard]] Wide permute() const {
-             return { native_type([&](size_t i) {
-                 constexpr std::array<size_t, sizeof...(Indices)> idxs = {Indices...};
-                 return data[idxs[i]];
-             }) };
+        // MATH FUNCTIONS
+        friend Wide sqrt(const Wide& x) {
+            return stdx::sqrt(x.data);
+        }
+        friend Wide rsqrt(const Wide& x) {
+            return static_cast<value_type>(1.0) / sqrt(x.data);
+        }
+        friend Wide abs(const Wide& x) {
+            return stdx::abs(x.data);
         }
 
-        template<unsigned K = 1>
-        [[nodiscard]] Wide rotate_left() const {
-            return { native_type([&](size_t i) {
-                return data[(i + K) % size()];
-            }) };
-        }
+        // Min/Max/FMA
+        friend Wide min(const Wide& a, const Wide& b) { return stdx::min(a.data, b.data) ; }
+        friend Wide max(const Wide& a, const Wide& b) { return stdx::max(a.data, b.data) ; }
+        friend Wide fma(const Wide& a, const Wide& b, const Wide& c) { return stdx::fma(a.data, b.data, c.data) ; }
 
-        template<unsigned K = 1>
-        [[nodiscard]] Wide rotate_right() const {
-             return { native_type([&](size_t i) {
-                return data[(i + size() - (K % size())) % size()];
-             }) };
-        }
 
-        // Friend declarations for free functions
-        template<typename U> friend Wide<U> sqrt(const Wide<U>&);
-        template<typename U> friend Wide<U> rsqrt(const Wide<U>&);
-        template<typename U> friend Wide<U> abs(const Wide<U>&);
-        template<typename U> friend Wide<U> min(const Wide<U>&, const Wide<U>&);
-        template<typename U> friend Wide<U> max(const Wide<U>&, const Wide<U>&);
-        template<typename U> friend Wide<U> fma(const Wide<U>&, const Wide<U>&, const Wide<U>&);
-
+        // DEBUGGING
         [[nodiscard]] std::array<T, size()> to_array() const {
             alignas(alignof(native_type)) std::array<T, size()> result;
             store_aligned(result.data());
             return result;
         }
-
         [[nodiscard]] std::string to_string() const {
             std::stringstream ss;
             // Create a temporary buffer on the stack
@@ -206,5 +239,5 @@ namespace april::simd::internal::std_simd {
     }
 
     static_assert(IsSimdType<Wide<double>>);
-
+    static_assert(IsSimdMask<Mask<double>>);
 }

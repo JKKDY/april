@@ -5,7 +5,7 @@
 #include <concepts>
 
 #include "april/base/macros.hpp"
-#include "april/simd/concepts.hpp"
+#include "april/simd/simd_traits.hpp"
 #include "april/utility/debug.hpp"
 
 
@@ -43,14 +43,16 @@ namespace april::math {
     }
 
 
-    // Ops Mixin
+    // ----------------
+    // VECTOR OPS MIXIN
+    // ----------------
     template <IsVectorSuitable T, typename Scalar>
     struct Vec3Ops {
         using type = T;
 
-        // --------------
-        // ARITHMETIC OPS
-        // --------------
+        // -------------------------
+        // ARITHMETIC (VECTOR-VECTOR
+        // -------------------------
         // vector addition
         template <IsVectorLike Other>
         Vec3<T> operator+(this const auto& self, const Other& other) noexcept {
@@ -105,6 +107,11 @@ namespace april::math {
         Vec3<T> operator-(this const auto& self) noexcept {
             return {-self.x, -self.y, -self.z};
         }
+
+
+        // --------------------------
+        // ARITHMETIC (VECTOR-SCALAR)
+        // --------------------------
 
         // scalar multiplication
         Vec3<T> operator*(this const auto& self, T scalar) noexcept {
@@ -258,7 +265,7 @@ namespace april::math {
             return predicate(self.x) && predicate(self.y) && predicate(self.z);
         }
 
-
+        // debug print
         [[nodiscard]] std::string to_string(this const auto& self) {
             return std::format("{{{}, {}, {}}}", self.x, self.y, self.z);
         }
@@ -266,6 +273,10 @@ namespace april::math {
 
 
 
+
+    // ---------------
+    // VEC3 DEFINITION
+    // ---------------
     template <IsVectorSuitable T, typename Scalar>
     struct Vec3 : Vec3Ops<T, Scalar> {
         T x, y, z;
@@ -280,6 +291,9 @@ namespace april::math {
 
 
 
+    // ------------
+    // VEC3 POINTER
+    // ------------
     template <typename T> requires std::integral<T> || std::floating_point<T>
     struct Vec3Ptr {
         T * AP_RESTRICT x = nullptr;
@@ -334,13 +348,16 @@ namespace april::math {
     };
 
 
+
+    // ----------
+    // VEC3 PROXY
+    // ----------
     template <typename T> requires std::integral<T> || std::floating_point<T>
     struct Vec3Proxy : Vec3Ops<T, double> {
         T& AP_RESTRICT x;
         T& AP_RESTRICT y;
         T& AP_RESTRICT z;
 
-        // ---- Constructors ----
         Vec3Proxy(const Vec3Proxy&) = default;
 
         Vec3Proxy(T& x_ref, T& y_ref, T& z_ref)
@@ -356,7 +373,6 @@ namespace april::math {
         explicit Vec3Proxy(const Vec3Proxy<U>& other)
             : x(other.x), y(other.y), z(other.z) {}
 
-        // ---- Assigment ----
         Vec3Proxy& operator=(const Vec3<T>& rhs) {
             x = rhs.x; y = rhs.y; z = rhs.z;
             return *this;

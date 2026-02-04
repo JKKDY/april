@@ -1,5 +1,7 @@
 #pragma once
 
+#include "april/base/traits.hpp"
+
 #include "april/env/data.hpp"
 #include "april/particle/fields.hpp"
 #include "april/particle/defs.hpp"

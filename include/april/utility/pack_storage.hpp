@@ -2,8 +2,7 @@
 #include <tuple>
 #include <vector>
 
-#include "april/base/types.hpp"
-
+#include "april/base/traits.hpp"
 
 namespace april::shared::internal {
 

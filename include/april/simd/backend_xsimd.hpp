@@ -4,7 +4,7 @@
 #include <string>
 #include <array>
 
-#include "april/simd/concepts.hpp"
+#include "april/simd/simd_traits.hpp"
 
 namespace april::simd::internal::xsimd {
 
@@ -18,6 +18,31 @@ namespace april::simd::internal::xsimd {
         Mask(bool val) : data(val) {}
 
         operator native_type() const { return data; }
+
+        friend bool all(const Mask& m) {
+            return ::xsimd::all(m.data);
+        }
+
+        friend bool any(const Mask& m) {
+            return ::xsimd::any(m.data);
+        }
+
+        // Logical Not (!)
+        friend Mask operator!(const Mask& m) {
+            return { !m.data };
+        }
+
+        // Bitwise/Logical And (&& / &)
+        friend Mask operator&&(const Mask& lhs, const Mask& rhs) { return { lhs.data && rhs.data }; }
+        friend Mask operator&(const Mask& lhs, const Mask& rhs)  { return { lhs.data & rhs.data }; }
+
+        // Bitwise/Logical Or (|| / |)
+        friend Mask operator||(const Mask& lhs, const Mask& rhs) { return { lhs.data || rhs.data }; }
+        friend Mask operator|(const Mask& lhs, const Mask& rhs)  { return { lhs.data | rhs.data }; }
+
+        // equality
+        friend Mask operator==(const Mask& lhs, const Mask& rhs) { return { lhs.data == rhs.data }; }
+        friend Mask operator!=(const Mask& lhs, const Mask& rhs) { return { lhs.data != rhs.data }; }
     };
 
     template<typename T, size_t Width = 0>
@@ -35,6 +60,8 @@ namespace april::simd::internal::xsimd {
         Wide(T scalar) : data(scalar) {}
         Wide(native_type d) : data(d) {}
 
+
+        // DATA LOADS
         static Wide load(const T* ptr) {
             return { ::xsimd::load_unaligned(ptr) };
         }
@@ -56,6 +83,7 @@ namespace april::simd::internal::xsimd {
             return gather_impl(pointers, std::make_index_sequence<size()>{});
         }
 
+        // DATA STORES
         void store(T* ptr) const {
             ::xsimd::store_unaligned(ptr, data);
         }
@@ -73,6 +101,25 @@ namespace april::simd::internal::xsimd {
             data.scatter(base_addr, offsets.data);
         }
 
+        // PERMUTES AND SHUFFLES
+        template<size_t... Indices>
+         [[nodiscard]] Wide permute() const {
+            return { ::xsimd::swizzle<Indices...>(data) };
+        }
+        template<unsigned K = 1>
+        [[nodiscard]] Wide rotate_left() const {
+            // xsimd only has rotate_right, so we compute the complement
+            constexpr unsigned Shift = size() - (K % size());
+            return { ::xsimd::rotate_right<Shift>(data) };
+        }
+        template<unsigned K = 1>
+        [[nodiscard]] Wide rotate_right() const {
+            return { ::xsimd::rotate_right<K>(data) };
+        }
+
+        // ARITHMETIC
+        Wide operator+() {return *this;}
+        Wide operator-() {data = -data; return *this;}
         friend Wide operator+(const Wide& lhs, const Wide& rhs) { return { lhs.data + rhs.data }; }
         friend Wide operator-(const Wide& lhs, const Wide& rhs) { return { lhs.data - rhs.data }; }
         friend Wide operator*(const Wide& lhs, const Wide& rhs) { return { lhs.data * rhs.data }; }
@@ -83,6 +130,7 @@ namespace april::simd::internal::xsimd {
         Wide& operator*=(const Wide& rhs) { data *= rhs.data; return *this; }
         Wide& operator/=(const Wide& rhs) { data /= rhs.data; return *this; }
 
+        // COMPARISONS
         friend Mask<T> operator==(const Wide& lhs, const Wide& rhs) { return { lhs.data == rhs.data }; }
         friend Mask<T> operator!=(const Wide& lhs, const Wide& rhs) { return { lhs.data != rhs.data }; }
         friend Mask<T> operator<(const Wide& lhs, const Wide& rhs)  { return { lhs.data < rhs.data }; }
@@ -90,32 +138,18 @@ namespace april::simd::internal::xsimd {
         friend Mask<T> operator>(const Wide& lhs, const Wide& rhs)  { return { lhs.data > rhs.data }; }
         friend Mask<T> operator>=(const Wide& lhs, const Wide& rhs) { return { lhs.data >= rhs.data }; }
 
-        template<size_t... Indices>
-         [[nodiscard]] Wide permute() const {
-            return { ::xsimd::swizzle<Indices...>(data) };
-        }
+        // MATH FUNCTIONS
+        friend Wide sqrt(const Wide& x) { return { ::xsimd::sqrt(x.data) }; }
+        friend Wide rsqrt(const Wide& x) { return { ::xsimd::rsqrt(x.data) }; }
+        friend Wide abs(const Wide& x) { return { ::xsimd::abs(x.data) }; }
 
-        template<unsigned K = 1>
-        [[nodiscard]] Wide rotate_left() const {
-            // xsimd only has rotate_right, so we compute the complement
-            constexpr unsigned Shift = size() - (K % size());
-            return { ::xsimd::rotate_right<Shift>(data) };
-        }
-
-        template<unsigned K = 1>
-        [[nodiscard]] Wide rotate_right() const {
-            return { ::xsimd::rotate_right<K>(data) };
-        }
-
-        // Friend declarations for free functions
-        template<typename U> friend Wide<U> sqrt(const Wide<U>&);
-        template<typename U> friend Wide<U> rsqrt(const Wide<U>&);
-        template<typename U> friend Wide<U> abs(const Wide<U>&);
-        template<typename U> friend Wide<U> min(const Wide<U>&, const Wide<U>&);
-        template<typename U> friend Wide<U> max(const Wide<U>&, const Wide<U>&);
-        template<typename U> friend Wide<U> fma(const Wide<U>&, const Wide<U>&, const Wide<U>&);
+        // Min/Max/FMA
+        friend Wide min(const Wide& a, const Wide& b) { return { ::xsimd::min(a.data, b.data) }; }
+        friend Wide max(const Wide& a, const Wide& b) { return { ::xsimd::max(a.data, b.data) }; }
+        friend Wide fma(const Wide& a, const Wide& b, const Wide& c) { return { ::xsimd::fma(a.data, b.data, c.data) }; }
 
 
+        // DEBUGGING
         [[nodiscard]] std::array<T, size()> to_array() const {
             alignas(alignof(native_type)) std::array<T, size()> result;
             store_aligned(result.data());
@@ -146,29 +180,8 @@ namespace april::simd::internal::xsimd {
         native_type data;
     };
 
-    template<typename T> Wide<T> sqrt(const Wide<T>& x) {
-        return { ::xsimd::sqrt(x.data) };
-    }
-
-    template<typename T> Wide<T> rsqrt(const Wide<T>& x) {
-        return { ::xsimd::rsqrt(x.data) };
-    }
-
-    template<typename T> Wide<T> abs(const Wide<T>& x) {
-        return { ::xsimd::abs(x.data) };
-    }
-
-    template<typename T> Wide<T> min(const Wide<T>& a, const Wide<T>& b) {
-        return { ::xsimd::min(a.data, b.data) };
-    }
-
-    template<typename T> Wide<T> max(const Wide<T>& a, const Wide<T>& b) {
-        return { ::xsimd::max(a.data, b.data) };
-    }
-
-    template<typename T> Wide<T> fma(const Wide<T>& a, const Wide<T>& b, const Wide<T>& c) {
-        return { ::xsimd::fma(a.data, b.data, c.data) };
-    }
 
     static_assert(IsSimdType<Wide<double>>);
+    static_assert(IsSimdMask<Mask<double>>);
+
 }

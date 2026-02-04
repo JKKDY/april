@@ -7,7 +7,7 @@
 // Assuming you saved the backend implementation here
 #include <april/simd/backend_xsimd.hpp>
 #include <april/simd/backend_std_simd.hpp>
-#include <april/simd/concepts.hpp>
+#include <april/simd/simd_traits.hpp>
 
 
 using namespace april::simd;

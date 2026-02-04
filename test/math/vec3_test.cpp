@@ -47,7 +47,7 @@ TYPED_TEST(Vec3Test, Construction) {
     using T = TypeParam;
     using Vec3T = math::Vec3<T>;
 
-    Vec3T v(this->Val(1.0), this->Val(2.0), this->Val(3.0));
+    Vec3T v(1.0, 2.0, 3.0);
 
     this->ExpectEq(v.x, 1.0);
     this->ExpectEq(v.y, 2.0);
@@ -59,8 +59,8 @@ TYPED_TEST(Vec3Test, Arithmetic) {
     using T = TypeParam;
     using Vec3T = math::Vec3<T>;
 
-    Vec3T a(this->Val(1.0), this->Val(2.0), this->Val(3.0));
-    Vec3T b(this->Val(4.0), this->Val(5.0), this->Val(6.0));
+    Vec3T a(1.0, 2.0, 3.0);
+    Vec3T b(4.0, 5.0, 6.0);
 
     // Addition
     Vec3T sum = a + b;
@@ -84,7 +84,7 @@ TYPED_TEST(Vec3Test, ScalarOps) {
     using T = TypeParam;
     using Vec3T = math::Vec3<T>;
 
-    Vec3T v(this->Val(1.0), this->Val(2.0), this->Val(3.0));
+    Vec3T v(1.0, 2.0, 3.0);
 
     // Vec * Scalar
     Vec3T scaled = v * 2.0; 
@@ -107,7 +107,7 @@ TYPED_TEST(Vec3Test, Geometry) {
     using Vec3T = math::Vec3<T>;
 
     // 3-4-5 Triangle vector
-    Vec3T v(this->Val(0.0), this->Val(3.0), this->Val(4.0));
+    Vec3T v(0.0, 3.0, 4.0);
 
     // Norm Squared
     T n2 = v.norm_squared();
@@ -128,8 +128,8 @@ TYPED_TEST(Vec3Test, CompoundAssignment) {
     using T = TypeParam;
     using Vec3T = math::Vec3<T>;
 
-    Vec3T v(this->Val(10.0), this->Val(10.0), this->Val(10.0));
-    Vec3T u(this->Val(1.0), this->Val(2.0), this->Val(3.0));
+    Vec3T v(10.0, 10.0, 10.0);
+    Vec3T u(1.0, 2.0, 3.0);
 
     v += u;
     this->ExpectEq(v.x, 11.0);
@@ -137,4 +137,73 @@ TYPED_TEST(Vec3Test, CompoundAssignment) {
 
     v *= 2.0;
     this->ExpectEq(v.x, 22.0);
+}
+
+// Mixed Vector Arithmetic (Vec3<Wide> vs Vec3<double>)
+TYPED_TEST(Vec3Test, MixedVectorArithmetic) {
+    using T = TypeParam;                 // The Testing Type (likely Wide<double>)
+    using Vec3T = april::math::Vec3<T>;  // The Target Vector (Vec3<Wide>)
+    using Vec3S = april::math::Vec3<double>; // The Source Scalar Vector
+
+    // Setup
+    Vec3S scalar_vec(1.0, 2.0, 3.0);       // "Global" vector (e.g. Gravity, Wind)
+    Vec3T wide_vec(10.0, 20.0, 30.0); // "Particle" vector
+
+    // Construction from Scalar Vector (Broadcast)
+    // "Vec3<Wide> w = v_scalar;"
+    Vec3T converted(scalar_vec);
+    this->ExpectEq(converted.x, 1.0);
+    this->ExpectEq(converted.y, 2.0);
+    this->ExpectEq(converted.z, 3.0);
+
+    // Addition (Wide + ScalarVec)
+    Vec3T sum = wide_vec + scalar_vec;
+    this->ExpectEq(sum.x, 11.0); // 10 + 1
+    this->ExpectEq(sum.y, 22.0); // 20 + 2
+    this->ExpectEq(sum.z, 33.0); // 30 + 3
+
+    // Subtraction (Wide - ScalarVec)
+    Vec3T diff = wide_vec - scalar_vec;
+    this->ExpectEq(diff.x, 9.0);
+    this->ExpectEq(diff.y, 18.0);
+
+    // Hadamard Product (Wide * ScalarVec)
+    Vec3T prod = wide_vec * scalar_vec;
+    this->ExpectEq(prod.x, 10.0); // 10 * 1
+    this->ExpectEq(prod.y, 40.0); // 20 * 2
+    this->ExpectEq(prod.z, 90.0); // 30 * 3
+
+    // Compound Assignment (Wide += ScalarVec)
+    wide_vec += scalar_vec;
+    this->ExpectEq(wide_vec.x, 11.0);
+    this->ExpectEq(wide_vec.y, 22.0);
+}
+
+// Complex Expression "Mish Mash"
+// Verifies that temporary objects and mixed types survive a long equation
+TYPED_TEST(Vec3Test, ArithmeticMishMash) {
+    using T = TypeParam;
+    using Vec3T = math::Vec3<T>;
+    using Vec3S = math::Vec3<double>;
+
+    Vec3T pos(10.0, 10.0, 10.0);
+    Vec3T old_pos(9.0, 10.0, 11.0);
+    Vec3S gravity(0.0, -10.0, 0.0);
+    constexpr double dt = 0.1;
+    constexpr double damping = 0.99;
+
+    // A standard Verlet-integration-like expression:
+    // next_pos = pos + (pos - old_pos) * damping + gravity * (dt * dt)
+
+    // Breakdown:
+    // 1. (pos - old_pos): Vec3<Wide> result -> {1, 0, -1}
+    // 2. * damping:       Vec3<Wide> result -> {0.99, 0, -0.99}
+    // 3. gravity * dt*dt: Vec3<Scalar> * double -> Vec3<Scalar> {0, -0.1, 0}
+    // 4. Vec3<Wide> + Vec3<Scalar>: Broadcast add
+
+    Vec3T next_pos = pos + (pos - old_pos) * damping + gravity * (dt * dt);
+
+    this->ExpectEq(next_pos.x, 10.99);        // 10 + 0.99 + 0
+    this->ExpectEq(next_pos.y, 9.9);          // 10 + 0    - 0.1
+    this->ExpectEq(next_pos.z, 9.01);         // 10 - 0.99 + 0
 }

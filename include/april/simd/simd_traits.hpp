@@ -3,19 +3,31 @@
 #include <cstddef>
 #include <string>
 
-#define AP_SIMD_IMPORT_WIDE_MATH(NS) \
-using april::simd::internal::NS::sqrt;                     \
-using april::simd::internal::NS::rsqrt;                    \
-using april::simd::internal::NS::abs;                      \
-using april::simd::internal::NS::min;                      \
-using april::simd::internal::NS::max;                      \
-using april::simd::internal::NS::fma;
 
 namespace april::simd {
+
+    // mask concept
+    template<typename T>
+    concept IsSimdMask = requires(T m, T m2) {
+        // Reductions
+        { all(m) } -> std::same_as<bool>;
+        { any(m) } -> std::same_as<bool>;
+
+        // Logical Operators
+        { !m }       -> std::same_as<T>;
+        { m && m2 }  -> std::same_as<T>;
+        { m || m2 }  -> std::same_as<T>;
+
+        // Comparisons (Mask == Mask)
+        { m == m2 } -> std::same_as<T>;
+        { m != m2 } -> std::same_as<T>;
+    };
 
     // check if all usual arithmetic ops exist
     template<typename T>
     concept HasArithmeticOps = requires(T a, T b) {
+        { + a } -> std::same_as<T>;
+        { - a } -> std::same_as<T>;
         { a + b } -> std::same_as<T>;
         { a - b } -> std::same_as<T>;
         { a * b } -> std::same_as<T>;
@@ -64,6 +76,7 @@ namespace april::simd {
         { t >= s }; { s >= t };
     };
 
+
     // check for free functions
     template<typename T>
     concept HasMathFunctions = requires(T a, T b, T c) {
@@ -74,6 +87,17 @@ namespace april::simd {
         { max(a, b) } -> std::same_as<T>;
         { fma(a, b, c) } -> std::same_as<T>;
     };
+
+
+    template<typename T>
+    concept HasSimdOps =
+        HasArithmeticOps<T>
+        && HasComparisonOps<T>
+        && HasMathFunctions<T>
+        && HasScalarMixedOps<T, float>
+        && HasScalarMixedOps<T, double>
+        && HasScalarMixedOps<T, long double>;
+
 
     // The Main Concept
     template<typename T>
@@ -97,18 +121,11 @@ namespace april::simd {
         ct.store_aligned(const_cast<T::value_type*>(ptr));
         ct.store_unaligned(const_cast<T::value_type*>(ptr));
 
-        // primitives (Rotates/Permutes)
+        // permutations
         { ct.rotate_left() } -> std::same_as<T>;
         { ct.rotate_right() } -> std::same_as<T>;
         { ct.template rotate_left<2>() } -> std::same_as<T>;
         { ct.template rotate_right<2>() } -> std::same_as<T>;
         { ct.template permute<0>() } -> std::same_as<T>;
-
-    }
-    && HasArithmeticOps<T>
-    && HasComparisonOps<T>
-    && HasMathFunctions<T>
-    && HasScalarMixedOps<T, float>
-    && HasScalarMixedOps<T, double>
-    && HasScalarMixedOps<T, long double>;
+    } && HasSimdOps<T>;
 }

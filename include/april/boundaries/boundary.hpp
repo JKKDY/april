@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <concepts>
 
+#include "april/base/traits.hpp"
 #include "april/particle/defs.hpp"
 #include "april/particle/access.hpp"
 #include "april/env/domain.hpp"

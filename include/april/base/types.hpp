@@ -13,10 +13,6 @@
 
 
 namespace april {
-	// concepts
-	template <typename T, typename... Ts>
-	concept same_as_any = (... or std::same_as<T, Ts>);
-
 	// vector aliases
 	using vec3 = math::Vec3<VEC3_TYPE, double>; // general purpose vec3 (e.g. particle data)
 	using vec3f = math::Vec3<float, double>; // float vec3

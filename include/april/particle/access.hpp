@@ -20,7 +20,7 @@ namespace april::env {
 
 	    // selects T* or const T*
 	    template<typename T>
-	    using Ptr = std::conditional_t<IsConst, const T*, T*>;
+	    using Ptr = std::conditional_t<IsConst, const T* AP_RESTRICT, T* AP_RESTRICT>;
 
 		using Vec3PtrT = math::Vec3Ptr<std::conditional_t<IsConst, const vec3::type, vec3::type>>;
 

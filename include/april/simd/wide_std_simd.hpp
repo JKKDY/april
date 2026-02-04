@@ -1,0 +1,182 @@
+#pragma once
+
+#include <experimental/simd>
+#include <array>
+
+#include "wide_std_simd.hpp"
+#include "april/simd/concepts.hpp"
+
+namespace april::simd::internal::stdsimd {
+
+    // Alias for brevity
+    namespace stdx = std::experimental;
+
+    template<typename T>
+    struct Mask {
+        using native_type = stdx::simd_mask<T>;
+        native_type data;
+
+        Mask() = default;
+        Mask(native_type d) : data(d) {}
+        Mask(bool val) : data(val) {}
+
+        operator native_type() const { return data; }
+    };
+
+
+    template<typename T>
+    struct Wide {
+        using value_type = T;
+        using native_type = stdx::simd<T>;
+
+        static constexpr size_t size() { return native_type::size(); }
+
+        Wide() = default;
+        Wide(T scalar) : data(scalar) {}
+        Wide(native_type d) : data(d) {}
+
+
+        static Wide load(const T* ptr) {
+            native_type tmp;
+            tmp.copy_from(ptr, stdx::element_aligned);
+            return { tmp };
+        }
+
+        static Wide load_aligned(const T* ptr) {
+            native_type tmp;
+            tmp.copy_from(ptr, stdx::vector_aligned);
+            return { tmp };
+        }
+
+        static Wide load_unaligned(const T* ptr) {
+            native_type tmp;
+            tmp.copy_from(ptr, stdx::element_aligned);
+            return { tmp };
+        }
+
+
+
+        // Implemented via Generator Constructor:
+        // "Construct a SIMD vector where the i-th element is base[offsets[i]]"
+        template<typename IndexType>
+        static Wide gather(const T* base_addr, const IndexType& offsets) {
+            return { native_type([&](size_t i) { return base_addr[offsets.data[i]]; }) };
+        }
+
+        static Wide gather(const T* const* pointers) {
+            return { native_type([&](size_t i) { return *pointers[i]; }) };
+        }
+
+
+        void store(T* ptr) const {
+            data.copy_to(ptr, stdx::element_aligned);
+        }
+
+        void store_aligned(T* ptr) const {
+            data.copy_to(ptr, stdx::vector_aligned);
+        }
+
+        void store_unaligned(T* ptr) const {
+            data.copy_to(ptr, stdx::element_aligned);
+        }
+
+
+        // std::simd has no direct scatter, so we scalarize the loop.
+        // Compilers (GCC/Clang) are very good at auto-vectorizing this pattern.
+        template<typename IndexType>
+        void scatter(T* base_addr, const IndexType& offsets) const {
+            for (size_t i = 0; i < size(); ++i) {
+                base_addr[offsets.data[i]] = data[i];
+            }
+        }
+
+
+        friend Wide operator+(const Wide& lhs, const Wide& rhs) { return { lhs.data + rhs.data }; }
+        friend Wide operator-(const Wide& lhs, const Wide& rhs) { return { lhs.data - rhs.data }; }
+        friend Wide operator*(const Wide& lhs, const Wide& rhs) { return { lhs.data * rhs.data }; }
+        friend Wide operator/(const Wide& lhs, const Wide& rhs) { return { lhs.data / rhs.data }; }
+
+        Wide& operator+=(const Wide& rhs) { data += rhs.data; return *this; }
+        Wide& operator-=(const Wide& rhs) { data -= rhs.data; return *this; }
+        Wide& operator*=(const Wide& rhs) { data *= rhs.data; return *this; }
+        Wide& operator/=(const Wide& rhs) { data /= rhs.data; return *this; }
+
+
+        friend Mask<T> operator==(const Wide& lhs, const Wide& rhs) { return { lhs.data == rhs.data }; }
+        friend Mask<T> operator!=(const Wide& lhs, const Wide& rhs) { return { lhs.data != rhs.data }; }
+        friend Mask<T> operator<(const Wide& lhs, const Wide& rhs)  { return { lhs.data < rhs.data }; }
+        friend Mask<T> operator<=(const Wide& lhs, const Wide& rhs) { return { lhs.data <= rhs.data }; }
+        friend Mask<T> operator>(const Wide& lhs, const Wide& rhs)  { return { lhs.data > rhs.data }; }
+        friend Mask<T> operator>=(const Wide& lhs, const Wide& rhs) { return { lhs.data >= rhs.data }; }
+
+
+        // Uses generator + constexpr array to map compile-time indices to runtime generator access
+        template<size_t... Indices>
+        Wide permute() const {
+             return { native_type([&](size_t i) {
+                 constexpr std::array<size_t, sizeof...(Indices)> idxs = {Indices...};
+                 return data[idxs[i]];
+             }) };
+        }
+
+        template<unsigned K = 1>
+        Wide rotate_left() const {
+            return { native_type([&](size_t i) {
+                return data[(i + K) % size()];
+            }) };
+        }
+
+        template<unsigned K = 1>
+        Wide rotate_right() const {
+             return { native_type([&](size_t i) {
+                return data[(i + size() - (K % size())) % size()];
+             }) };
+        }
+
+        // Friend declarations for free functions
+        template<typename U> friend Wide<U> sqrt(const Wide<U>&);
+        template<typename U> friend Wide<U> rsqrt(const Wide<U>&);
+        template<typename U> friend Wide<U> abs(const Wide<U>&);
+        template<typename U> friend Wide<U> min(const Wide<U>&, const Wide<U>&);
+        template<typename U> friend Wide<U> max(const Wide<U>&, const Wide<U>&);
+        template<typename U> friend Wide<U> fma(const Wide<U>&, const Wide<U>&, const Wide<U>&);
+
+    private:
+        native_type data;
+    };
+
+
+
+    template<typename T> Wide<T> sqrt(const Wide<T>& x) {
+        using stdx::sqrt;
+        return { sqrt(x.data) };
+    }
+
+    template<typename T> Wide<T> rsqrt(const Wide<T>& x) {
+        // std::simd has no direct rsqrt, fallback to 1.0 / sqrt
+        using stdx::sqrt;
+        return { 1.0 / sqrt(x.data) };
+    }
+
+    template<typename T> Wide<T> abs(const Wide<T>& x) {
+        using stdx::abs;
+        return { abs(x.data) };
+    }
+
+    template<typename T> Wide<T> min(const Wide<T>& a, const Wide<T>& b) {
+        using stdx::min;
+        return { min(a.data, b.data) };
+    }
+
+    template<typename T> Wide<T> max(const Wide<T>& a, const Wide<T>& b) {
+        using stdx::max;
+        return { max(a.data, b.data) };
+    }
+
+    template<typename T> Wide<T> fma(const Wide<T>& a, const Wide<T>& b, const Wide<T>& c) {
+        return { std::experimental::fma(a.data, b.data, c.data) };
+    }
+
+    static_assert(IsSimdType<Wide<double>>);
+
+}

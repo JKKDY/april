@@ -41,6 +41,7 @@ add_executable(test_april
         math/simd_ref_test.cpp
         math/vec3_ref_test.cpp
         math/simd_vec3_ref_tests.cpp
+        particle/packed_fields_test.cpp
 )
 
 target_include_directories(test_april PRIVATE

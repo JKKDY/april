@@ -6,7 +6,7 @@
 
 #include "april/base/macros.hpp"
 #include "april/simd/simd_traits.hpp"
-#include "april/simd/packed.hpp"
+#include "april/simd/packed_ref.hpp"
 #include "april/utility/debug.hpp"
 
 
@@ -391,13 +391,31 @@ namespace april::math {
     // specialization for packed types
     template <simd::IsSimdType T>
     struct Vec3Proxy<T> : Vec3Ops<T, T> {
-        using Ref = simd::PackedRef<T>;
+        using Ref = simd::PackedRef<typename T::value_type, T>;
         using Scalar = T::value_type;
 
         // Members are "Reference Wrappers", not C++ references
         Ref x;
         Ref y;
         Ref z;
+        Vec3Proxy(const Vec3Proxy&) = default;
+
+        template<typename U>
+        Vec3Proxy(const Vec3Ptr<U> & ptr): x(ptr.x), y(ptr.y), z(ptr.z) {}
+
+
+        Vec3Proxy(T& x_ref, T& y_ref, T& z_ref)
+            : x(x_ref), y(y_ref), z(z_ref) {}
+
+        template<typename U>
+        requires std::convertible_to<U, T>
+        explicit Vec3Proxy(Vec3<U> & other)
+            : x(other.x), y(other.y), z(other.z) {}
+
+        template <typename U>
+        requires std::convertible_to<U&, T&>
+        explicit Vec3Proxy(const Vec3Proxy<U>& other)
+            : x(other.x), y(other.y), z(other.z) {}
 
         // Constructor from POINTERS (SoA style)
         // This is crucial for SIMD iterators!
@@ -426,12 +444,6 @@ namespace april::math {
 
         // Implicit conversion to Value
         operator Vec3<T>() const { return Vec3<T>(x, y, z); }
-
-        // Inherit Math
-        // using Vec3Ops<T, T>::operator+=;
-        // using Vec3Ops<T, T>::operator-=;
-        // using Vec3Ops<T, T>::operator*=;
-        // using Vec3Ops<T, T>::operator/=;
     };
 
 

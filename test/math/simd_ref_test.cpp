@@ -4,7 +4,7 @@
 
 #include "april/simd/backend_std_simd.hpp"
 #include "april/simd/backend_xsimd.hpp"
-#include "april/simd/packed.hpp"
+#include "april/simd/packed_ref.hpp"
 
 // Define the Wide types to test
 using BackendTypes = testing::Types<
@@ -13,11 +13,11 @@ using BackendTypes = testing::Types<
 >;
 
 template <typename T>
-class SimdRefTest : public ::testing::Test {
+class SimdRefTest : public testing::Test {
 public:
     using Packed = T;
     using Scalar = T::value_type;
-    using Ref = april::simd::PackedRef<T>; // Ensure this matches your alias
+    using Ref = april::simd::PackedRef<typename T::value_type, T>; // Ensure this matches your alias
 
     // Backing memory must be large enough for at least one SIMD vector
     std::vector<Scalar> buffer;
@@ -51,7 +51,7 @@ public:
 
 TYPED_TEST_SUITE(SimdRefTest, BackendTypes);
 
-// --- 1. Load, Store, Broadcast ---
+// Load, Store, Broadcast
 TYPED_TEST(SimdRefTest, LoadStoreInteraction) {
     using Packed = TestFixture::Packed;
     using Ref = TestFixture::Ref;
@@ -77,7 +77,7 @@ TYPED_TEST(SimdRefTest, LoadStoreInteraction) {
     this->ExpectMemory(30.0);
 }
 
-// --- 2. Mixed Arithmetic (Ref, Wide, Scalar) ---
+// Mixed Arithmetic (Ref, Wide, Scalar)
 TYPED_TEST(SimdRefTest, MixedArithmetic) {
     using Packed = TestFixture::Packed;
     using Scalar = TestFixture::Scalar;
@@ -114,7 +114,7 @@ TYPED_TEST(SimdRefTest, MixedArithmetic) {
     this->ExpectAll(res5, -10.0);
 }
 
-// --- 3. Compound Assignments ---
+// Compound Assignments
 TYPED_TEST(SimdRefTest, CompoundAssignments) {
     using Packed = TestFixture::Packed;
     using Scalar = TestFixture::Scalar;
@@ -140,7 +140,7 @@ TYPED_TEST(SimdRefTest, CompoundAssignments) {
     this->ExpectMemory(20.0);
 }
 
-// --- 4. Math Functions (ADL & Implicit Conversion) ---
+// Math Functions (ADL & Implicit Conversion)
 TYPED_TEST(SimdRefTest, MathFunctions) {
     using Packed = TestFixture::Packed;
     using Ref = TestFixture::Ref;
@@ -162,7 +162,7 @@ TYPED_TEST(SimdRefTest, MathFunctions) {
     this->ExpectAll(m2, 25.0);
 }
 
-// --- 5. Comparisons (The Mask Check) ---
+// Comparisons
 TYPED_TEST(SimdRefTest, Comparisons) {
     using Packed = TestFixture::Packed;
     using Scalar = TestFixture::Scalar;

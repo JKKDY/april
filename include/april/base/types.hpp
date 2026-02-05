@@ -2,7 +2,6 @@
 #include <cstdint>
 
 
-#define AP_SIMD_BACKEND_XSIMD
 
 #ifndef VEC3_TYPE
 #define VEC3_TYPE double
@@ -18,9 +17,13 @@ namespace april {
 	using vec3f = math::Vec3<float, double>; // float vec3
 	using vec3d = math::Vec3<double>; // double vec3
 
-	using pvec3 = math::Vec3<simd::Packed<VEC3_TYPE>>;
-	using pvec3f = math::Vec3<simd::Packed<float>>;
-	using pvec3d = math::Vec3<simd::Packed<double>>;
+	using packed = simd::Packed<VEC3_TYPE>;
+	using packedd = simd::Packed<double>;
+	using packedf = simd::Packed<float>;
+
+	using pvec3 = math::Vec3<packed>;
+	using pvec3f = math::Vec3<packedf>;
+	using pvec3d = math::Vec3<packedf>;
 
 	using int3 = math::Vec3<int32_t>;
 	using uint3 = math::Vec3<uint32_t>;

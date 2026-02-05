@@ -101,7 +101,7 @@ namespace april::simd {
 
     // The Main Concept
     template<typename T>
-    concept IsSimdType = requires(T t, const T ct, typename T::value_type scalar, const typename T::value_type* ptr) {
+    concept IsSimdTypeImpl = requires(T t, const T ct, typename T::value_type scalar, const typename T::value_type* ptr) {
         typename T::value_type;
         requires (std::floating_point<typename T::value_type>);
         { T::size() } -> std::convertible_to<std::size_t>;
@@ -128,4 +128,7 @@ namespace april::simd {
         { ct.template rotate_right<2>() } -> std::same_as<T>;
         { ct.template permute<0>() } -> std::same_as<T>;
     } && HasSimdOps<T>;
+
+    template<typename T>
+    concept IsSimdType = IsSimdTypeImpl<std::remove_cvref_t<T>>;
 }

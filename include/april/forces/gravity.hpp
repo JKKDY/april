@@ -2,7 +2,6 @@
 
 #include <cmath>
 
-#include "april/base/types.hpp"
 #include "april/particle/fields.hpp"
 #include "april/forces/force.hpp"
 
@@ -16,9 +15,9 @@ namespace april::force {
         explicit Gravity(const double grav_const = 1.0, const double cutoff = no_cutoff)
             : Force(cutoff), grav_constant(grav_const) {}
 
-        vec3 eval(const auto & p1, const auto & p2, const vec3& r) const noexcept {
-            const double inv_r = 1.0 / r.norm();
-            const double mag = grav_constant * p1.mass * p2.mass * inv_r * inv_r;
+        auto eval(const auto & p1, const auto & p2, const auto& r) const noexcept {
+            const auto inv_r = 1.0 / r.norm();
+            const auto mag = grav_constant * p1.mass * p2.mass * inv_r * inv_r;
 
             return mag * inv_r * r;  // Force vector pointing along +r
         }

@@ -144,8 +144,8 @@ namespace april::simd::internal::std_simd {
 
 
         // ARITHMETIC
-        Packed operator+() {return *this;}
-        Packed operator-() {data = -data; return *this;}
+        friend Packed operator+(const Packed& rhs) { return { +rhs.data };  }
+        friend Packed operator-(const Packed& rhs) { return { -rhs.data };  }
         friend Packed operator+(const Packed& lhs, const Packed& rhs) { return { lhs.data + rhs.data }; }
         friend Packed operator-(const Packed& lhs, const Packed& rhs) { return { lhs.data - rhs.data }; }
         friend Packed operator*(const Packed& lhs, const Packed& rhs) { return { lhs.data * rhs.data }; }

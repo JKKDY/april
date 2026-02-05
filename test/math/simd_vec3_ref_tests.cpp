@@ -6,6 +6,7 @@
 #include "april/base/types.hpp"
 #include "april/simd/backend_xsimd.hpp"
 #include "april/simd/backend_std_simd.hpp"
+#include "april/forces/lennard_jones.hpp"
 
 using namespace april;
 
@@ -160,3 +161,5 @@ TYPED_TEST(SimdProxyTest, PhysicsKernel) {
     // Z: 10
     this->ExpectAllLanes(10.1, 9.95, 10.0);
 }
+
+

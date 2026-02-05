@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include "april/forces/force.hpp"
 #include "april/base/types.hpp"
 #include "april/particle/fields.hpp"
 
@@ -28,12 +29,12 @@ namespace april::force {
 			return *this;
 		}
 
-		vec3 eval(auto, auto, const vec3& r) const noexcept {
-			const vec3::type inv_r2 = static_cast<vec3::type>(1.0) / (r.x*r.x + r.y*r.y + r.z * r.z);
-			const vec3::type inv_r6 = inv_r2 * inv_r2 * inv_r2;
-			const vec3::type magnitude = (c12_force * inv_r6 - c6_force) * inv_r6 * inv_r2;
-
-			// Force vector pointing along -r
+		auto eval(auto, auto, const auto& r) const noexcept {
+			const auto inv_r2 = static_cast<vec3::type>(1.0) / (r.x*r.x + r.y*r.y + r.z * r.z);
+			const auto inv_r6 = inv_r2 * inv_r2 * inv_r2;
+			const auto magnitude = (c12_force * inv_r6 - c6_force) * inv_r6 * inv_r2;
+			//
+			// // Force vector pointing along -r
 			return -magnitude * r;
 		}
 

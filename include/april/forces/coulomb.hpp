@@ -19,7 +19,7 @@ namespace april::force {
 		requires requires {
 			{ U::charge } -> std::convertible_to<double>;
 		}
-		vec3 eval(const env::ParticleView<M, U> & p1, const env::ParticleView<M, U> & p2, const vec3& r) const noexcept {
+		auto eval(const env::ParticleView<M, U> & p1, const env::ParticleView<M, U> & p2, const vec3& r) const noexcept {
 			const double inv_r = r.inv_norm();
 			const double mag = coulomb_constant * p1.user_data.charge * p2.user_data.charge * inv_r * inv_r;
 

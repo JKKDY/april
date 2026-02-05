@@ -17,9 +17,9 @@ namespace april::force {
 		: Force(cutoff), k(strength), r0(equilibrium) {}
 
 
-		vec3 eval(auto, auto, const vec3& r) const noexcept {
-			const double dist = r.norm();
-			const double magnitude = k * (dist - r0) / dist; // F = k * (dist - r0) * (r / dist)
+		auto eval(auto, auto, const auto& r) const noexcept {
+			const auto dist = r.norm();
+			const auto magnitude = k * (dist - r0) / dist; // F = k * (dist - r0) * (r / dist)
 			return magnitude * r;
 		}
 

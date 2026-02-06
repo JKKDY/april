@@ -282,7 +282,7 @@ The following diagram shows the typical flow of a program using April:
 
 The canonical setup path follows three stages: declare, build, run:
 
-1. **Declarative Setup**
+1. **Declarative Setup**:
 Users describe the physics of the simulation (particles, interactions, domain, boundary conditions, fields, and controllers). No execution occurs at this stage. Declaration is order-independent and purely descriptive. 
 
 2. **Build Step**: The `build_system` function compiles the `Environment`, together with a chosen `Container`, into a simulation-ready `System` object. This involves mapping user-facing IDs/types to dense internal indices, finalizing the domain, building the interaction table, validating consistency and triggering component initialization (e.g. particle data and spatial structures in a `Container`). The `System` is stateful and owns all simulation data including time and step counts.
@@ -348,7 +348,7 @@ struct MyForce : Force{
 
 April is licensed under **AGPLv3**.
 Small users (individuals, academia, non-profits, and SMEs) are granted an exception via an explicit license exception that **waives the AGPL network-use (Section 13) requirement**, allowing private internal services and APIs.
-Larger organizations must comply with AGPLv3 or obtain a commercial license.
+Larger organizations must comply with AGPLv3.
 
 See `LICENSE` and `EXCEPTION.md` for details.
 
@@ -401,6 +401,8 @@ To explore?
 - [ ] replicating particles + active matter
 - [ ] communication "bridges"/"pipes" between components
 - [ ] econophysics style simulations -->
+
+Note: when C++26 matures, April will likely switch to the newer standard for reflection and `std::simd` support.
 
 
 

@@ -22,15 +22,18 @@ using namespace april;
 
 // Simulation of a simple sun-planet-moon system
 int main() {
+	// Particle types are arbitrary integer labels used to select which interactions apply
+	constexpr int DEFAULT = 0;
     
     // 1) Define particles and interactions
-    auto sun = Particle().at(0, 0, 0).with_mass(1.0).as_type(0);
-    auto planet = Particle().at(1, 0, 0).with_velocity(0, 1, 0).with_mass(1e-3).as_type(0);
-    auto moon = Particle().at(1.05, 0, 0).with_velocity(0, 1.2, 0).with_mass(1e-6).as_type(0);
+    auto sun = Particle().at(0, 0, 0).with_mass(1.0).as_type(DEFAULT);
+    auto planet = Particle().at(1, 0, 0).with_velocity(0, 1, 0).with_mass(1e-3).as_type(DEFAULT);
+    auto moon = Particle().at(1.05, 0, 0).with_velocity(0, 1.2, 0).with_mass(1e-6).as_type(DEFAULT);
 
+	// Declare which component types may be used
     auto env = Environment(forces<Gravity>, boundaries<Open>)
         .with_particles({sun, planet, moon})
-        .with_force(Gravity(), to_type(0))
+        .with_force(Gravity(), to_type(DEFAULT))
         .with_boundaries(Open(), all_faces); 
 
     // 2) Choose a container (force calculation strategy)
@@ -135,14 +138,16 @@ This example demonstrates a many-particle simulation with short-range interactio
 #include <april/april.hpp>
 using namespace april;
 
-int main() {	
+int main() {
+	constexpr int DEFAULT = 0;
+
 	// 1) Generate a block of particles
 	auto blob = ParticleCuboid()
         .at(0,0, 10)
         .count(10, 10, 10)
         .spacing(1.2)
         .mass(1.0)
-        .type(0)
+        .type(DEFAULT)
         .thermal([](vec3 /*pos*/) {
             constexpr double avg_vel = 1.0;
             return math::maxwell_boltzmann_velocity(avg_vel);
@@ -156,7 +161,7 @@ int main() {
 		)
 		.with_particles(blob)
 		.with_extent(30, 30, 50) // Domain is automatically centered around the particles
-		.with_force(LennardJones(3,1), to_type(0))
+		.with_force(LennardJones(3,1), to_type(DEFAULT))
 		.with_field(UniformField({0.0, 0.0, -5})) // gravity
 		.with_boundaries(Reflective(), all_faces);
 
@@ -403,7 +408,6 @@ To explore?
 - [ ] econophysics style simulations -->
 
 Note: when C++26 matures, April will likely switch to the newer standard for reflection and `std::simd` support.
-
 
 
 

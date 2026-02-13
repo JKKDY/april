@@ -168,6 +168,19 @@ namespace april::container::layout {
 			return env::RestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 
+		template<env::FieldMask M>
+		[[nodiscard]] auto at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
+			return env::PackedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+		}
+		template<env::FieldMask M>
+		[[nodiscard]] auto view_packed(this const auto& self, size_t chunk_idx, size_t lane_idx) {
+			return env::PackedParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+		}
+		template<env::FieldMask M>
+		[[nodiscard]] auto restricted_at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
+			return env::PackedRestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+		}
+
 
 		// INDEXING
 		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const {

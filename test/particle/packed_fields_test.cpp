@@ -78,7 +78,7 @@ TEST_F(PackedParticleViewsTest, ReadValues) {
     const auto src = get_source();
 
     // Create the Packed Ref
-    const PackedParticleRef<TestMask> p(src);
+    const PackedParticleRef<TestMask, NoUserData> p(src);
 
     // Read Position (Load)
     const pvec3 pos = p.position; // Implicit load of N particles
@@ -94,7 +94,7 @@ TEST_F(PackedParticleViewsTest, ReadValues) {
 // Write Check (Broadcast)
 TEST_F(PackedParticleViewsTest, WriteBroadcast) {
     const auto src = get_source();
-    PackedParticleRef<TestMask> p(src);
+    PackedParticleRef<TestMask, NoUserData> p(src);
 
     // Write constant force to all particles in the SIMD chunk
     p.force = pvec3(10.0, 20.0, 30.0);
@@ -114,7 +114,7 @@ TEST_F(PackedParticleViewsTest, WriteBroadcast) {
 // Physics Kernel Logic (Read-Modify-Write)
 TEST_F(PackedParticleViewsTest, PhysicsUpdate) {
     const auto src = get_source();
-    PackedParticleRef<TestMask> p(src);
+    PackedParticleRef<TestMask, NoUserData> p(src);
 
     constexpr double dt = 0.1;
 
@@ -137,7 +137,7 @@ TEST_F(PackedParticleViewsTest, PhysicsUpdate) {
 // Force Kernel Logic (Interaction)
 TEST_F(PackedParticleViewsTest, ForceKernel) {
     const auto src = get_source();
-    PackedParticleRef<TestMask> p(src);
+    PackedParticleRef<TestMask, NoUserData> p(src);
 
     // Simple drag force: F = -v * mass
     p.force = -p.velocity * p.mass;
@@ -153,18 +153,185 @@ TEST_F(PackedParticleViewsTest, ForceKernel) {
 
 
 
+
+
 // 5. Const View Safety
+template <typename T>
+concept VelocityAssignable =
+    requires(T t) {
+    t.velocity = pvec3(0.0);
+    };
 TEST_F(PackedParticleViewsTest, ConstView) {
     const auto src = get_source();
-    PackedParticleRef<TestMask> ref(src);
+    PackedParticleRef<TestMask, NoUserData> ref(src);
 
     // Convert to View
-    const PackedParticleView<TestMask> view = ref.to_view();
+    const PackedParticleView<TestMask, NoUserData> view = ref.to_view();
 
     // Read is allowed
     const pvec3 v = view.velocity;
     EXPECT_DOUBLE_EQ(v.x.to_array()[0], 1.0);
 
-    // Write should fail compile (uncomment to manually verify)
-    // view.velocity = pvec3(0.0);
+    // Write should fail compile on view, should succeed on ref
+    static_assert(!VelocityAssignable<PackedParticleView<TestMask, NoUserData>>);
+    static_assert( VelocityAssignable<PackedParticleRef<TestMask, NoUserData>>);
+}
+
+
+
+// 6. Buffer Load & Isolation
+// Verifies that 'load_buffer' reads correctly across ALL lanes,
+// and that modifying the registers DOES NOT touch memory until commit.
+TEST_F(PackedParticleViewsTest, BufferIsolation) {
+    const auto src = get_source();
+    PackedParticleRef<TestMask, NoUserData> ref(src);
+
+    // 1. Load into Registers
+    auto buffer = ref.load_buffer();
+
+    // Verify initial load (Memory was set to Vel={1.0, 0.0, 0.0})
+    auto buf_vel_x = buffer.velocity.x.to_array();
+    constexpr size_t Width = packedd::size();
+
+    for(size_t i = 0; i < Width; ++i) {
+        EXPECT_DOUBLE_EQ(buf_vel_x[i], 1.0) << "Initial load mismatch at lane " << i;
+    }
+
+    // 2. Modify Register Only (Set all lanes to 99.0)
+    buffer.velocity = pvec3(99.0, 99.0, 99.0);
+
+    // 3. Verify Memory is UNTOUCHED
+    // We explicitly read from the reference (proxy) to ensure it hits memory
+    auto ref_vel_x = ref.velocity.x.to_array();
+
+    for(size_t i = 0; i < Width; ++i) {
+        // Memory should still be 1.0
+        EXPECT_DOUBLE_EQ(ref_vel_x[i], 1.0) << "Memory corruption at lane " << i;
+        // Backing store check
+        EXPECT_DOUBLE_EQ(vel_x[i], 1.0);
+    }
+
+    // 4. Verify Register IS Modified
+    auto new_buf_vel_x = buffer.velocity.x.to_array();
+    for(size_t i = 0; i < Width; ++i) {
+        EXPECT_DOUBLE_EQ(new_buf_vel_x[i], 99.0) << "Register update failed at lane " << i;
+    }
+}
+
+// 7. Buffer Rotation
+// Verifies "rotate_left" shifts elements correctly across the whole vector.
+TEST_F(PackedParticleViewsTest, BufferRotation) {
+    const auto src = get_source();
+    PackedParticleRef<TestMask, NoUserData> ref(src);
+
+    // Memory setup: Position X is {0, 1, 2, 3 ...}
+    auto buffer = ref.load_buffer();
+
+    // 1. Rotate Left
+    // Expected: {1, 2, 3, 0} (for Width 4)
+    buffer.rotate_left();
+
+    auto pos_x = buffer.position.x.to_array();
+    constexpr size_t Width = packedd::size();
+
+    for(size_t i = 0; i < Width; ++i) {
+        // The value at index i should be the value originally at (i + 1)
+        // Wraps around at the end: index[Width-1] gets value 0.0
+        double expected = static_cast<double>((i + 1) % Width);
+
+        EXPECT_DOUBLE_EQ(pos_x[i], expected)
+            << "Rotate Left failed at lane " << i;
+    }
+
+    // 2. Rotate Right (Should restore original state)
+    // Expected: {0, 1, 2, 3}
+    buffer.rotate_right();
+
+    pos_x = buffer.position.x.to_array();
+    for(size_t i = 0; i < Width; ++i) {
+        double expected = static_cast<double>(i);
+        EXPECT_DOUBLE_EQ(pos_x[i], expected)
+            << "Rotate Right (Restore) failed at lane " << i;
+    }
+}
+
+// 8. Explicit Commit (Write Back)
+// Verifies that we can write specific fields back to memory for ALL lanes.
+TEST_F(PackedParticleViewsTest, BufferCommit) {
+    const auto src = get_source();
+    PackedParticleRef<TestMask, NoUserData> ref(src);
+
+    auto buffer = ref.load_buffer();
+
+    // Accumulate force in registers (Memory 0.0 -> Buffer 10.0)
+    buffer.force += pvec3(10.0, 10.0, 10.0);
+
+    // Modify position in buffer (Memory i -> Buffer 999.0)
+    buffer.position = pvec3(999.0);
+
+    // COMMIT only Force
+    ref.force = buffer.force;
+
+    // Verify Memory Updates
+    constexpr size_t Width = packedd::size();
+
+    // Check backing vectors directly to be sure
+    for(size_t i = 0; i < Width; ++i) {
+        // Force should be updated to 10.0 everywhere
+        EXPECT_DOUBLE_EQ(force_x[i], 10.0) << "Force commit failed at lane " << i;
+
+        // Position should remain UNTOUCHED (still equal to index i)
+        // It must NOT be 999.0
+        double expected_pos = static_cast<double>(i);
+        EXPECT_DOUBLE_EQ(pos_x[i], expected_pos) << "Position accidentally overwritten at lane " << i;
+    }
+}
+
+// 9. Systolic Simulation
+// A robust integration test for the loop logic.
+TEST_F(PackedParticleViewsTest, SystolicLoopSim) {
+    const auto src = get_source();
+    PackedParticleRef<TestMask, NoUserData> p1(src);
+
+    // p1 and p2 point to same memory: PosX = {0, 1, 2, 3}
+    PackedParticleRef<TestMask, NoUserData> p2(src);
+
+    auto b1 = p1.load_buffer();
+    auto b2 = p2.load_buffer();
+
+    // Step 1: Rotate b2 Left
+    // b1 PosX: {0, 1, 2, 3}
+    // b2 PosX: {1, 2, 3, 0}
+    b2.rotate_left();
+
+    // Interaction: F = (pos2 - pos1)
+    auto delta = b2.position - b1.position;
+
+    // Accumulate
+    b1.force += delta;
+
+    // Commit p1 force
+    p1.force = b1.force;
+
+    // Verification Logic:
+    // Lane 0: 1.0 - 0.0 = 1.0
+    // Lane 1: 2.0 - 1.0 = 1.0
+    // ...
+    // Lane N (Last): 0.0 - N = -N
+
+    constexpr size_t Width = packedd::size();
+
+    for(size_t i = 0; i < Width; ++i) {
+        double expected_force;
+
+        if (i < Width - 1) {
+            expected_force = 1.0;
+        } else {
+            // The wrap-around case at the end of the vector
+            expected_force = -static_cast<double>(Width - 1);
+        }
+
+        EXPECT_DOUBLE_EQ(force_x[i], expected_force)
+            << "Systolic math mismatch at lane " << i;
+    }
 }

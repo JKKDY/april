@@ -3,11 +3,16 @@
 #include <bit>
 #include <vector>
 
+#include "april/math/range.hpp"
+
 #include "april/forces/force_table.hpp"
-#include "april/particle/fields.hpp"
-#include "april/particle/access.hpp"
 #include "april/env/domain.hpp"
 #include "april/env/traits.hpp"
+
+#include "april/particle/fields.hpp"
+#include "april/particle/access.hpp"
+#include "april/particle/packed_access.hpp"
+
 
 
 
@@ -73,6 +78,22 @@ namespace april::container {
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t index) {
 			return env::RestrictedParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
+
+		template<env::FieldMask M>
+		[[nodiscard]] auto at_packed(this auto&& self, size_t index) {
+			return env::PackedParticleRef<M, U>{ self.template access_particle<M>(index) };
+		}
+
+		template<env::FieldMask M>
+		[[nodiscard]] auto view_packed(this const auto& self, size_t index) {
+			return env::PackedParticleView<M, U>{ self.template access_particle<M>(index) };
+		}
+
+		template<env::FieldMask M>
+		[[nodiscard]] auto restricted_at_packed(this auto&& self, size_t index) {
+			return env::PackedRestrictedParticleRef<M, U>{ self.template access_particle<M>(index) };
+		}
+
 
 		// ID ACCESSORS
 		template<env::FieldMask M>
@@ -162,7 +183,7 @@ namespace april::container {
 		[[nodiscard]] env::ParticleID invoke_max_id(this const auto& self) {
 			return self.max_id();
 		}
-		[[nodiscard]] std::vector<std::pair<size_t, size_t>> safe_iteration_ranges() const {
+		[[nodiscard]] std::vector<math::Range> iteration_ranges() const {
 			return {}; // TODO implement safe_iteration_ranges
 		}
 

@@ -103,6 +103,28 @@ namespace april::simd {
             return PackedT(self);
         }
 
+        // PERMUTES AND SHUFFLES
+        template<size_t... Indices>
+         [[nodiscard]] PackedT permute() const {
+            PackedT val = *this;
+            return val.template rotate_left<Indices...>();
+        }
+        template<unsigned K = 1>
+        [[nodiscard]] PackedT rotate_left() const {
+            PackedT val = *this;
+            return val.template rotate_left<K>();
+        }
+
+        template<unsigned K = 1>
+        [[nodiscard]] PackedT rotate_right() const {
+            PackedT val = *this;
+            return val.template rotate_right<K>();
+        }
+
+        [[nodiscard]] auto to_array() const {
+            return PackedT::load(ptr).to_array();
+        }
+
         // BINARY ARITHMETIC
         AP_SIMD_PROXY_BINARY(+)
         AP_SIMD_PROXY_BINARY(-)

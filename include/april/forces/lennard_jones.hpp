@@ -33,9 +33,8 @@ namespace april::force {
 			const auto inv_r2 = static_cast<vec3::type>(1.0) / (r.x*r.x + r.y*r.y + r.z * r.z);
 			const auto inv_r6 = inv_r2 * inv_r2 * inv_r2;
 			const auto magnitude = (c12_force * inv_r6 - c6_force) * inv_r6 * inv_r2;
-			//
-			// // Force vector pointing along -r
-			return -magnitude * r;
+
+			return -magnitude * r; // Force vector pointing along -r
 		}
 
 		[[nodiscard]] LennardJones mix(LennardJones const& other) const noexcept {

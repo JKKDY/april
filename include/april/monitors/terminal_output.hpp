@@ -11,7 +11,7 @@ namespace april::monitor {
 
 	class TerminalOutput final : public Monitor {
 	public:
-		static constexpr env::FieldMask fields = +env::Field::all;
+		static constexpr env::Field fields = env::Field::all;
 
 		using Monitor::Monitor;
 
@@ -39,3 +39,4 @@ namespace april::monitor {
 		}
 	};
 }
+

@@ -9,13 +9,13 @@ using namespace april;
 using ParticleRecord = env::internal::ParticleRecord<env::NoUserData>;
 
 struct TouchSpy final : Boundary {
-	static constexpr env::FieldMask fields = +env::Field::id;
+	static constexpr env::Field fields = env::Field::id;
 
 	// thickness >= 0 → inside slab; < 0 → outside half-space
 	explicit TouchSpy(const double thickness, std::vector<ParticleID>* sink)
 	: Boundary(thickness, false, false, false), sink(sink) {}
 
-	template<env::FieldMask M, env::IsUserData U>
+	template<env::Field M, env::IsUserData U>
 	void apply(env::ParticleRef<M, U> & p, const env::Box &, Face) const noexcept {
 		if (sink) sink->push_back(p.id);
 	}
@@ -294,6 +294,7 @@ TYPED_TEST(BoundaryTestT, InsideSlab_AllFaces_OneParticleEach) {
 	EXPECT_EQ(szm, std::vector{get_id(4)});
 	EXPECT_EQ(szp, std::vector{get_id(5)});
 }
+
 
 
 

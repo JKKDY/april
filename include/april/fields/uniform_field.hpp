@@ -6,7 +6,7 @@
 
 namespace april::field {
 	struct UniformField final : Field {
-		static constexpr env::FieldMask fields = to_field_mask(env::Field::force);
+		static constexpr env::Field fields = to_field_mask(env::Field::force);
 
 		explicit UniformField(const vec3 & force_dir): force(force_dir) {}
 
@@ -19,3 +19,4 @@ namespace april::field {
 		const vec3 force;
 	};
 }
+

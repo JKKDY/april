@@ -97,7 +97,7 @@ namespace april::container::layout {
 			}
 		}
 
-		template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Kernel>
+		template<env::Field M, ExecutionPolicy Policy, bool is_const, typename Kernel>
 		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
 			const auto [start_chunk, start_idx] = self.locate(start);
 			const auto [end_chunk, end_idx] = self.locate(end);
@@ -155,28 +155,28 @@ namespace april::container::layout {
 
 
 		// ACCESSORS (chunk based)
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 			return env::ParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
 			return env::ParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 			return env::RestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 			return env::PackedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t chunk_idx, size_t lane_idx) {
 			return env::PackedParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto restricted_at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 			return env::PackedRestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
@@ -429,7 +429,7 @@ namespace april::container::layout {
 	private:
 		std::vector<TopologyBatch> topology_batches;
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto access_particle(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
@@ -460,3 +460,5 @@ namespace april::container::layout {
 		}
 	};
 }
+
+

@@ -1,13 +1,12 @@
 #pragma once
 
 #include <cstdint>
-
+#include <april/base/bitmask.hpp>
 
 namespace april::env {
 
-	using FieldMask = uint16_t;
 
-	enum class Field : FieldMask {
+	enum class Field : uint16_t {
 		none			= 0u,
 		position     	= 1u << 0,
 		velocity     	= 1u << 1,
@@ -18,25 +17,24 @@ namespace april::env {
 		type         	= 1u << 6,
 		id           	= 1u << 7,
 		user_data    	= 1u << 8,
-		all			 	= static_cast<FieldMask>(~0u)
+		all			 	= static_cast<uint16_t>(~0u)
 	};
 
-	constexpr FieldMask to_field_mask(Field f) { return static_cast<FieldMask>(f); }
-	constexpr FieldMask operator+(Field f) { return static_cast<FieldMask>(f); }
+	AP_ENABLE_BITMASK_OPERATORS(Field)
 
-	constexpr FieldMask operator|(const Field a, const Field b) { return +a | +b; }
-	constexpr FieldMask operator|(const FieldMask m, const Field f) { return m | +f;}
-	constexpr FieldMask operator|(const Field a, const FieldMask m) { return +a | m; }
 
+	constexpr Field to_field_mask(Field f) { return static_cast<Field>(f); }
 
 	template<class T>
 	concept HasFields = requires { std::remove_cvref_t<T>::fields; };
 
 	template<HasFields Self>
-	inline constexpr FieldMask FieldOf = std::remove_cvref_t<Self>::fields;
+	inline constexpr Field FieldOf = std::remove_cvref_t<Self>::fields;
 
-	template<FieldMask M, Field F>
-	inline constexpr bool has_field_v = (M & to_field_mask(F)) != 0;
+	template<Field M, Field F>
+	inline constexpr bool has_field_v = (M & F) != Field::none;
 }
+
+
 
 

@@ -8,7 +8,7 @@
 namespace april::force {
 	// Harmonic spring force (Hooke's law). k: spring constant; r0: equilibrium distance.
 	struct Harmonic : Force{
-		static constexpr env::FieldMask fields = +env::Field::none;
+		static constexpr env::Field fields = env::Field::none;
 
 		double k; // Spring constant
 		double r0; // Equilibrium distance
@@ -35,3 +35,4 @@ namespace april::force {
 		bool operator==(const Harmonic&) const = default;
 	};
 }
+

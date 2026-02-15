@@ -2,6 +2,7 @@
 
 #include <concepts>
 #include "april/particle/fields.hpp"
+#include "april/particle/access.hpp"
 
 namespace april::field {
 
@@ -32,7 +33,7 @@ namespace april::field {
 			self.apply(particle);
 		}
 
-        template<env::FieldMask M, env::IsUserData U>
+        template<env::Field M, env::IsUserData U>
 		void invoke_apply(this const auto& self, env::RestrictedParticleRef<M, U> & particle) {
 			static_assert(
 				requires { self.apply(particle); },
@@ -43,10 +44,10 @@ namespace april::field {
 
 			static_assert(
 				requires { Derived::fields; },
-				"Field subclass must define 'static constexpr env::FieldMask fields'"
+				"Field subclass must define 'static constexpr env::Field fields'"
 			);
 
-			constexpr env::FieldMask Required = Derived::fields;
+			constexpr env::Field Required = Derived::fields;
 
 			static_assert(
 				(M & Required) == Required,
@@ -80,3 +81,4 @@ namespace april::field {
 	template<typename T>
 	concept IsFieldPack = is_field_pack_v<std::remove_cvref_t<T>>;
 }
+

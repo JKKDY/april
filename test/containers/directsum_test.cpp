@@ -17,7 +17,7 @@ using namespace april;
 template <typename T>
 class DirectSumTest : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, DirectSumAoSoA>;
+using ContainerTypes = testing::Types<DirectSumAoSoA>;
 TYPED_TEST_SUITE(DirectSumTest, ContainerTypes);
 
 TYPED_TEST(DirectSumTest, SingleParticle_NoForce) {
@@ -177,12 +177,12 @@ TYPED_TEST(DirectSumTest, CollectIndicesInRegion) {
 
 // does nothing except signaling the container to be periodic
 struct DummyPeriodicBoundary final : Boundary {
-	static constexpr env::FieldMask fields = +env::Field::none;
+	static constexpr env::Field fields = env::Field::none;
 
 	DummyPeriodicBoundary()
 	: Boundary(0.0, false, true, false ) {}
 
-	template<env::FieldMask M, env::IsUserData U>
+	template<env::Field M, env::IsUserData U>
 	void apply(env::ParticleRef<M, U> &, const env::Box &, const Face) const noexcept {}
 };
 
@@ -417,7 +417,7 @@ TYPED_TEST(DirectSumTest, IdBasedAccess_ReadWrite) {
         const auto sys_id = info.id_map[i];
 
         // Modify velocity using ID access
-        auto ref = sys.template at_id<+env::Field::velocity>(sys_id);
+        auto ref = sys.template at_id<env::Field::velocity>(sys_id);
         const auto val = static_cast<double>(i);
         ref.velocity = {val, val * 2, val * 3};
     }

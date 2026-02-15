@@ -66,3 +66,4 @@ enable_coverage(test_april)
 include(GoogleTest)
 gtest_discover_tests(test_april)
 set_target_properties(test_april PROPERTIES GTEST_DISCOVER_TESTS_MODE PRE_TEST)
+

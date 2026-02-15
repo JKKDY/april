@@ -128,3 +128,4 @@ namespace april::monitor {
        BenchmarkResult * result = nullptr;
     };
 }
+

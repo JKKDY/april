@@ -32,13 +32,13 @@ namespace april::container::internal {
 			// trampoline lambda
 			auto run_with_mode = [&] <bool PX, bool PY, bool PZ>() {
 				auto bcp = [L=self.domain.extent](const vec3& dr) {
-				return minimum_image<PX, PY, PZ>(dr, L);
-			};
+					return minimum_image<PX, PY, PZ>(dr, L);
+				};
 
-			// subclass is responsible for populating these vectors via generate_batches
-			for (const auto & batch : self.symmetric_batches) f(batch, bcp);
-			for (const auto & batch : self.asymmetric_batches) f(batch, bcp);
-		};
+				// subclass is responsible for populating these vectors via generate_batches
+				for (const auto & batch : self.symmetric_batches) f(batch, bcp);
+				for (const auto & batch : self.asymmetric_batches) f(batch, bcp);
+			};
 
 			// jump table
 			switch(mode) {
@@ -67,7 +67,7 @@ namespace april::container::internal {
 			}
 
 			// gather particles
-			self.template for_each_particle_view<+env::Field::position>(
+			self.template for_each_particle_view<env::Field::position>(
 				[&](const size_t i, const auto & particle) {
 					if (region.contains(particle.position)) {
 						ret.push_back(i);
@@ -87,7 +87,7 @@ namespace april::container::internal {
 			// outer vector holds buckets, inner vectors hold physical indexes to particles belonging to that bucket
 			std::vector<std::vector<size_t>> buckets;
 
-			self.template for_each_particle_view<+env::Field::type>(
+			self.template for_each_particle_view<env::Field::type>(
 				[&](const size_t i, const auto& p) {
 					const auto type_idx = static_cast<size_t>(p.type);
 					if (type_idx >= buckets.size()) {
@@ -116,3 +116,5 @@ namespace april::container::internal {
 	};
 
 }
+
+

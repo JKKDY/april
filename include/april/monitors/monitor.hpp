@@ -72,3 +72,4 @@ namespace april::monitor {
 	template<class... Ms> inline constexpr MonitorPack<Ms...> monitors{};
 
 }
+

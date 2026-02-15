@@ -241,3 +241,5 @@ namespace april::simd::internal::std_simd {
     static_assert(IsSimdType<Packed<double>>);
     static_assert(IsSimdMask<Mask<double>>);
 }
+
+

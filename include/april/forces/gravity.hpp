@@ -8,7 +8,7 @@
 
 namespace april::force {
     struct Gravity : Force{
-        static constexpr env::FieldMask fields = +env::Field::mass;
+        static constexpr env::Field fields = env::Field::mass;
 
         double grav_constant;
 
@@ -32,3 +32,4 @@ namespace april::force {
         bool operator==(const Gravity&) const = default;
     };
 }
+

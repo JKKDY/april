@@ -19,14 +19,13 @@ namespace april::container {
 
 	enum class UpdatePolicy : uint8_t {
 		Serial,		// Standard '+='. Fastest. Assumes thread-safety (Serial or Coloring).
-		Serial_N3,	// Standard '+='. Fastest. Assumes thread-safety (Serial or Coloring). Uses newton 3 to update opposite particle as well
 		Atomic,		// Atomic CAS/Fetch-Add. Slower. Thread-safe for overlapping writes.
-		Atomic_N3,	// Standard '+='. Fastest. Assumes thread-safety (Serial or Coloring). Uses newton 3 to update opposite particle as well
 	};
 
-	enum class ComputePolicy : uint8_t { // for future use
+	enum class ComputePolicy : uint8_t {
 		Scalar,
 		Vector,
+		Hybrid
 	};
 
 	// missing: branchless, auto simd (e.g. omp simd), accumulate outside
@@ -68,9 +67,9 @@ namespace april::container {
 	template<typename T>
 	concept IsBatchAtom = requires(const T& t) {
 		// callable must take in two particle views
-		{ t.template for_each_pair<+env::Field::all>(
+		{ t.template for_each_pair<env::Field::all>(
 			[]<typename P0, typename P1>(P0&&, P1&&)
-			requires env::IsRestrictedRef<P0> && env::IsRestrictedRef<P1>
+			// requires env::IsRestrictedRef<P0> && env::IsRestrictedRef<P1>
 			{}
 		) };
 	};
@@ -97,4 +96,6 @@ namespace april::container {
 		}
 	};
 }
+
+
 

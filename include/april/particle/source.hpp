@@ -7,12 +7,12 @@
 
 namespace april::env {
 	// conditional switch between type and monostate
-	template<typename T, Field F, FieldMask M>
+	template<typename T, Field F, Field M>
 	using field_type_t = std::conditional_t<has_field_v<M, F>, T, std::monostate>;
 
 
 
-	template<FieldMask M, IsUserData U, bool IsConst>
+	template<Field M, IsUserData U, bool IsConst>
 	struct ParticleSource {
 
 		// selects T* or const T*
@@ -52,3 +52,4 @@ namespace april::env {
 		}
 	};
 }
+

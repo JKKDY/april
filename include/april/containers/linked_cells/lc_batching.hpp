@@ -8,7 +8,7 @@ namespace april::container::internal {
 	template<typename AsymmetricBatch, typename SymmetricBatch>
 	struct LinkedCellsBatch : SerialBatch {
 
-		template<env::FieldMask Mask, typename Func>
+		template<env::Field Mask, typename Func>
 		void for_each_pair (Func && f) const {
 			for (const auto& chunk : sym_chunks)
 				chunk.template for_each_pair<Mask>(f);
@@ -30,3 +30,5 @@ namespace april::container::internal {
 		std::vector<AsymmetricBatch> asym_chunks;
 	};
 }
+
+

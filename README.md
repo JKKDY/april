@@ -334,7 +334,7 @@ struct MyForce : Force{
     // fields you want to access in the eval function must be explicitly
     // stated at compile time. if you try to access a field not stated here 
     // the compiler will complain
-    static constexpr env::FieldMask fields = env::Field::position | env::Field::velocity;
+    static constexpr env::Mask fields = env::Field::position | env::Field::velocity;
 
     // p1, p2 are particle views; hold const references to the actual data
     vec3 eval(auto p1, auto p2, const vec3& r) const noexcept {
@@ -401,6 +401,7 @@ To explore?
 - [ ] replicating particles + active matter
 - [ ] communication "bridges"/"pipes" between components
 - [ ] econophysics style simulations -->
+
 
 
 

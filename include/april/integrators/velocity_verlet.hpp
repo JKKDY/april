@@ -18,11 +18,11 @@ namespace april::integrator {
 		using Base::sys;
 		using Base::Base;
 
-		static constexpr env::FieldMask pos_upd_fields =
+		static constexpr env::Field pos_upd_fields =
 			env::Field::state | env::Field::velocity | env::Field::position | env::Field::mass |
 			env::Field::old_position | env::Field::force;
 
-		static constexpr env::FieldMask vel_upd_fields =
+		static constexpr env::Field vel_upd_fields =
 			env::Field::state | env::Field::velocity | env::Field::force | env::Field::mass;
 
 		void integration_step() const {
@@ -57,3 +57,4 @@ namespace april::integrator {
 	VelocityVerlet(Sys&, Ms...)
 		-> VelocityVerlet<Sys, monitor::MonitorPack<std::decay_t<Ms>...>>;
 }
+

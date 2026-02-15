@@ -143,8 +143,8 @@ function(set_target_build_flags target_name)
             #------------
             # DEBUG BUILD
             #------------
-            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-O0 -g>
-            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang>>:-O0 -g>
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-O0 -g -march=native >
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang>>:-O0 -g -march=native >
             $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od /Zi /bigobj>
 
 
@@ -275,6 +275,7 @@ enable_testing()
 add_subdirectory(examples)
 add_subdirectory(test)
 add_subdirectory(benchmark)
+
 
 
 

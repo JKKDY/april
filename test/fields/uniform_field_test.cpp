@@ -30,7 +30,7 @@ TEST(UniformFieldTest, ApplyIsAdditive) {
 	auto p_rec = make_test_particle({10.0, 0.0, 0.0});
 
 	// 3. Create the necessary reference for the 'apply' method
-	constexpr env::FieldMask Mask = UniformField::fields;
+	constexpr env::Field Mask = UniformField::fields;
 
 	env::ParticleSource<Mask, env::NoUserData, false> src;
 	src.force    = &p_rec.force;

@@ -262,3 +262,4 @@ TEST(ThermostatBehaviorTest, Apply_HeatsThenCoolsWithTriggers) {
     auto T_cooled = get_system_temp(p_cooled, v_cooled, system.box());
     EXPECT_NEAR(T_cooled, T_cool, 0.1);
 }
+

@@ -6,10 +6,10 @@
 #include "april/math/vec3.hpp"
 
 namespace april::env {
-    template<FieldMask M, IsUserData U> struct PackedParticleView;
+    template<Field M, IsUserData U> struct PackedParticleView;
 
 
-    template<FieldMask M, Field F, typename Source>
+    template<Field M, Field F, typename Source>
     constexpr auto init_packed(const Source& src) {
         if constexpr (has_field_v<M, F>) {
             return src.template get<F>();
@@ -18,12 +18,11 @@ namespace april::env {
         }
     }
 
-
     //----------------
     // PACKED PARTICLE
     //----------------
     // shadow object with actual SIMD registers. Allows for manipulations without direct write backs
-    template<FieldMask M>
+    template<Field M>
     struct PackedParticleBuffer {
         field_type_t<pvec3, Field::position, M> position;
         field_type_t<pvec3, Field::old_position, M> old_position;
@@ -92,7 +91,7 @@ namespace april::env {
     //-------------------
     // PARTICLE REFERENCE
     //-------------------
-    template<FieldMask M, IsUserData U>
+    template<Field M, IsUserData U>
     struct PackedParticleRef {
         using pvec3_ref = math::Vec3Proxy<pvec3::type>;
 
@@ -126,7 +125,7 @@ namespace april::env {
     //------------------------
     // RESTRICTED PARTICLE REF
     //------------------------
-    template<FieldMask M, IsUserData U>
+    template<Field M, IsUserData U>
     struct PackedRestrictedParticleRef {
         using pvec3_ref = math::Vec3Proxy<pvec3::type>;
         using const_pvec3_ref = math::Vec3Proxy<const pvec3::type>;
@@ -163,7 +162,7 @@ namespace april::env {
     //--------------
     // PARTICLE VIEW
     //--------------
-    template<FieldMask M, IsUserData U>
+    template<Field M, IsUserData U>
     struct PackedParticleView {
         using const_pvec3_ref = math::Vec3Proxy<const pvec3::type>;
         using const_d_ref = simd::PackedRef<const double>;
@@ -201,8 +200,6 @@ namespace april::env {
         AP_NO_UNIQUE_ADDRESS field_type_t<const const_d_ref, Field::mass, M> mass;
     };
 
-
-    //
-
-
 }
+
+

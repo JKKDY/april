@@ -18,7 +18,7 @@ namespace april::force {
     struct Force {
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
-        template<env::FieldMask IncomingMask, env::IsUserData U>
+        template<env::Field IncomingMask, env::IsUserData U>
         vec3 operator()(this const auto& self,
                 const env::ParticleView<IncomingMask, U> & p1,
                 const env::ParticleView<IncomingMask, U> & p2,
@@ -34,10 +34,10 @@ namespace april::force {
             // check for fields requirements
             static_assert(
                 requires { Derived::fields; },
-                "Force subclass must define 'static constexpr env::FieldMask fields'"
+                "Force subclass must define 'static constexpr env::Field fields'"
             );
 
-            constexpr env::FieldMask Required = Derived::fields;
+            constexpr env::Field Required = Derived::fields;
 
             // check for
             static_assert(
@@ -168,11 +168,11 @@ namespace april::force {
 
         // internal placeholder only
         struct ForceSentinel : Force {
-            static constexpr env::FieldMask fields = +env::Field::none;
+            static constexpr env::Field fields = env::Field::none;
 
             ForceSentinel() : Force(-1.0) {}
 
-            template<env::FieldMask M, env::IsUserData U>
+            template<env::Field M, env::IsUserData U>
             vec3 eval(const env::ParticleView<M, U> &, const env::ParticleView<M, U> &, const vec3&) const noexcept {
                 AP_ASSERT(false, "NullForce should never be executed");
                 std::unreachable();
@@ -202,6 +202,7 @@ namespace april::force {
 
         // Convenience alias
         template<class... Fs>
-        using VariantType_t = typename VariantType<Fs...>::type;
+        using VariantType_t = VariantType<Fs...>::type;
     }
 } // namespace april::env
+

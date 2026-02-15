@@ -11,7 +11,7 @@ namespace april::container::internal {
 	struct AsymmetricChunkedBatch : SerialBatch {
 		explicit AsymmetricChunkedBatch(Container & container, ChunkPtr * chunks): container(container), chunks(chunks) {}
 
-		template<env::FieldMask Mask, typename Func>
+		template<env::Field Mask, typename Func>
 		AP_FORCE_INLINE
    		void for_each_pair (Func && f) const {
 			// skip empty range
@@ -35,9 +35,9 @@ namespace april::container::internal {
 		            AP_PREFETCH(chunks + c2 + 1);
 
 		            for (size_t i = 0; i < stride; ++i) {
-		                auto p1 = container.template restricted_at<Mask>(c1, i);
+		                auto p1 = container.template at<Mask>(c1, i);
 		                for (size_t j = 0; j < stride; ++j) {
-		                    auto p2 = container.template restricted_at<Mask>(c2, j);
+		                    auto p2 = container.template at<Mask>(c2, j);
 		                    f(p1, p2);
 		                }
 		            }
@@ -48,9 +48,9 @@ namespace april::container::internal {
 		    for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
 		    	AP_PREFETCH(chunks + c1 + 1);
 		        for (size_t i = 0; i < stride; ++i) {
-		            auto p1 = container.template restricted_at<Mask>(c1, i);
+		            auto p1 = container.template at<Mask>(c1, i);
 		            for (size_t j = 0; j < limit2_tail; ++j) {
-		                auto p2 = container.template restricted_at<Mask>(c2_body_end, j);
+		                auto p2 = container.template at<Mask>(c2_body_end, j);
 		                f(p1, p2);
 		            }
 		        }
@@ -60,9 +60,9 @@ namespace april::container::internal {
 		    for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
 		    	AP_PREFETCH(chunks + c2 + 1);
 		        for (size_t i = 0; i < limit1_tail; ++i) {
-		            auto p1 = container.template restricted_at<Mask>(c1_body_end, i);
+		            auto p1 = container.template at<Mask>(c1_body_end, i);
 		            for (size_t j = 0; j < stride; ++j) {
-		                auto p2 = container.template restricted_at<Mask>(c2, j);
+		                auto p2 = container.template at<Mask>(c2, j);
 		                f(p1, p2);
 		            }
 		        }
@@ -70,9 +70,9 @@ namespace april::container::internal {
 
 		    // tail 1 vs tail 2 (Interaction between the two last chunks)
 	        for (size_t i = 0; i < limit1_tail; ++i) {
-	            auto p1 = container.template restricted_at<Mask>(c1_body_end, i);
+	            auto p1 = container.template at<Mask>(c1_body_end, i);
 	            for (size_t j = 0; j < limit2_tail; ++j) {
-	                auto p2 = container.template restricted_at<Mask>(c2_body_end, j);
+	                auto p2 = container.template at<Mask>(c2_body_end, j);
 	                f(p1, p2);
 	            }
 	        }
@@ -94,7 +94,7 @@ namespace april::container::internal {
 	struct SymmetricChunkedBatch : SerialBatch {
 		explicit SymmetricChunkedBatch(Container & container, ChunkPtr * chunks) : container(container), chunks(chunks) {}
 
-		template<env::FieldMask Mask, typename Func>
+		template<env::Field Mask, typename Func>
 	    AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
 	        if (range_chunks.start == range_chunks.stop) return;
@@ -110,9 +110,9 @@ namespace april::container::internal {
 
 	            // chunk self interaction
 	            for (size_t i = 0; i < stride; ++i) {
-	                auto p1 = container.template restricted_at<Mask>(c1, i);
+	                auto p1 = container.template at<Mask>(c1, i);
 	                for (size_t j = i + 1; j < stride; ++j) {
-	                     auto p2 = container.template restricted_at<Mask>(c1, j);
+	                     auto p2 = container.template at<Mask>(c1, j);
 	                     f(p1, p2);
 	                }
 	            }
@@ -121,9 +121,9 @@ namespace april::container::internal {
 	            for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
 	                AP_PREFETCH(chunks + c2 + 1);
 	                for (size_t i = 0; i < stride; ++i) {
-	                    auto p1 = container.template restricted_at<Mask>(c1, i);
+	                    auto p1 = container.template at<Mask>(c1, i);
 	                    for (size_t j = 0; j < stride; ++j) {
-	                        auto p2 = container.template restricted_at<Mask>(c2, j);
+	                        auto p2 = container.template at<Mask>(c2, j);
 	                        f(p1, p2);
 	                    }
 	                }
@@ -134,9 +134,9 @@ namespace april::container::internal {
 	        for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
 	            AP_PREFETCH(chunks + c1 + 1);
 	            for (size_t i = 0; i < stride; ++i) {
-	                auto p1 = container.template restricted_at<Mask>(c1, i);
+	                auto p1 = container.template at<Mask>(c1, i);
 	                for (size_t j = 0; j < limit_tail; ++j) {
-	                     auto p2 = container.template restricted_at<Mask>(c_body_end, j);
+	                     auto p2 = container.template at<Mask>(c_body_end, j);
 	                     f(p1, p2);
 	                }
 	            }
@@ -144,9 +144,9 @@ namespace april::container::internal {
 
 	        // tail (interact tail chunk with itself)
             for (size_t i = 0; i < limit_tail; ++i) {
-                auto p1 = container.template restricted_at<Mask>(c_body_end, i);
+                auto p1 = container.template at<Mask>(c_body_end, i);
                 for (size_t j = i + 1; j < limit_tail; ++j) {
-                     auto p2 = container.template restricted_at<Mask>(c_body_end, j);
+                     auto p2 = container.template at<Mask>(c_body_end, j);
                      f(p1, p2);
                 }
             }
@@ -161,4 +161,6 @@ namespace april::container::internal {
 	};
 
 }
+
+
 

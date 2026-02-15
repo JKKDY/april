@@ -176,3 +176,5 @@ namespace april::simd {
 #undef AP_SIMD_PROXY_COMPOUND
 #undef AP_SIMD_PROXY_COMPARE
 #undef AP_SIMD_PROXY_BINARY
+
+

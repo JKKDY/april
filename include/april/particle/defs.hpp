@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "april/base/bitmask.hpp"
+
 namespace april::env {
 
 	enum class ParticleState : uint8_t {
@@ -16,39 +18,7 @@ namespace april::env {
 		ALL        = 0b01111111  // Matches all states (Except invalid)
 	};
 
-
-	// Bitwise OR
-	inline ParticleState operator|(ParticleState a, ParticleState b) {
-		return static_cast<ParticleState>(
-			static_cast<unsigned int>(a) | static_cast<unsigned int>(b)
-		);
-	}
-
-	// Bitwise AND
-	inline ParticleState operator&(ParticleState a, ParticleState b) {
-		return static_cast<ParticleState>(
-			static_cast<unsigned int>(a) & static_cast<unsigned int>(b)
-		);
-	}
-
-	// Bitwise NOT
-	inline ParticleState operator~(ParticleState a) {
-		return static_cast<ParticleState>(
-			~static_cast<unsigned int>(a)
-		);
-	}
-
-	// OR-assignment
-	inline ParticleState& operator|=(ParticleState& a, const ParticleState b) {
-		a = a | b;
-		return a;
-	}
-
-	// AND-assignment
-	inline ParticleState& operator&=(ParticleState& a, const ParticleState b) {
-		a = a & b;
-		return a;
-	}
+	AP_ENABLE_BITMASK_OPERATORS(ParticleState)
 
 
 	using ParticleType = uint16_t;
@@ -76,3 +46,5 @@ namespace april::env {
 	inline constexpr ParticleData<Data> particle_data {};
 
 }
+
+

@@ -56,3 +56,4 @@ namespace april::container {
         using impl = internal::DirectSumSoAImpl<ConfigT, U>;
     };
 }
+

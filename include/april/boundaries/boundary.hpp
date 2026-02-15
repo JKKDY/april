@@ -85,7 +85,7 @@ namespace april::boundary {
 		{}
 
 		// TODO make this bindable to R-Values
-		template<env::FieldMask IncomingMask, env::IsUserData U>
+		template<env::Field IncomingMask, env::IsUserData U>
 		void invoke_apply(this const auto & self,env::ParticleRef<IncomingMask, U> & particle, const env::Box & domain_box, Face face) noexcept {
 			static_assert(
 			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },
@@ -97,10 +97,10 @@ namespace april::boundary {
 			// check for fields requirements
 			static_assert(
 				requires { Derived::fields; },
-				"Force subclass must define 'static constexpr env::FieldMask fields'"
+				"Force subclass must define 'static constexpr env::Field fields'"
 			);
 
-			constexpr env::FieldMask Required = Derived::fields;
+			constexpr env::Field Required = Derived::fields;
 
 			static_assert(
 			  (IncomingMask & Required) == Required,
@@ -144,11 +144,11 @@ namespace april::boundary {
 	namespace internal {
 
 		struct BoundarySentinel : Boundary {
-			static constexpr env::FieldMask fields = +env::Field::none;
+			static constexpr env::Field fields = env::Field::none;
 
 			BoundarySentinel(): Boundary(-1, false, false, false) {}
 
-			template<env::FieldMask IncomingMask, env::IsUserData U>
+			template<env::Field IncomingMask, env::IsUserData U>
 			void apply(env::ParticleRef<IncomingMask, U> &, const env::Box &, const Face) const noexcept {
 				AP_ASSERT(false, "apply called on null boundary! this should never happen");
 			}
@@ -178,5 +178,7 @@ namespace april::boundary {
 		using VariantType_t = typename VariantType<BCs...>::type;
 	}
 }
+
+
 
 

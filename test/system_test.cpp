@@ -163,3 +163,4 @@ TEST(EnvTest, AutoOriginExtentDoublesBBox) {
     EXPECT_EQ(sys.domain().origin, vec3(0,1,2));
     EXPECT_EQ(sys.domain().extent, vec3(4,4,4));
 }
+

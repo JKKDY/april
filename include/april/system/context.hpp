@@ -25,33 +25,33 @@ namespace april::core {
 		// PARTICLE ACCESSORS
 		// ------------------
 		// INDEX ACCESSORS (fast)
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto at(size_t index) {
 			return system.template at<M>(index);
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto view(size_t index) const {
 			return system.template view<M>(index);
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto restricted_at(size_t index) {
 			return system.template restricted_at<M>(index);
 		}
 
 		// ID ACCESSORS (stable)
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto at_id(env::ParticleID id) {
 			return system.template at_id<M>(id);
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto view_id(env::ParticleID id) const {
 			return system.template view_id<M>(id);
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto restricted_at_id(env::ParticleID id) {
 			return system.template restricted_at_id<M>(id);
 		}
@@ -93,12 +93,12 @@ namespace april::core {
 		// --------------
 		// FUNCTIONAL OPS
 		// --------------
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<env::Field M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle(Func && func, env::ParticleState state = env::ParticleState::ALL) {
 			system.template for_each_particle<M, Policy, Func>(std::forward<Func>(func), state);
 		}
 
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<env::Field M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle_view(Func && func, env::ParticleState state = env::ParticleState::ALL) const {
 			system.template for_each_particle_view<M, Policy, Func>(std::forward<Func>(func), state);
 		}
@@ -108,7 +108,7 @@ namespace april::core {
 			system.for_each_interaction_batch(std::forward<Func>(func));
 		}
 
-		template<env::FieldMask M, typename Func>
+		template<env::Field M, typename Func>
 		void for_each_interaction_pair(Func && func) {
 			system.template for_each_interaction_pair<M>(func);
 		}
@@ -134,3 +134,4 @@ namespace april::core {
 	};
 
 }
+

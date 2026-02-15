@@ -132,3 +132,4 @@ namespace april {
 	// shared
 	using shared::Trigger;
 }
+

@@ -114,3 +114,4 @@ namespace april::boundary::internal {
 		std::array<CompiledBoundary<BVariant>, 6> table;
 	};
 }
+

@@ -8,7 +8,7 @@
 #include "april/system/context.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/boundaries/boundary.hpp"
-
+#include "april/base/policy.hpp"
 
 
 namespace april::core {
@@ -48,13 +48,13 @@ namespace april::core {
 		using Container = ContainerDecl::template impl<typename Traits::user_data_t>;
 		using ParticleRec = Traits::particle_record_t;
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		using ParticleRef = Traits::template particle_ref_t<M>;
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		using ParticleView = Traits::template particle_view_t<M>;
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		using RestrictedParticleRef = Traits::template restricted_particle_ref_t<M>;
 
 
@@ -77,33 +77,33 @@ namespace april::core {
 		// "at" implies mutable access, "view" implies read-only, "restricted_at" implies only force mutable
 
 		// INDEX ACCESSORS (fast)
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto at(const size_t index) {
 			return particle_container.template at<M>(index);
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto view(const size_t index) const {
 			return particle_container.template view<M>(index);
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto restricted_at(const size_t index) {
 			return particle_container.template restricted_at<M>(index);
 		}
 
 		// ID ACCESSORS (stable)
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto at_id(const env::ParticleID id) {
 			return particle_container.template at_id<M>(id);
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto view_id(const env::ParticleID id) const {
 			return particle_container.template view_id<M>(id);
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto restricted_at_id(const env::ParticleID id) {
 			return particle_container.template restricted_at_id<M>(id);
 		}
@@ -155,17 +155,17 @@ namespace april::core {
 		// --------------
 		// FUNCTIONAL OPS
 		// --------------
-		template<env::FieldMask M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<env::Field M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle(Func && func, env::ParticleState state = env::ParticleState::ALL) {
 			particle_container.template for_each_particle<M, Policy, Func>(std::forward<Func>(func), state);
 		}
 
-		template<env::FieldMask M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<env::Field M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle_view(Func && func, env::ParticleState state = env::ParticleState::ALL) const {
 			particle_container.template for_each_particle_view<M, Policy, Func>(std::forward<Func>(func), state);
 		}
 
-		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>
+		template<env::Field M, typename T, typename Mapper, typename Reducer = std::plus<T>>
 		[[nodiscard]] T reduce(
 			T initial_value,
 			Mapper&& map_func,
@@ -182,7 +182,7 @@ namespace april::core {
 			particle_container.invoke_for_each_interaction_batch(std::forward<Func>(func));
 		}
 
-		template<env::FieldMask M, typename Func>
+		template<env::Field M, typename Func>
 		void for_each_interaction_pair(Func && func) { // func(particle, particle, dist)
 			auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
 				auto kernel = [&](auto && p1, auto && p2) {
@@ -200,7 +200,7 @@ namespace april::core {
 				execute_batch_kernel<M>(batch, kernel);
 			};
 
-			particle_container.invoke_for_each_interaction_batch(update_batch);
+			for_each_interaction_batch(update_batch);
 		}
 
 
@@ -310,7 +310,66 @@ namespace april::core {
 			 BuildInfo * build_info
 		);
 
-		template<env::FieldMask M, typename Batch, typename Kernel>
+		// enum class VectorPolicy {
+		// 	Scalar = 1 << 0,
+		// 	Vector = 1 << 1,
+		// 	Auto = Scalar | Vector
+		// };
+		//
+		// enum class ParallelPolicy {
+		// 	Serial,
+		// 	ParallelBatches, // parallelize across batches
+		// 	ParallelPairs, // parallelize pair evaluations within a batch
+		// 	Auto
+		// };
+
+		// template<env::Field M, ParallelPolicy P, VectorPolicy V, typename Batch, typename UserKernel>
+		// void execute_batch_kernel(const Batch& batch, UserKernel&& user_kernel) {
+		// 	constexpr VectorPolicy kernel_compute = KernelComputeType<UserKernel>;
+		// 	constexpr ComputePolicy batch_compute = Batch::compute_policy;
+		//
+		// 	constexpr bool ForceScalar = (UserRequest & VectorPolicy::Scalar) && !(UserRequest & VectorPolicy::Vector);
+		//
+		//
+		// 	constexpr bool strictScalar = V & VectorPolicy::Scalar && V & ~VectorPolicy::Vector;
+		// 	constexpr bool strictVector = V & VectorPolicy::Vector && V & ~VectorPolicy::Scalar;
+		//
+		// 	// if user requests scalar or SIMD only ensure the kernel can handle that
+		// 	static_assert(!strictScalar || kernel_traits & VectorPolicy::Scalar);
+		// 	static_assert(!strictVector || kernel_traits & VectorPolicy::Vector);
+		//
+		// 	// if user requests SIMD only make sure the batch is compatible. If they want scalar only we can scalarize the packed data
+		// 	static_assert(!strictVector || Batch::compute_policy & container::ComputePolicy::Vector);
+		//
+		// 	auto wrapped_kernel = [&]<bool is_packed>(auto && p1, auto && p2) {
+		//
+		// 		if constexpr (is_packed && kernel_traits & VectorPolicy::Vector) {
+		// 			user_kernel(p1, p2);
+		// 		} else if constexpr (!is_packed && kernel_traits & VectorPolicy::Scalar) {
+		// 			user_kernel(p1, p2);
+		// 		} else if constexpr (is_packed && !kernel_traits & VectorPolicy::Vector) {
+		// 			// TODO: scalarize packed
+		// 			static_assert(false, "not implemented yet");
+		// 		}
+		// 	};
+		//
+		//
+		//
+		// 	// execute
+		// 	if constexpr (container::IsBatchAtom<Batch>) {
+		// 		batch.template for_each_pair<M>(wrapped_kernel);
+		// 	} else if constexpr (container::IsBatchAtomRange<Batch>) {
+		// 		if constexpr (Batch::parallel_policy == Par::Inner) {
+		// 			static_assert(Batch::parallel_policy == Cmp::Scalar, "Vectorization not implemented yet");
+		// 			std::unreachable();
+		// 		} else {
+		// 			for (const auto& atom : batch) {
+		// 				atom.template for_each_pair<M>(wrapped_kernel);
+		// 			}
+		// 		}
+		// 	}
+		// }
+		template<env::Field M, typename Batch, typename Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel) {
 			using Par = container::ParallelPolicy;
 			using Cmp = container::ComputePolicy;
@@ -339,8 +398,6 @@ namespace april::core {
 				}
 			}
 		}
-
-
 	};
 
 
@@ -352,32 +409,42 @@ namespace april::core {
 
 		// batch update lambda. passed into container::for_each_interaction_batch
 		auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
-			using Upd = container::UpdatePolicy;
+			// using Upd = container::UpdatePolicy;
+			// using Cmp = container::ComputePolicy;
 
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr env::FieldMask M = ForceT::fields | env::Field::force | env::Field::position;
+				constexpr env::Field M = ForceT::fields | env::Field::force | env::Field::position;
 
 				auto kernel = [&](auto & p1, auto & p2) {
-					vec3 r;
+					auto r = p2.position - p1.position;
 
-					if constexpr (std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
-						r = p2.position - p1.position;
-					} else {
-						r = apply_bcp(p2.position - p1.position);
+					if constexpr (!std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
+						r = apply_bcp(r);
 					}
 
 					if (r.norm_squared() > force.cutoff2()) {
 						return;
 					}
+					auto f = force(p1.to_view(), p2.to_view(), r);
+					p1.force += f;
+					p2.force -= f;
+					//
+					// if constexpr (is_packed) {
+					// 	auto mask = r.norm_squared() > force.cutoff2();
+					// 	if (all(mask)) return;
+					// 	auto f = force(p1, p2, r);
+					// 	p1.force += f;
+					// 	p2.force -= f;
+					// } else {
+					// 	if (r.norm_squared() > force.cutoff2()) {
+					// 		return;
+					// 	}
+					// 	auto f = force(p1, p2, r);
+					// 	p1.force += f;
+					// 	p2.force -= f;
+					// }
 
-					const vec3 f = force(p1.to_view(), p2.to_view(), r);
 
-					if constexpr (Batch::update_policy == Upd::Atomic) {
-						static_assert(Batch::update_policy == Upd::Atomic, "atomic force update not implemented yet");
-					} else {
-						p1.force += f;
-						p2.force -= f;
-					}
 				};
 
 				execute_batch_kernel<M>(batch, kernel);
@@ -387,17 +454,19 @@ namespace april::core {
 			force_table.dispatch(t1, t2, apply_batch_update);
 		};
 
-		particle_container.template for_each_particle<+env::Field::force>(
+		particle_container.template for_each_particle<env::Field::force>(
 			[](auto && p) { p.force = {}; } // reset forces
 		);
 		particle_container.invoke_for_each_interaction_batch(update_batch);
+
+
 
 
 		// handle id interactions
 		auto update_global_batch = [&](const auto & batch) {
 
 			auto apply_batch_update = [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr env::FieldMask M = ForceT::fields | env::Field::force | env::Field::position;
+				constexpr env::Field M = ForceT::fields | env::Field::force | env::Field::position;
 
 				for (const auto & [id1, id2] : batch.pairs) {
 					auto && p1 = particle_container.template restricted_at_id<M>(id1);
@@ -431,7 +500,7 @@ namespace april::core {
 			std::vector<size_t> particle_ids = particle_container.invoke_collect_indices_in_region(compiled_boundary.boundary_region);
 
 			auto boundary_condition_inside = [&]<typename B>(const B & bc) {
-				constexpr env::FieldMask M = std::decay_t<B>::fields;
+				constexpr env::Field M = std::decay_t<B>::fields;
 
 				for (auto p_idx : particle_ids) {
 					auto p = particle_container.template at<M>(p_idx);
@@ -444,8 +513,8 @@ namespace april::core {
 			};
 
 			auto boundary_condition_outside = [&]<typename B>(const B & bc) {
-				static constexpr env::FieldMask detect_mask = env::Field::position | env::Field::old_position;
-				constexpr env::FieldMask M = std::decay_t<B>::fields | detect_mask;
+				static constexpr env::Field detect_mask = env::Field::position | env::Field::old_position;
+				constexpr env::Field M = std::decay_t<B>::fields | detect_mask;
 
 				for (auto p_idx : particle_ids) {
 					auto particle = particle_container.template at<M>(p_idx);
@@ -501,7 +570,7 @@ namespace april::core {
 	void System<C, Traits>::apply_force_fields() {
 		fields.for_each_item([this]<typename F>(F & field) {
 			for (size_t i = 0; i < size(); ++i) {
-				constexpr env::FieldMask M = F::fields;
+				constexpr env::Field M = F::fields;
 				auto restricted = particle_container.template restricted_at<M>(i);
 				field.dispatch_apply(restricted);
 			}
@@ -535,5 +604,7 @@ namespace april::core {
 
 
 }
+
+
 
 

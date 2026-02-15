@@ -50,7 +50,7 @@ std::vector<typename System::ParticleRec> export_particles(System& sys) {
 	std::vector<typename System::ParticleRec> records;
 	records.reserve(sys.size());
 
-	sys.template for_each_particle<+env::Field::none>([&](size_t idx, auto &&) {
+	sys.template for_each_particle<env::Field::none>([&](size_t idx, auto &&) {
 		records.push_back(get_particle(sys, idx));
 	});
 
@@ -61,7 +61,7 @@ std::vector<typename System::ParticleRec> export_particles(System& sys) {
 
 template<core::IsSystem System>
 void simulate_single_step(System& sys) {
-	constexpr env::FieldMask edit_fields = env::Field::old_position | env::Field::position | env::Field::velocity;
+	constexpr env::Field edit_fields = env::Field::old_position | env::Field::position | env::Field::velocity;
 
 	for (size_t pid = sys.min_id(); pid < sys.max_id(); ++pid) {
 		if (!sys.contains_id(pid)) continue;
@@ -85,3 +85,4 @@ inline Particle make_particle(
 	p.id = id;
 	return p;
 }
+

@@ -91,3 +91,4 @@ namespace april::container {
         using impl = internal::LinkedCellsSoAImpl<ConfigT, U>;
     };
 }
+

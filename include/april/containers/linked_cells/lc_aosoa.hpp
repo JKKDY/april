@@ -21,8 +21,6 @@ namespace april::container::internal {
 
     	template<typename F>
 		void for_each_interaction_batch(this auto && self, F && func) {
-		    // const uint3 block_dim = self.config.block_size;
-
     		struct BinRange {
     			math::Range range_chunks;
     			size_t tail{};
@@ -124,3 +122,4 @@ namespace april::container {
 		using impl = internal::LinkedCellsAoSoAImpl<ConfigT, U, ChunkSize>;
 	};
 }
+

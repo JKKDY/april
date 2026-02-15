@@ -23,7 +23,7 @@ struct ForceTestUserData {
 
 static_assert(IsUserData<ForceTestUserData>, "Test data must satisfy IsUserData");
 
-static constexpr FieldMask TestMask = Field::position | Field::mass | Field::user_data;
+static constexpr env::Field TestMask = Field::position | Field::mass | Field::user_data;
 
 class ForceTest : public testing::Test {
 protected:

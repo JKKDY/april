@@ -43,7 +43,7 @@ namespace april::container::layout {
 			}
 		}
 
-		template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Kernel>
+		template<env::Field M, ExecutionPolicy Policy, bool is_const, typename Kernel>
 		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
 			for (size_t i = start; i < end; i++) {
 				if constexpr (is_const) {
@@ -151,3 +151,4 @@ namespace april::container::layout {
 		std::vector<TopologyBatch> topology_batches;
 	};
 }
+

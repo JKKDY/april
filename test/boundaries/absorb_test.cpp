@@ -23,7 +23,7 @@ static env::internal::ParticleRecord<env::NoUserData> make_alive_particle() {
 	return p;
 }
 
-template<env::FieldMask Mask, typename RecordT>
+template<env::Field Mask, typename RecordT>
 auto make_source(RecordT& record) {
 	// Determine constness based on RecordT (allows making const sources from const records)
 	constexpr bool IsConst = std::is_const_v<RecordT>;
@@ -47,7 +47,7 @@ auto make_source(RecordT& record) {
 // Direct application should mark particle DEAD
 TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 	const Absorb absorb;
-	constexpr env::FieldMask Mask = Absorb::fields;
+	constexpr env::Field Mask = Absorb::fields;
 
 	const env::Box box {{0,0,0}, {10,10,10}};
 
@@ -76,7 +76,7 @@ TEST(AbsorbBoundaryTest, Topology_IsOutsideAndPassive) {
 
 TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 	std::variant<Absorb> absorb = Absorb();
-	constexpr env::FieldMask Mask = Absorb::fields;
+	constexpr env::Field Mask = Absorb::fields;
 
 	env::Domain domain{{0,0,0}, {10,10,10}};
 

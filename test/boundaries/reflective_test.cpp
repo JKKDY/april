@@ -21,7 +21,7 @@ inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& 
 	return p;
 }
 
-template<env::FieldMask Mask, typename RecordT>
+template<env::Field Mask, typename RecordT>
 auto make_source(RecordT& record) {
 
 	constexpr bool IsConst = std::is_const_v<RecordT>;
@@ -45,7 +45,7 @@ auto make_source(RecordT& record) {
 // Direct application should reflect the particles position
 TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
 	const Reflective reflective;
-	constexpr env::FieldMask Mask = Reflective::fields;
+	constexpr env::Field Mask = Reflective::fields;
 
 	const env::Box box({0,0,0}, {10,10,10});
 
@@ -82,7 +82,7 @@ TEST(ReflectiveBoundaryTest, Topology_IsOutsideAndChangesPosition) {
 
 TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPosition) {
 	std::variant<Reflective> reflect = Reflective();
-	constexpr env::FieldMask Mask = Reflective::fields;
+	constexpr env::Field Mask = Reflective::fields;
 
 	env::Domain domain({0,0,0}, {10,10,10});
 

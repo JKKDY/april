@@ -64,49 +64,49 @@ namespace april::container {
 		// PARTICLE ACCESSORS
 		// ------------------
 		// INDEX ACCESSORS
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto at(this auto&& self, size_t index) {
 			return env::ParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto view(this const auto& self, size_t index) {
 			return env::ParticleView<M, U>{ self.template access_particle<M>(index) };
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t index) {
 			return env::RestrictedParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t index) {
 			return env::PackedParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t index) {
 			return env::PackedParticleView<M, U>{ self.template access_particle<M>(index) };
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto restricted_at_packed(this auto&& self, size_t index) {
 			return env::PackedRestrictedParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
 
 		// ID ACCESSORS
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto at_id(this auto&& self, env::ParticleID id) {
 			return env::ParticleRef<M, U>{ self.template access_particle_id<M>(id) };
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto view_id(this const auto & self, env::ParticleID id) {
 			return env::ParticleView<M, U>{ self.template access_particle_id<M>(id) };
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto restricted_at_id(this auto&& self, env::ParticleID id) {
 			return env::RestrictedParticleRef<M, U>{ self.template access_particle_id<M>(id) };
 		}
@@ -117,17 +117,17 @@ namespace april::container {
 		// PARTICLE ITERATION
 		// ------------------
 		// filter by state (safe, performs checks to skip garbage data)
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<env::Field M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle(this auto&& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
 			self.template invoke_iterate_state<M, Policy, false>(func, state);
 		}
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<env::Field M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle_view(this const auto& self, Func && func, env::ParticleState state = env::ParticleState::ALL) {
 			self.template invoke_iterate_state<M,Policy, true>(func, state);
 		}
 
 		// direct range based access (fast & branchless but unsafe will not perform any checks)
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<env::Field M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle(this auto&& self, size_t start, size_t stop, Func && func) {
 			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
 			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
@@ -135,7 +135,7 @@ namespace april::container {
 
 			self.template invoke_iterate_range<M, Policy, false>(func, start, stop);
 		}
-		template<env::FieldMask M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<env::Field M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
 		void for_each_particle_view(this const auto& self, size_t start, size_t stop, Func && func) {
 			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
 			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
@@ -144,7 +144,7 @@ namespace april::container {
 			self.template invoke_iterate_range<M, Policy, true>(func, start, stop);
 		}
 
-		template<env::FieldMask M, typename T, typename Mapper, typename Reducer = std::plus<T>>
+		template<env::Field M, typename T, typename Mapper, typename Reducer = std::plus<T>>
 		[[nodiscard]] T invoke_reduce( // TODO restrict callable Mapper, Reducer (invoke_reduce)
 			this const auto& self,
 			T initial_value,
@@ -283,7 +283,7 @@ namespace april::container {
 		const force::internal::InteractionSchema force_schema;
 		const env::Box domain; // Note: in the future this may be adjustable during run time
 
-		template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Func>
+		template<env::Field M, ExecutionPolicy Policy, bool is_const, typename Func>
 		void invoke_iterate_range(this auto&& self, Func && func, size_t start, size_t end) {
 			auto kernel = [&](size_t i, auto && p) {
 				if constexpr (requires { func(i, p); }) {
@@ -296,7 +296,7 @@ namespace april::container {
 			self.template iterate_range<M, Policy, is_const>(kernel, start, end);
 		}
 
-		template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Func>
+		template<env::Field M, ExecutionPolicy Policy, bool is_const, typename Func>
 		void invoke_iterate_state(this auto&& self, Func && func, const env::ParticleState state) {
 			auto kernel = [&](size_t i, auto && p) {
 				if constexpr (requires { func(i, p); }) {
@@ -336,10 +336,8 @@ namespace april::container {
 		//------------------------
 		// PARTICLE DATA ACCESSORS
 		//------------------------
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto access_particle(this auto&& self, const size_t i) {
-			// Safety check: If Mask is empty, return empty source immediately.
-			if constexpr (M == 0) return env::ParticleSource<0, U, false>{};
 
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 			env::ParticleSource<M, U, IsConst> src;
@@ -366,16 +364,13 @@ namespace april::container {
 			return src;
 		}
 
-		template<env::FieldMask M>
+		template<env::Field M>
 		[[nodiscard]] auto access_particle_id(this auto&& self, const env::ParticleID id) {
 			// its optional to implement get_field_ptr_id. The fallback is to use id -> index and access_particle
 
-			// Safety check: If Mask is empty, return empty source immediately.
-			if constexpr (M == 0) return env::ParticleSource<0, U, false>{};
-
-			// Strategy: We pick the first active field in the Mask to test if 'get_field_ptr_id' exists.
+			// We pick the first active field in the Mask to test if 'get_field_ptr_id' exists.
 			// We cannot check the function "in general" because it is a template.
-			[[maybe_unused]] constexpr auto TestF = static_cast<env::Field>(1 << std::countr_zero(M));
+			[[maybe_unused]] constexpr auto TestF = static_cast<env::Field>(1 << std::countr_zero(static_cast<size_t>(M))); // TODO. TEMPORARY FIX!!!! ADD CNTR ZERO TO BITFLAGS
 
 		    // does 'get_field_ptr_id<TestF>(id)' compile?
 		    if constexpr (requires { self.template get_field_ptr_id<TestF>(id); }) {
@@ -475,3 +470,5 @@ namespace april::container {
 		&& IsContainer<typename ContainerDecl::template impl<typename Traits::user_data_t>>;
 
 } // namespace april::container
+
+

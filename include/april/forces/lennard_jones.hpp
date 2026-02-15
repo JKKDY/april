@@ -10,7 +10,7 @@ namespace april::force {
 
 	// Lennard-Jones potential (12-6). epsilon: well depth; sigma: zero-cross distance.
 	struct LennardJones : Force{
-		static constexpr env::FieldMask fields = +env::Field::none;
+		static constexpr env::Field fields = env::Field::none;
 
 		LennardJones(const double epsilon, const double sigma, const double cutoff = -1.0)
 		: Force(cutoff < 0.0 ? 3.0 * sigma : cutoff), epsilon_(epsilon), sigma_(sigma) {
@@ -65,3 +65,4 @@ namespace april::force {
 		double sigma_; // Distance at which potential is zero
 	};
 }
+

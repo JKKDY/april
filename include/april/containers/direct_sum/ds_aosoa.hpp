@@ -80,3 +80,4 @@ namespace april::container {
         using impl = internal::DirectSumAoSoAImpl<ConfigT, U>;
     };
 }
+

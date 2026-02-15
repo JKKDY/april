@@ -19,7 +19,7 @@ inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& 
 	return p;
 }
 
-template<env::FieldMask Mask, typename RecordT>
+template<env::Field Mask, typename RecordT>
 auto make_source(RecordT& record) {
 	// Determine constness based on RecordT (allows making const sources from const records)
 	constexpr bool IsConst = std::is_const_v<RecordT>;
@@ -44,7 +44,7 @@ auto make_source(RecordT& record) {
 // Direct Application Tests
 TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 	const Periodic periodic;
-	constexpr env::FieldMask Mask = Periodic::fields;
+	constexpr env::Field Mask = Periodic::fields;
 
 	const env::Box box({0,0,0}, {10,10,10});
 
@@ -62,7 +62,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 
 TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 	const Periodic periodic;
-	constexpr env::FieldMask Mask = Periodic::fields;
+	constexpr env::Field Mask = Periodic::fields;
 	const env::Box box({0,0,0}, {10,10,10});
 
 	// Particle just beyond -X boundary
@@ -80,7 +80,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 	const Periodic periodic;
 	const env::Box box({0,0,0}, {10,10,10});
-	constexpr env::FieldMask Mask = Periodic::fields;
+	constexpr env::Field Mask = Periodic::fields;
 
 
 	const std::array start_positions = {
@@ -133,7 +133,7 @@ TEST(PeriodicBoundaryTest, Topology_IsOutsideCoupledAndWrapsForces) {
 // 3. Compiled Boundary Variant
 TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 	std::variant<Periodic> variant = Periodic();
-	constexpr env::FieldMask Mask = Periodic::fields;
+	constexpr env::Field Mask = Periodic::fields;
 	env::Domain domain({0,0,0}, {10,10,10});
 
 	auto compiled = boundary::internal::compile_boundary(variant, env::Box::from_domain(domain), Face::ZPlus);
@@ -234,3 +234,4 @@ TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinu
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);
 	EXPECT_NEAR(p.position.z, 5.0, 1e-12);
 }
+

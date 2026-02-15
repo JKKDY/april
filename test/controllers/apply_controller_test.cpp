@@ -234,7 +234,7 @@ public:
 // and modify a particle by its ID.
 class ContextSpyController : public controller::Controller {
 public:
-    static constexpr env::FieldMask mask = env::to_field_mask(env::Field::velocity);
+    static constexpr env::Field mask = env::to_field_mask(env::Field::velocity);
 
     ContextSpyController(shared::Trigger trig, ParticleID id)
         : Controller(std::move(trig)), target_id(id) {}

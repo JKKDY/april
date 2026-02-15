@@ -7,11 +7,11 @@
 #include "april/particle/source.hpp"
 
 namespace april::env {
-	template<FieldMask M, IsUserData UserDataT> struct ParticleView;
-	template<FieldMask M, IsUserData UserDataT> struct ParticleRef;
+	template<Field M, IsUserData UserDataT> struct ParticleView;
+	template<Field M, IsUserData UserDataT> struct ParticleRef;
 
 
-	template<FieldMask M, Field F, typename Source>
+	template<Field M, Field F, typename Source>
 	constexpr decltype(auto) init_field(const Source& src) {
 		if constexpr (has_field_v<M, F>) {
 			return *src.template get<F>();
@@ -27,7 +27,7 @@ namespace april::env {
 	// PARTICLE REFERENCE
 	//-------------------
 	// Reference to particle data passed to controllers and boundaries that can mutate particle data.
-	template<FieldMask M, IsUserData UserDataT>
+	template<Field M, IsUserData UserDataT>
 	struct ParticleRef {
 		template<class S>
 		explicit ParticleRef(const S & source) noexcept
@@ -64,7 +64,7 @@ namespace april::env {
 	// RESTRICTED PARTICLE REF
 	//------------------------
 	// Restricted reference allowing only the force field to be modified, used for fields.
-	template<FieldMask M, IsUserData UserDataT>
+	template<Field M, IsUserData UserDataT>
 	struct RestrictedParticleRef {
 
 		explicit RestrictedParticleRef(const auto& source) noexcept
@@ -105,7 +105,7 @@ namespace april::env {
 	// PARTICLE VIEW
 	//--------------
 	// Immutable reference to particle data, intended for read-only access (e.g., monitors).
-	template<FieldMask M, IsUserData UserDataT>
+	template<Field M, IsUserData UserDataT>
 	struct ParticleView {
 
 		explicit ParticleView(const auto & source) noexcept
@@ -179,3 +179,4 @@ namespace april::env {
 	concept IsAnyParticleAccessor = IsRestrictedRef<T> || IsParticleRef<T> || IsParticleView<T>;
 
 }
+

@@ -5,11 +5,12 @@
 
 namespace april::boundary {
 	struct Open : Boundary {
-		static constexpr env::FieldMask fields = +env::Field::none;
+		static constexpr env::Field fields = env::Field::none;
 
 		Open(): Boundary(-1, false, false, false) {}
 
-		template<env::FieldMask M, env::IsUserData U>
+		template<env::Field M, env::IsUserData U>
 		void apply(env::ParticleRef<M, U> &, const env::Box &, const Face) const noexcept{}
 	};
 }
+

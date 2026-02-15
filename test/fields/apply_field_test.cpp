@@ -18,7 +18,7 @@ struct SpyFieldSinks {
 // A SpyField that uses a raw pointer to sinks owned by the test
 class SpyField : public field::Field {
 public:
-    static constexpr env::FieldMask fields = to_field_mask(env::Field::force);
+    static constexpr env::Field fields = to_field_mask(env::Field::force);
     SpyFieldSinks* sinks = nullptr;
 
     explicit SpyField(SpyFieldSinks* sinks_ptr) : sinks(sinks_ptr) {}
@@ -106,7 +106,7 @@ TEST_F(FieldTest, ApplyIsCalledPerParticlePerStep) {
 // A second spy field to test multi-type field registration
 class SpyField2 : public field::Field {
 public:
-    static constexpr env::FieldMask fields = to_field_mask(env::Field::force);
+    static constexpr env::Field fields = to_field_mask(env::Field::force);
     SpyFieldSinks* sinks = nullptr;
     explicit SpyField2(SpyFieldSinks* sinks_ptr) : sinks(sinks_ptr) {}
     SpyField2() : sinks(nullptr) {}

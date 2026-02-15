@@ -149,3 +149,5 @@ namespace april::shared {
 }
 
 // Todo: implement optional CRTP based triggers for more performance
+
+

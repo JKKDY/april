@@ -7,7 +7,7 @@
 
 using namespace april;
 
-constexpr env::FieldMask all_fields = to_field_mask(env::Field::all);
+constexpr env::Field all_fields = to_field_mask(env::Field::all);
 
 TEST(StoermerVerletTest,ConstructionTest) {
 
@@ -206,3 +206,4 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	EXPECT_NEAR(p2.velocity.y, 0, 2e-3);
 	EXPECT_NEAR(p2.velocity.z, 0, 2e-3);
 }
+

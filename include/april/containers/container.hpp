@@ -3,6 +3,7 @@
 #include <bit>
 #include <vector>
 
+#include "april/base/policy.hpp"
 #include "april/math/range.hpp"
 
 #include "april/forces/force_table.hpp"
@@ -117,31 +118,31 @@ namespace april::container {
 		// PARTICLE ITERATION
 		// ------------------
 		// filter by state (safe, performs checks to skip garbage data)
-		template<ParticleField M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
 		void for_each_particle(this auto&& self, Func && func, ParticleState state = ParticleState::ALL) {
-			self.template invoke_iterate_state<M, Policy, false>(func, state);
+			self.template invoke_iterate_state<M, P, V, false>(func, state);
 		}
-		template<ParticleField M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<ParticleField M, april::ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
 		void for_each_particle_view(this const auto& self, Func && func, ParticleState state = ParticleState::ALL) {
-			self.template invoke_iterate_state<M,Policy, true>(func, state);
+			self.template invoke_iterate_state<M, P, V, true>(func, state);
 		}
 
 		// direct range based access (fast & branchless but unsafe will not perform any checks)
-		template<ParticleField M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
 		void for_each_particle(this auto&& self, size_t start, size_t stop, Func && func) {
 			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
 			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
 			AP_ASSERT(start <= stop, "Invalid range: start > stop");
 
-			self.template invoke_iterate_range<M, Policy, false>(func, start, stop);
+			self.template invoke_iterate_range<M,  P, V, false>(func, start, stop);
 		}
-		template<ParticleField M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<ParticleField M, april::ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
 		void for_each_particle_view(this const auto& self, size_t start, size_t stop, Func && func) {
 			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
 			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
 			AP_ASSERT(start <= stop, "Invalid range");
 
-			self.template invoke_iterate_range<M, Policy, true>(func, start, stop);
+			self.template invoke_iterate_range<M,  P, V, true>(func, start, stop);
 		}
 
 		template<ParticleField M, typename T, typename Mapper, typename Reducer = std::plus<T>>
@@ -163,7 +164,7 @@ namespace april::container {
 					curr = reduce_func(curr, val);
 				};
 
-				self.template invoke_iterate<M, ExecutionPolicy::Seq, true>(kernel, state);
+				self.template invoke_iterate<M, ParallelPolicy::Serial, VectorPolicy::Auto, true>(kernel, state);
 				return curr;
 			}
 		}
@@ -283,7 +284,7 @@ namespace april::container {
 		const force::internal::InteractionSchema force_schema;
 		const env::Box domain; // Note: in the future this may be adjustable during run time
 
-		template<ParticleField M, ExecutionPolicy Policy, bool is_const, typename Func>
+		template<ParticleField M, april::ParallelPolicy P, VectorPolicy V, bool is_const, typename Func>
 		void invoke_iterate_range(this auto&& self, Func && func, size_t start, size_t end) {
 			auto kernel = [&](size_t i, auto && p) {
 				if constexpr (requires { func(i, p); }) {
@@ -293,10 +294,10 @@ namespace april::container {
 				}
 			};
 
-			self.template iterate_range<M, Policy, is_const>(kernel, start, end);
+			self.template iterate_range<M, P, V, is_const>(kernel, start, end);
 		}
 
-		template<ParticleField M, ExecutionPolicy Policy, bool is_const, typename Func>
+		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, typename Func>
 		void invoke_iterate_state(this auto&& self, Func && func, const ParticleState state) {
 			auto kernel = [&](size_t i, auto && p) {
 				if constexpr (requires { func(i, p); }) {
@@ -307,12 +308,12 @@ namespace april::container {
 			};
 
 			// try optimized implementation. Else fallback to default. Default assumes valid data for the entire iteration range
-			if constexpr (requires {self.template iterate<M, Policy, is_const>(kernel, state);}) {
-				self.template iterate<M, Policy, is_const>(kernel, state);
+			if constexpr (requires {self.template iterate<M, P, V, is_const>(kernel, state);}) {
+				self.template iterate<M, P, V, is_const>(kernel, state);
 			} else {
 				// note: iterate_range makes no checks so if it encounters memory that cannot be interpreted as
 				// particle data or memory it is not allowed to access it can crash.
-				self.template iterate_range<M | ParticleField::state, Policy, is_const>(
+				self.template iterate_range<M | ParticleField::state, P, V, is_const>(
 					[&](size_t i, auto && p) {
 					if (self.index_is_valid(i) && static_cast<int>(p.state & state)) {
 						kernel(i, p);

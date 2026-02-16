@@ -8,7 +8,7 @@
 
 namespace april::container {
     template<typename Container, typename ChunkPtr>
-    struct AsymmetricChunkedSimdBatch : BatchBase<ParallelPolicy::None, UpdatePolicy::Serial, ComputePolicy::Vector> {
+    struct AsymmetricChunkedSimdBatch : BatchBase<ParallelTrait::None, UpdatePolicy::Serial, ComputeTrait::Vector> {
 
         // We need to know the width of our SIMD registers
         static constexpr size_t stride = packed::size();

@@ -4,7 +4,7 @@
 #include <cstddef>
 #include "april/particle/fields.hpp"
 #include "april/env/domain.hpp"
-
+#include "april/base/policy.hpp"
 
 namespace april::core {
 
@@ -93,14 +93,14 @@ namespace april::core {
 		// --------------
 		// FUNCTIONAL OPS
 		// --------------
-		template<ParticleField M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
 		void for_each_particle(Func && func, ParticleState state = ParticleState::ALL) {
-			system.template for_each_particle<M, Policy, Func>(std::forward<Func>(func), state);
+			system.template for_each_particle<M, P, V, Func>(std::forward<Func>(func), state);
 		}
 
-		template<ParticleField M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
 		void for_each_particle_view(Func && func, ParticleState state = ParticleState::ALL) const {
-			system.template for_each_particle_view<M, Policy, Func>(std::forward<Func>(func), state);
+			system.template for_each_particle_view<M, P, V, Func>(std::forward<Func>(func), state);
 		}
 
 		template<typename Func>

@@ -63,7 +63,7 @@ public:
 	[[nodiscard]] double time() const noexcept { return time_; }
 	[[nodiscard]] Box box() const noexcept { return sim_box; }
 
-	template<ParticleField M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+	template<ParticleField M, ParallelPolicy P = ParallelPolicy::Serial, VectorPolicy V = VectorPolicy::Auto, typename Func>
 		void for_each_particle_view(Func && func, ParticleState = ParticleState::ALL) const {
 		for (size_t i = 0; i < size(); i++) {
 			const auto & p = view<M>(i);

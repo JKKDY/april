@@ -1,17 +1,17 @@
 #pragma once
-#include <cstdint>
-#include "april/base/bitmask.hpp"
 
 namespace april {
-    enum class ComputePolicy : uint8_t {
-         SerialScalar   = 0,
-         ParallelScalar = 1 << 0,
-         SerialVector   = 1 << 1,
-         ParallelVector = (1 << 0) | (1 << 1), // Both bits set
+    enum class VectorPolicy {
+    	Scalar,
+    	Vector,	// force fully vectorized execution
+    	Auto	// best effort vectorization
+    };
 
-         // Aliases for checking
-         Parallel       = 1 << 0,
-         Vector         = 1 << 1
+    enum class ParallelPolicy {
+    	Serial,
+    	Threaded, // On-Node (Shared Memory) - e.g. std::thread, OpenMP, TBB
+    	Distributed, // Multi-Node (Distributed Memory) - e.g. MPI, GASPI
+    	Hybrid // Both Threaded and Distributed
     };
 
 }

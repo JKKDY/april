@@ -3,6 +3,8 @@
 #include "april/containers/container.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/particle/particle.hpp"
+#include "april/base/policy.hpp"
+
 
 namespace april::container::layout {
 
@@ -135,7 +137,7 @@ namespace april::container::layout {
             }
         }
 
-        template<ParticleField M, ExecutionPolicy Policy, bool is_const, typename Kernel>
+        template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, typename Kernel>
         void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
             for (size_t i = start; i < end; i++) {
                 if constexpr (is_const) {

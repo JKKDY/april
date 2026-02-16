@@ -155,14 +155,14 @@ namespace april::core {
 		// --------------
 		// FUNCTIONAL OPS
 		// --------------
-		template<ParticleField M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<ParticleField M,ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
 		void for_each_particle(Func && func, ParticleState state = ParticleState::ALL) {
-			particle_container.template for_each_particle<M, Policy, Func>(std::forward<Func>(func), state);
+			particle_container.template for_each_particle<M, P, V, Func>(std::forward<Func>(func), state);
 		}
 
-		template<ParticleField M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
 		void for_each_particle_view(Func && func, ParticleState state = ParticleState::ALL) const {
-			particle_container.template for_each_particle_view<M, Policy, Func>(std::forward<Func>(func), state);
+			particle_container.template for_each_particle_view<M, P, V, Func>(std::forward<Func>(func), state);
 		}
 
 		template<ParticleField M, typename T, typename Mapper, typename Reducer = std::plus<T>>
@@ -310,19 +310,6 @@ namespace april::core {
 			 BuildInfo * build_info
 		);
 
-		// enum class VectorPolicy {
-		// 	Scalar = 1 << 0,
-		// 	Vector = 1 << 1,
-		// 	Auto = Scalar | Vector
-		// };
-		//
-		// enum class ParallelPolicy {
-		// 	Serial,
-		// 	ParallelBatches, // parallelize across batches
-		// 	ParallelPairs, // parallelize pair evaluations within a batch
-		// 	Auto
-		// };
-
 		// template<env::Field M, ParallelPolicy P, VectorPolicy V, typename Batch, typename UserKernel>
 		// void execute_batch_kernel(const Batch& batch, UserKernel&& user_kernel) {
 		// 	constexpr VectorPolicy kernel_compute = KernelComputeType<UserKernel>;
@@ -371,8 +358,8 @@ namespace april::core {
 		// }
 		template<ParticleField M, typename Batch, typename Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel) {
-			using Par = container::ParallelPolicy;
-			using Cmp = container::ComputePolicy;
+			using Par = container::ParallelTrait;
+			using Cmp = container::ComputeTrait;
 
 			// execute kernel
 			auto execute_atom = [&](const auto& atom) {

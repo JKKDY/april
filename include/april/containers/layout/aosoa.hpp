@@ -9,6 +9,7 @@
 #include "april/containers/container.hpp"
 #include "april/base/types.hpp"
 #include "april/particle/defs.hpp"
+#include "april/base/policy.hpp"
 
 
 
@@ -97,7 +98,7 @@ namespace april::container::layout {
 			}
 		}
 
-		template<ParticleField M, ExecutionPolicy Policy, bool is_const, typename Kernel>
+		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, typename Kernel>
 		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
 			const auto [start_chunk, start_idx] = self.locate(start);
 			const auto [end_chunk, end_idx] = self.locate(end);

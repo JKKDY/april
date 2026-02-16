@@ -4,7 +4,6 @@
 
 #include "april/base/types.hpp"
 #include "april/particle/defs.hpp"
-#include "april/particle/access.hpp"
 
 
 namespace april::container {
@@ -12,7 +11,7 @@ namespace april::container {
 	//---------------
 	// BATCH POLICIES
 	//---------------
-	enum class ParallelPolicy : uint8_t {
+	enum class ParallelTrait : uint8_t {
 		None,       // Execute immediately on the current thread (Caller owns parallelism)
 	    Inner,		// System spawns threads for executing a single batch
 	};
@@ -22,19 +21,17 @@ namespace april::container {
 		Atomic,		// Atomic CAS/Fetch-Add. Slower. Thread-safe for overlapping writes.
 	};
 
-	enum class ComputePolicy : uint8_t {
+	enum class ComputeTrait : uint8_t {
 		Scalar,
 		Vector,
 		Hybrid
 	};
 
-	// missing: branchless, auto simd (e.g. omp simd), accumulate outside
-
 
 	//------------------------
 	// CONVENIENCE DEFINITIONS
 	//------------------------
-	template<ParallelPolicy parallelize, UpdatePolicy upd, ComputePolicy cmp>
+	template<ParallelTrait parallelize, UpdatePolicy upd, ComputeTrait cmp>
 	struct BatchBase {
 		static constexpr auto parallel_policy = parallelize;
 		static constexpr auto update_policy = upd;
@@ -42,7 +39,7 @@ namespace april::container {
 		std::pair<ParticleType, ParticleType> types {};
 	};
 
-	using SerialBatch = BatchBase<ParallelPolicy::None, UpdatePolicy::Serial, ComputePolicy::Scalar>;
+	using SerialBatch = BatchBase<ParallelTrait::None, UpdatePolicy::Serial, ComputeTrait::Scalar>;
 
 	struct TopologyBatch {
 		ParticleID id1, id2;
@@ -56,9 +53,9 @@ namespace april::container {
 	template <typename T>
 	concept IsBatchBase = requires(const T& b) {
 		// must have static constexpr configuration flags
-		{ T::parallel_policy }	-> std::convertible_to<ParallelPolicy>;
+		{ T::parallel_policy }	-> std::convertible_to<ParallelTrait>;
 		{ T::update_policy }	-> std::convertible_to<UpdatePolicy>;
-		{ T::compute_policy }	-> std::convertible_to<ComputePolicy>;
+		{ T::compute_policy }	-> std::convertible_to<ComputeTrait>;
 
 		// must have type pair
 		{ b.types } -> std::convertible_to<std::pair<ParticleType, ParticleType>>;

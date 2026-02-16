@@ -18,7 +18,7 @@ namespace april::force {
     struct Force {
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
-        template<env::Field IncomingMask, env::IsUserData U>
+        template<ParticleField IncomingMask, env::IsUserData U>
         vec3 operator()(this const auto& self,
                 const env::ParticleView<IncomingMask, U> & p1,
                 const env::ParticleView<IncomingMask, U> & p2,
@@ -37,7 +37,7 @@ namespace april::force {
                 "Force subclass must define 'static constexpr env::Field fields'"
             );
 
-            constexpr env::Field Required = Derived::fields;
+            constexpr ParticleField Required = Derived::fields;
 
             // check for
             static_assert(
@@ -146,21 +146,21 @@ namespace april::force {
 
 
         template<IsForceVariant FV> struct TypeInteraction {
-            const env::ParticleType type1;
-            const env::ParticleType type2;
+            const ParticleType type1;
+            const ParticleType type2;
             const FV force;
 
-            TypeInteraction(const env::ParticleType type1, const env::ParticleType type2, FV f)
+            TypeInteraction(const ParticleType type1, const ParticleType type2, FV f)
               : type1(std::min(type1, type2)), type2(std::max(type1, type2)), force(std::move(f))
             {}
         };
 
         template<IsForceVariant FV> struct IdInteraction {
-            const env::ParticleID id1;
-            const env::ParticleID id2;
+            const ParticleID id1;
+            const ParticleID id2;
             const FV force;
 
-            IdInteraction(const env::ParticleID id1, const env::ParticleID id2, FV f)
+            IdInteraction(const ParticleID id1, const ParticleID id2, FV f)
               : id1(std::min(id1, id2)), id2(std::max(id1, id2)), force(std::move(f))
             {}
         };
@@ -168,11 +168,11 @@ namespace april::force {
 
         // internal placeholder only
         struct ForceSentinel : Force {
-            static constexpr env::Field fields = env::Field::none;
+            static constexpr ParticleField fields = ParticleField::none;
 
             ForceSentinel() : Force(-1.0) {}
 
-            template<env::Field M, env::IsUserData U>
+            template<ParticleField M, env::IsUserData U>
             vec3 eval(const env::ParticleView<M, U> &, const env::ParticleView<M, U> &, const vec3&) const noexcept {
                 AP_ASSERT(false, "NullForce should never be executed");
                 std::unreachable();
@@ -205,4 +205,6 @@ namespace april::force {
         using VariantType_t = VariantType<Fs...>::type;
     }
 } // namespace april::env
+
+
 

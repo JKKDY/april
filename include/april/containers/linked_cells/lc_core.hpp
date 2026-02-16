@@ -60,7 +60,7 @@ namespace april::container::internal {
 			for (size_t i = 0; i < self.bin_sizes.size(); i++) {
 				size_t start = self.bin_starts[i];
 				size_t end = start + self.bin_sizes[i];
-				self.template for_each_particle_view <env::Field::type | env::Field::position>(start, end,
+				self.template for_each_particle_view <ParticleField::type | ParticleField::position>(start, end,
 					[&](const size_t idx, const auto & p) {
 						const size_t cid = self.cell_index_from_position(p.position);
 						const size_t bin = self.bin_index(cid, p.type);
@@ -85,9 +85,9 @@ namespace april::container::internal {
 				const auto [start_idx, end_idx] = self.cell_index_range(cid);
 				if (start_idx == end_idx) continue;
 
-				self.template for_each_particle_view<env::Field::position | env::Field::state>(start_idx, end_idx,
+				self.template for_each_particle_view<ParticleField::position | ParticleField::state>(start_idx, end_idx,
 					[&](const size_t i, const auto & particle) {
-						if (static_cast<uint8_t>(particle.state & env::ParticleState::ALIVE) &&
+						if (static_cast<uint8_t>(particle.state & ParticleState::ALIVE) &&
 							region.contains(particle.position)) {
 							ret.push_back(i);
 						}
@@ -480,7 +480,7 @@ namespace april::container::internal {
 			return cells;
 		}
 
-		[[nodiscard]] size_t bin_index(const size_t cell_id, const env::ParticleType type = 0) const {
+		[[nodiscard]] size_t bin_index(const size_t cell_id, const ParticleType type = 0) const {
 			return cell_id * n_types + static_cast<size_t>(type);
 		}
 
@@ -517,5 +517,7 @@ namespace april::container::internal {
 		}
 	};
 }
+
+
 
 

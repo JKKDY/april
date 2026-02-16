@@ -8,14 +8,14 @@
 
 namespace april::force {
 	struct Coulomb : Force{
-		static constexpr env::Field fields = env::Field::user_data;
+		static constexpr ParticleField fields = ParticleField::user_data;
 
 		double coulomb_constant;
 
 		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = no_cutoff)
 			: Force(cutoff), coulomb_constant(coulomb_const) {}
 
-		template<env::Field M, env::IsUserData U>
+		template<ParticleField M, env::IsUserData U>
 		requires requires {
 			{ U::charge } -> std::convertible_to<double>;
 		}
@@ -38,4 +38,6 @@ namespace april::force {
 	};
 
 }
+
+
 

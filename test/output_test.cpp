@@ -40,9 +40,9 @@ using namespace april::env;
 class DummySystem {
 public:
 	using user_data_t = NoUserData;
-	template<Field M> using ParticleRef         = ParticleRef<M, user_data_t>;
-	template<Field M> using ParticleView        = ParticleView<M, user_data_t>;
-	template<Field M> using RestrictedParticleRef = RestrictedParticleRef<M, user_data_t>;
+	template<ParticleField M> using ParticleRef         = ParticleRef<M, user_data_t>;
+	template<ParticleField M> using ParticleView        = ParticleView<M, user_data_t>;
+	template<ParticleField M> using RestrictedParticleRef = RestrictedParticleRef<M, user_data_t>;
 
 	explicit DummySystem(
 		const size_t step,
@@ -63,15 +63,15 @@ public:
 	[[nodiscard]] double time() const noexcept { return time_; }
 	[[nodiscard]] Box box() const noexcept { return sim_box; }
 
-	template<env::Field M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
-		void for_each_particle_view(Func && func, env::ParticleState = env::ParticleState::ALL) const {
+	template<ParticleField M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void for_each_particle_view(Func && func, ParticleState = ParticleState::ALL) const {
 		for (size_t i = 0; i < size(); i++) {
 			const auto & p = view<M>(i);
 			func(p);
 		}
 	}
 
-	template<Field M>
+	template<ParticleField M>
 	[[nodiscard]] ParticleView<M> view(const size_t index) const noexcept {
 		// 1. Get reference to storage
 		const ParticleRec& record = particles.at(index);
@@ -80,15 +80,15 @@ public:
 		// We map the requested fields M to the record's members
 		ParticleSource<M, user_data_t, true> src;
 
-		if constexpr (env::has_field_v<M, Field::position>)     src.position     = &record.position;
-		if constexpr (env::has_field_v<M, Field::velocity>)     src.velocity     = &record.velocity;
-		if constexpr (env::has_field_v<M, Field::force>)        src.force        = &record.force;
-		if constexpr (env::has_field_v<M, Field::old_position>) src.old_position = &record.old_position;
-		if constexpr (env::has_field_v<M, Field::mass>)         src.mass         = &record.mass;
-		if constexpr (env::has_field_v<M, Field::state>)        src.state        = &record.state;
-		if constexpr (env::has_field_v<M, Field::type>)         src.type         = &record.type;
-		if constexpr (env::has_field_v<M, Field::id>)           src.id           = &record.id;
-		if constexpr (env::has_field_v<M, Field::user_data>)    src.user_data    = &record.user_data;
+		if constexpr (env::has_field_v<M, ParticleField::position>)     src.position     = &record.position;
+		if constexpr (env::has_field_v<M, ParticleField::velocity>)     src.velocity     = &record.velocity;
+		if constexpr (env::has_field_v<M, ParticleField::force>)        src.force        = &record.force;
+		if constexpr (env::has_field_v<M, ParticleField::old_position>) src.old_position = &record.old_position;
+		if constexpr (env::has_field_v<M, ParticleField::mass>)         src.mass         = &record.mass;
+		if constexpr (env::has_field_v<M, ParticleField::state>)        src.state        = &record.state;
+		if constexpr (env::has_field_v<M, ParticleField::type>)         src.type         = &record.type;
+		if constexpr (env::has_field_v<M, ParticleField::id>)           src.id           = &record.id;
+		if constexpr (env::has_field_v<M, ParticleField::user_data>)    src.user_data    = &record.user_data;
 
 		// 3. Construct View
 		return ParticleView<M>(src);
@@ -296,3 +296,5 @@ TEST(TerminalOutputTest, terminal_test) {
 	// So 4 calls = 8 occurrences of the string
 	EXPECT_EQ(count, 8);
 }
+
+

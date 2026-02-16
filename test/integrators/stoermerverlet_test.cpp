@@ -7,7 +7,6 @@
 
 using namespace april;
 
-constexpr env::Field all_fields = to_field_mask(env::Field::all);
 
 TEST(StoermerVerletTest,ConstructionTest) {
 
@@ -25,7 +24,7 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	integrator.run_for_steps(0.1, 10);
 
 	for (size_t i = 0; i < system.size(); i++) {
-		auto p = system.at<all_fields>(i);
+		auto p = system.at<ParticleField::all>(i);
 		EXPECT_EQ(p.position, vec3(0,0,0));
 		EXPECT_EQ(p.velocity, vec3(0,0,0));
 	}
@@ -206,4 +205,6 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	EXPECT_NEAR(p2.velocity.y, 0, 2e-3);
 	EXPECT_NEAR(p2.velocity.z, 0, 2e-3);
 }
+
+
 

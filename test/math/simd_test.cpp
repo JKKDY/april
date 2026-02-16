@@ -288,3 +288,5 @@ TYPED_TEST(SimdWideTest, Gather) {
         EXPECT_DOUBLE_EQ(out[i], expected);
     }
 }
+
+

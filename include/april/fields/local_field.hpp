@@ -7,7 +7,7 @@
 
 namespace april::field {
 	struct LocalForceField  final : Field {
-		static constexpr env::Field fields = env::Field::position | env::Field::force;
+		static constexpr ParticleField fields = ParticleField::position | ParticleField::force;
 
 		LocalForceField(const vec3 & force_dir, const env::Domain & domain, const double start_time, const double stop_time):
 		force(force_dir), region(env::Box::from_domain(domain)), start(start_time), stop(stop_time), active(start_time == 0) {}
@@ -32,4 +32,6 @@ namespace april::field {
 		bool active;
 	};
 }
+
+
 

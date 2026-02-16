@@ -14,7 +14,7 @@ namespace april::shared {
 		[[nodiscard]] virtual double time() const noexcept = 0;
 		[[nodiscard]] virtual size_t step() const noexcept = 0;
 		[[nodiscard]] virtual size_t size() const noexcept = 0;
-		[[nodiscard]] virtual size_t size(env::ParticleState state) const noexcept = 0;
+		[[nodiscard]] virtual size_t size(ParticleState state) const noexcept = 0;
 
 		// Todo: add more accessors
 	};
@@ -27,9 +27,9 @@ namespace april::shared {
 		[[nodiscard]] double time() const noexcept override { return system.time(); }
 		[[nodiscard]] size_t step() const noexcept override { return system.step(); }
 		[[nodiscard]] size_t size() const noexcept override {
-			return system.size(env::ParticleState::ALL);
+			return system.size(ParticleState::ALL);
 		}
-		[[nodiscard]] size_t size(env::ParticleState state) const noexcept override {
+		[[nodiscard]] size_t size(ParticleState state) const noexcept override {
 			return system.size(state);
 		}
 
@@ -149,5 +149,7 @@ namespace april::shared {
 }
 
 // Todo: implement optional CRTP based triggers for more performance
+
+
 
 

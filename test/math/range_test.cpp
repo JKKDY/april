@@ -208,3 +208,5 @@ TEST(RangeTest, ConceptChecks) {
     static_assert(std::ranges::random_access_range<Range>);
     static_assert(std::ranges::common_range<Range>); // begin/end same type
 }
+
+

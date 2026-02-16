@@ -6,8 +6,8 @@ using namespace april;
 
 
 template<core::IsSystem System>
-typename System::ParticleRec get_particle(System& sys, size_t index) {
-	constexpr auto all_fields = to_field_mask(env::Field::all);
+System::ParticleRec get_particle(System& sys, size_t index) {
+	constexpr auto all_fields = ParticleField::all;
 
 	auto p_ref = sys.template at<all_fields>(index);
 
@@ -26,8 +26,8 @@ typename System::ParticleRec get_particle(System& sys, size_t index) {
 }
 
 template<core::IsSystem System>
-typename System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
-	constexpr auto all_fields = to_field_mask(env::Field::all);
+System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
+	constexpr auto all_fields = ParticleField::all;
 
 	auto p_ref = sys.template at_id<all_fields>(id);
 
@@ -50,7 +50,7 @@ std::vector<typename System::ParticleRec> export_particles(System& sys) {
 	std::vector<typename System::ParticleRec> records;
 	records.reserve(sys.size());
 
-	sys.template for_each_particle<env::Field::none>([&](size_t idx, auto &&) {
+	sys.template for_each_particle<ParticleField::none>([&](size_t idx, auto &&) {
 		records.push_back(get_particle(sys, idx));
 	});
 
@@ -61,7 +61,7 @@ std::vector<typename System::ParticleRec> export_particles(System& sys) {
 
 template<core::IsSystem System>
 void simulate_single_step(System& sys) {
-	constexpr env::Field edit_fields = env::Field::old_position | env::Field::position | env::Field::velocity;
+	constexpr ParticleField edit_fields = ParticleField::old_position | ParticleField::position | ParticleField::velocity;
 
 	for (size_t pid = sys.min_id(); pid < sys.max_id(); ++pid) {
 		if (!sys.contains_id(pid)) continue;
@@ -85,4 +85,6 @@ inline Particle make_particle(
 	p.id = id;
 	return p;
 }
+
+
 

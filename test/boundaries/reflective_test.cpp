@@ -21,7 +21,7 @@ inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& 
 	return p;
 }
 
-template<env::Field Mask, typename RecordT>
+template<ParticleField Mask, typename RecordT>
 auto make_source(RecordT& record) {
 
 	constexpr bool IsConst = std::is_const_v<RecordT>;
@@ -29,15 +29,15 @@ auto make_source(RecordT& record) {
 
 	env::ParticleSource<Mask, UserDataT, IsConst> src;
 
-	if constexpr (env::has_field_v<Mask, env::Field::position>)     src.position     = &record.position;
-	if constexpr (env::has_field_v<Mask, env::Field::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (env::has_field_v<Mask, env::Field::force>)        src.force        = &record.force;
-	if constexpr (env::has_field_v<Mask, env::Field::old_position>) src.old_position = &record.old_position;
-	if constexpr (env::has_field_v<Mask, env::Field::mass>)         src.mass         = &record.mass;
-	if constexpr (env::has_field_v<Mask, env::Field::state>)        src.state        = &record.state;
-	if constexpr (env::has_field_v<Mask, env::Field::type>)         src.type         = &record.type;
-	if constexpr (env::has_field_v<Mask, env::Field::id>)           src.id           = &record.id;
-	if constexpr (env::has_field_v<Mask, env::Field::user_data>)    src.user_data    = &record.user_data;
+	if constexpr (env::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
+	if constexpr (env::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
+	if constexpr (env::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
+	if constexpr (env::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
+	if constexpr (env::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
+	if constexpr (env::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
+	if constexpr (env::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
+	if constexpr (env::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
+	if constexpr (env::has_field_v<Mask, ParticleField::user_data>)    src.user_data    = &record.user_data;
 
 	return src;
 }
@@ -45,7 +45,7 @@ auto make_source(RecordT& record) {
 // Direct application should reflect the particles position
 TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
 	const Reflective reflective;
-	constexpr env::Field Mask = Reflective::fields;
+	constexpr ParticleField Mask = Reflective::fields;
 
 	const env::Box box({0,0,0}, {10,10,10});
 
@@ -82,7 +82,7 @@ TEST(ReflectiveBoundaryTest, Topology_IsOutsideAndChangesPosition) {
 
 TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPosition) {
 	std::variant<Reflective> reflect = Reflective();
-	constexpr env::Field Mask = Reflective::fields;
+	constexpr ParticleField Mask = Reflective::fields;
 
 	env::Domain domain({0,0,0}, {10,10,10});
 
@@ -178,3 +178,5 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
         EXPECT_EQ(p.velocity.z, expected_vel[uid].z);
     }
 }
+
+

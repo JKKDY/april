@@ -25,34 +25,34 @@ namespace april::core {
 		// PARTICLE ACCESSORS
 		// ------------------
 		// INDEX ACCESSORS (fast)
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto at(size_t index) {
 			return system.template at<M>(index);
 		}
 
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto view(size_t index) const {
 			return system.template view<M>(index);
 		}
 
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto restricted_at(size_t index) {
 			return system.template restricted_at<M>(index);
 		}
 
 		// ID ACCESSORS (stable)
-		template<env::Field M>
-		[[nodiscard]] auto at_id(env::ParticleID id) {
+		template<ParticleField M>
+		[[nodiscard]] auto at_id(ParticleID id) {
 			return system.template at_id<M>(id);
 		}
 
-		template<env::Field M>
-		[[nodiscard]] auto view_id(env::ParticleID id) const {
+		template<ParticleField M>
+		[[nodiscard]] auto view_id(ParticleID id) const {
 			return system.template view_id<M>(id);
 		}
 
-		template<env::Field M>
-		[[nodiscard]] auto restricted_at_id(env::ParticleID id) {
+		template<ParticleField M>
+		[[nodiscard]] auto restricted_at_id(ParticleID id) {
 			return system.template restricted_at_id<M>(id);
 		}
 
@@ -60,16 +60,16 @@ namespace april::core {
 		// -----------
 		// ID INDEXING
 		// -----------
-		[[nodiscard]] env::ParticleID min_id() const noexcept{
+		[[nodiscard]] ParticleID min_id() const noexcept{
 			return system.min_id();
 		}
 
 		// get the largest particle id
-		[[nodiscard]] env::ParticleID max_id() const noexcept {
+		[[nodiscard]] ParticleID max_id() const noexcept {
 			return system.max_id();
 		}
 
-		[[nodiscard]] bool contains(env::ParticleID id) const {
+		[[nodiscard]] bool contains(ParticleID id) const {
 			return system.contains(id);
 		}
 
@@ -77,7 +77,7 @@ namespace april::core {
 		// -------
 		// QUERIES
 		// -------
-		[[nodiscard]] size_t size(env::ParticleState = env::ParticleState::ALL) const noexcept {
+		[[nodiscard]] size_t size(ParticleState = ParticleState::ALL) const noexcept {
 			return system.size();
 		}
 
@@ -93,13 +93,13 @@ namespace april::core {
 		// --------------
 		// FUNCTIONAL OPS
 		// --------------
-		template<env::Field M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
-		void for_each_particle(Func && func, env::ParticleState state = env::ParticleState::ALL) {
+		template<ParticleField M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void for_each_particle(Func && func, ParticleState state = ParticleState::ALL) {
 			system.template for_each_particle<M, Policy, Func>(std::forward<Func>(func), state);
 		}
 
-		template<env::Field M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
-		void for_each_particle_view(Func && func, env::ParticleState state = env::ParticleState::ALL) const {
+		template<ParticleField M, ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void for_each_particle_view(Func && func, ParticleState state = ParticleState::ALL) const {
 			system.template for_each_particle_view<M, Policy, Func>(std::forward<Func>(func), state);
 		}
 
@@ -108,7 +108,7 @@ namespace april::core {
 			system.for_each_interaction_batch(std::forward<Func>(func));
 		}
 
-		template<env::Field M, typename Func>
+		template<ParticleField M, typename Func>
 		void for_each_interaction_pair(Func && func) {
 			system.template for_each_interaction_pair<M>(func);
 		}
@@ -125,7 +125,7 @@ namespace april::core {
 			system.notify_moved(indices);
 		}
 
-		void notify_moved_id(const std::vector<env::ParticleID> & ids) {
+		void notify_moved_id(const std::vector<ParticleID> & ids) {
 			system.notify_moved_id(ids);
 		}
 
@@ -134,4 +134,6 @@ namespace april::core {
 	};
 
 }
+
+
 

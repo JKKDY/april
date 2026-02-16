@@ -57,11 +57,8 @@ namespace april {
 
 	using env::ParticleCuboid;
 	using env::ParticleSphere;
-	using env::ParticleState;
 	using env::ParticleView;
 	using env::Particle;
-	using env::ParticleID;
-	using env::ParticleType;
 	using env::particle_data;
 
 	using env::between_types;
@@ -132,4 +129,6 @@ namespace april {
 	// shared
 	using shared::Trigger;
 }
+
+
 

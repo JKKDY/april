@@ -13,7 +13,7 @@ namespace april::monitor {
 
 	class BinaryOutput final : public Monitor {
 	public:
-		static constexpr env::Field fields = to_field_mask(env::Field::all);
+		static constexpr ParticleField fields = ParticleField::all;
 		explicit BinaryOutput(
 			const shared::Trigger & trigger,
 			std::string dir = "output",
@@ -68,4 +68,6 @@ namespace april::monitor {
 	};
 
 } // namespace april::core
+
+
 

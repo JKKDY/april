@@ -44,7 +44,7 @@ protected:
 
     // Helper: Create a Mutable Source pointing to the Record's fields
     auto get_source() {
-        ParticleSource<Field::all, TestUserDataT, false> src;
+        ParticleSource<ParticleField::all, TestUserDataT, false> src;
         src.position     = &particle_data.position;
         src.velocity     = &particle_data.velocity;
         src.force        = &particle_data.force;
@@ -59,7 +59,7 @@ protected:
 
     // Helper: Create a Const Source pointing to the Record's fields
     auto get_const_source() {
-        ParticleSource<Field::all, TestUserDataT, true> src;
+        ParticleSource<ParticleField::all, TestUserDataT, true> src;
         src.position     = &particle_data.position;
         src.velocity     = &particle_data.velocity;
         src.force        = &particle_data.force;
@@ -75,28 +75,28 @@ protected:
 
 
 TEST(ParticleViewsHelpersTest, BitmaskOperators) {
-    constexpr auto mask1 = Field::position | Field::velocity;
+    constexpr auto mask1 = ParticleField::position | ParticleField::velocity;
     EXPECT_EQ(static_cast<size_t>(mask1), (1u << 0) | (1u << 1));
 
-    constexpr Field mask2 = mask1 | Field::force;
+    constexpr ParticleField mask2 = mask1 | ParticleField::force;
     EXPECT_EQ(static_cast<size_t>(mask2), (1u << 0) | (1u << 1) | (1u << 2));
 
-    constexpr Field mask3 = Field::id | mask2;
+    constexpr ParticleField mask3 = ParticleField::id | mask2;
     EXPECT_EQ(static_cast<size_t>(mask3), (1u << 0) | (1u << 1) | (1u << 2) | (1u << 7));
 
     // Test has_field_v
-    EXPECT_TRUE((has_field_v<mask3, Field::position>));
-    EXPECT_TRUE((has_field_v<mask3, Field::id>));
-    EXPECT_FALSE((has_field_v<mask3, Field::mass>));
-    EXPECT_TRUE((has_field_v<Field::all, Field::user_data>));
-    EXPECT_FALSE((has_field_v<Field::none, Field::position>));
+    EXPECT_TRUE((has_field_v<mask3, ParticleField::position>));
+    EXPECT_TRUE((has_field_v<mask3, ParticleField::id>));
+    EXPECT_FALSE((has_field_v<mask3, ParticleField::mass>));
+    EXPECT_TRUE((has_field_v<ParticleField::all, ParticleField::user_data>));
+    EXPECT_FALSE((has_field_v<ParticleField::none, ParticleField::position>));
 }
 
 
 // --- Test ParticleRef ---
 TEST_F(ParticleViewsTest, ParticleRefAllFieldsRead) {
     auto src = get_source();
-    const ParticleRef<Field::all, TestUserDataT> ref(src);
+    const ParticleRef<ParticleField::all, TestUserDataT> ref(src);
 
     EXPECT_EQ(ref.position, particle_data.position);
     EXPECT_EQ(ref.velocity, particle_data.velocity);
@@ -111,7 +111,7 @@ TEST_F(ParticleViewsTest, ParticleRefAllFieldsRead) {
 
 TEST_F(ParticleViewsTest, ParticleRefAllFieldsWrite) {
     const auto src = get_source();
-    ParticleRef<Field::all, TestUserDataT> ref(src);
+    ParticleRef<ParticleField::all, TestUserDataT> ref(src);
 
     constexpr MyTestUserData updated_data{99, -1.0};
 
@@ -127,7 +127,7 @@ TEST_F(ParticleViewsTest, ParticleRefAllFieldsWrite) {
 }
 
 TEST_F(ParticleViewsTest, ParticleRefPartialMask) {
-    constexpr auto mask = Field::position | Field::mass | Field::user_data;
+    constexpr auto mask = ParticleField::position | ParticleField::mass | ParticleField::user_data;
 
     auto src = get_source(); // Source has ALL fields populated
     ParticleRef<mask, TestUserDataT> ref(src); // Ref only maps subset
@@ -152,7 +152,7 @@ TEST_F(ParticleViewsTest, ParticleRefPartialMask) {
 // --- Test ParticleView ---
 TEST_F(ParticleViewsTest, ParticleViewIsConst) {
     auto src = get_const_source(); // Source is const
-    ParticleView<Field::all, TestUserDataT> view(src);
+    ParticleView<ParticleField::all, TestUserDataT> view(src);
 
     // check values
     EXPECT_EQ(view.position, particle_data.position);
@@ -168,7 +168,7 @@ TEST_F(ParticleViewsTest, ParticleViewIsConst) {
 
 // --- Test RestrictedParticleRef ---
 TEST_F(ParticleViewsTest, RestrictedParticleRefAccess) {
-    constexpr auto mask = Field::position | Field::force | Field::id | Field::user_data;
+    constexpr auto mask = ParticleField::position | ParticleField::force | ParticleField::id | ParticleField::user_data;
     auto src = get_source(); // Mutable source
 
     RestrictedParticleRef<mask, TestUserDataT> restricted_ref(src);
@@ -189,3 +189,5 @@ TEST_F(ParticleViewsTest, RestrictedParticleRefAccess) {
     restricted_ref.force = {999.0, 999.0, 999.0};
     EXPECT_EQ(particle_data.force, vec3(999.0, 999.0, 999.0));
 }
+
+

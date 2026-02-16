@@ -3,10 +3,10 @@
 #include <cstdint>
 #include <april/base/bitmask.hpp>
 
-namespace april::env {
+namespace april {
 
 
-	enum class Field : uint16_t {
+	enum class ParticleField : uint16_t {
 		none			= 0u,
 		position     	= 1u << 0,
 		velocity     	= 1u << 1,
@@ -20,20 +20,21 @@ namespace april::env {
 		all			 	= static_cast<uint16_t>(~0u)
 	};
 
-	AP_ENABLE_BITMASK_OPERATORS(Field)
+	AP_ENABLE_BITMASK_OPERATORS(ParticleField)
 
+	namespace env {
+		template<class T>
+		concept HasFields = requires { std::remove_cvref_t<T>::fields; };
 
-	constexpr Field to_field_mask(Field f) { return static_cast<Field>(f); }
+		template<HasFields Self>
+		inline constexpr ParticleField FieldOf = std::remove_cvref_t<Self>::fields;
 
-	template<class T>
-	concept HasFields = requires { std::remove_cvref_t<T>::fields; };
-
-	template<HasFields Self>
-	inline constexpr Field FieldOf = std::remove_cvref_t<Self>::fields;
-
-	template<Field M, Field F>
-	inline constexpr bool has_field_v = (M & F) != Field::none;
+		template<ParticleField M, ParticleField F>
+		inline constexpr bool has_field_v = (M & F) != ParticleField::none;
+	}
 }
+
+
 
 
 

@@ -1,6 +1,9 @@
 #pragma once
 #include <cstdint>
 
+/*
+ * This file holds basic common types used by the library
+ */
 
 
 #ifndef VEC3_TYPE
@@ -39,7 +42,13 @@ namespace april {
 		ParSimd = 3     // Parallel + Vectorized
 	};
 
+
+
+
+
 } // namespace april
+
+
 
 
 

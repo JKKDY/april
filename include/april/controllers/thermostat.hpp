@@ -7,8 +7,8 @@ namespace april::controller {
 	static constexpr double temperature_not_set = -1.0;
 
 	class VelocityScalingThermostat : public Controller {
-		static constexpr env::Field mass_vel = env::Field::velocity | env::Field::mass;
-		static constexpr env::Field vel = to_field_mask(env::Field::velocity);
+		static constexpr ParticleField mass_vel = ParticleField::velocity | ParticleField::mass;
+		static constexpr ParticleField vel = ParticleField::velocity;
 
 	public:
 		explicit VelocityScalingThermostat(const shared::Trigger & trig): Controller(trig) {}
@@ -122,6 +122,8 @@ namespace april::controller {
 	};
 
 } // namespace april::controller
+
+
 
 
 

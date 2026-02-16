@@ -17,8 +17,8 @@ namespace april::container::internal {
         friend Base;
 
         void generate_batches() {
-            const auto n_types = static_cast<env::ParticleType>(this->bin_starts.size());
-            for (env::ParticleType type = 0; type < n_types; type++) {
+            const auto n_types = static_cast<ParticleType>(this->bin_starts.size());
+            for (ParticleType type = 0; type < n_types; type++) {
                 auto range = this->get_physical_bin_range(type);
                 if (range.size() <= 1) continue;
 
@@ -28,8 +28,8 @@ namespace april::container::internal {
                 symmetric_batches.push_back(batch);
             }
 
-            for (env::ParticleType t1 = 0; t1 < n_types; t1++) {
-                for (env::ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
+            for (ParticleType t1 = 0; t1 < n_types; t1++) {
+                for (ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
                     auto range1 = this->get_physical_bin_range(t1);
                     auto range2 = this->get_physical_bin_range(t2);
                     if (range1.empty() || range2.empty()) continue;
@@ -57,4 +57,6 @@ namespace april::container {
         using impl = internal::DirectSumAoSImpl<ConfigT, U>;
     };
 }
+
+
 

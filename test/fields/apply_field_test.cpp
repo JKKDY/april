@@ -18,7 +18,7 @@ struct SpyFieldSinks {
 // A SpyField that uses a raw pointer to sinks owned by the test
 class SpyField : public field::Field {
 public:
-    static constexpr env::Field fields = to_field_mask(env::Field::force);
+    static constexpr ParticleField fields = ParticleField::force;
     SpyFieldSinks* sinks = nullptr;
 
     explicit SpyField(SpyFieldSinks* sinks_ptr) : sinks(sinks_ptr) {}
@@ -106,10 +106,10 @@ TEST_F(FieldTest, ApplyIsCalledPerParticlePerStep) {
 // A second spy field to test multi-type field registration
 class SpyField2 : public field::Field {
 public:
-    static constexpr env::Field fields = to_field_mask(env::Field::force);
+    static constexpr ParticleField fields = ParticleField::force;
     SpyFieldSinks* sinks = nullptr;
     explicit SpyField2(SpyFieldSinks* sinks_ptr) : sinks(sinks_ptr) {}
-    SpyField2() : sinks(nullptr) {}
+    SpyField2() {}
 
     template<class S>
     void init(const core::SystemContext<S>&) {
@@ -237,3 +237,5 @@ TEST(FieldIntegrationTest, MultipleDifferentFieldsAreAdditive) {
     EXPECT_NEAR(p2.force.y, uniform_force.y, 1e-12);
     EXPECT_NEAR(p2.force.z, uniform_force.z, 1e-12);
 }
+
+

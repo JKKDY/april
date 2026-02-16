@@ -48,7 +48,7 @@ namespace april::container::internal {
 				self.for_each_type_pair([&](const size_t t1, const size_t t2) {
 					// init batch
 					self.batch.clear();
-					self.batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
+					self.batch.types = {static_cast<ParticleType>(t1), static_cast<ParticleType>(t2)};
 
 					// fill the batch
 					self.for_each_cell_in_block(bx, by, bz, [&](size_t x, size_t y, size_t z) {
@@ -67,7 +67,7 @@ namespace april::container::internal {
     		auto process_wrapped = [&](auto&& f, const math::Range& r1, const math::Range& r2, size_t t1, size_t t2, auto&& bcp) {
     			AsymBatch wrapped_batch(self);
 
-    			wrapped_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
+    			wrapped_batch.types = {static_cast<ParticleType>(t1), static_cast<ParticleType>(t2)};
     			wrapped_batch.range1 = r1;
     			wrapped_batch.range2 = r2;
 
@@ -90,4 +90,6 @@ namespace april::container {
         using impl = internal::LinkedCellsAoSImpl<ConfigT, U>;
     };
 }
+
+
 

@@ -43,7 +43,7 @@ namespace april::container::layout {
 			}
 		}
 
-		template<env::Field M, ExecutionPolicy Policy, bool is_const, typename Kernel>
+		template<ParticleField M, ExecutionPolicy Policy, bool is_const, typename Kernel>
 		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
 			for (size_t i = start; i < end; i++) {
 				if constexpr (is_const) {
@@ -55,16 +55,16 @@ namespace april::container::layout {
 		}
 
 		// INDEXING
-		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
+		[[nodiscard]] size_t id_to_index(const ParticleID id) const {
 			return id_to_index_map[static_cast<size_t>(id)];
 		}
-		[[nodiscard]] env::ParticleID min_id() const {
+		[[nodiscard]] ParticleID min_id() const {
 			return 0;
 		}
-		[[nodiscard]] env::ParticleID max_id() const {
-			return static_cast<env::ParticleID>(particles.size());
+		[[nodiscard]] ParticleID max_id() const {
+			return static_cast<ParticleID>(particles.size());
 		}
-		[[nodiscard]] bool contains_id(const env::ParticleID id) const {
+		[[nodiscard]] bool contains_id(const ParticleID id) const {
 			return id <= max_id();
 		}
 		[[nodiscard]] bool index_is_valid(const size_t index) const {
@@ -134,21 +134,23 @@ namespace april::container::layout {
 		}
 
 		// Deducing 'this' automatically propagates constness to the return type
-		template<env::Field F>
+		template<ParticleField F>
 		auto get_field_ptr(this auto&& self, size_t i) {
-			if constexpr (F == env::Field::force)				return &self.particles[i].force;
-			else if constexpr (F == env::Field::position)	  	return &self.particles[i].position;
-			else if constexpr (F == env::Field::velocity)	  	return &self.particles[i].velocity;
-			else if constexpr (F == env::Field::old_position) 	return &self.particles[i].old_position;
-			else if constexpr (F == env::Field::mass)			return &self.particles[i].mass;
-			else if constexpr (F == env::Field::state)			return &self.particles[i].state;
-			else if constexpr (F == env::Field::type)			return &self.particles[i].type;
-			else if constexpr (F == env::Field::id)				return &self.particles[i].id;
-			else if constexpr (F == env::Field::user_data)		return &self.particles[i].user_data;
+			if constexpr (F == ParticleField::force)				return &self.particles[i].force;
+			else if constexpr (F == ParticleField::position)	  	return &self.particles[i].position;
+			else if constexpr (F == ParticleField::velocity)	  	return &self.particles[i].velocity;
+			else if constexpr (F == ParticleField::old_position) 	return &self.particles[i].old_position;
+			else if constexpr (F == ParticleField::mass)			return &self.particles[i].mass;
+			else if constexpr (F == ParticleField::state)			return &self.particles[i].state;
+			else if constexpr (F == ParticleField::type)			return &self.particles[i].type;
+			else if constexpr (F == ParticleField::id)				return &self.particles[i].id;
+			else if constexpr (F == ParticleField::user_data)		return &self.particles[i].user_data;
 		}
 
 	private:
 		std::vector<TopologyBatch> topology_batches;
 	};
 }
+
+
 

@@ -6,10 +6,10 @@
 #include "april/math/vec3.hpp"
 
 namespace april::env {
-    template<Field M, IsUserData U> struct PackedParticleView;
+    template<ParticleField M, IsUserData U> struct PackedParticleView;
 
 
-    template<Field M, Field F, typename Source>
+    template<ParticleField M, ParticleField F, typename Source>
     constexpr auto init_packed(const Source& src) {
         if constexpr (has_field_v<M, F>) {
             return src.template get<F>();
@@ -22,68 +22,68 @@ namespace april::env {
     // PACKED PARTICLE
     //----------------
     // shadow object with actual SIMD registers. Allows for manipulations without direct write backs
-    template<Field M>
+    template<ParticleField M>
     struct PackedParticleBuffer {
-        field_type_t<pvec3, Field::position, M> position;
-        field_type_t<pvec3, Field::old_position, M> old_position;
-        field_type_t<pvec3, Field::velocity, M> velocity;
-        field_type_t<pvec3, Field::force, M> force;
-        field_type_t<simd::Packed<double>, Field::mass, M> mass;
+        field_type_t<pvec3, ParticleField::position, M> position;
+        field_type_t<pvec3, ParticleField::old_position, M> old_position;
+        field_type_t<pvec3, ParticleField::velocity, M> velocity;
+        field_type_t<pvec3, ParticleField::force, M> force;
+        field_type_t<simd::Packed<double>, ParticleField::mass, M> mass;
 
         explicit PackedParticleBuffer(const auto & source) {
-            if constexpr (has_field_v<M, Field::position>) position = source.position;
-            if constexpr (has_field_v<M, Field::old_position>) old_position = source.old_position;
-            if constexpr (has_field_v<M, Field::velocity>) velocity = source.velocity;
-            if constexpr (has_field_v<M, Field::force>) force = source.force;
-            if constexpr (has_field_v<M, Field::mass>) mass = source.mass;
+            if constexpr (has_field_v<M, ParticleField::position>) position = source.position;
+            if constexpr (has_field_v<M, ParticleField::old_position>) old_position = source.old_position;
+            if constexpr (has_field_v<M, ParticleField::velocity>) velocity = source.velocity;
+            if constexpr (has_field_v<M, ParticleField::force>) force = source.force;
+            if constexpr (has_field_v<M, ParticleField::mass>) mass = source.mass;
         }
 
         void rotate_left() {
-            if constexpr (has_field_v<M, Field::position>) {
+            if constexpr (has_field_v<M, ParticleField::position>) {
                 position.x = position.x.rotate_left();
                 position.y = position.y.rotate_left();
                 position.z = position.z.rotate_left();
             }
-            if constexpr (has_field_v<M, Field::old_position>) {
+            if constexpr (has_field_v<M, ParticleField::old_position>) {
                 old_position.x = old_position.x.rotate_left();
                 old_position.y = old_position.y.rotate_left();
                 old_position.z = old_position.z.rotate_left();
             }
-            if constexpr (has_field_v<M, Field::velocity>) {
+            if constexpr (has_field_v<M, ParticleField::velocity>) {
                 velocity.x = velocity.x.rotate_left();
                 velocity.y = velocity.y.rotate_left();
                 velocity.z = velocity.z.rotate_left();
             }
-            if constexpr (has_field_v<M, Field::force>) {
+            if constexpr (has_field_v<M, ParticleField::force>) {
                 force.x = force.x.rotate_left();
                 force.y = force.y.rotate_left();
                 force.z = force.z.rotate_left();
             }
-            if constexpr (has_field_v<M, Field::mass>) mass = mass.rotate_left();
+            if constexpr (has_field_v<M, ParticleField::mass>) mass = mass.rotate_left();
         }
 
         void rotate_right() {
-            if constexpr (has_field_v<M, Field::position>) {
+            if constexpr (has_field_v<M, ParticleField::position>) {
                 position.x = position.x.rotate_right();
                 position.y = position.y.rotate_right();
                 position.z = position.z.rotate_right();
             }
-            if constexpr (has_field_v<M, Field::old_position>) {
+            if constexpr (has_field_v<M, ParticleField::old_position>) {
                 old_position.x = old_position.x.rotate_right();
                 old_position.y = old_position.y.rotate_right();
                 old_position.z = old_position.z.rotate_right();
             }
-            if constexpr (has_field_v<M, Field::velocity>) {
+            if constexpr (has_field_v<M, ParticleField::velocity>) {
                 velocity.x = velocity.x.rotate_right();
                 velocity.y = velocity.y.rotate_right();
                 velocity.z = velocity.z.rotate_right();
             }
-            if constexpr (has_field_v<M, Field::force>) {
+            if constexpr (has_field_v<M, ParticleField::force>) {
                 force.x = force.x.rotate_right();
                 force.y = force.y.rotate_right();
                 force.z = force.z.rotate_right();
             }
-            if constexpr (has_field_v<M, Field::mass>) mass = mass.rotate_right();
+            if constexpr (has_field_v<M, ParticleField::mass>) mass = mass.rotate_right();
         }
     };
 
@@ -91,16 +91,16 @@ namespace april::env {
     //-------------------
     // PARTICLE REFERENCE
     //-------------------
-    template<Field M, IsUserData U>
+    template<ParticleField M, IsUserData U>
     struct PackedParticleRef {
         using pvec3_ref = math::Vec3Proxy<pvec3::type>;
 
         explicit PackedParticleRef(const auto& source) noexcept
-            : force       (init_packed<M, Field::force>(source))
-            , position    (init_packed<M, Field::position>(source))
-            , velocity    (init_packed<M, Field::velocity>(source))
-            , old_position(init_packed<M, Field::old_position>(source))
-            , mass        (init_packed<M, Field::mass>(source))
+            : force       (init_packed<M, ParticleField::force>(source))
+            , position    (init_packed<M, ParticleField::position>(source))
+            , velocity    (init_packed<M, ParticleField::velocity>(source))
+            , old_position(init_packed<M, ParticleField::old_position>(source))
+            , mass        (init_packed<M, ParticleField::mass>(source))
         {}
 
         PackedParticleView<M, U> to_view() const noexcept {
@@ -112,12 +112,12 @@ namespace april::env {
         }
 
 
-        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, Field::force, M> force;
-        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, Field::position, M> position;
-        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, Field::velocity, M> velocity;
-        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, Field::old_position, M> old_position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::force, M> force;
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::position, M> position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::velocity, M> velocity;
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::old_position, M> old_position;
 
-        AP_NO_UNIQUE_ADDRESS field_type_t<simd::PackedRef<double>, Field::mass, M> mass;
+        AP_NO_UNIQUE_ADDRESS field_type_t<simd::PackedRef<double>, ParticleField::mass, M> mass;
     };
 
 
@@ -125,18 +125,18 @@ namespace april::env {
     //------------------------
     // RESTRICTED PARTICLE REF
     //------------------------
-    template<Field M, IsUserData U>
+    template<ParticleField M, IsUserData U>
     struct PackedRestrictedParticleRef {
         using pvec3_ref = math::Vec3Proxy<pvec3::type>;
         using const_pvec3_ref = math::Vec3Proxy<const pvec3::type>;
         using const_d_ref = simd::PackedRef<const double>;
 
         explicit PackedRestrictedParticleRef(const auto& source) noexcept
-            : force       (init_packed<M, Field::force>(source))
-            , position    (init_packed<M, Field::position>(source))
-            , velocity    (init_packed<M, Field::velocity>(source))
-            , old_position(init_packed<M, Field::old_position>(source))
-            , mass        (init_packed<M, Field::mass>(source))
+            : force       (init_packed<M, ParticleField::force>(source))
+            , position    (init_packed<M, ParticleField::position>(source))
+            , velocity    (init_packed<M, ParticleField::velocity>(source))
+            , old_position(init_packed<M, ParticleField::old_position>(source))
+            , mass        (init_packed<M, ParticleField::mass>(source))
         {}
 
         PackedParticleView<M, U> to_view() const noexcept {
@@ -151,10 +151,10 @@ namespace april::env {
         AP_NO_UNIQUE_ADDRESS pvec3_ref force;
 
         // Others are Read-Only
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, Field::position, M> position;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, Field::velocity, M> velocity;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, Field::old_position, M> old_position;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_d_ref, Field::mass, M> mass;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::position, M> position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::velocity, M> velocity;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::old_position, M> old_position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_d_ref, ParticleField::mass, M> mass;
     };
 
 
@@ -162,17 +162,17 @@ namespace april::env {
     //--------------
     // PARTICLE VIEW
     //--------------
-    template<Field M, IsUserData U>
+    template<ParticleField M, IsUserData U>
     struct PackedParticleView {
         using const_pvec3_ref = math::Vec3Proxy<const pvec3::type>;
         using const_d_ref = simd::PackedRef<const double>;
 
         explicit PackedParticleView(const auto& source) noexcept
-            : force       (init_packed<M, Field::force>(source))
-            , position    (init_packed<M, Field::position>(source))
-            , velocity    (init_packed<M, Field::velocity>(source))
-            , old_position(init_packed<M, Field::old_position>(source))
-            , mass        (init_packed<M, Field::mass>(source))
+            : force       (init_packed<M, ParticleField::force>(source))
+            , position    (init_packed<M, ParticleField::position>(source))
+            , velocity    (init_packed<M, ParticleField::velocity>(source))
+            , old_position(init_packed<M, ParticleField::old_position>(source))
+            , mass        (init_packed<M, ParticleField::mass>(source))
         {}
 
         // Copy from Mutable Ref
@@ -193,13 +193,15 @@ namespace april::env {
             return PackedParticleBuffer<M>(*this);
         }
 
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, Field::force, M> force;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, Field::position, M> position;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, Field::velocity, M> velocity;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, Field::old_position, M> old_position;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_d_ref, Field::mass, M> mass;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::force, M> force;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::position, M> position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::velocity, M> velocity;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::old_position, M> old_position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_d_ref, ParticleField::mass, M> mass;
     };
 
 }
+
+
 
 

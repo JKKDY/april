@@ -18,15 +18,15 @@ namespace april::boundary {
 	template <class Force>
 	struct Repulsive : Boundary {
 
-		static constexpr env::Field fields =
-			env::Field::position | env::Field::force | env::Field::old_position;
+		static constexpr ParticleField fields =
+			ParticleField::position | ParticleField::force | ParticleField::old_position;
 
 
 		explicit Repulsive(Force & force, const bool simulate_halo=false):
 		Boundary(force.cutoff(), false, false, false),
 		boundary_force(force), simulate_halo(simulate_halo) {}
 
-		template<env::Field M, env::IsUserData U>
+		template<ParticleField M, env::IsUserData U>
 		void apply(env::ParticleRef<M, U> & particle, const env::Box & domain_box, const Face face) const noexcept{
 			const int is_plus = face_sign_pos(face);
 			const int ax = axis_of_face(face);
@@ -126,4 +126,6 @@ namespace april::boundary {
 	};
 
 }
+
+
 

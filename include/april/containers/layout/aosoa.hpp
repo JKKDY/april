@@ -47,9 +47,9 @@ namespace april::container::layout {
 		// Note: For types smaller than double (like ParticleType), padding will occur
 		// between arrays to maintain 64-byte alignment of the start of the next array.
 		alignas(64) std::array<double, Size>             mass;
-		alignas(64) std::array<env::ParticleState, Size> state;
-		alignas(64) std::array<env::ParticleType, Size>  type;
-		alignas(64) std::array<env::ParticleID, Size>    id;
+		alignas(64) std::array<ParticleState, Size> state;
+		alignas(64) std::array<ParticleType, Size>  type;
+		alignas(64) std::array<ParticleID, Size>    id;
 		alignas(64) std::array<U, Size>                  user_data;
 	};
 
@@ -97,7 +97,7 @@ namespace april::container::layout {
 			}
 		}
 
-		template<env::Field M, ExecutionPolicy Policy, bool is_const, typename Kernel>
+		template<ParticleField M, ExecutionPolicy Policy, bool is_const, typename Kernel>
 		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
 			const auto [start_chunk, start_idx] = self.locate(start);
 			const auto [end_chunk, end_idx] = self.locate(end);
@@ -155,42 +155,42 @@ namespace april::container::layout {
 
 
 		// ACCESSORS (chunk based)
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 			return env::ParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
 			return env::ParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 			return env::RestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 			return env::PackedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t chunk_idx, size_t lane_idx) {
 			return env::PackedParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto restricted_at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 			return env::PackedRestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 
 
 		// INDEXING
-		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
+		[[nodiscard]] size_t id_to_index(const ParticleID id) const {
 			return id_to_index_map[static_cast<size_t>(id)];
 		}
-		[[nodiscard]] env::ParticleID min_id() const {
+		[[nodiscard]] ParticleID min_id() const {
 			return 0;
 		}
-		[[nodiscard]] env::ParticleID max_id() const {
-			return static_cast<env::ParticleID>(n_particles);
+		[[nodiscard]] ParticleID max_id() const {
+			return static_cast<ParticleID>(n_particles);
 		}
 		[[nodiscard]] size_t capacity() const {
 			return particle_capacity;
@@ -202,9 +202,9 @@ namespace april::container::layout {
 			if (index >= particle_capacity) return false;
 
 			auto [c, l] = locate(index);
-			return data[c].state[l] != env::ParticleState::INVALID;
+			return data[c].state[l] != ParticleState::INVALID;
 		}
-		[[nodiscard]] bool contains_id(const env::ParticleID id) const {
+		[[nodiscard]] bool contains_id(const ParticleID id) const {
 			if (static_cast<size_t>(id) >= id_to_index_map.size()) return false;
 			return id_to_index_map[static_cast<size_t>(id)] != ID_NOT_FOUND;
 		}
@@ -284,8 +284,8 @@ namespace april::container::layout {
 
 			for (size_t i = n_particles; i < particle_capacity; ++i) {
 				const auto [c_idx, l_idx] = locate(i);
-				data[c_idx].state[l_idx] = env::ParticleState::INVALID;
-				data[c_idx].id[l_idx] = std::numeric_limits<env::ParticleID>::max();
+				data[c_idx].state[l_idx] = ParticleState::INVALID;
+				data[c_idx].id[l_idx] = std::numeric_limits<ParticleID>::max();
 			}
 		}
 
@@ -350,7 +350,7 @@ namespace april::container::layout {
 					dst_chunk.user_data[dst_l] = src_chunk.user_data[src_l];
 
 					const size_t new_physical_idx = dst_c * chunk_size + dst_l;
-					const env::ParticleID id = dst_chunk.id[dst_l];
+					const ParticleID id = dst_chunk.id[dst_l];
 					id_to_index_map[id] = new_physical_idx;
 
 					dst_l++;
@@ -365,7 +365,7 @@ namespace april::container::layout {
 					auto& dst_chunk = tmp[dst_c];
 					while (dst_l < chunk_size) {
 						// mark as dead so physics kernels ignore it
-						dst_chunk.state[dst_l] = env::ParticleState::INVALID;
+						dst_chunk.state[dst_l] = ParticleState::INVALID;
 
 						// move far away to be safe against distance checks
 						dst_chunk.pos_x[dst_l] = 1e50;
@@ -373,7 +373,7 @@ namespace april::container::layout {
 						dst_chunk.pos_z[dst_l] = 1e50;
 
 						// set ID to max to avoid map lookups
-						dst_chunk.id[dst_l] = std::numeric_limits<env::ParticleID>::max();
+						dst_chunk.id[dst_l] = std::numeric_limits<ParticleID>::max();
 
 						dst_l++;
 					}
@@ -401,7 +401,7 @@ namespace april::container::layout {
 			 };
 		}
 
-		template<env::Field F>
+		template<ParticleField F>
 		auto get_field_ptr(this auto&& self, const size_t i) {
 
 			// locate data
@@ -409,27 +409,27 @@ namespace april::container::layout {
 			auto& chunk = self.ptr_chunks[chunk_idx];
 
 			// return vector pointer
-			if constexpr (F == env::Field::position)
+			if constexpr (F == ParticleField::position)
 				return math::Vec3Ptr { &chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx] };
-			else if constexpr (F == env::Field::velocity)
+			else if constexpr (F == ParticleField::velocity)
 				return math::Vec3Ptr { &chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx] };
-			else if constexpr (F == env::Field::force)
+			else if constexpr (F == ParticleField::force)
 				return math::Vec3Ptr { &chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx] };
-			else if constexpr (F == env::Field::old_position)
+			else if constexpr (F == ParticleField::old_position)
 				return math::Vec3Ptr { &chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx] };
 
 			// return scalar pointer
-			else if constexpr (F == env::Field::mass)      return &chunk.mass[lane_idx];
-			else if constexpr (F == env::Field::state)     return &chunk.state[lane_idx];
-			else if constexpr (F == env::Field::type)      return &chunk.type[lane_idx];
-			else if constexpr (F == env::Field::id)        return &chunk.id[lane_idx];
-			else if constexpr (F == env::Field::user_data) return &chunk.user_data[lane_idx];
+			else if constexpr (F == ParticleField::mass)      return &chunk.mass[lane_idx];
+			else if constexpr (F == ParticleField::state)     return &chunk.state[lane_idx];
+			else if constexpr (F == ParticleField::type)      return &chunk.type[lane_idx];
+			else if constexpr (F == ParticleField::id)        return &chunk.id[lane_idx];
+			else if constexpr (F == ParticleField::user_data) return &chunk.user_data[lane_idx];
 		}
 
 	private:
 		std::vector<TopologyBatch> topology_batches;
 
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto access_particle(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
@@ -437,28 +437,30 @@ namespace april::container::layout {
 
 			auto& chunk = self.ptr_chunks[chunk_idx];
 
-			if constexpr (env::has_field_v<M, env::Field::force>)
+			if constexpr (env::has_field_v<M, ParticleField::force>)
 				src.force = math::Vec3Ptr { &chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx] };
-			if constexpr (env::has_field_v<M, env::Field::position>)
+			if constexpr (env::has_field_v<M, ParticleField::position>)
 				src.position = math::Vec3Ptr { &chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx] };
-			if constexpr (env::has_field_v<M, env::Field::velocity>)
+			if constexpr (env::has_field_v<M, ParticleField::velocity>)
 				src.velocity = math::Vec3Ptr { &chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx] };
-			if constexpr (env::has_field_v<M, env::Field::old_position>)
+			if constexpr (env::has_field_v<M, ParticleField::old_position>)
 				src.old_position = math::Vec3Ptr { &chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx] };
-			if constexpr (env::has_field_v<M, env::Field::mass>)
+			if constexpr (env::has_field_v<M, ParticleField::mass>)
 				src.mass = &chunk.mass[lane_idx];
-			if constexpr (env::has_field_v<M, env::Field::state>)
+			if constexpr (env::has_field_v<M, ParticleField::state>)
 				src.state = &chunk.state[lane_idx];
-			if constexpr (env::has_field_v<M, env::Field::type>)
+			if constexpr (env::has_field_v<M, ParticleField::type>)
 				src.type = &chunk.type[lane_idx];
-			if constexpr (env::has_field_v<M, env::Field::id>)
+			if constexpr (env::has_field_v<M, ParticleField::id>)
 				src.id = &chunk.id[lane_idx];
-			if constexpr (env::has_field_v<M, env::Field::user_data>)
+			if constexpr (env::has_field_v<M, ParticleField::user_data>)
 				src.user_data = &chunk.user_data[lane_idx];
 
 			return src;
 		}
 	};
 }
+
+
 
 

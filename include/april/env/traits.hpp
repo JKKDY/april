@@ -58,9 +58,9 @@ namespace april::env::internal {
 		// particles
 		using user_data_t = U;
 		using particle_record_t = ParticleRecord<user_data_t>;
-		template<Field M> using particle_ref_t = ParticleRef<M, user_data_t>;
-		template<Field M> using restricted_particle_ref_t = RestrictedParticleRef<M, user_data_t>;
-		template<Field M> using particle_view_t = ParticleView<M, user_data_t>;
+		template<ParticleField M> using particle_ref_t = ParticleRef<M, user_data_t>;
+		template<ParticleField M> using restricted_particle_ref_t = RestrictedParticleRef<M, user_data_t>;
+		template<ParticleField M> using particle_view_t = ParticleView<M, user_data_t>;
 
 		// Environment Data type
 		using environment_data_t = EnvironmentData<
@@ -162,5 +162,7 @@ namespace april::env::internal {
 		is_particle_data_v<T>;
 
 }
+
+
 
 

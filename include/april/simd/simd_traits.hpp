@@ -133,3 +133,5 @@ namespace april::simd {
     concept IsSimdType = IsSimdTypeImpl<std::remove_cvref_t<T>>;
 }
 
+
+

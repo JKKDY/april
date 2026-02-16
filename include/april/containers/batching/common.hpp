@@ -39,14 +39,14 @@ namespace april::container {
 		static constexpr auto parallel_policy = parallelize;
 		static constexpr auto update_policy = upd;
 		static constexpr auto compute_policy = cmp;
-		std::pair<env::ParticleType, env::ParticleType> types {};
+		std::pair<ParticleType, ParticleType> types {};
 	};
 
 	using SerialBatch = BatchBase<ParallelPolicy::None, UpdatePolicy::Serial, ComputePolicy::Scalar>;
 
 	struct TopologyBatch {
-		env::ParticleID id1, id2;
-		std::vector<std::pair<env::ParticleID, env::ParticleID>> pairs;
+		ParticleID id1, id2;
+		std::vector<std::pair<ParticleID, ParticleID>> pairs;
 	};
 
 	//--------------
@@ -61,13 +61,13 @@ namespace april::container {
 		{ T::compute_policy }	-> std::convertible_to<ComputePolicy>;
 
 		// must have type pair
-		{ b.types } -> std::convertible_to<std::pair<env::ParticleType, env::ParticleType>>;
+		{ b.types } -> std::convertible_to<std::pair<ParticleType, ParticleType>>;
 	};
 
 	template<typename T>
 	concept IsBatchAtom = requires(const T& t) {
 		// callable must take in two particle views
-		{ t.template for_each_pair<env::Field::all>(
+		{ t.template for_each_pair<ParticleField::all>(
 			[]<typename P0, typename P1>(P0&&, P1&&)
 			// requires env::IsRestrictedRef<P0> && env::IsRestrictedRef<P1>
 			{}
@@ -96,6 +96,8 @@ namespace april::container {
 		}
 	};
 }
+
+
 
 
 

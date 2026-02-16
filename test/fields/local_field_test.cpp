@@ -98,3 +98,5 @@ TEST(LocalFieldTest, TimeCheck) {
     // Step 5 (t=0.05): update() -> active=false.
     EXPECT_NEAR(p3.force.x, 0.0, 1e-12); // Should be inactive again
 }
+
+

@@ -14,9 +14,9 @@ namespace april::container::layout {
         alignas(64) std::vector<vec3::type> old_x, old_y, old_z;
 
         alignas(64) std::vector<double> mass;
-        alignas(64) std::vector<env::ParticleState> state;
-        alignas(64) std::vector<env::ParticleType> type;
-        alignas(64) std::vector<env::ParticleID> id;
+        alignas(64) std::vector<ParticleState> state;
+        alignas(64) std::vector<ParticleType> type;
+        alignas(64) std::vector<ParticleID> id;
         alignas(64) std::vector<UserData> user_data;
 
         vec3::type * AP_RESTRICT ptr_pos_x = nullptr;
@@ -40,9 +40,9 @@ namespace april::container::layout {
 
         // Scalars
         double * AP_RESTRICT ptr_mass = nullptr;
-        env::ParticleState * AP_RESTRICT ptr_state = nullptr;
-        env::ParticleType  * AP_RESTRICT ptr_type  = nullptr;
-        env::ParticleID    * AP_RESTRICT ptr_id    = nullptr;
+        ParticleState * AP_RESTRICT ptr_state = nullptr;
+        ParticleType  * AP_RESTRICT ptr_type  = nullptr;
+        ParticleID    * AP_RESTRICT ptr_id    = nullptr;
         UserData * AP_RESTRICT ptr_user_data = nullptr;
 
         void update_pointer_cache() {
@@ -135,7 +135,7 @@ namespace april::container::layout {
             }
         }
 
-        template<env::Field M, ExecutionPolicy Policy, bool is_const, typename Kernel>
+        template<ParticleField M, ExecutionPolicy Policy, bool is_const, typename Kernel>
         void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
             for (size_t i = start; i < end; i++) {
                 if constexpr (is_const) {
@@ -148,19 +148,19 @@ namespace april::container::layout {
 
 
         // INDEXING
-        [[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
+        [[nodiscard]] size_t id_to_index(const ParticleID id) const {
             return id_to_index_map[static_cast<size_t>(id)];
         }
-        [[nodiscard]] env::ParticleID min_id() const {
+        [[nodiscard]] ParticleID min_id() const {
             return 0;
         }
-        [[nodiscard]] env::ParticleID max_id() const {
-            return static_cast<env::ParticleID>(id_to_index_map.size());
+        [[nodiscard]] ParticleID max_id() const {
+            return static_cast<ParticleID>(id_to_index_map.size());
         }
         [[nodiscard]] bool index_is_valid(const size_t index) const {
             return index < particle_count();
         }
-        [[nodiscard]] bool contains_id(const env::ParticleID id) const {
+        [[nodiscard]] bool contains_id(const ParticleID id) const {
             return id <= max_id();
         }
 
@@ -253,27 +253,29 @@ namespace april::container::layout {
             return {start, start + bin_sizes[type]};
         }
 
-        template<env::Field F>
+        template<ParticleField F>
         auto get_field_ptr(this auto&& self, size_t i) {
-            if constexpr (F == env::Field::position)
+            if constexpr (F == ParticleField::position)
                 return math::Vec3Ptr { self.data.ptr_pos_x + i, self.data.ptr_pos_y + i, self.data.ptr_pos_z + i };
-            else if constexpr (F == env::Field::velocity)
+            else if constexpr (F == ParticleField::velocity)
                 return math::Vec3Ptr { self.data.ptr_vel_x + i, self.data.ptr_vel_y + i, self.data.ptr_vel_z + i };
-            else if constexpr (F == env::Field::force)
+            else if constexpr (F == ParticleField::force)
                 return math::Vec3Ptr { self.data.ptr_frc_x + i, self.data.ptr_frc_y + i, self.data.ptr_frc_z + i };
-            else if constexpr (F == env::Field::old_position)
+            else if constexpr (F == ParticleField::old_position)
                 return math::Vec3Ptr { self.data.ptr_old_x + i, self.data.ptr_old_y + i, self.data.ptr_old_z + i };
 
-            else if constexpr (F == env::Field::mass)      return self.data.ptr_mass + i;
-            else if constexpr (F == env::Field::state)     return self.data.ptr_state + i;
-            else if constexpr (F == env::Field::type)      return self.data.ptr_type + i;
-            else if constexpr (F == env::Field::id)        return self.data.ptr_id + i;
-            else if constexpr (F == env::Field::user_data) return self.data.ptr_user_data + i;
+            else if constexpr (F == ParticleField::mass)      return self.data.ptr_mass + i;
+            else if constexpr (F == ParticleField::state)     return self.data.ptr_state + i;
+            else if constexpr (F == ParticleField::type)      return self.data.ptr_type + i;
+            else if constexpr (F == ParticleField::id)        return self.data.ptr_id + i;
+            else if constexpr (F == ParticleField::user_data) return self.data.ptr_user_data + i;
         }
 
     private:
         std::vector<TopologyBatch> topology_batches;
     };
 }
+
+
 
 

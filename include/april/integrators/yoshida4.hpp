@@ -12,17 +12,17 @@ namespace april::integrator {
 	class Yoshida4<Sys, monitor::MonitorPack<TMonitors...>>
 		: public Integrator<Sys, monitor::MonitorPack<TMonitors...>> {
 	public:
-		using State = env::ParticleState;
+		using State = ParticleState;
 		using Base = Integrator<Sys, monitor::MonitorPack<TMonitors...>>;
 		using Base::dt;
 		using Base::sys;
 		using Base::Base;
 
-		static constexpr env::Field pos_upd_fields =
-			env::Field::state | env::Field::velocity | env::Field::position | env::Field::mass | env::Field::old_position | env::Field::force;
+		static constexpr ParticleField pos_upd_fields =
+			ParticleField::state | ParticleField::velocity | ParticleField::position | ParticleField::mass | ParticleField::old_position | ParticleField::force;
 
-		static constexpr env::Field vel_upd_fields =
-			env::Field::state | env::Field::velocity | env::Field::force | env::Field::mass;
+		static constexpr ParticleField vel_upd_fields =
+			ParticleField::state | ParticleField::velocity | ParticleField::force | ParticleField::mass;
 
 
 		void stoermer_verlet_step(double delta_t) const {
@@ -66,4 +66,6 @@ namespace april::integrator {
 	Yoshida4(Sys&, Ms...)
 		-> Yoshida4<Sys, monitor::MonitorPack<std::decay_t<Ms>...>>;
 }
+
+
 

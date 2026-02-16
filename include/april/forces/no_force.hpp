@@ -7,7 +7,7 @@
 namespace april::force {
 	// No-op force: always returns zero vector and mixes to itself.
 	struct NoForce : Force{
-		static constexpr env::Field fields = env::Field::none;
+		static constexpr ParticleField fields = ParticleField::none;
 
 		NoForce(): Force(0) {}
 
@@ -24,4 +24,6 @@ namespace april::force {
 		bool operator==(const NoForce&) const = default;
 	};
 }
+
+
 

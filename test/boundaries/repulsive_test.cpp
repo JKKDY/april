@@ -46,7 +46,7 @@ inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& 
 	return p;
 }
 
-template<env::Field Mask, typename RecordT>
+template<ParticleField Mask, typename RecordT>
 auto make_source(RecordT& record) {
 	// Determine constness based on RecordT (allows making const sources from const records)
 	constexpr bool IsConst = std::is_const_v<RecordT>;
@@ -54,15 +54,15 @@ auto make_source(RecordT& record) {
 
 	env::ParticleSource<Mask, UserDataT, IsConst> src;
 
-	if constexpr (env::has_field_v<Mask, env::Field::position>)     src.position     = &record.position;
-	if constexpr (env::has_field_v<Mask, env::Field::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (env::has_field_v<Mask, env::Field::force>)        src.force        = &record.force;
-	if constexpr (env::has_field_v<Mask, env::Field::old_position>) src.old_position = &record.old_position;
-	if constexpr (env::has_field_v<Mask, env::Field::mass>)         src.mass         = &record.mass;
-	if constexpr (env::has_field_v<Mask, env::Field::state>)        src.state        = &record.state;
-	if constexpr (env::has_field_v<Mask, env::Field::type>)         src.type         = &record.type;
-	if constexpr (env::has_field_v<Mask, env::Field::id>)           src.id           = &record.id;
-	if constexpr (env::has_field_v<Mask, env::Field::user_data>)    src.user_data    = &record.user_data;
+	if constexpr (env::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
+	if constexpr (env::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
+	if constexpr (env::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
+	if constexpr (env::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
+	if constexpr (env::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
+	if constexpr (env::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
+	if constexpr (env::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
+	if constexpr (env::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
+	if constexpr (env::has_field_v<Mask, ParticleField::user_data>)    src.user_data    = &record.user_data;
 
 	return src;
 }
@@ -71,7 +71,7 @@ auto make_source(RecordT& record) {
 TEST(RepulsiveBoundaryTest, Apply_AddsInwardForce) {
 	ConstantForce f{5.0, 10.0};
 	const Repulsive rep(f);
-	constexpr env::Field Mask = Repulsive<ConstantForce>::fields;
+	constexpr ParticleField Mask = Repulsive<ConstantForce>::fields;
 
 	auto p = make_particle({9.5,5,5});
 	auto src = make_source<Mask>(p);
@@ -110,7 +110,7 @@ TEST(RepulsiveBoundaryTest, CompiledBoundary_Apply_AddsInwardForce) {
 	std::variant<Repulsive<ConstantForce>> variant = Repulsive(f);
 	env::Domain domain({0,0,0}, {10,10,10});
 
-	constexpr env::Field Mask = Repulsive<ConstantForce>::fields;
+	constexpr ParticleField Mask = Repulsive<ConstantForce>::fields;
 
 	auto compiled = boundary::internal::compile_boundary(variant, env::Box::from_domain(domain), Face::YMinus);
 
@@ -188,7 +188,7 @@ TEST(RepulsiveBoundaryTest, ExponentialForce_CalculatesCorrectly) {
     // Formula: 10 * exp(-d / 2.0)
     boundary::ExponentialForce exp_force{10.0, 2.0, 10.0};
     const boundary::Repulsive rep(exp_force);
-    constexpr env::Field Mask = boundary::Repulsive<boundary::ExponentialForce>::fields;
+    constexpr ParticleField Mask = boundary::Repulsive<boundary::ExponentialForce>::fields;
 
     // Particle 1.0 unit away from 0.0 (XMinus wall)
     auto p = make_particle({1.0, 5, 5});
@@ -210,7 +210,7 @@ TEST(RepulsiveBoundaryTest, PowerLawForce_CalculatesCorrectly) {
     // Formula: 2.0 / d^2
     boundary::PowerLawForce pow_force{2.0, 2.0, 10.0};
     const boundary::Repulsive rep(pow_force);
-    constexpr env::Field Mask = boundary::Repulsive<boundary::PowerLawForce>::fields;
+    constexpr ParticleField Mask = boundary::Repulsive<boundary::PowerLawForce>::fields;
 
     // Particle 2.0 units away from 0.0
     auto p = make_particle({2.0, 5, 5});
@@ -228,7 +228,7 @@ TEST(RepulsiveBoundaryTest, LennardJones93Force_CalculatesCorrectly) {
     // eps=1, sigma=1, rc=5
     boundary::LennardJones93Force lj93{1.0, 1.0, 5.0};
     const boundary::Repulsive rep(lj93);
-    constexpr env::Field Mask = decltype(rep)::fields;
+    constexpr ParticleField Mask = decltype(rep)::fields;
 
     // Distance = 1.0 (sigma)
     // Formula: 4*eps * (3*(s/r)^3 - 9*(s/r)^9)
@@ -251,7 +251,7 @@ TEST(RepulsiveBoundaryTest, AdhesiveLJForce_IsAlwaysRepulsive) {
     // This force uses std::abs, so it should always push away from the wall
     boundary::AdhesiveLJForce adj_lj{1.0, 1.0, 5.0};
     const boundary::Repulsive rep(adj_lj);
-    constexpr env::Field Mask = decltype(rep)::fields;
+    constexpr ParticleField Mask = decltype(rep)::fields;
 
     // At sigma (1.0), standard LJ Force is 24 * eps * (2 - 1) = 24.
     auto p = make_particle({1.0, 5, 5});
@@ -271,7 +271,7 @@ TEST(RepulsiveBoundaryTest, AdhesiveLJForce_IsAlwaysRepulsive) {
 
 TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
     LinearIdentityForce lin_force; // Returns distance as magnitude
-    constexpr env::Field Mask = boundary::Repulsive<LinearIdentityForce>::fields;
+    constexpr ParticleField Mask = boundary::Repulsive<LinearIdentityForce>::fields;
     const env::Box box({0,0,0}, {10,10,10});
 
     // Case 1: Halo OFF
@@ -307,3 +307,5 @@ TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
         EXPECT_NEAR(p.force.x, 4.0, 1e-12) << "Halo should double the effective distance passed to the force";
     }
 }
+
+

@@ -10,7 +10,7 @@ using namespace april;
 using namespace april::env;
 
 // Define a test mask (Standard Physics Fields)
-static constexpr auto TestMask = Field::position | Field::velocity | Field::force | Field::mass;
+static constexpr auto TestMask = ParticleField::position | ParticleField::velocity | ParticleField::force | ParticleField::mass;
 
 class PackedParticleViewsTest : public testing::Test {
 protected:
@@ -335,3 +335,5 @@ TEST_F(PackedParticleViewsTest, SystolicLoopSim) {
             << "Systolic math mismatch at lane " << i;
     }
 }
+
+

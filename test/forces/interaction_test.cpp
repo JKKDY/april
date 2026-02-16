@@ -182,3 +182,5 @@ TEST(InteractionManagerTest, SchemaDeduplication) {
     // 2. Force(2,0,0) [used by 0-1]
     EXPECT_EQ(schema.interactions.size(), 2);
 }
+
+

@@ -23,7 +23,7 @@ static env::internal::ParticleRecord<env::NoUserData> make_alive_particle() {
 	return p;
 }
 
-template<env::Field Mask, typename RecordT>
+template<ParticleField Mask, typename RecordT>
 auto make_source(RecordT& record) {
 	// Determine constness based on RecordT (allows making const sources from const records)
 	constexpr bool IsConst = std::is_const_v<RecordT>;
@@ -31,15 +31,15 @@ auto make_source(RecordT& record) {
 
 	env::ParticleSource<Mask, UserDataT, IsConst> src;
 
-	if constexpr (env::has_field_v<Mask, env::Field::position>)     src.position     = &record.position;
-	if constexpr (env::has_field_v<Mask, env::Field::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (env::has_field_v<Mask, env::Field::force>)        src.force        = &record.force;
-	if constexpr (env::has_field_v<Mask, env::Field::old_position>) src.old_position = &record.old_position;
-	if constexpr (env::has_field_v<Mask, env::Field::mass>)         src.mass         = &record.mass;
-	if constexpr (env::has_field_v<Mask, env::Field::state>)        src.state        = &record.state;
-	if constexpr (env::has_field_v<Mask, env::Field::type>)         src.type         = &record.type;
-	if constexpr (env::has_field_v<Mask, env::Field::id>)           src.id           = &record.id;
-	if constexpr (env::has_field_v<Mask, env::Field::user_data>)    src.user_data    = &record.user_data;
+	if constexpr (env::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
+	if constexpr (env::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
+	if constexpr (env::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
+	if constexpr (env::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
+	if constexpr (env::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
+	if constexpr (env::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
+	if constexpr (env::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
+	if constexpr (env::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
+	if constexpr (env::has_field_v<Mask, ParticleField::user_data>)    src.user_data    = &record.user_data;
 
 	return src;
 }
@@ -47,7 +47,7 @@ auto make_source(RecordT& record) {
 // Direct application should mark particle DEAD
 TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 	const Absorb absorb;
-	constexpr env::Field Mask = Absorb::fields;
+	constexpr ParticleField Mask = Absorb::fields;
 
 	const env::Box box {{0,0,0}, {10,10,10}};
 
@@ -57,7 +57,7 @@ TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 
 	absorb.apply(ref, box, Face::XPlus);
 
-	EXPECT_EQ(p.state, env::ParticleState::DEAD)
+	EXPECT_EQ(p.state, ParticleState::DEAD)
 		<< "Absorb boundary should mark particle as DEAD";
 }
 
@@ -76,7 +76,7 @@ TEST(AbsorbBoundaryTest, Topology_IsOutsideAndPassive) {
 
 TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 	std::variant<Absorb> absorb = Absorb();
-	constexpr env::Field Mask = Absorb::fields;
+	constexpr ParticleField Mask = Absorb::fields;
 
 	env::Domain domain{{0,0,0}, {10,10,10}};
 
@@ -93,7 +93,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 		bc.apply(ref, box, Face::XPlus);
 	});
 
-	EXPECT_EQ(p.state, env::ParticleState::DEAD);
+	EXPECT_EQ(p.state, ParticleState::DEAD);
 }
 
 
@@ -168,3 +168,5 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 			<< " should be marked DEAD by Absorb boundary.";
 	}
 }
+
+

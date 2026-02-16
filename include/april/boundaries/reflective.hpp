@@ -5,11 +5,11 @@
 
 namespace april::boundary {
 	struct Reflective : Boundary {
-		static constexpr env::Field fields = env::Field::position | env::Field::old_position | env::Field::velocity;
+		static constexpr ParticleField fields = ParticleField::position | ParticleField::old_position | ParticleField::velocity;
 
 		Reflective(): Boundary(-1, false, false, true) {}
 
-		template<env::Field M, env::IsUserData U>
+		template<ParticleField M, env::IsUserData U>
 		void apply(env::ParticleRef<M, U> & particle, const env::Box & domain_box, const Face face) const noexcept{
 			const int is_plus = face_sign_pos(face);
 			const int ax = axis_of_face(face);
@@ -31,4 +31,6 @@ namespace april::boundary {
 		}
 	};
 }
+
+
 

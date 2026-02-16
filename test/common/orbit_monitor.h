@@ -11,7 +11,7 @@ public:
 	OrbitMonitor(): Monitor(Trigger::always()) {}
 	explicit OrbitMonitor(const double v, const double r): Monitor(Trigger::always()), v(v), r(r) {}
 
-	static constexpr env::Field fields = to_field_mask(env::Field::all);
+	static constexpr ParticleField fields = ParticleField::all;
 
 	template<class S>
 	void record(const SystemContext<S> & sys) const {
@@ -28,4 +28,6 @@ public:
 	double v{};
 	double r{};
 };
+
+
 

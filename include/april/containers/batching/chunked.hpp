@@ -11,7 +11,7 @@ namespace april::container::internal {
 	struct AsymmetricChunkedBatch : SerialBatch {
 		explicit AsymmetricChunkedBatch(Container & container, ChunkPtr * chunks): container(container), chunks(chunks) {}
 
-		template<env::Field Mask, typename Func>
+		template<ParticleField Mask, typename Func>
 		AP_FORCE_INLINE
    		void for_each_pair (Func && f) const {
 			// skip empty range
@@ -94,7 +94,7 @@ namespace april::container::internal {
 	struct SymmetricChunkedBatch : SerialBatch {
 		explicit SymmetricChunkedBatch(Container & container, ChunkPtr * chunks) : container(container), chunks(chunks) {}
 
-		template<env::Field Mask, typename Func>
+		template<ParticleField Mask, typename Func>
 	    AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
 	        if (range_chunks.start == range_chunks.stop) return;
@@ -161,6 +161,8 @@ namespace april::container::internal {
 	};
 
 }
+
+
 
 
 

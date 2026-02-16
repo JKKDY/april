@@ -335,12 +335,12 @@ TYPED_TEST(LinkedCellsTest, CollectIndicesInRegion) {
 
 // does nothing except signaling the container to be periodic
 struct DummyPeriodicBoundary final : Boundary {
-	static constexpr env::Field fields = env::Field::none;
+	static constexpr ParticleField fields = ParticleField::none;
 
 	DummyPeriodicBoundary()
 	: Boundary(0.0, false, true, false ) {}
 
-	template<env::Field M, env::IsUserData U>
+	template<ParticleField M, env::IsUserData U>
 		void apply(env::ParticleRef<M, U> &, const env::Box &, const Face) const noexcept{
 	}
 };
@@ -566,7 +566,7 @@ TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
 	for (size_t i = 0; i < N; ++i) {
 		// Resolve the internal ID used by the system
 		const auto sys_id = info.id_map[i];
-		auto view = sys.template view_id<env::Field::position | env::Field::id>(sys_id);
+		auto view = sys.template view_id<ParticleField::position | ParticleField::id>(sys_id);
 		EXPECT_EQ(view.id, sys_id);
 		EXPECT_DOUBLE_EQ(view.position.x, static_cast<double>(i) + 0.5);
 	}
@@ -576,7 +576,7 @@ TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
 		const auto sys_id = info.id_map[i];
 
 		// Modify velocity using ID access
-		auto ref = sys.template at_id<env::Field::velocity>(sys_id);
+		auto ref = sys.template at_id<ParticleField::velocity>(sys_id);
 		const auto val = static_cast<double>(i);
 		ref.velocity = {val, val * 2, val * 3};
 	}
@@ -587,10 +587,12 @@ TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
 		const auto val = static_cast<double>(i);
 
 		// Verify the write persisted and can be read back via restricted interface
-		auto res_view = sys.template restricted_at_id<env::Field::velocity | env::Field::force>(sys_id);
+		auto res_view = sys.template restricted_at_id<ParticleField::velocity | ParticleField::force>(sys_id);
 
 		EXPECT_EQ(res_view.velocity.x, val);
 		EXPECT_EQ(res_view.velocity.y, val * 2);
 		EXPECT_EQ(res_view.velocity.z, val * 3);
 	}
 }
+
+

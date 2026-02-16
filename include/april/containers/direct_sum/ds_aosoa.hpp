@@ -24,9 +24,9 @@ namespace april::container::internal {
         using Base::chunk_mask;
 
         void generate_batches() {
-            const auto n_types = static_cast<env::ParticleType>(bin_starts.size() - 1); // bin_starts has N+1 entries
+            const auto n_types = static_cast<ParticleType>(bin_starts.size() - 1); // bin_starts has N+1 entries
 
-            for (env::ParticleType type = 0; type < n_types; type++) {
+            for (ParticleType type = 0; type < n_types; type++) {
                 const size_t start = bin_starts[type];
                 const size_t end = bin_starts[type+1];
                 const size_t size = bin_sizes[type];
@@ -42,8 +42,8 @@ namespace april::container::internal {
             }
 
             // build asymmetric batches
-            for (env::ParticleType t1 = 0; t1 < n_types; t1++) {
-                for (env::ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
+            for (ParticleType t1 = 0; t1 < n_types; t1++) {
+                for (ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
                     const size_t start1 = bin_starts[t1];
                     const size_t size1 = bin_sizes[t1];
                     const size_t end1 = bin_starts[t1+1];
@@ -80,4 +80,6 @@ namespace april::container {
         using impl = internal::DirectSumAoSoAImpl<ConfigT, U>;
     };
 }
+
+
 

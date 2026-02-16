@@ -13,8 +13,8 @@
 namespace april::core {
 
 	struct BuildInfo {
-		std::unordered_map<env::ParticleType, env::ParticleType> type_map;
-		std::unordered_map<env::ParticleID, env::ParticleID> id_map;
+		std::unordered_map<ParticleType, ParticleType> type_map;
+		std::unordered_map<ParticleID, ParticleID> id_map;
 		env::Domain particle_box;
 		env::Domain simulation_domain;
 	};
@@ -98,5 +98,7 @@ namespace april::core {
 		);
 	}
 }
+
+
 
 

@@ -1,11 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <concepts>
 #include <type_traits>
 
 #include "april/base/bitmask.hpp"
 
-namespace april::env {
+namespace april {
 
 	enum class ParticleState : uint8_t {
 		ALIVE      = 1u << 0, // Moves, exerts and experiences forces
@@ -20,31 +21,32 @@ namespace april::env {
 
 	AP_ENABLE_BITMASK_OPERATORS(ParticleState)
 
-
 	using ParticleType = uint16_t;
 	using ParticleID = uint32_t;
 
+	namespace env {
+		template <typename T>
+		concept IsUserData =
+			std::default_initializable<T> &&
+			std::is_trivially_copyable_v<T> &&
+			std::is_trivially_destructible_v<T> &&
+			std::is_standard_layout_v<T> &&
+			(!std::is_polymorphic_v<T>);
 
-	template <typename T>
-	concept IsUserData =
-		std::default_initializable<T> &&
-		std::is_trivially_copyable_v<T> &&
-		std::is_trivially_destructible_v<T> &&
-		std::is_standard_layout_v<T> &&
-		(!std::is_polymorphic_v<T>);
 
+		struct NoUserData {};
 
-	struct NoUserData {};
+		// used to tell the environment what user data will be used
+		template<typename Data = NoUserData>
+		struct ParticleData {
+			using user_data_t = Data;
+		};
 
-	// used to tell the environment what user data will be used
-	template<typename Data = NoUserData>
-	struct ParticleData {
-		using user_data_t = Data;
-	};
-
-	template<typename Data = NoUserData>
-	inline constexpr ParticleData<Data> particle_data {};
-
+		template<typename Data = NoUserData>
+		inline constexpr ParticleData<Data> particle_data {};
+	}
 }
+
+
 
 

@@ -19,7 +19,7 @@ inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& 
 	return p;
 }
 
-template<env::Field Mask, typename RecordT>
+template<ParticleField Mask, typename RecordT>
 auto make_source(RecordT& record) {
 	// Determine constness based on RecordT (allows making const sources from const records)
 	constexpr bool IsConst = std::is_const_v<RecordT>;
@@ -27,15 +27,15 @@ auto make_source(RecordT& record) {
 
 	env::ParticleSource<Mask, UserDataT, IsConst> src;
 
-	if constexpr (env::has_field_v<Mask, env::Field::position>)     src.position     = &record.position;
-	if constexpr (env::has_field_v<Mask, env::Field::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (env::has_field_v<Mask, env::Field::force>)        src.force        = &record.force;
-	if constexpr (env::has_field_v<Mask, env::Field::old_position>) src.old_position = &record.old_position;
-	if constexpr (env::has_field_v<Mask, env::Field::mass>)         src.mass         = &record.mass;
-	if constexpr (env::has_field_v<Mask, env::Field::state>)        src.state        = &record.state;
-	if constexpr (env::has_field_v<Mask, env::Field::type>)         src.type         = &record.type;
-	if constexpr (env::has_field_v<Mask, env::Field::id>)           src.id           = &record.id;
-	if constexpr (env::has_field_v<Mask, env::Field::user_data>)    src.user_data    = &record.user_data;
+	if constexpr (env::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
+	if constexpr (env::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
+	if constexpr (env::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
+	if constexpr (env::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
+	if constexpr (env::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
+	if constexpr (env::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
+	if constexpr (env::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
+	if constexpr (env::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
+	if constexpr (env::has_field_v<Mask, ParticleField::user_data>)    src.user_data    = &record.user_data;
 
 	return src;
 }
@@ -44,7 +44,7 @@ auto make_source(RecordT& record) {
 // Direct Application Tests
 TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 	const Periodic periodic;
-	constexpr env::Field Mask = Periodic::fields;
+	constexpr ParticleField Mask = Periodic::fields;
 
 	const env::Box box({0,0,0}, {10,10,10});
 
@@ -62,7 +62,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 
 TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 	const Periodic periodic;
-	constexpr env::Field Mask = Periodic::fields;
+	constexpr ParticleField Mask = Periodic::fields;
 	const env::Box box({0,0,0}, {10,10,10});
 
 	// Particle just beyond -X boundary
@@ -80,7 +80,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 	const Periodic periodic;
 	const env::Box box({0,0,0}, {10,10,10});
-	constexpr env::Field Mask = Periodic::fields;
+	constexpr ParticleField Mask = Periodic::fields;
 
 
 	const std::array start_positions = {
@@ -133,7 +133,7 @@ TEST(PeriodicBoundaryTest, Topology_IsOutsideCoupledAndWrapsForces) {
 // 3. Compiled Boundary Variant
 TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 	std::variant<Periodic> variant = Periodic();
-	constexpr env::Field Mask = Periodic::fields;
+	constexpr ParticleField Mask = Periodic::fields;
 	env::Domain domain({0,0,0}, {10,10,10});
 
 	auto compiled = boundary::internal::compile_boundary(variant, env::Box::from_domain(domain), Face::ZPlus);
@@ -234,4 +234,6 @@ TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinu
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);
 	EXPECT_NEAR(p.position.z, 5.0, 1e-12);
 }
+
+
 

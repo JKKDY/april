@@ -20,7 +20,7 @@ namespace april::container {
         explicit AsymmetricChunkedSimdBatch(Container & container, ChunkPtr * chunks)
             : container(container), chunks(chunks) {}
 
-        template<env::Field Mask, typename Func>
+        template<ParticleField Mask, typename Func>
         AP_FORCE_INLINE
         void for_each_pair(Func && kernel) const {
             // Skip empty range
@@ -102,5 +102,7 @@ namespace april::container {
     };
 
 }
+
+
 
 

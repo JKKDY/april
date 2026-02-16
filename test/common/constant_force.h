@@ -7,7 +7,7 @@ using namespace april::env;
 
 // A tiny force that returns a constant vector and mixes by summing
 struct ConstantForce final : force::Force {
-	static constexpr env::Field fields = env::Field::none;
+	static constexpr ParticleField fields = ParticleField::none;
 
 	vec3 v;
 
@@ -29,3 +29,5 @@ struct ConstantForce final : force::Force {
 		};
 	}
 };
+
+

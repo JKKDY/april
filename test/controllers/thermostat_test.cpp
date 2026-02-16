@@ -263,3 +263,5 @@ TEST(ThermostatBehaviorTest, Apply_HeatsThenCoolsWithTriggers) {
     EXPECT_NEAR(T_cooled, T_cool, 0.1);
 }
 
+
+

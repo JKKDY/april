@@ -117,3 +117,5 @@ TEST_F(ScalarProxyTest, PhysicsExpression) {
     // Expected Y: 10 + 0 - 9.81*0.5*0.01 = 10 - 0.04905 = 9.95095
     EXPECT_DOUBLE_EQ(y_mem, 9.95095);
 }
+
+

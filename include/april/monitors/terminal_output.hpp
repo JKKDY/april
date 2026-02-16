@@ -11,7 +11,7 @@ namespace april::monitor {
 
 	class TerminalOutput final : public Monitor {
 	public:
-		static constexpr env::Field fields = env::Field::all;
+		static constexpr ParticleField fields = ParticleField::all;
 
 		using Monitor::Monitor;
 
@@ -39,4 +39,6 @@ namespace april::monitor {
 		}
 	};
 }
+
+
 

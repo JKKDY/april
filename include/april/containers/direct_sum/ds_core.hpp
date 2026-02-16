@@ -67,13 +67,13 @@ namespace april::container::internal {
 			}
 
 			// gather particles
-			self.template for_each_particle_view<env::Field::position>(
+			self.template for_each_particle_view<ParticleField::position>(
 				[&](const size_t i, const auto & particle) {
 					if (region.contains(particle.position)) {
 						ret.push_back(i);
 					}
 				},
-				env::ParticleState::ALIVE
+				ParticleState::ALIVE
 			);
 
 			return ret;
@@ -87,7 +87,7 @@ namespace april::container::internal {
 			// outer vector holds buckets, inner vectors hold physical indexes to particles belonging to that bucket
 			std::vector<std::vector<size_t>> buckets;
 
-			self.template for_each_particle_view<env::Field::type>(
+			self.template for_each_particle_view<ParticleField::type>(
 				[&](const size_t i, const auto& p) {
 					const auto type_idx = static_cast<size_t>(p.type);
 					if (type_idx >= buckets.size()) {
@@ -116,5 +116,7 @@ namespace april::container::internal {
 	};
 
 }
+
+
 
 

@@ -48,13 +48,13 @@ namespace april::core {
 		using Container = ContainerDecl::template impl<typename Traits::user_data_t>;
 		using ParticleRec = Traits::particle_record_t;
 
-		template<env::Field M>
+		template<ParticleField M>
 		using ParticleRef = Traits::template particle_ref_t<M>;
 
-		template<env::Field M>
+		template<ParticleField M>
 		using ParticleView = Traits::template particle_view_t<M>;
 
-		template<env::Field M>
+		template<ParticleField M>
 		using RestrictedParticleRef = Traits::template restricted_particle_ref_t<M>;
 
 
@@ -77,34 +77,34 @@ namespace april::core {
 		// "at" implies mutable access, "view" implies read-only, "restricted_at" implies only force mutable
 
 		// INDEX ACCESSORS (fast)
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto at(const size_t index) {
 			return particle_container.template at<M>(index);
 		}
 
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto view(const size_t index) const {
 			return particle_container.template view<M>(index);
 		}
 
-		template<env::Field M>
+		template<ParticleField M>
 		[[nodiscard]] auto restricted_at(const size_t index) {
 			return particle_container.template restricted_at<M>(index);
 		}
 
 		// ID ACCESSORS (stable)
-		template<env::Field M>
-		[[nodiscard]] auto at_id(const env::ParticleID id) {
+		template<ParticleField M>
+		[[nodiscard]] auto at_id(const ParticleID id) {
 			return particle_container.template at_id<M>(id);
 		}
 
-		template<env::Field M>
-		[[nodiscard]] auto view_id(const env::ParticleID id) const {
+		template<ParticleField M>
+		[[nodiscard]] auto view_id(const ParticleID id) const {
 			return particle_container.template view_id<M>(id);
 		}
 
-		template<env::Field M>
-		[[nodiscard]] auto restricted_at_id(const env::ParticleID id) {
+		template<ParticleField M>
+		[[nodiscard]] auto restricted_at_id(const ParticleID id) {
 			return particle_container.template restricted_at_id<M>(id);
 		}
 
@@ -113,22 +113,22 @@ namespace april::core {
 		// ID INDEXING
 		// -----------
 		// get the lowest particle id
-		[[nodiscard]] env::ParticleID min_id() const noexcept{
+		[[nodiscard]] ParticleID min_id() const noexcept{
 			return particle_container.min_id();
 		}
 
 		// get the largest particle id
-		[[nodiscard]] env::ParticleID max_id() const noexcept {
+		[[nodiscard]] ParticleID max_id() const noexcept {
 			return particle_container.max_id();
 		}
 
 		// check if particle id is valid
-		[[nodiscard]] bool contains_id(const env::ParticleID id) const noexcept {
+		[[nodiscard]] bool contains_id(const ParticleID id) const noexcept {
 			return particle_container.invoke_contains_id(id);
 		}
 
 		// convert id to index
-		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const noexcept {
+		[[nodiscard]] size_t id_to_index(const ParticleID id) const noexcept {
 			return particle_container.invoke_id_to_index(id);
 		}
 
@@ -136,7 +136,7 @@ namespace april::core {
 		// -------
 		// QUERIES
 		// -------
-		[[nodiscard]] size_t size(const env::ParticleState = env::ParticleState::ALL) const noexcept {
+		[[nodiscard]] size_t size(const ParticleState = ParticleState::ALL) const noexcept {
 			// TODO implement this method (system::size) properly
 			return particle_container.invoke_particle_count();
 		}
@@ -155,22 +155,22 @@ namespace april::core {
 		// --------------
 		// FUNCTIONAL OPS
 		// --------------
-		template<env::Field M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
-		void for_each_particle(Func && func, env::ParticleState state = env::ParticleState::ALL) {
+		template<ParticleField M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void for_each_particle(Func && func, ParticleState state = ParticleState::ALL) {
 			particle_container.template for_each_particle<M, Policy, Func>(std::forward<Func>(func), state);
 		}
 
-		template<env::Field M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
-		void for_each_particle_view(Func && func, env::ParticleState state = env::ParticleState::ALL) const {
+		template<ParticleField M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
+		void for_each_particle_view(Func && func, ParticleState state = ParticleState::ALL) const {
 			particle_container.template for_each_particle_view<M, Policy, Func>(std::forward<Func>(func), state);
 		}
 
-		template<env::Field M, typename T, typename Mapper, typename Reducer = std::plus<T>>
+		template<ParticleField M, typename T, typename Mapper, typename Reducer = std::plus<T>>
 		[[nodiscard]] T reduce(
 			T initial_value,
 			Mapper&& map_func,
 			Reducer&& reduce_func = {},
-			env::ParticleState state = env::ParticleState::ALIVE
+			ParticleState state = ParticleState::ALIVE
 		) const {
 			return particle_container.template invoke_reduce<M>(initial_value, map_func, reduce_func, state);
 		}
@@ -182,12 +182,12 @@ namespace april::core {
 			particle_container.invoke_for_each_interaction_batch(std::forward<Func>(func));
 		}
 
-		template<env::Field M, typename Func>
+		template<ParticleField M, typename Func>
 		void for_each_interaction_pair(Func && func) { // func(particle, particle, dist)
 			auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
 				auto kernel = [&](auto && p1, auto && p2) {
 					vec3 r = {};
-					if constexpr (env::has_field_v<M, env::Field::position> &&
+					if constexpr (env::has_field_v<M, ParticleField::position> &&
 						std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
 						r = p2.position - p1.position;
 						} else {
@@ -217,7 +217,7 @@ namespace april::core {
 			particle_container.invoke_notify_moved(indices);
 		}
 
-		void notify_moved_id(const std::vector<env::ParticleID> & ids) {
+		void notify_moved_id(const std::vector<ParticleID> & ids) {
 			std::vector<size_t> indices;
 			indices.reserve(ids.size());
 
@@ -369,7 +369,7 @@ namespace april::core {
 		// 		}
 		// 	}
 		// }
-		template<env::Field M, typename Batch, typename Kernel>
+		template<ParticleField M, typename Batch, typename Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel) {
 			using Par = container::ParallelPolicy;
 			using Cmp = container::ComputePolicy;
@@ -413,7 +413,7 @@ namespace april::core {
 			// using Cmp = container::ComputePolicy;
 
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr env::Field M = ForceT::fields | env::Field::force | env::Field::position;
+				constexpr ParticleField M = ForceT::fields | ParticleField::force | ParticleField::position;
 
 				auto kernel = [&](auto & p1, auto & p2) {
 					auto r = p2.position - p1.position;
@@ -454,7 +454,7 @@ namespace april::core {
 			force_table.dispatch(t1, t2, apply_batch_update);
 		};
 
-		particle_container.template for_each_particle<env::Field::force>(
+		particle_container.template for_each_particle<ParticleField::force>(
 			[](auto && p) { p.force = {}; } // reset forces
 		);
 		particle_container.invoke_for_each_interaction_batch(update_batch);
@@ -466,7 +466,7 @@ namespace april::core {
 		auto update_global_batch = [&](const auto & batch) {
 
 			auto apply_batch_update = [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr env::Field M = ForceT::fields | env::Field::force | env::Field::position;
+				constexpr ParticleField M = ForceT::fields | ParticleField::force | ParticleField::position;
 
 				for (const auto & [id1, id2] : batch.pairs) {
 					auto && p1 = particle_container.template restricted_at_id<M>(id1);
@@ -500,7 +500,7 @@ namespace april::core {
 			std::vector<size_t> particle_ids = particle_container.invoke_collect_indices_in_region(compiled_boundary.boundary_region);
 
 			auto boundary_condition_inside = [&]<typename B>(const B & bc) {
-				constexpr env::Field M = std::decay_t<B>::fields;
+				constexpr ParticleField M = std::decay_t<B>::fields;
 
 				for (auto p_idx : particle_ids) {
 					auto p = particle_container.template at<M>(p_idx);
@@ -513,8 +513,8 @@ namespace april::core {
 			};
 
 			auto boundary_condition_outside = [&]<typename B>(const B & bc) {
-				static constexpr env::Field detect_mask = env::Field::position | env::Field::old_position;
-				constexpr env::Field M = std::decay_t<B>::fields | detect_mask;
+				static constexpr ParticleField detect_mask = ParticleField::position | ParticleField::old_position;
+				constexpr ParticleField M = std::decay_t<B>::fields | detect_mask;
 
 				for (auto p_idx : particle_ids) {
 					auto particle = particle_container.template at<M>(p_idx);
@@ -570,7 +570,7 @@ namespace april::core {
 	void System<C, Traits>::apply_force_fields() {
 		fields.for_each_item([this]<typename F>(F & field) {
 			for (size_t i = 0; i < size(); ++i) {
-				constexpr env::Field M = F::fields;
+				constexpr ParticleField M = F::fields;
 				auto restricted = particle_container.template restricted_at<M>(i);
 				field.dispatch_apply(restricted);
 			}
@@ -604,6 +604,8 @@ namespace april::core {
 
 
 }
+
+
 
 
 

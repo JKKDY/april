@@ -45,6 +45,8 @@ namespace april::simd::internal::xsimd {
         friend Mask operator!=(const Mask& lhs, const Mask& rhs) { return { lhs.data != rhs.data }; }
     };
 
+
+
     template<typename T, size_t Width = 0>
     struct Packed {
         using value_type = T;
@@ -147,6 +149,8 @@ namespace april::simd::internal::xsimd {
         friend Packed min(const Packed& a, const Packed& b) { return { ::xsimd::min(a.data, b.data) }; }
         friend Packed max(const Packed& a, const Packed& b) { return { ::xsimd::max(a.data, b.data) }; }
         friend Packed fma(const Packed& a, const Packed& b, const Packed& c) { return { ::xsimd::fma(a.data, b.data, c.data) }; }
+
+
 
 
         // DEBUGGING

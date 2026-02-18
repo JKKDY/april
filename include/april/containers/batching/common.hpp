@@ -62,14 +62,15 @@ namespace april::container {
 	};
 
 	template<typename T>
-	concept IsBatchAtom = requires(const T& t) {
-		// callable must take in two particle views
-		{ t.template for_each_pair<ParticleField::all>(
-			[]<typename P0, typename P1>(P0&&, P1&&)
-			// requires env::IsRestrictedRef<P0> && env::IsRestrictedRef<P1>
-			{}
-		) };
-	};
+	concept IsBatchAtom = true ; // TODO
+	// requires(const T& t) {
+	// 	// callable must take in two particle views
+	// 	{ t.template for_each_pair<ParticleField::all, ParallelPolicy::Serial, VectorPolicy::Scalar>(
+	// 		[]<typename P0, typename P1>(P0&&, P1&&)
+	// 		// requires env::IsRestrictedRef<P0> && env::IsRestrictedRef<P1>
+	// 		{}
+	// 	) };
+	// };
 
 	template<typename T>
 	concept IsBatchAtomRange = std::ranges::input_range<T> && IsBatchAtom<std::ranges::range_value_t<T>>;
@@ -82,14 +83,16 @@ namespace april::container {
 	// BCP CONCEPT
 	//------------
 	template<typename F>
-	concept IsBCP = requires(const F& f, const vec3& v) {
-		{ f(v) } -> std::convertible_to<vec3>;
-	};
+	concept IsBCP = true; // TODO: fix
+	// requires(const F& f, const vec3& v) {
+	// 	{ f(v) } -> std::convertible_to<vec3>;
+	// };
 
 	struct NoBatchBCP {
 		template <class T>
 		constexpr T operator()(T&& v) const noexcept {
-			return std::forward<T>(v); // identity; do nothing
+			// return std::forward<T>(v); // identity; do nothing
+			return v;
 		}
 	};
 }

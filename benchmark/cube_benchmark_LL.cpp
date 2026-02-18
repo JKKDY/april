@@ -9,7 +9,7 @@ using namespace april;
 namespace fs = std::filesystem;
 
 
-static constexpr int NX = 100, NY = 100, NZ = 100;
+static constexpr int NX = 20, NY = 20, NZ = 20;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
@@ -43,17 +43,18 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(Reflective(), all_faces);
 
-	const auto container = container::LinkedCellsAoSoA()
+	const auto container = LinkedCellsAoSoA()
 		.with_cell_size(container::CellSize::Cutoff)
 		.with_cell_ordering(hilbert_order)
 		.with_block_size(8);
 
 	auto system = build_system(env, container);
-	constexpr double dt = 0.0002;
-	constexpr int steps  = 20;
+	constexpr double dt = 0.0000002;
+	constexpr int steps  = 10000;
 
-	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar>);
+	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
 	integrator.add_monitor(Benchmark());
+	// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
 	integrator.run_for_steps(dt, steps);
 
 

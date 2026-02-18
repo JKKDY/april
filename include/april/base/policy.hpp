@@ -14,6 +14,9 @@ namespace april {
     	Hybrid // Both Threaded and Distributed
     };
 
+	template <VectorPolicy P>
+	concept ExplicitVectorPolicy = (P == VectorPolicy::Scalar || P == VectorPolicy::Vector);
+
 }
 
 

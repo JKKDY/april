@@ -181,6 +181,7 @@ namespace april::simd::internal::std_simd {
         friend Packed max(const Packed& a, const Packed& b) { return stdx::max(a.data, b.data) ; }
         friend Packed fma(const Packed& a, const Packed& b, const Packed& c) { return stdx::fma(a.data, b.data, c.data) ; }
 
+        // MASKING
 
         // DEBUGGING
         [[nodiscard]] std::array<T, size()> to_array() const {

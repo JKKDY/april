@@ -3,7 +3,8 @@
 #include "april/base/macros.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
-
+#include "april/base/policy.hpp"
+#include "april/particle/fields.hpp"
 
 namespace april::container::internal {
 
@@ -11,13 +12,16 @@ namespace april::container::internal {
 	struct AsymmetricChunkedBatch : SerialBatch {
 		explicit AsymmetricChunkedBatch(Container & container, ChunkPtr * chunks): container(container), chunks(chunks) {}
 
-		template<ParticleField Mask, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, VectorPolicy V, typename Func>
+   		requires ExplicitVectorPolicy<V>
 		AP_FORCE_INLINE
    		void for_each_pair (Func && f) const {
 			// skip empty range
 		    if (range1_chunks.start == range1_chunks.stop || range2_chunks.start == range2_chunks.stop) return;
 
 		    constexpr size_t stride = Container::chunk_size;
+
+			static_assert(packed::size() == Container::chunk_size);
 
 			// peel of last chunk (i.e. the tail)
 		    const size_t c1_body_end = range1_chunks.stop - 1;
@@ -28,54 +32,115 @@ namespace april::container::internal {
 		    const size_t limit2_tail = (range2_tail == 0) ? stride : range2_tail;
 
 		    // body vs body with hardcoded stride x stride loop
-		    for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
-		        AP_PREFETCH(chunks + c1 + 1);
+			if constexpr (V == VectorPolicy::Vector) {
+				for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
+					AP_PREFETCH(chunks + c1 + 1);
+					auto packed1 = container.template restricted_at_packed<Mask>(c1, 0);
+					auto buffer1 = packed1.load_buffer();
 
-		        for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
-		            AP_PREFETCH(chunks + c2 + 1);
+					for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
+						AP_PREFETCH(chunks + c2 + 1);
+						auto packed2 = container.template restricted_at_packed<Mask>(c2, 0);
+						auto buffer2 = packed2.load_buffer();
 
-		            for (size_t i = 0; i < stride; ++i) {
-		                auto p1 = container.template at<Mask>(c1, i);
-		                for (size_t j = 0; j < stride; ++j) {
-		                    auto p2 = container.template at<Mask>(c2, j);
-		                    f(p1, p2);
-		                }
-		            }
-		        }
-		    }
+						for (size_t k = 0; k < stride; k++) {
+							f(buffer1, buffer2);
+							buffer2.rotate_right();
+						}
+						packed2.force = buffer2.force;
+					}
 
-		    // body 1 vs tail 2 (iterate full chunks of R1 against the single partial chunk of R2)
-		    for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
-		    	AP_PREFETCH(chunks + c1 + 1);
-		        for (size_t i = 0; i < stride; ++i) {
-		            auto p1 = container.template at<Mask>(c1, i);
-		            for (size_t j = 0; j < limit2_tail; ++j) {
-		                auto p2 = container.template at<Mask>(c2_body_end, j);
-		                f(p1, p2);
-		            }
-		        }
-		    }
+					packed1.force = buffer1.force;
+				}
+			} else {
+			    for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
+			        AP_PREFETCH(chunks + c1 + 1);
 
-			// body 2 vs tail 1 (iterate full chunks of R2 against the single partial chunk of R1
-		    for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
-		    	AP_PREFETCH(chunks + c2 + 1);
-		        for (size_t i = 0; i < limit1_tail; ++i) {
-		            auto p1 = container.template at<Mask>(c1_body_end, i);
-		            for (size_t j = 0; j < stride; ++j) {
-		                auto p2 = container.template at<Mask>(c2, j);
-		                f(p1, p2);
-		            }
-		        }
-		    }
+			        for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
+			            AP_PREFETCH(chunks + c2 + 1);
 
-		    // tail 1 vs tail 2 (Interaction between the two last chunks)
-	        for (size_t i = 0; i < limit1_tail; ++i) {
-	            auto p1 = container.template at<Mask>(c1_body_end, i);
-	            for (size_t j = 0; j < limit2_tail; ++j) {
-	                auto p2 = container.template at<Mask>(c2_body_end, j);
-	                f(p1, p2);
-	            }
-	        }
+			            for (size_t i = 0; i < stride; ++i) {
+			                auto p1 = container.template at<Mask>(c1, i);
+			                for (size_t j = 0; j < stride; ++j) {
+			                    auto p2 = container.template at<Mask>(c2, j);
+			                    f(p1, p2);
+			                }
+			            }
+			        }
+			    }
+			}
+
+			if constexpr (V == VectorPolicy::Vector) {
+				// body 1 vs tail 2 (iterate full chunks of R1 against the single partial chunk of R2)
+				for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
+					AP_PREFETCH(chunks + c1 + 1);
+					for (size_t i = 0; i < stride; ++i) {
+						auto p1 = container.template at<Mask>(c1, i);
+						for (size_t j = 0; j < limit2_tail; ++j) {
+							auto p2 = container.template at<Mask>(c2_body_end, j);
+							f(p1, p2);
+						}
+					}
+				}
+			} else {
+				// body 1 vs tail 2 (iterate full chunks of R1 against the single partial chunk of R2)
+				for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
+					AP_PREFETCH(chunks + c1 + 1);
+					for (size_t i = 0; i < stride; ++i) {
+						auto p1 = container.template at<Mask>(c1, i);
+						for (size_t j = 0; j < limit2_tail; ++j) {
+							auto p2 = container.template at<Mask>(c2_body_end, j);
+							f(p1, p2);
+						}
+					}
+				}
+			}
+
+			if constexpr (V == VectorPolicy::Vector) {
+				// body 2 vs tail 1 (iterate full chunks of R2 against the single partial chunk of R1
+				for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
+					AP_PREFETCH(chunks + c2 + 1);
+					for (size_t i = 0; i < limit1_tail; ++i) {
+						auto p1 = container.template at<Mask>(c1_body_end, i);
+						for (size_t j = 0; j < stride; ++j) {
+							auto p2 = container.template at<Mask>(c2, j);
+							f(p1, p2);
+						}
+					}
+				}
+			} else {
+				// body 2 vs tail 1 (iterate full chunks of R2 against the single partial chunk of R1
+				for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
+					AP_PREFETCH(chunks + c2 + 1);
+					for (size_t i = 0; i < limit1_tail; ++i) {
+						auto p1 = container.template at<Mask>(c1_body_end, i);
+						for (size_t j = 0; j < stride; ++j) {
+							auto p2 = container.template at<Mask>(c2, j);
+							f(p1, p2);
+						}
+					}
+				}
+			}
+
+			if constexpr (V == VectorPolicy::Vector) {
+				// tail 1 vs tail 2 (Interaction between the two last chunks)
+				for (size_t i = 0; i < limit1_tail; ++i) {
+					auto p1 = container.template at<Mask>(c1_body_end, i);
+					for (size_t j = 0; j < limit2_tail; ++j) {
+						auto p2 = container.template at<Mask>(c2_body_end, j);
+						f(p1, p2);
+					}
+				}
+			} else {
+				// tail 1 vs tail 2 (Interaction between the two last chunks)
+				for (size_t i = 0; i < limit1_tail; ++i) {
+					auto p1 = container.template at<Mask>(c1_body_end, i);
+					for (size_t j = 0; j < limit2_tail; ++j) {
+						auto p2 = container.template at<Mask>(c2_body_end, j);
+						f(p1, p2);
+					}
+				}
+			}
 		}
 
 		// Ranges represent chunk indices! (e.g., 0 to 4 means Chunks 0,1,2,3)
@@ -94,62 +159,104 @@ namespace april::container::internal {
 	struct SymmetricChunkedBatch : SerialBatch {
 		explicit SymmetricChunkedBatch(Container & container, ChunkPtr * chunks) : container(container), chunks(chunks) {}
 
-		template<ParticleField Mask, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, VectorPolicy V, typename Func>
 	    AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
 	        if (range_chunks.start == range_chunks.stop) return;
-	        constexpr size_t stride = Container::chunk_size;
+
+	        constexpr size_t width = Container::chunk_size;
 
 			// peel of last chunk (i.e. the tail)
 	        const size_t c_body_end = range_chunks.stop - 1;
-	        const size_t limit_tail = (range_tail == 0) ? stride : range_tail;
+	        const size_t limit_tail = (range_tail == 0) ? width : range_tail;
 
 	        // body (iterate c1 up to the last full chunk)
-	        for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
-	            AP_PREFETCH(chunks + c1 + 1);
+			if constexpr (V == VectorPolicy::Vector) {
+				for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
+					AP_PREFETCH(chunks + c1 + 1);
 
-	            // chunk self interaction
-	            for (size_t i = 0; i < stride; ++i) {
-	                auto p1 = container.template at<Mask>(c1, i);
-	                for (size_t j = i + 1; j < stride; ++j) {
-	                     auto p2 = container.template at<Mask>(c1, j);
-	                     f(p1, p2);
-	                }
-	            }
+					// chunk self interaction
+					auto packed1 = container.template restricted_at_packed<Mask>(c1, 0);
+					auto buffer1 = packed1.load_buffer();
+					buffer1.force = {0,0,0};
+					{
+						auto buffer2 = packed1.load_buffer();
+						buffer2.force = {0,0,0};
 
-	        	// interaction with all other loops
-	            for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
-	                AP_PREFETCH(chunks + c2 + 1);
-	                for (size_t i = 0; i < stride; ++i) {
-	                    auto p1 = container.template at<Mask>(c1, i);
-	                    for (size_t j = 0; j < stride; ++j) {
-	                        auto p2 = container.template at<Mask>(c2, j);
-	                        f(p1, p2);
-	                    }
-	                }
-	            }
-	        }
+						for (size_t i = 0; i < width/2 - 1; i++) {
+							buffer2.rotate_right();
+							f(buffer1, buffer2);
+						}
 
-	        // body vs tail (every body chunk with tail chunk)
-	        for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
-	            AP_PREFETCH(chunks + c1 + 1);
-	            for (size_t i = 0; i < stride; ++i) {
-	                auto p1 = container.template at<Mask>(c1, i);
-	                for (size_t j = 0; j < limit_tail; ++j) {
-	                     auto p2 = container.template at<Mask>(c_body_end, j);
-	                     f(p1, p2);
-	                }
-	            }
-	        }
+						packed1.force.x += buffer2.force.x.template rotate_left<width/2 - 1>();
+						packed1.force.y += buffer2.force.y.template rotate_left<width/2 - 1>();
+						packed1.force.z += buffer2.force.z.template rotate_left<width/2 - 1>();
 
-	        // tail (interact tail chunk with itself)
-            for (size_t i = 0; i < limit_tail; ++i) {
-                auto p1 = container.template at<Mask>(c_body_end, i);
-                for (size_t j = i + 1; j < limit_tail; ++j) {
-                     auto p2 = container.template at<Mask>(c_body_end, j);
-                     f(p1, p2);
-                }
-            }
+						buffer2.rotate_right();
+						f(buffer1, buffer2);
+					}
+
+					for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
+						auto packed2 = container.template restricted_at_packed<Mask>(c2, 0);
+						auto buffer2 = packed2.load_buffer();
+						buffer2.force = {0,0,0};
+
+						for (size_t k = 0; k < width; k++) {
+							f(buffer1, buffer2);
+							buffer2.rotate_right();
+						}
+						packed2.force += buffer2.force;
+					}
+
+					packed1.force += buffer1.force;
+				}
+			} else {
+		        for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
+		            AP_PREFETCH(chunks + c1 + 1);
+
+		            // chunk self interaction
+		            for (size_t i = 0; i < width; ++i) {
+		                auto p1 = container.template at<Mask>(c1, i);
+		                for (size_t j = i + 1; j < width; ++j) {
+		                     auto p2 = container.template at<Mask>(c1, j);
+		                     f(p1, p2);
+		                }
+		            }
+
+	        		// interaction with all other chunks
+		            for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
+		                AP_PREFETCH(chunks + c2 + 1);
+		                for (size_t i = 0; i < width; ++i) {
+		                    auto p1 = container.template at<Mask>(c1, i);
+		                    for (size_t j = 0; j < width; ++j) {
+		                        auto p2 = container.template at<Mask>(c2, j);
+		                        f(p1, p2);
+		                    }
+		                }
+		            }
+		        }
+			}
+
+		  // body vs tail (every body chunk with tail chunk)
+		  for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
+		      AP_PREFETCH(chunks + c1 + 1);
+		      for (size_t i = 0; i < width; ++i) {
+		          auto p1 = container.template at<Mask>(c1, i);
+		          for (size_t j = 0; j < limit_tail; ++j) {
+		               auto p2 = container.template at<Mask>(c_body_end, j);
+		               f(p1, p2);
+		          }
+		      }
+		  }
+
+		// tail (interact tail chunk with itself)
+			for (size_t i = 0; i < limit_tail; ++i) {
+  				auto p1 = container.template at<Mask>(c_body_end, i);
+  				for (size_t j = i + 1; j < limit_tail; ++j) {
+	   				auto p2 = container.template at<Mask>(c_body_end, j);
+	   				f(p1, p2);
+  				}
+			}
 	    }
 
 		// Range represents chunk indices! (e.g., 0 to 4 means Chunks 0,1,2,3)

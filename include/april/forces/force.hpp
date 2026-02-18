@@ -18,32 +18,32 @@ namespace april::force {
     struct Force {
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
-        template<ParticleField IncomingMask, env::IsUserData U>
-        vec3 operator()(this const auto& self,
-                const env::ParticleView<IncomingMask, U> & p1,
-                const env::ParticleView<IncomingMask, U> & p2,
-                const vec3 & r) {
+        // template<ParticleField IncomingMask, env::IsUserData U>
+        auto operator()(this const auto& self,
+                const auto & p1,
+                const auto & p2,
+                const auto & r) {
 
-            static_assert(
-                requires { {self.eval(p1, p2, r)} -> std::same_as<vec3>; },
-                "Force must implement eval(env::internal::Particle, env::internal::Particle, const vec3&)"
-            );
-
-            using Derived = std::remove_cvref_t<decltype(self)>;
-
-            // check for fields requirements
-            static_assert(
-                requires { Derived::fields; },
-                "Force subclass must define 'static constexpr env::Field fields'"
-            );
-
-            constexpr ParticleField Required = Derived::fields;
-
-            // check for
-            static_assert(
-                (IncomingMask & Required) == Required,
-                "ParticleView is missing required fields for this Force."
-            );
+            // static_assert(
+            //     requires { {self.eval(p1, p2, r)} -> std::same_as<decltype(r)>; },
+            //     "Force must implement eval(auto p1, auto p2, auto r) -> decltype(r)"
+            // );
+            //
+            // using Derived = std::remove_cvref_t<decltype(self)>;
+            //
+            // // check for fields requirements
+            // static_assert(
+            //     requires { Derived::fields; },
+            //     "Force subclass must define 'static constexpr env::Field fields'"
+            // );
+            //
+            // constexpr ParticleField Required = Derived::fields;
+            //
+            // // check for
+            // static_assert(
+            //     (IncomingMask & Required) == Required,
+            //     "ParticleView is missing required fields for this Force."
+            // );
 
             return self.eval(p1, p2, r);
         }

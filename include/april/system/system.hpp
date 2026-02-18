@@ -184,7 +184,7 @@ namespace april::core {
 
 		template<ParticleField M, typename Func>
 		void for_each_interaction_pair(Func && func) { // func(particle, particle, dist)
-			auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
+			auto update_batch = [&]<container::IsBatch Batch, /*container::IsBCP*/ typename BCP>(const Batch& batch, BCP && apply_bcp) {
 				auto kernel = [&](auto && p1, auto && p2) {
 					vec3 r = {};
 					if constexpr (env::has_field_v<M, ParticleField::position> &&
@@ -197,7 +197,7 @@ namespace april::core {
 					func(p1, p2, r);
 				};
 
-				execute_batch_kernel<M>(batch, kernel);
+				execute_batch_kernel<M, ParallelPolicy::Serial, VectorPolicy::Scalar>(batch, kernel);
 			};
 
 			for_each_interaction_batch(update_batch);
@@ -356,18 +356,14 @@ namespace april::core {
 		// 		}
 		// 	}
 		// }
-		template<ParticleField M, typename Batch, typename Kernel>
+		template<ParticleField M, ParallelPolicy P, VectorPolicy V, container::IsBatch Batch, typename Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel) {
 			using Par = container::ParallelTrait;
 			using Cmp = container::ComputeTrait;
 
 			// execute kernel
 			auto execute_atom = [&](const auto& atom) {
-				if constexpr (Batch::compute_policy == Cmp::Scalar) {
-					atom.template for_each_pair<M>(kernel);
-				} else {
-					static_assert(Batch::compute_policy != Cmp::Scalar, "Vectorization not implemented yet");
-				}
+				atom.template for_each_pair<M, P, V>(kernel);
 			};
 
 			// Routing
@@ -403,38 +399,32 @@ namespace april::core {
 				constexpr ParticleField M = ForceT::fields | ParticleField::force | ParticleField::position;
 
 				auto kernel = [&](auto & p1, auto & p2) {
+					constexpr  bool is_packed = !env::IsAnyParticleAccessor<decltype(p1)>;
+
 					auto r = p2.position - p1.position;
 
 					if constexpr (!std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
 						r = apply_bcp(r);
 					}
 
-					if (r.norm_squared() > force.cutoff2()) {
-						return;
+					if constexpr (is_packed) {
+						auto mask = r.norm_squared() > force.cutoff2();
+						if (all(mask)) return;
+						auto f = force(p1, p2, r);
+						p1.force += f;
+						p2.force -= f;
+					} else {
+						if (r.norm_squared() > force.cutoff2()) {
+							return;
+						}
+						vec3 f = force(p1.to_view(), p2.to_view(), r);
+						p1.force += f;
+						p2.force -= f;
+
 					}
-					auto f = force(p1.to_view(), p2.to_view(), r);
-					p1.force += f;
-					p2.force -= f;
-					//
-					// if constexpr (is_packed) {
-					// 	auto mask = r.norm_squared() > force.cutoff2();
-					// 	if (all(mask)) return;
-					// 	auto f = force(p1, p2, r);
-					// 	p1.force += f;
-					// 	p2.force -= f;
-					// } else {
-					// 	if (r.norm_squared() > force.cutoff2()) {
-					// 		return;
-					// 	}
-					// 	auto f = force(p1, p2, r);
-					// 	p1.force += f;
-					// 	p2.force -= f;
-					// }
-
-
 				};
 
-				execute_batch_kernel<M>(batch, kernel);
+				execute_batch_kernel<M, ParallelPolicy::Serial, VectorPolicy::Scalar>(batch, kernel);
 			};
 
 			auto [t1, t2] = batch.types;
@@ -591,9 +581,6 @@ namespace april::core {
 
 
 }
-
-
-
 
 
 

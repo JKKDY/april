@@ -3,7 +3,8 @@
 #include "april/base/macros.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
-
+#include "april/particle/fields.hpp"
+#include "april/base/policy.hpp"
 
 namespace april::container::internal {
 
@@ -11,11 +12,11 @@ namespace april::container::internal {
 	struct AsymmetricScalarBatch : SerialBatch {
 		explicit AsymmetricScalarBatch(Container & container) : container(container) {}
 
-		template<ParticleField Mask, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, VectorPolicy V, typename Func>
 		AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
-			container.template for_each_particle<Mask> (range1.start, range1.stop, [&](auto && p1) {
-				container.template for_each_particle<Mask> (range2.start, range2.stop, [&](auto && p2) {
+			container.template for_each_particle<Mask, P, V> (range1.start, range1.stop, [&](auto && p1) {
+				container.template for_each_particle<Mask, P, V> (range2.start, range2.stop, [&](auto && p2) {
 					f(p1, p2);
 				});
 			});
@@ -31,11 +32,11 @@ namespace april::container::internal {
 	struct SymmetricScalarBatch : SerialBatch {
 		explicit SymmetricScalarBatch(Container & container) : container(container) {}
 
-		template<ParticleField Mask, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, VectorPolicy V, typename Func>
 		AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
-			container.template for_each_particle<Mask> (range.start, range.stop, [&](const size_t i, auto && p1) {
-				container.template for_each_particle<Mask> (i + 1, range.stop, [&](auto && p2) {
+			container.template for_each_particle<Mask, P, V> (range.start, range.stop, [&](const size_t i, auto && p1) {
+				container.template for_each_particle<Mask, P, V> (i + 1, range.stop, [&](auto && p2) {
 					f(p1, p2);
 				});
 			});

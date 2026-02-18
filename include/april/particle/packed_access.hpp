@@ -38,52 +38,58 @@ namespace april::env {
             if constexpr (has_field_v<M, ParticleField::mass>) mass = source.mass;
         }
 
+       template<unsigned K = 1>
         void rotate_left() {
             if constexpr (has_field_v<M, ParticleField::position>) {
-                position.x = position.x.rotate_left();
-                position.y = position.y.rotate_left();
-                position.z = position.z.rotate_left();
+                position.x = position.x.template rotate_left<K>();
+                position.y = position.y.template rotate_left<K>();
+                position.z = position.z.template rotate_left<K>();
             }
             if constexpr (has_field_v<M, ParticleField::old_position>) {
-                old_position.x = old_position.x.rotate_left();
-                old_position.y = old_position.y.rotate_left();
-                old_position.z = old_position.z.rotate_left();
+                old_position.x = old_position.x.template rotate_left<K>();
+                old_position.y = old_position.y.template rotate_left<K>();
+                old_position.z = old_position.z.template rotate_left<K>();
             }
             if constexpr (has_field_v<M, ParticleField::velocity>) {
-                velocity.x = velocity.x.rotate_left();
-                velocity.y = velocity.y.rotate_left();
-                velocity.z = velocity.z.rotate_left();
+                velocity.x = velocity.x.template rotate_left<K>();
+                velocity.y = velocity.y.template rotate_left<K>();
+                velocity.z = velocity.z.template rotate_left<K>();
             }
             if constexpr (has_field_v<M, ParticleField::force>) {
-                force.x = force.x.rotate_left();
-                force.y = force.y.rotate_left();
-                force.z = force.z.rotate_left();
+                force.x = force.x.template rotate_left<K>();
+                force.y = force.y.template rotate_left<K>();
+                force.z = force.z.template rotate_left<K>();
             }
-            if constexpr (has_field_v<M, ParticleField::mass>) mass = mass.rotate_left();
+            if constexpr (has_field_v<M, ParticleField::mass>) {
+                mass = mass.template rotate_left<K>();
+            }
         }
 
+        template<unsigned K = 1>
         void rotate_right() {
             if constexpr (has_field_v<M, ParticleField::position>) {
-                position.x = position.x.rotate_right();
-                position.y = position.y.rotate_right();
-                position.z = position.z.rotate_right();
+                position.x = position.x.template rotate_right<K>();
+                position.y = position.y.template rotate_right<K>();
+                position.z = position.z.template rotate_right<K>();
             }
             if constexpr (has_field_v<M, ParticleField::old_position>) {
-                old_position.x = old_position.x.rotate_right();
-                old_position.y = old_position.y.rotate_right();
-                old_position.z = old_position.z.rotate_right();
+                old_position.x = old_position.x.template rotate_right<K>();
+                old_position.y = old_position.y.template rotate_right<K>();
+                old_position.z = old_position.z.template rotate_right<K>();
             }
             if constexpr (has_field_v<M, ParticleField::velocity>) {
-                velocity.x = velocity.x.rotate_right();
-                velocity.y = velocity.y.rotate_right();
-                velocity.z = velocity.z.rotate_right();
+                velocity.x = velocity.x.template rotate_right<K>();
+                velocity.y = velocity.y.template rotate_right<K>();
+                velocity.z = velocity.z.template rotate_right<K>();
             }
             if constexpr (has_field_v<M, ParticleField::force>) {
-                force.x = force.x.rotate_right();
-                force.y = force.y.rotate_right();
-                force.z = force.z.rotate_right();
+                force.x = force.x.template rotate_right<K>();
+                force.y = force.y.template rotate_right<K>();
+                force.z = force.z.template rotate_right<K>();
             }
-            if constexpr (has_field_v<M, ParticleField::mass>) mass = mass.rotate_right();
+            if constexpr (has_field_v<M, ParticleField::mass>) {
+                mass = mass.template rotate_right<K>();
+            }
         }
     };
 

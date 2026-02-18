@@ -391,7 +391,7 @@ namespace april::container::internal {
 			if (this->wrapped_cell_pairs.empty()) return;
 
 			for (const auto& pair : this->wrapped_cell_pairs) {
-				auto bcp = [&pair](const vec3& diff) { return diff + pair.shift; };
+				auto bcp = [&pair](const auto& diff) { return diff + pair.shift; };
 
 				for (size_t t1 = 0; t1 < this->n_types; ++t1) {
 					auto range1 = get_indices(pair.c1, t1);

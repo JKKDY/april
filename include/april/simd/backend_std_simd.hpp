@@ -181,6 +181,11 @@ namespace april::simd::internal::std_simd {
         friend Packed max(const Packed& a, const Packed& b) { return stdx::max(a.data, b.data) ; }
         friend Packed fma(const Packed& a, const Packed& b, const Packed& c) { return stdx::fma(a.data, b.data, c.data) ; }
 
+        // rounding
+        friend Packed round(const Packed& x) { return { stdx::round(x.data) }; }
+        friend Packed floor(const Packed& x) { return { stdx::floor(x.data) }; }
+        friend Packed ceil(const Packed& x)  { return { stdx::ceil(x.data) };  }
+
         // MASKING
 
         // DEBUGGING

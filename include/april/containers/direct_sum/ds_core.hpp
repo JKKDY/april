@@ -31,8 +31,16 @@ namespace april::container::internal {
 
 			// trampoline lambda
 			auto run_with_mode = [&] <bool PX, bool PY, bool PZ>() {
-				auto bcp = [L=self.domain.extent](const vec3& dr) {
-					return minimum_image<PX, PY, PZ>(dr, L);
+				auto bcp = [L=self.domain.extent]<typename T>(const math::Vec3<T>& dr) {
+					if constexpr (!std::is_floating_point_v<T>) {
+						auto res = dr;
+						if constexpr (PX) res.x -= L.x * round(dr.x / L.x);
+						if constexpr (PY) res.y -= L.y * round(dr.y / L.y);
+						if constexpr (PZ) res.z -= L.z * round(dr.z / L.z);
+						return res;
+					} else {
+						return minimum_image<PX, PY, PZ>(dr, L);
+					}
 				};
 
 				// subclass is responsible for populating these vectors via generate_batches
@@ -114,9 +122,5 @@ namespace april::container::internal {
 			return dr;
 		}
 	};
-
 }
-
-
-
 

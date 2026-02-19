@@ -10,13 +10,13 @@ namespace april::container::internal {
 	template<typename AsymmetricBatch, typename SymmetricBatch>
 	struct LinkedCellsBatch : SerialBatch {
 
-		template<ParticleField Mask, ParallelPolicy P, VectorPolicy V, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, april::internal::ExecutionMode E, typename Func>
 		void for_each_pair (Func && f) const {
 			for (const auto& chunk : sym_chunks)
-				chunk.template for_each_pair<Mask, P, V>(f);
+				chunk.template for_each_pair<Mask, P, E>(f);
 
 			for (const auto & chunk : asym_chunks)
-				chunk.template for_each_pair<Mask, P, V>(f);
+				chunk.template for_each_pair<Mask, P, E>(f);
 		}
 
 		void clear() {

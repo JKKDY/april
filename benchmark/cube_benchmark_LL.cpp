@@ -2,7 +2,7 @@
 #include <filesystem>
 #include "april/containers/linked_cells/lc_aos.hpp"
 #include "april/containers/linked_cells/lc_soa.hpp"
-#include "april/containers/linked_cells/lc_aosoa.hpp"
+// #include "april/containers/linked_cells/lc_aosoa.hpp"
 #include "april/containers/linked_cells/lc_config.hpp"
 
 using namespace april;
@@ -50,7 +50,7 @@ int main() {
 
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0000002;
-	constexpr int steps  = 10000;
+	constexpr int steps  = 5000;
 
 	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
 	integrator.add_monitor(Benchmark());

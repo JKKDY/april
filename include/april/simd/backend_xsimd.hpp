@@ -145,11 +145,15 @@ namespace april::simd::internal::xsimd {
         friend Packed rsqrt(const Packed& x) { return { ::xsimd::rsqrt(x.data) }; }
         friend Packed abs(const Packed& x) { return { ::xsimd::abs(x.data) }; }
 
+        // ROUNDING
+        friend Packed round(const Packed& x) { return { ::xsimd::round(x.data) }; }
+        friend Packed floor(const Packed& x) { return { ::xsimd::floor(x.data) }; }
+        friend Packed ceil(const Packed& x)  { return { ::xsimd::ceil(x.data) };  }
+
         // Min/Max/FMA
         friend Packed min(const Packed& a, const Packed& b) { return { ::xsimd::min(a.data, b.data) }; }
         friend Packed max(const Packed& a, const Packed& b) { return { ::xsimd::max(a.data, b.data) }; }
         friend Packed fma(const Packed& a, const Packed& b, const Packed& c) { return { ::xsimd::fma(a.data, b.data, c.data) }; }
-
 
 
 

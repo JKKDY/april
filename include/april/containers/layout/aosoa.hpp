@@ -39,19 +39,17 @@ namespace april::container::layout {
 		alignas(64) std::array<vec3::type, Size> frc_y;
 		alignas(64) std::array<vec3::type, Size> frc_z;
 
-		// Old Position (for Verlet)
+		// Old Position
 		alignas(64) std::array<vec3::type, Size> old_x;
 		alignas(64) std::array<vec3::type, Size> old_y;
 		alignas(64) std::array<vec3::type, Size> old_z;
 
 		// Scalars
-		// Note: For types smaller than double (like ParticleType), padding will occur
-		// between arrays to maintain 64-byte alignment of the start of the next array.
-		alignas(64) std::array<double, Size>             mass;
+		alignas(64) std::array<double, Size> mass;
 		alignas(64) std::array<ParticleState, Size> state;
-		alignas(64) std::array<ParticleType, Size>  type;
-		alignas(64) std::array<ParticleID, Size>    id;
-		alignas(64) std::array<U, Size>                  user_data;
+		alignas(64) std::array<ParticleType, Size> type;
+		alignas(64) std::array<ParticleID, Size> id;
+		alignas(64) std::array<U, Size> user_data;
 	};
 
 

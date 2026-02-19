@@ -80,12 +80,15 @@ namespace april::simd {
     // check for free functions
     template<typename T>
     concept HasMathFunctions = requires(T a, T b, T c) {
-        { sqrt(a) } -> std::same_as<T>;
-        { rsqrt(a) } -> std::same_as<T>;
-        { abs(a) } -> std::same_as<T>;
-        { min(a, b) } -> std::same_as<T>;
-        { max(a, b) } -> std::same_as<T>;
-        { fma(a, b, c) } -> std::same_as<T>;
+        { sqrt(a) }     -> std::same_as<T>;
+        { rsqrt(a) }    -> std::same_as<T>;
+        { abs(a) }      -> std::same_as<T>;
+        { min(a, b) }   -> std::same_as<T>;
+        { max(a, b) }   -> std::same_as<T>;
+        { fma(a, b, c) }-> std::same_as<T>;
+        { round(a) }    -> std::same_as<T>;
+        { floor(a) }    -> std::same_as<T>;
+        { ceil(a) }     -> std::same_as<T>;
     };
 
 

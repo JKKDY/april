@@ -12,11 +12,23 @@ namespace april::container::internal {
 	struct AsymmetricScalarBatch : SerialBatch {
 		explicit AsymmetricScalarBatch(Container & container) : container(container) {}
 
-		template<ParticleField Mask, ParallelPolicy P, VectorPolicy V, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, april::internal::ExecutionMode E, typename Func>
 		AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
-			container.template for_each_particle<Mask, P, V> (range1.start, range1.stop, [&](auto && p1) {
-				container.template for_each_particle<Mask, P, V> (range2.start, range2.stop, [&](auto && p2) {
+			// Map internal ExecutionMode back to public VectorPolicy
+			// constexpr VectorPolicy Pol = [] {
+			// 	if constexpr (E == april::internal::ExecutionMode::Vector) {
+			// 		return VectorPolicy::Vector;
+			// 	} else if constexpr (E == april::internal::ExecutionMode::Scalar) {
+			// 		return VectorPolicy::Scalar;
+			// 	} else {
+			// 		// E == ExecutionMode::Both
+			// 		return VectorPolicy::Auto;
+			// 	}
+			// }();
+
+			container.template for_each_particle<Mask, P, VectorPolicy::Scalar> (range1.start, range1.stop, [&](auto && p1) {
+				container.template for_each_particle<Mask, P, VectorPolicy::Scalar> (range2.start, range2.stop, [&](auto && p2) {
 					f(p1, p2);
 				});
 			});
@@ -32,11 +44,23 @@ namespace april::container::internal {
 	struct SymmetricScalarBatch : SerialBatch {
 		explicit SymmetricScalarBatch(Container & container) : container(container) {}
 
-		template<ParticleField Mask, ParallelPolicy P, VectorPolicy V, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, april::internal::ExecutionMode E, typename Func>
 		AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
-			container.template for_each_particle<Mask, P, V> (range.start, range.stop, [&](const size_t i, auto && p1) {
-				container.template for_each_particle<Mask, P, V> (i + 1, range.stop, [&](auto && p2) {
+			// TODO implement packed
+			// constexpr VectorPolicy Pol = [] {
+			// 	if constexpr (E == april::internal::ExecutionMode::Vector) {
+			// 		return VectorPolicy::Vector;
+			// 	} else if constexpr (E == april::internal::ExecutionMode::Scalar) {
+			// 		return VectorPolicy::Scalar;
+			// 	} else {
+			// 		// E == ExecutionMode::Both
+			// 		return VectorPolicy::Auto;
+			// 	}
+			// }();
+
+			container.template for_each_particle<Mask, P, VectorPolicy::Scalar> (range.start, range.stop, [&](const size_t i, auto && p1) {
+				container.template for_each_particle<Mask, P, VectorPolicy::Scalar> (i + 1, range.stop, [&](auto && p2) {
 					f(p1, p2);
 				});
 			});

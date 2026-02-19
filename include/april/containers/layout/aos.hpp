@@ -82,6 +82,23 @@ namespace april::container::layout {
 			return  particles.size();
 		}
 
+
+		// DISABLE PACKED ACCESS
+		template<ParticleField M>
+		[[nodiscard]] auto at_packed(this auto&&, size_t) {
+			static_assert(false, "AoS does not support packed access");
+		}
+
+		template<ParticleField M>
+		[[nodiscard]] auto view_packed(this const auto&, size_t) {
+			static_assert(false, "AoS does not support packed access");
+		}
+
+		template<ParticleField M>
+		[[nodiscard]] auto restricted_at_packed(this auto&&, size_t) {
+			static_assert(false, "AoS does not support packed access");
+		}
+
 	protected:
 		std::vector<Particle> tmp = {};
 		std::vector<Particle> particles = {};

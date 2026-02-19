@@ -9,7 +9,7 @@
 #include "april/containers/batching/common.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/base/policy.hpp"
-
+#include "april/containers/kernel_traits.hpp"
 
 namespace april::core {
 	struct BuildInfo;
@@ -184,7 +184,7 @@ namespace april::core {
 
 		template<ParticleField M, typename Func>
 		void for_each_interaction_pair(Func && func) { // func(particle, particle, dist)
-			auto update_batch = [&]<container::IsBatch Batch, /*container::IsBCP*/ typename BCP>(const Batch& batch, BCP && apply_bcp) {
+			auto update_batch = [&]<container::IsBatch Batch, /*TODO container::IsBCP*/ typename BCP>(const Batch& batch, BCP && apply_bcp) {
 				auto kernel = [&](auto && p1, auto && p2) {
 					vec3 r = {};
 					if constexpr (env::has_field_v<M, ParticleField::position> &&
@@ -356,30 +356,92 @@ namespace april::core {
 		// 		}
 		// 	}
 		// }
+		// template<ParticleField M, ParallelPolicy P, VectorPolicy V, container::IsBatch Batch, typename Kernel>
+		// void execute_batch_kernel(const Batch& batch, Kernel&& kernel) {
+		// 	using Par = april::internal::ParallelTrait;
+		// 	using Cmp = april::internal::VectorTrait;
+		//
+		// 	constexpr internal::VectorTrait kernel_trait = container::internal::KernelTrait<Kernel>;
+		//
+		// 	// make sure the batch can do what the user wants
+		// 	static_assert(V == VectorPolicy::Vector && Batch::vector_trait & Cmp::VectorOnly, "Batch does not have a vector only path");
+		// 	static_assert(V == VectorPolicy::Scalar && Batch::vector_trait & Cmp::ScalarOnly, "Batch does not have a scalar only path");
+		//
+		// 	// make sure the kernel can do what the batch needs
+		//
+		//
+		//
+		// 	// Execution
+		// 	if constexpr (container::IsBatchAtom<Batch>) {
+		// 		batch.template for_each_pair<M, P, V>(kernel);
+		// 	} else if constexpr (container::IsBatchAtomRange<Batch>) {
+		// 		for (const auto& atom : batch) {
+		// 			atom.template for_each_pair<M, P, V>(kernel);
+		// 		}
+		// 	}
+		// }
+
 		template<ParticleField M, ParallelPolicy P, VectorPolicy V, container::IsBatch Batch, typename Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel) {
-			using Par = container::ParallelTrait;
-			using Cmp = container::ComputeTrait;
+		    using namespace april::internal;
+			constexpr VectorTrait batch_capabilities  = Batch::vector_trait;
+		    constexpr ExecutionMode kernel_capabilities = container::internal::KernelTrait<Kernel>;
 
-			// execute kernel
-			auto execute_atom = [&](const auto& atom) {
-				atom.template for_each_pair<M, P, V>(kernel);
-			};
-
-			// Routing
-			if constexpr (container::IsBatchAtom<Batch>) {
-				execute_atom(batch);
-			}
-			else if constexpr (container::IsBatchAtomRange<Batch>) {
-				if constexpr (Batch::parallel_policy == Par::Inner) {
-					static_assert(Batch::parallel_policy == Cmp::Scalar, "Vectorization not implemented yet");
-					std::unreachable();
-				} else {
-					for (const auto& atom : batch) {
-						execute_atom(atom);
-					}
+			// map VectorPolicy -> VectorTrait (execution mode)
+			constexpr ExecutionMode exec_mode = [] {
+				if constexpr (V == VectorPolicy::Vector) {
+					return ExecutionMode::Vector; // Force Vector
 				}
-			}
+				else if constexpr (V == VectorPolicy::Scalar) {
+					return ExecutionMode::Scalar; // Force Scalar
+				}
+				else { // Auto
+					return kernel_capabilities; // return kernel capabilities. Batch will figure out what to do
+				}
+			}();
+
+		    // Enforce Contracts
+		    if constexpr (V == VectorPolicy::Vector) {  // Case user demands strict vectorization
+		        // Batch must have a vector only path
+		        static_assert(has_flag(batch_capabilities, VectorTrait::VectorOnly),
+		            "Policy Violation: VectorPolicy::Vector requires a fully vectorized Batch. ");
+
+		        // Kernel must be Vector-Capable
+		        static_assert(has_flag(kernel_capabilities, ExecutionMode::Vector),
+		            "Policy Violation: VectorPolicy::Vector requires a SIMD-capable Kernel.");
+		    }
+		    else if constexpr (V == VectorPolicy::Scalar) {  // Case user demands strict scalar computation
+		    	// Batch must have a scalar only path
+		    	static_assert(has_flag(batch_capabilities, VectorTrait::ScalarOnly),
+					"Policy Violation: VectorPolicy::Scalar requires a fully scalarized Batch. ");
+
+		        //  Kernel must be Scalar-Capable
+		        static_assert(has_flag(kernel_capabilities, ExecutionMode::Scalar),
+		            "Policy Violation: VectorPolicy::Scalar requires a Scalar-capable Kernel.");
+		    }
+		    else if constexpr (V == VectorPolicy::Auto) {  // Case auto (best effort vectorization)
+		    	constexpr bool CanRunVector = has_flag(batch_capabilities, VectorTrait::VectorOnly) &&
+		    		has_flag(kernel_capabilities, ExecutionMode::Vector);
+
+		    	constexpr bool CanRunScalar = has_flag(batch_capabilities, VectorTrait::ScalarOnly) &&
+		    		has_flag(kernel_capabilities, ExecutionMode::Scalar);
+
+		    	constexpr bool CanRunHybrid = has_flag(batch_capabilities, VectorTrait::Mixed) &&
+		    		kernel_capabilities == (ExecutionMode::Vector | ExecutionMode::Scalar);
+
+		        static_assert(CanRunVector || CanRunScalar || CanRunHybrid,
+		            "Compatibility Failure: No valid execution path found between Batch and Kernel capability sets.");
+		    }
+
+			// Execute
+		    if constexpr (container::IsBatchAtom<Batch>) {
+		        batch.template for_each_pair<M, P, exec_mode>(kernel);
+		    }
+		    else if constexpr (container::IsBatchAtomRange<Batch>) {
+		        for (const auto& atom : batch) {
+		            atom.template for_each_pair<M, P, exec_mode>(kernel);
+		        }
+		    }
 		}
 	};
 
@@ -392,8 +454,6 @@ namespace april::core {
 
 		// batch update lambda. passed into container::for_each_interaction_batch
 		auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
-			// using Upd = container::UpdatePolicy;
-			// using Cmp = container::ComputePolicy;
 
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
 				constexpr ParticleField M = ForceT::fields | ParticleField::force | ParticleField::position;
@@ -401,14 +461,19 @@ namespace april::core {
 				auto kernel = [&](auto & p1, auto & p2) {
 					constexpr  bool is_packed = !env::IsAnyParticleAccessor<decltype(p1)>;
 
-					auto r = p2.position - p1.position;
+					auto diff = p2.position - p1.position;
 
-					if constexpr (!std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
-						r = apply_bcp(r);
-					}
+					const auto r = [&] {
+						if constexpr (std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
+							return diff;
+						} else {
+							return apply_bcp(diff);
+						}
+					}();
 
 					if constexpr (is_packed) {
 						auto mask = r.norm_squared() > force.cutoff2();
+
 						if (all(mask)) return;
 						auto f = force(p1, p2, r);
 						p1.force += f;
@@ -424,7 +489,7 @@ namespace april::core {
 					}
 				};
 
-				execute_batch_kernel<M, ParallelPolicy::Serial, VectorPolicy::Scalar>(batch, kernel);
+				execute_batch_kernel<M, ParallelPolicy::Serial, VectorPolicy::Auto>(batch, kernel);
 			};
 
 			auto [t1, t2] = batch.types;

@@ -337,3 +337,66 @@ TEST_F(PackedParticleViewsTest, SystolicLoopSim) {
 }
 
 
+// 10. Broadcast from Scalar
+// Verifies that a packed buffer is correctly populated across all lanes
+// when constructed from a single scalar particle accessor.
+TEST_F(PackedParticleViewsTest, BufferBroadcastFromScalar) {
+    // 1. Setup a single scalar particle
+    double s_pos_x = 1.5, s_pos_y = 2.5, s_pos_z = 3.5;
+    double s_vel_x = 4.5, s_vel_y = 5.5, s_vel_z = 6.5;
+    double s_frc_x = 7.5, s_frc_y = 8.5, s_frc_z = 9.5;
+    double s_mass  = 10.5;
+
+    ParticleSource<TestMask, NoUserData, false> scalar_src;
+    scalar_src.position.x = &s_pos_x;
+    scalar_src.position.y = &s_pos_y;
+    scalar_src.position.z = &s_pos_z;
+    scalar_src.velocity.x = &s_vel_x;
+    scalar_src.velocity.y = &s_vel_y;
+    scalar_src.velocity.z = &s_vel_z;
+    scalar_src.force.x = &s_frc_x;
+    scalar_src.force.y = &s_frc_y;
+    scalar_src.force.z = &s_frc_z;
+    scalar_src.mass = &s_mass;
+
+    // Create the scalar reference
+    ParticleRef<TestMask, NoUserData> scalar_ref(scalar_src);
+
+    // 2. Broadcast into a SIMD buffer
+    auto buffer = PackedParticleBuffer<TestMask>::broadcast(scalar_ref);
+
+    // 3. Verify all lanes contain the exact scalar values
+    constexpr size_t Width = packedd::size();
+
+    auto pos_x = buffer.position.x.to_array();
+    auto pos_y = buffer.position.y.to_array();
+    auto pos_z = buffer.position.z.to_array();
+
+    auto vel_x = buffer.velocity.x.to_array();
+    auto vel_y = buffer.velocity.y.to_array();
+    auto vel_z = buffer.velocity.z.to_array();
+
+    auto frc_x = buffer.force.x.to_array();
+    auto frc_y = buffer.force.y.to_array();
+    auto frc_z = buffer.force.z.to_array();
+
+    auto mass_arr = buffer.mass.to_array();
+
+    for(size_t i = 0; i < Width; ++i) {
+        EXPECT_DOUBLE_EQ(pos_x[i], 1.5) << "Broadcast failed on position.x at lane " << i;
+        EXPECT_DOUBLE_EQ(pos_y[i], 2.5) << "Broadcast failed on position.y at lane " << i;
+        EXPECT_DOUBLE_EQ(pos_z[i], 3.5) << "Broadcast failed on position.z at lane " << i;
+
+        EXPECT_DOUBLE_EQ(vel_x[i], 4.5) << "Broadcast failed on velocity.x at lane " << i;
+        EXPECT_DOUBLE_EQ(vel_y[i], 5.5) << "Broadcast failed on velocity.y at lane " << i;
+        EXPECT_DOUBLE_EQ(vel_z[i], 6.5) << "Broadcast failed on velocity.z at lane " << i;
+
+        EXPECT_DOUBLE_EQ(frc_x[i], 7.5) << "Broadcast failed on force.x at lane " << i;
+        EXPECT_DOUBLE_EQ(frc_y[i], 8.5) << "Broadcast failed on force.y at lane " << i;
+        EXPECT_DOUBLE_EQ(frc_z[i], 9.5) << "Broadcast failed on force.z at lane " << i;
+
+        EXPECT_DOUBLE_EQ(mass_arr[i], 10.5) << "Broadcast failed on mass at lane " << i;
+    }
+}
+
+

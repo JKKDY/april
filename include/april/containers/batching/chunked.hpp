@@ -176,10 +176,10 @@ namespace april::container::internal {
 					AP_PREFETCH(chunks + c1 + 1);
 
 					// chunk self interaction
-					auto packed1 = container.template at_packed<Mask>(c1, 0);
-					auto buffer1 = packed1.load_buffer();
-					buffer1.force = {0,0,0};
 					{
+						auto packed1 = container.template at_packed<Mask>(c1, 0);
+						auto buffer1 = packed1.load_buffer();
+						buffer1.force = {0,0,0};
 						auto buffer2 = packed1.load_buffer();
 						buffer2.force = {0,0,0};
 
@@ -196,6 +196,11 @@ namespace april::container::internal {
 						f(buffer1, buffer2);
 					}
 
+					auto packed1 = container.template at_packed<Mask>(c1, 0);
+					auto buffer1 = packed1.load_buffer();
+
+					buffer1.force = {0,0,0};
+
 					for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
 						auto packed2 = container.template at_packed<Mask>(c2, 0);
 						auto buffer2 = packed2.load_buffer();
@@ -203,7 +208,7 @@ namespace april::container::internal {
 
 						for (size_t k = 0; k < width; k++) {
 							f(buffer1, buffer2);
-							buffer2.rotate_right();
+							buffer2.template rotate_right<1>();
 						}
 
 						packed2.force += buffer2.force;

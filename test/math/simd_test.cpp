@@ -290,3 +290,105 @@ TYPED_TEST(SimdWideTest, Gather) {
 }
 
 
+// Check Scalar Assignment (Broadcasting)
+TYPED_TEST(SimdWideTest, ScalarAssignment) {
+    using Wide = TestFixture::WideType;
+    const size_t N = TestFixture::Size;
+
+    Wide w;
+    w = 7.0; // Trigger the assignment operator we added
+
+    auto out = w.to_array();
+    for (size_t i = 0; i < N; ++i) {
+        EXPECT_DOUBLE_EQ(out[i], 7.0);
+    }
+}
+
+// Check Conditional Select and Masking
+TYPED_TEST(SimdWideTest, SelectAndMasking) {
+    using Wide = TestFixture::WideType;
+    using Scalar = TestFixture::Scalar;
+    size_t N = TestFixture::Size;
+
+    std::vector<Scalar> vals_a(N), vals_b(N);
+    for(size_t i = 0; i < N; ++i) {
+        vals_a[i] = static_cast<Scalar>(i);       // 0, 1, 2, 3...
+        vals_b[i] = static_cast<Scalar>(N - i);   // N, N-1, N-2...
+    }
+
+    Wide a = Wide::load(vals_a.data());
+    Wide b = Wide::load(vals_b.data());
+
+    // Create a mask (e.g., true where a < b)
+    auto mask = a < b;
+
+    // Select: result[i] = mask[i] ? a[i] : b[i]
+    // This effectively computes the element-wise minimum.
+    Wide res = select(mask, a, b);
+    auto out = res.to_array();
+
+    for (size_t i = 0; i < N; ++i) {
+        Scalar expected = (vals_a[i] < vals_b[i]) ? vals_a[i] : vals_b[i];
+        EXPECT_DOUBLE_EQ(out[i], expected);
+    }
+}
+
+// Check Horizontal Reductions (Math)
+TYPED_TEST(SimdWideTest, MathReductions) {
+    using Wide = TestFixture::WideType;
+    using Scalar = TestFixture::Scalar;
+    size_t N = TestFixture::Size;
+
+    std::vector<Scalar> vals(N);
+    Scalar expected_sum = 0;
+    Scalar expected_min = std::numeric_limits<Scalar>::max();
+    Scalar expected_max = std::numeric_limits<Scalar>::lowest();
+
+    for(size_t i = 0; i < N; ++i) {
+        vals[i] = static_cast<Scalar>(i + 1); // 1, 2, 3...
+        expected_sum += vals[i];
+        expected_min = std::min(expected_min, vals[i]);
+        expected_max = std::max(expected_max, vals[i]);
+    }
+
+    Wide w = Wide::load(vals.data());
+
+    EXPECT_DOUBLE_EQ(w.reduce_add(), expected_sum);
+    EXPECT_DOUBLE_EQ(w.reduce_min(), expected_min);
+    EXPECT_DOUBLE_EQ(w.reduce_max(), expected_max);
+}
+
+// Check Logical Mask Reductions
+TYPED_TEST(SimdWideTest, LogicalMaskReductions) {
+    using Wide = TestFixture::WideType;
+    using Scalar = TestFixture::Scalar;
+
+    Wide zeros = 0.0;
+    Wide ones = 1.0;
+
+    auto mask_all_true = (zeros == zeros);
+    auto mask_all_false = (zeros == ones);
+
+    // Test homogeneous masks
+    EXPECT_TRUE(all(mask_all_true));
+    EXPECT_TRUE(any(mask_all_true));
+    EXPECT_FALSE(none(mask_all_true));
+
+    EXPECT_FALSE(all(mask_all_false));
+    EXPECT_FALSE(any(mask_all_false));
+    EXPECT_TRUE(none(mask_all_false));
+
+    // Test heterogeneous mask (if vector size > 1)
+    if constexpr (TestFixture::Size > 1) {
+        std::vector<Scalar> vals(TestFixture::Size, 0.0);
+        vals[0] = 1.0; // Make only the first element match
+
+        Wide mix_val = Wide::load(vals.data());
+        auto mask_mixed = (mix_val == ones);
+
+        EXPECT_FALSE(all(mask_mixed));
+        EXPECT_TRUE(any(mask_mixed));
+        EXPECT_FALSE(none(mask_mixed));
+    }
+}
+

@@ -53,6 +53,11 @@ target_sources(April INTERFACE ${APRIL_HEADERS})  # add headers to the target so
 target_include_directories(April INTERFACE
         ${PROJECT_SOURCE_DIR}/include
 )
+# Mark xsimd headers as SYSTEM to suppress warnings from third-party code
+get_target_property(XSIMD_INCLUDE_DIRS xsimd INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(April SYSTEM INTERFACE
+        ${XSIMD_INCLUDE_DIRS}
+)
 target_link_libraries(April INTERFACE xsimd)
 target_compile_features(April INTERFACE cxx_std_23) # targets must use C++23
 
@@ -100,11 +105,10 @@ function(set_target_build_flags target_name)
             $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang>>:
                 -O3                      # Maximum optimization level
                 -march=native            # Use all CPU instructions available on host
-#                -ffast-math              # Allow unsafe floating-point optimizations for speed
-                # -flto                  # Link-time optimization
+                -ffast-math              # Allow unsafe floating-point optimizations for speed
+#                 -flto                  # Link-time optimization
                 -fomit-frame-pointer     # Omit frame pointer for slightly faster calls
-                -finline-functions       # Enable function inlining where profitable
-                # -funroll-loops         # Loop unrolling
+#                 -funroll-loops         # Loop unrolling
                 -fno-plt                 # Avoid procedure linkage table, improves direct calls
             >
 

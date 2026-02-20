@@ -27,6 +27,10 @@ namespace april::simd::internal::xsimd {
             return ::xsimd::any(m.data);
         }
 
+        friend bool none(const Mask& m) {
+            return !any(m);
+        }
+
         // Logical Not (!)
         friend Mask operator!(const Mask& m) {
             return { !m.data };
@@ -49,11 +53,11 @@ namespace april::simd::internal::xsimd {
 
     template<typename T, size_t Width = 0>
     struct Packed {
-        using value_type = T;
+        using value_type = std::remove_cv_t<T>;
         using native_type = std::conditional_t<
             Width == 0,
-            ::xsimd::batch<T>,
-            ::xsimd::make_sized_batch_t<T, Width>
+            ::xsimd::batch<value_type>,
+            ::xsimd::make_sized_batch_t<value_type, Width>
         >;
 
         static constexpr size_t size() { return native_type::size; }
@@ -62,6 +66,10 @@ namespace april::simd::internal::xsimd {
         Packed(T scalar) : data(scalar) {}
         Packed(native_type d) : data(d) {}
 
+        Packed& operator=(T scalar) {
+            data = native_type(scalar);
+            return *this;
+        }
 
         // DATA LOADS
         static Packed load(const T* ptr) {
@@ -155,7 +163,25 @@ namespace april::simd::internal::xsimd {
         friend Packed max(const Packed& a, const Packed& b) { return { ::xsimd::max(a.data, b.data) }; }
         friend Packed fma(const Packed& a, const Packed& b, const Packed& c) { return { ::xsimd::fma(a.data, b.data, c.data) }; }
 
+        // Inside Packed struct in xsimd_backend.hpp
+        [[nodiscard]] T reduce_add() const {
+            return ::xsimd::reduce_add(data);
+        }
 
+        [[nodiscard]] T reduce_min() const {
+            return ::xsimd::reduce_min(data);
+        }
+
+        [[nodiscard]] T reduce_max() const {
+            return ::xsimd::reduce_max(data);
+        }
+
+
+        // MASKING
+        // Performs: result[i] = mask[i] ? true_val[i] : false_val[i]
+        friend Packed select(const Mask<T>& m, const Packed& true_val, const Packed& false_val) {
+            return { ::xsimd::select(m.data, true_val.data, false_val.data) };
+        }
 
         // DEBUGGING
         [[nodiscard]] std::array<T, size()> to_array() const {

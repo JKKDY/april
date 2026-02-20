@@ -12,6 +12,7 @@ namespace april::simd {
         // Reductions
         { all(m) } -> std::same_as<bool>;
         { any(m) } -> std::same_as<bool>;
+        { none(m) } -> std::same_as<bool>;
 
         // Logical Operators
         { !m }       -> std::same_as<T>;
@@ -91,12 +92,20 @@ namespace april::simd {
         { ceil(a) }     -> std::same_as<T>;
     };
 
+    template<typename T>
+    concept HasReductionsOps = requires(const T ct) {
+        { ct.reduce_add() } -> std::same_as<typename T::value_type>;
+        { ct.reduce_min() } -> std::same_as<typename T::value_type>;
+        { ct.reduce_max() } -> std::same_as<typename T::value_type>;
+    };
+
 
     template<typename T>
     concept HasSimdOps =
         HasArithmeticOps<T>
         && HasComparisonOps<T>
         && HasMathFunctions<T>
+        && HasReductionsOps<T>
         && HasScalarMixedOps<T, float>
         && HasScalarMixedOps<T, double>
         && HasScalarMixedOps<T, long double>;
@@ -112,6 +121,7 @@ namespace april::simd {
 
         T();
         T(scalar); // Broadcast
+        { t = scalar } -> std::same_as<T&>; // Scalar Assignment (Broadcast)
 
         // loading
         { T::load(ptr) } -> std::same_as<T>;

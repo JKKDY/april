@@ -30,6 +30,10 @@ namespace april::simd::internal::std_simd {
             return stdx::any_of(m.data);
         }
 
+        friend bool none(const Mask& m) {
+            return !any(m);
+        }
+
         // Logical Not (!)
         friend Mask operator!(const Mask& m) {
             return { !m.data };
@@ -53,12 +57,11 @@ namespace april::simd::internal::std_simd {
     // Width > 0:  Use Fixed Size ABI (Compiler manages register spanning, e.g. 16 doubles)
     template<typename T, size_t Width = 0>
     struct Packed {
-        using value_type = T;
-
+        using value_type = std::remove_const_t<T>;
         using native_type = std::conditional_t<
             Width == 0,
-            stdx::simd<T>,                                     // Default/Native ABI
-            stdx::simd<T, stdx::simd_abi::fixed_size<Width>>   // Fixed Size ABI
+            stdx::simd<value_type>,                                     // Default/Native ABI
+            stdx::simd<value_type, stdx::simd_abi::fixed_size<Width>>   // Fixed Size ABI
         >;
 
         static constexpr size_t size() { return native_type::size(); }
@@ -67,6 +70,10 @@ namespace april::simd::internal::std_simd {
         Packed(T scalar) : data(scalar) {}
         Packed(native_type d) : data(d) {}
 
+        Packed& operator=(T scalar) {
+            data = scalar;
+            return *this;
+        }
 
         // DATA LOADS
         static Packed load(const T* ptr) {
@@ -186,7 +193,31 @@ namespace april::simd::internal::std_simd {
         friend Packed floor(const Packed& x) { return { stdx::floor(x.data) }; }
         friend Packed ceil(const Packed& x)  { return { stdx::ceil(x.data) };  }
 
+        // REDUCTION
+        [[nodiscard]] value_type reduce_add() const {
+            // stdx::reduce defaults to std::plus<>() which is transparent
+            return stdx::reduce(data);
+        }
+
+        [[nodiscard]] value_type reduce_min() const {
+            return stdx::reduce(data, [](const auto& a, const auto& b) {
+                return stdx::min(a, b);
+            });
+        }
+
+        [[nodiscard]] value_type reduce_max() const {
+            return stdx::reduce(data, [](const auto& a, const auto& b) {
+                return stdx::max(a, b);
+            });
+        }
+
         // MASKING
+        // Performs: result[i] = mask[i] ? true_val[i] : false_val[i]
+        friend Packed select(const Mask<T>& m, const Packed& true_val, const Packed& false_val) {
+            native_type result = false_val.data;
+            stdx::where(m.data, result) = true_val.data;
+            return { result };
+        }
 
         // DEBUGGING
         [[nodiscard]] std::array<T, size()> to_array() const {

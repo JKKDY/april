@@ -473,7 +473,6 @@ namespace april::core {
 
 					if constexpr (is_packed) {
 						auto mask = r.norm_squared() > force.cutoff2();
-
 						if (all(mask)) return;
 						auto f = force(p1, p2, r);
 						p1.force += f;

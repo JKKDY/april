@@ -4,6 +4,7 @@
 #include "april/simd/packed.hpp"
 #include "april/simd/packed_ref.hpp"
 #include "april/math/vec3.hpp"
+#include "april/particle/access.hpp"
 
 namespace april::env {
     template<ParticleField M, IsUserData U> struct PackedParticleView;
@@ -30,6 +31,7 @@ namespace april::env {
         field_type_t<pvec3, ParticleField::force, M> force;
         field_type_t<simd::Packed<double>, ParticleField::mass, M> mass;
 
+        PackedParticleBuffer() = default;
         explicit PackedParticleBuffer(const auto & source) {
             if constexpr (has_field_v<M, ParticleField::position>) position = source.position;
             if constexpr (has_field_v<M, ParticleField::old_position>) old_position = source.old_position;
@@ -38,7 +40,39 @@ namespace april::env {
             if constexpr (has_field_v<M, ParticleField::mass>) mass = source.mass;
         }
 
-       template<unsigned K = 1>
+        template<typename ScalarAccessor>
+        requires IsAnyParticleAccessor<ScalarAccessor>
+        static PackedParticleBuffer broadcast(const ScalarAccessor& scalar) {
+            PackedParticleBuffer buf;
+
+            if constexpr (has_field_v<M, ParticleField::position>) {
+                buf.position.x = scalar.position.x;
+                buf.position.y = scalar.position.y;
+                buf.position.z = scalar.position.z;
+            }
+            if constexpr (has_field_v<M, ParticleField::old_position>) {
+                buf.old_position.x = scalar.old_position.x;
+                buf.old_position.y = scalar.old_position.y;
+                buf.old_position.z = scalar.old_position.z;
+            }
+            if constexpr (has_field_v<M, ParticleField::velocity>) {
+                buf.velocity.x = scalar.velocity.x;
+                buf.velocity.y = scalar.velocity.y;
+                buf.velocity.z = scalar.velocity.z;
+            }
+            if constexpr (has_field_v<M, ParticleField::force>) {
+                buf.force.x = scalar.force.x;
+                buf.force.y = scalar.force.y;
+                buf.force.z = scalar.force.z;
+            }
+            if constexpr (has_field_v<M, ParticleField::mass>) {
+                buf.mass = scalar.mass;
+            }
+
+            return buf;
+        }
+
+        template<unsigned K = 1>
         void rotate_left() {
             if constexpr (has_field_v<M, ParticleField::position>) {
                 position.x = position.x.template rotate_left<K>();

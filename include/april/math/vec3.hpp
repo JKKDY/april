@@ -270,6 +270,7 @@ namespace april::math {
         [[nodiscard]] std::string to_string(this const auto& self) {
             return std::format("{{{}, {}, {}}}", self.x, self.y, self.z);
         }
+
     };
 
 
@@ -288,6 +289,10 @@ namespace april::math {
 
         template <IsVectorLike Other>
         Vec3(const Other& p) : x(static_cast<T>(p.x)), y(static_cast<T>(p.y)), z(static_cast<T>(p.z)) {}
+
+        friend std::ostream& operator<<(std::ostream& os, const Vec3& v) {
+            return os << v.to_string();
+        }
     };
 
 

@@ -296,9 +296,11 @@ TYPED_TEST(DirectSumTest, Asymmetric_ChunkBoundaries_Counting) {
 
 	for (const auto& p : out) {
 		if (p.type == info.type_map[0]) {
-			EXPECT_THAT(p.force, testing::AnyOf(expected_f0, -expected_f0));
+			EXPECT_THAT(p.force, testing::AnyOf(expected_f0, -expected_f0))
+				<< "at pos: " << p.position << " type: " << p.type;
 		} else {
-			EXPECT_THAT(p.force, testing::AnyOf(expected_f1, -expected_f1));
+			EXPECT_THAT(p.force, testing::AnyOf(expected_f1, -expected_f1))
+				<< "at pos: " << p.position << " type: " << p.type;
 		}
 	}
 }

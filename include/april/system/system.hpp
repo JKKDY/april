@@ -475,6 +475,11 @@ namespace april::core {
 						auto mask = r.norm_squared() > force.cutoff2();
 						if (all(mask)) return;
 						auto f = force(p1, p2, r);
+						// auto f_masked = pvec3 {
+						// 	select(mask, packed(0), f.x),
+						// 	select(mask, packed(0), f.y),
+						// 	select(mask, packed(0), f.z)
+						// };
 						p1.force += f;
 						p2.force -= f;
 					} else {

@@ -70,20 +70,30 @@ namespace april::container::internal {
 			    }
 			}
 
+			// body 1 vs tail 2 (iterate full chunks of R1 against the single partial chunk of R2)
 			if constexpr (static_cast<bool>(E & april::internal::ExecutionMode::Vector)) {
-				// body 1 vs tail 2 (iterate full chunks of R1 against the single partial chunk of R2)
-				for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
-					AP_PREFETCH(chunks + c1 + 1);
-					for (size_t i = 0; i < stride; ++i) {
-						auto p1 = container.template at<Mask>(c1, i);
-						for (size_t j = 0; j < limit2_tail; ++j) {
-							auto p2 = container.template at<Mask>(c2_body_end, j);
-							f(p1, p2);
-						}
+				for (size_t i = 0; i < limit2_tail; ++i) {
+					auto p2 = container.template at<Mask>(c2_body_end, i);
+					auto buffer2 = env::PackedParticleBuffer<Mask>::broadcast(p2);
+					buffer2.force = {0,0,0};
+
+					for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
+						AP_PREFETCH(chunks + c1 + 1);
+
+						auto packed1 = container.template at_packed<Mask>(c1, 0);
+						auto buffer1 = packed1.load_buffer();
+						buffer1.force = {0,0,0};
+
+						f(buffer1, buffer2);
+
+						packed1.force += buffer1.force;
 					}
+
+					p2.force.x += buffer2.force.x.reduce_add();
+					p2.force.y += buffer2.force.y.reduce_add();
+					p2.force.z += buffer2.force.z.reduce_add();
 				}
 			} else {
-				// body 1 vs tail 2 (iterate full chunks of R1 against the single partial chunk of R2)
 				for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
 					AP_PREFETCH(chunks + c1 + 1);
 					for (size_t i = 0; i < stride; ++i) {
@@ -96,20 +106,30 @@ namespace april::container::internal {
 				}
 			}
 
+			// body 2 vs tail 1 (iterate full chunks of R2 against the single partial chunk of R1
 			if constexpr (static_cast<bool>(E & april::internal::ExecutionMode::Vector)) {
-				// body 2 vs tail 1 (iterate full chunks of R2 against the single partial chunk of R1
-				for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
-					AP_PREFETCH(chunks + c2 + 1);
-					for (size_t i = 0; i < limit1_tail; ++i) {
-						auto p1 = container.template at<Mask>(c1_body_end, i);
-						for (size_t j = 0; j < stride; ++j) {
-							auto p2 = container.template at<Mask>(c2, j);
-							f(p1, p2);
-						}
+				for (size_t i = 0; i < limit1_tail; ++i) {
+					auto p1 = container.template at<Mask>(c1_body_end, i);
+					auto buffer1 = env::PackedParticleBuffer<Mask>::broadcast(p1);
+					buffer1.force = {0,0,0};
+
+					for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
+						AP_PREFETCH(chunks + c2 + 1);
+
+						auto packed2 = container.template at_packed<Mask>(c2, 0);
+						auto buffer2 = packed2.load_buffer();
+						buffer2.force = {0,0,0};
+
+						f(buffer1, buffer2);
+
+						packed2.force += buffer2.force;
 					}
+
+					p1.force.x += buffer1.force.x.reduce_add();
+					p1.force.y += buffer1.force.y.reduce_add();
+					p1.force.z += buffer1.force.z.reduce_add();
 				}
 			} else {
-				// body 2 vs tail 1 (iterate full chunks of R2 against the single partial chunk of R1
 				for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
 					AP_PREFETCH(chunks + c2 + 1);
 					for (size_t i = 0; i < limit1_tail; ++i) {
@@ -196,26 +216,65 @@ namespace april::container::internal {
 						f(buffer1, buffer2);
 					}
 
+					// auto packed1 = container.template at_packed<Mask>(c1, 0);
+					// auto buffer1 = packed1.load_buffer();
+
+					// buffer1.force = {0,0,0};
+					//
+					// for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
+					// 	for (size_t i = 0 ; i < width; ++i) {
+					// 		auto p2 = container.template at<Mask>(c2, i);
+					// 		auto buffer2 = env::PackedParticleBuffer<Mask>::broadcast(p2);
+					// 		buffer2.force = {0,0,0};
+					//
+					// 		f(buffer1, buffer2);
+					//
+					// 		p2.force.x += buffer2.force.x.reduce_add();
+					// 		p2.force.y += buffer2.force.y.reduce_add();
+					// 		p2.force.z += buffer2.force.z.reduce_add();
+					// 	}
+					// }
+					//
+					// packed1.force += buffer1.force;
+
+					// for (size_t i = 0 ; i < width; ++i) {
+					// 	auto p1 = container.template at<Mask>(c1, i);
+					// 	auto buffer1 =env::PackedParticleBuffer<Mask>::broadcast(p1);
+					// 	buffer1.force = {0,0,0};
+					//
+					// 	for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
+					// 		auto p2 = container.template at_packed<Mask>(c2, 0);
+					// 		auto buffer2 = p2.load_buffer();
+					// 		buffer2.force = {0,0,0};
+					//
+					// 		f(buffer1, buffer2);
+					//
+					// 		p2.force += buffer2.force;
+					// 	}
+					// 	p1.force.x += buffer1.force.x.reduce_add();
+					// 	p1.force.y += buffer1.force.y.reduce_add();
+					// 	p1.force.z += buffer1.force.z.reduce_add();
+					// }
+
+
 					auto packed1 = container.template at_packed<Mask>(c1, 0);
 					auto buffer1 = packed1.load_buffer();
 
-					buffer1.force = {0,0,0};
-
 					for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
+						AP_PREFETCH(chunks + c2 + 1);
 						auto packed2 = container.template at_packed<Mask>(c2, 0);
 						auto buffer2 = packed2.load_buffer();
-						buffer2.force = {0,0,0};
 
+						AP_UNROLL_LOOP_N(width)
 						for (size_t k = 0; k < width; k++) {
 							f(buffer1, buffer2);
 							buffer2.template rotate_right<1>();
 						}
-
-						packed2.force += buffer2.force;
+						packed2.force = buffer2.force;
 					}
-
-					packed1.force += buffer1.force;
+					packed1.force = buffer1.force;
 				}
+
 			} else {
 		        for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
 		            AP_PREFETCH(chunks + c1 + 1);
@@ -243,27 +302,64 @@ namespace april::container::internal {
 		        }
 			}
 
-		// body vs tail (every body chunk with tail chunk)
-		for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
-		    AP_PREFETCH(chunks + c1 + 1);
-		    for (size_t i = 0; i < width; ++i) {
-		        auto p1 = container.template at<Mask>(c1, i);
-		        for (size_t j = 0; j < limit_tail; ++j) {
-		             auto p2 = container.template at<Mask>(c_body_end, j);
-		             f(p1, p2);
-		        }
-		    }
-		}
+			if constexpr (static_cast<bool>(E & april::internal::ExecutionMode::Vector)) {
+				for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
+					AP_PREFETCH(chunks + c1 + 1);
 
-		// tail (interact tail chunk with itself)
-		for (size_t i = 0; i < limit_tail; ++i) {
-  			auto p1 = container.template at<Mask>(c_body_end, i);
-  			for (size_t j = i + 1; j < limit_tail; ++j) {
-	   			auto p2 = container.template at<Mask>(c_body_end, j);
-	   			f(p1, p2);
-  			}
+					auto packed1 = container.template at_packed<Mask>(c1, 0);
+					auto buffer1 = packed1.load_buffer();
+
+					for (size_t j = 0; j < limit_tail; ++j) {
+						auto p2 = container.template at<Mask>(c_body_end, j);
+
+						auto buffer2 = env::PackedParticleBuffer<Mask>::broadcast(p2);
+						buffer2.force = {0,0,0};
+
+						f(buffer1, buffer2);
+
+						p2.force.x += buffer2.force.x.reduce_add();
+						p2.force.y += buffer2.force.y.reduce_add();
+						p2.force.z += buffer2.force.z.reduce_add();
+					}
+
+					packed1.force += buffer1.force;
+				}
+
+				// // body vs tail (every body chunk with tail chunk)
+				// for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
+				// 	AP_PREFETCH(chunks + c1 + 1);
+				// 	for (size_t i = 0; i < width; ++i) {
+				// 		auto p1 = container.template at<Mask>(c1, i);
+				// 		for (size_t j = 0; j < limit_tail; ++j) {
+				// 			auto p2 = container.template at<Mask>(c_body_end, j);
+				// 			f(p1, p2);
+				// 		}
+				// 	}
+				// }
+
+			} else {
+				// body vs tail (every body chunk with tail chunk)
+				for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
+				    AP_PREFETCH(chunks + c1 + 1);
+				    for (size_t i = 0; i < width; ++i) {
+				        auto p1 = container.template at<Mask>(c1, i);
+				        for (size_t j = 0; j < limit_tail; ++j) {
+				             auto p2 = container.template at<Mask>(c_body_end, j);
+				             f(p1, p2);
+				        }
+				    }
+				}
+			}
+
+			// tail (interact tail chunk with itself)
+			for (size_t i = 0; i < limit_tail; ++i) {
+  				auto p1 = container.template at<Mask>(c_body_end, i);
+  				for (size_t j = i + 1; j < limit_tail; ++j) {
+	   				auto p2 = container.template at<Mask>(c_body_end, j);
+	   				f(p1, p2);
+  				}
+			}
 		}
-	}
 
 		// Range represents chunk indices! (e.g., 0 to 4 means Chunks 0,1,2,3)
 		math::Range  range_chunks;  // Chunk Indices [start, end)

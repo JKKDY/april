@@ -50,9 +50,9 @@ template<ParticleField Mask, typename RecordT>
 auto make_source(RecordT& record) {
 	// Determine constness based on RecordT (allows making const sources from const records)
 	constexpr bool IsConst = std::is_const_v<RecordT>;
-	using UserDataT = typename RecordT::user_data_t;
+	using UserDataT = RecordT::user_data_t;
 
-	env::ParticleSource<Mask, UserDataT, IsConst> src;
+	env::internal::ParticleSource<Mask, UserDataT, IsConst> src;
 
 	if constexpr (env::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
 	if constexpr (env::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;

@@ -32,7 +32,7 @@ TEST(UniformFieldTest, ApplyIsAdditive) {
 	// 3. Create the necessary reference for the 'apply' method
 	constexpr ParticleField Mask = UniformField::fields;
 
-	env::ParticleSource<Mask, env::NoUserData, false> src;
+	env::internal::ParticleSource<Mask, env::NoUserData, false> src;
 	src.force    = &p_rec.force;
 
 	env::ScalarRestrictedParticleRef<Mask, env::NoUserData> p_ref(src);

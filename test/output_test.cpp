@@ -78,7 +78,7 @@ public:
 
 		// 2. Create Source (IsConst = true)
 		// We map the requested fields M to the record's members
-		ParticleSource<M, user_data_t, true> src;
+		env::internal::ParticleSource<M, user_data_t, true> src;
 
 		if constexpr (env::has_field_v<M, ParticleField::position>)     src.position     = &record.position;
 		if constexpr (env::has_field_v<M, ParticleField::velocity>)     src.velocity     = &record.velocity;

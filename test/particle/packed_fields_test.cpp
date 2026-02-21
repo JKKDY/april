@@ -37,7 +37,7 @@ protected:
     }
 
     auto get_source() {
-        ParticleSource<TestMask, NoUserData, false> src;
+        internal::ParticleSource<TestMask, NoUserData, false> src;
         
         // Setup SoA Pointers for Position
         src.position.x = pos_x.data();
@@ -347,7 +347,7 @@ TEST_F(PackedParticleViewsTest, BufferBroadcastFromScalar) {
     double s_frc_x = 7.5, s_frc_y = 8.5, s_frc_z = 9.5;
     double s_mass  = 10.5;
 
-    ParticleSource<TestMask, NoUserData, false> scalar_src;
+    internal::ParticleSource<TestMask, NoUserData, false> scalar_src;
     scalar_src.position.x = &s_pos_x;
     scalar_src.position.y = &s_pos_y;
     scalar_src.position.z = &s_pos_z;

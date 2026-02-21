@@ -43,7 +43,7 @@ protected:
 
     // Helper: Create a Mutable Source pointing to the Record's fields
     auto get_source() {
-        ParticleSource<ParticleField::all, TestUserDataT, false> src;
+        internal::ParticleSource<ParticleField::all, TestUserDataT, false> src;
         src.position     = &particle_data.position;
         src.velocity     = &particle_data.velocity;
         src.force        = &particle_data.force;
@@ -58,7 +58,7 @@ protected:
 
     // Helper: Create a Const Source pointing to the Record's fields
     auto get_const_source() {
-        ParticleSource<ParticleField::all, TestUserDataT, true> src;
+        internal::ParticleSource<ParticleField::all, TestUserDataT, true> src;
         src.position     = &particle_data.position;
         src.velocity     = &particle_data.velocity;
         src.force        = &particle_data.force;

@@ -11,7 +11,7 @@
 #include "april/env/traits.hpp"
 
 #include "april/particle/fields.hpp"
-#include "april/particle/access.hpp"
+#include "april/particle/scalar_access.hpp"
 #include "april/particle/packed_access.hpp"
 
 
@@ -67,17 +67,17 @@ namespace april::container {
 		// INDEX ACCESSORS
 		template<ParticleField M>
 		[[nodiscard]] auto at(this auto&& self, size_t index) {
-			return env::ParticleRef<M, U>{ self.template access_particle<M>(index) };
+			return env::ScalarParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto view(this const auto& self, size_t index) {
-			return env::ParticleView<M, U>{ self.template access_particle<M>(index) };
+			return env::ScalarParticleView<M, U>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t index) {
-			return env::RestrictedParticleRef<M, U>{ self.template access_particle<M>(index) };
+			return env::ScalarRestrictedParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
@@ -99,17 +99,17 @@ namespace april::container {
 		// ID ACCESSORS
 		template<ParticleField M>
 		[[nodiscard]] auto at_id(this auto&& self, ParticleID id) {
-			return env::ParticleRef<M, U>{ self.template access_particle_id<M>(id) };
+			return env::ScalarParticleRef<M, U>{ self.template access_particle_id<M>(id) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto view_id(this const auto & self, ParticleID id) {
-			return env::ParticleView<M, U>{ self.template access_particle_id<M>(id) };
+			return env::ScalarParticleView<M, U>{ self.template access_particle_id<M>(id) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at_id(this auto&& self, ParticleID id) {
-			return env::RestrictedParticleRef<M, U>{ self.template access_particle_id<M>(id) };
+			return env::ScalarRestrictedParticleRef<M, U>{ self.template access_particle_id<M>(id) };
 		}
 
 

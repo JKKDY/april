@@ -3,7 +3,7 @@
 #include <concepts>
 
 #include "april/base/policy.hpp"
-#include "april/particle/defs.hpp"
+#include "april/particle/particle_types.hpp"
 
 
 namespace april::container {

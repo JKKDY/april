@@ -3,7 +3,7 @@
 
 using namespace april;
 
-#include "april/particle/access.hpp"
+#include "april/particle/scalar_access.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/periodic.hpp"
@@ -51,7 +51,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 	// Particle just beyond +X boundary
 	auto p = make_particle({10.2, 5.0, 5.0});
 	auto src = make_source<Mask>(p);
-	env::ParticleRef<Mask, env::NoUserData> ref(src);
+	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
 
 	periodic.apply(ref, box, Face::XPlus);
 
@@ -68,7 +68,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 	// Particle just beyond -X boundary
 	auto p = make_particle({-0.3, 5.0, 5.0});
 	auto src = make_source<Mask>(p);
-	env::ParticleRef<Mask, env::NoUserData> ref(src);
+	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
 
 	periodic.apply(ref, box, Face::XMinus);
 
@@ -107,7 +107,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 	for (size_t i = 0; i < faces.size(); ++i) {
 		auto p = make_particle(start_positions[i]);
 		auto src = make_source<Mask>(p);
-		env::ParticleRef<Mask, env::NoUserData> ref(src);
+		env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
 		periodic.apply(ref, box, faces[i]);
 		EXPECT_NEAR(p.position.x, expected[i].x, 1e-12);
 		EXPECT_NEAR(p.position.y, expected[i].y, 1e-12);
@@ -140,7 +140,7 @@ TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 
 	auto p = make_particle({5,5,10.2});
 	auto src = make_source<Mask>(p);
-	env::ParticleRef<Mask, env::NoUserData> ref(src);
+	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
 
 	env::Box box({0,0,0}, {10,10,10});
 

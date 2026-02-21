@@ -10,7 +10,7 @@ namespace april::boundary {
 		Absorb(): Boundary(-1, false, false, false) {}
 
 		template<ParticleField M, env::IsUserData U>
-		void apply(env::ParticleRef<M, U> & p, const env::Box &, const Face) const noexcept{
+		void apply(env::ScalarParticleRef<M, U> & p, const env::Box &, const Face) const noexcept{
 			p.state = ParticleState::DEAD;
 		}
 	};

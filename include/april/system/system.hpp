@@ -37,7 +37,7 @@ namespace april::core {
 		using FieldStorage	    = Traits::field_storage_t;
 		using ForceTable     	= Traits::force_table_t;
 		using BoundaryTable  	= Traits::boundary_table_t;
-
+		using ParticleData		= Traits::user_data_t;
 	public:
 
 		// ----------------
@@ -78,33 +78,33 @@ namespace april::core {
 
 		// INDEX ACCESSORS (fast)
 		template<ParticleField M>
-		[[nodiscard]] auto at(const size_t index) {
+		[[nodiscard]] env::ScalarParticleRef<M, ParticleData> at(const size_t index) {
 			return particle_container.template at<M>(index);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] auto view(const size_t index) const {
+		[[nodiscard]] env::ScalarParticleView<M, ParticleData> view(const size_t index) const {
 			return particle_container.template view<M>(index);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] auto restricted_at(const size_t index) {
+		[[nodiscard]] env::ScalarRestrictedParticleRef<M, ParticleData> restricted_at(const size_t index) {
 			return particle_container.template restricted_at<M>(index);
 		}
 
 		// ID ACCESSORS (stable)
 		template<ParticleField M>
-		[[nodiscard]] auto at_id(const ParticleID id) {
+		[[nodiscard]] env::ScalarParticleRef<M, ParticleData> at_id(const ParticleID id) {
 			return particle_container.template at_id<M>(id);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] auto view_id(const ParticleID id) const {
+		[[nodiscard]] env::ScalarParticleView<M, ParticleData> view_id(const ParticleID id) const {
 			return particle_container.template view_id<M>(id);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] auto restricted_at_id(const ParticleID id) {
+		[[nodiscard]] env::ScalarRestrictedParticleRef<M, ParticleData> restricted_at_id(const ParticleID id) {
 			return particle_container.template restricted_at_id<M>(id);
 		}
 
@@ -124,6 +124,8 @@ namespace april::core {
 
 		// check if particle id is valid
 		[[nodiscard]] bool contains_id(const ParticleID id) const noexcept {
+			// with min_id anc max_id can write a stable for loop:
+			//	for (auto id = min_id(); id < max_id; id++) { if !contains_id(id) continue; ...}
 			return particle_container.invoke_contains_id(id);
 		}
 
@@ -155,20 +157,28 @@ namespace april::core {
 		// --------------
 		// FUNCTIONAL OPS
 		// --------------
-		template<ParticleField M,ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
+		template<
+			ParticleField M,
+			ParallelPolicy P=ParallelPolicy::Serial,
+			VectorPolicy V=VectorPolicy::Auto,
+			typename Func>
 		void for_each_particle(Func && func, ParticleState state = ParticleState::ALL) {
 			particle_container.template for_each_particle<M, P, V, Func>(std::forward<Func>(func), state);
 		}
 
-		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
+		template<
+			ParticleField M,
+			ParallelPolicy P=ParallelPolicy::Serial,
+			VectorPolicy V=VectorPolicy::Auto,
+			typename Func>
 		void for_each_particle_view(Func && func, ParticleState state = ParticleState::ALL) const {
 			particle_container.template for_each_particle_view<M, P, V, Func>(std::forward<Func>(func), state);
 		}
 
-		template<ParticleField M, typename T, typename Mapper, typename Reducer = std::plus<T>>
+		template<ParticleField M, typename Mapper, typename T, typename Reducer = std::plus<T>>
 		[[nodiscard]] T reduce(
 			T initial_value,
-			Mapper&& map_func,
+			Mapper&& map_func, // map particle -> T
 			Reducer&& reduce_func = {},
 			ParticleState state = ParticleState::ALIVE
 		) const {
@@ -310,77 +320,6 @@ namespace april::core {
 			 BuildInfo * build_info
 		);
 
-		// template<env::Field M, ParallelPolicy P, VectorPolicy V, typename Batch, typename UserKernel>
-		// void execute_batch_kernel(const Batch& batch, UserKernel&& user_kernel) {
-		// 	constexpr VectorPolicy kernel_compute = KernelComputeType<UserKernel>;
-		// 	constexpr ComputePolicy batch_compute = Batch::compute_policy;
-		//
-		// 	constexpr bool ForceScalar = (UserRequest & VectorPolicy::Scalar) && !(UserRequest & VectorPolicy::Vector);
-		//
-		//
-		// 	constexpr bool strictScalar = V & VectorPolicy::Scalar && V & ~VectorPolicy::Vector;
-		// 	constexpr bool strictVector = V & VectorPolicy::Vector && V & ~VectorPolicy::Scalar;
-		//
-		// 	// if user requests scalar or SIMD only ensure the kernel can handle that
-		// 	static_assert(!strictScalar || kernel_traits & VectorPolicy::Scalar);
-		// 	static_assert(!strictVector || kernel_traits & VectorPolicy::Vector);
-		//
-		// 	// if user requests SIMD only make sure the batch is compatible. If they want scalar only we can scalarize the packed data
-		// 	static_assert(!strictVector || Batch::compute_policy & container::ComputePolicy::Vector);
-		//
-		// 	auto wrapped_kernel = [&]<bool is_packed>(auto && p1, auto && p2) {
-		//
-		// 		if constexpr (is_packed && kernel_traits & VectorPolicy::Vector) {
-		// 			user_kernel(p1, p2);
-		// 		} else if constexpr (!is_packed && kernel_traits & VectorPolicy::Scalar) {
-		// 			user_kernel(p1, p2);
-		// 		} else if constexpr (is_packed && !kernel_traits & VectorPolicy::Vector) {
-		// 			// TODO: scalarize packed
-		// 			static_assert(false, "not implemented yet");
-		// 		}
-		// 	};
-		//
-		//
-		//
-		// 	// execute
-		// 	if constexpr (container::IsBatchAtom<Batch>) {
-		// 		batch.template for_each_pair<M>(wrapped_kernel);
-		// 	} else if constexpr (container::IsBatchAtomRange<Batch>) {
-		// 		if constexpr (Batch::parallel_policy == Par::Inner) {
-		// 			static_assert(Batch::parallel_policy == Cmp::Scalar, "Vectorization not implemented yet");
-		// 			std::unreachable();
-		// 		} else {
-		// 			for (const auto& atom : batch) {
-		// 				atom.template for_each_pair<M>(wrapped_kernel);
-		// 			}
-		// 		}
-		// 	}
-		// }
-		// template<ParticleField M, ParallelPolicy P, VectorPolicy V, container::IsBatch Batch, typename Kernel>
-		// void execute_batch_kernel(const Batch& batch, Kernel&& kernel) {
-		// 	using Par = april::internal::ParallelTrait;
-		// 	using Cmp = april::internal::VectorTrait;
-		//
-		// 	constexpr internal::VectorTrait kernel_trait = container::internal::KernelTrait<Kernel>;
-		//
-		// 	// make sure the batch can do what the user wants
-		// 	static_assert(V == VectorPolicy::Vector && Batch::vector_trait & Cmp::VectorOnly, "Batch does not have a vector only path");
-		// 	static_assert(V == VectorPolicy::Scalar && Batch::vector_trait & Cmp::ScalarOnly, "Batch does not have a scalar only path");
-		//
-		// 	// make sure the kernel can do what the batch needs
-		//
-		//
-		//
-		// 	// Execution
-		// 	if constexpr (container::IsBatchAtom<Batch>) {
-		// 		batch.template for_each_pair<M, P, V>(kernel);
-		// 	} else if constexpr (container::IsBatchAtomRange<Batch>) {
-		// 		for (const auto& atom : batch) {
-		// 			atom.template for_each_pair<M, P, V>(kernel);
-		// 		}
-		// 	}
-		// }
-
 		template<ParticleField M, ParallelPolicy P, VectorPolicy V, container::IsBatch Batch, typename Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel) {
 		    using namespace april::internal;
@@ -446,6 +385,10 @@ namespace april::core {
 	};
 
 
+
+
+
+
 	//----------------
 	// IMPLEMENTATIONS
 	//----------------
@@ -459,7 +402,7 @@ namespace april::core {
 				constexpr ParticleField M = ForceT::fields | ParticleField::force | ParticleField::position;
 
 				auto kernel = [&](auto & p1, auto & p2) {
-					constexpr  bool is_packed = !env::IsAnyParticleAccessor<decltype(p1)>;
+					constexpr  bool is_packed = !env::IsScalarParticleAccessor<decltype(p1)>;
 
 					auto diff = p2.position - p1.position;
 
@@ -475,13 +418,13 @@ namespace april::core {
 						auto mask = r.norm_squared() > force.cutoff2();
 						if (all(mask)) return;
 						auto f = force(p1, p2, r);
-						// auto f_masked = pvec3 {
-						// 	select(mask, packed(0), f.x),
-						// 	select(mask, packed(0), f.y),
-						// 	select(mask, packed(0), f.z)
-						// };
-						p1.force += f;
-						p2.force -= f;
+						auto f_masked = pvec3 {
+							select(mask, packed(0), f.x),
+							select(mask, packed(0), f.y),
+							select(mask, packed(0), f.z)
+						};
+						p1.force += f_masked;
+						p2.force -= f_masked;
 					} else {
 						if (r.norm_squared() > force.cutoff2()) {
 							return;
@@ -650,6 +593,4 @@ namespace april::core {
 
 
 }
-
-
 

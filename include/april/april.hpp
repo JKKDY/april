@@ -57,7 +57,7 @@ namespace april {
 
 	using env::ParticleCuboid;
 	using env::ParticleSphere;
-	using env::ParticleView;
+	using env::ScalarParticleView;
 	using env::Particle;
 	using env::particle_data;
 

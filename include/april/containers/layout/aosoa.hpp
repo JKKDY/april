@@ -8,7 +8,7 @@
 #include "april/containers/batching/common.hpp"
 #include "april/containers/container.hpp"
 #include "april/base/types.hpp"
-#include "april/particle/defs.hpp"
+#include "april/particle/particle_types.hpp"
 #include "april/base/policy.hpp"
 
 
@@ -156,15 +156,15 @@ namespace april::container::layout {
 		// ACCESSORS (chunk based)
 		template<ParticleField M>
 		[[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return env::ParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return env::ScalarParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-			return env::ParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return env::ScalarParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return env::RestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return env::ScalarRestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 
 		template<ParticleField M>

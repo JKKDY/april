@@ -63,10 +63,10 @@ protected:
 
     // Helper to generate the View expected by the Force operator
     [[nodiscard]] auto get_view1() const {
-        return ParticleView<TestMask, ForceTestUserData>(source1);
+        return ScalarParticleView<TestMask, ForceTestUserData>(source1);
     }
     [[nodiscard]] auto get_view2() const {
-        return ParticleView<TestMask, ForceTestUserData>(source2);
+        return ScalarParticleView<TestMask, ForceTestUserData>(source2);
     }
 };
 

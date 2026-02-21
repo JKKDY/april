@@ -360,7 +360,7 @@ TEST_F(PackedParticleViewsTest, BufferBroadcastFromScalar) {
     scalar_src.mass = &s_mass;
 
     // Create the scalar reference
-    ParticleRef<TestMask, NoUserData> scalar_ref(scalar_src);
+    ScalarParticleRef<TestMask, NoUserData> scalar_ref(scalar_src);
 
     // 2. Broadcast into a SIMD buffer
     auto buffer = PackedParticleBuffer<TestMask>::broadcast(scalar_ref);

@@ -4,7 +4,7 @@
 #include <type_traits> // std::is_same_v
 
 #include "april/base/types.hpp"
-#include "april/particle/access.hpp"
+#include "april/particle/scalar_access.hpp"
 #include "april/particle/particle.hpp"
 
 using namespace april::env;
@@ -96,7 +96,7 @@ TEST(ParticleViewsHelpersTest, BitmaskOperators) {
 // --- Test ParticleRef ---
 TEST_F(ParticleViewsTest, ParticleRefAllFieldsRead) {
     auto src = get_source();
-    const ParticleRef<ParticleField::all, TestUserDataT> ref(src);
+    const ScalarParticleRef<ParticleField::all, TestUserDataT> ref(src);
 
     EXPECT_EQ(ref.position, particle_data.position);
     EXPECT_EQ(ref.velocity, particle_data.velocity);
@@ -111,7 +111,7 @@ TEST_F(ParticleViewsTest, ParticleRefAllFieldsRead) {
 
 TEST_F(ParticleViewsTest, ParticleRefAllFieldsWrite) {
     const auto src = get_source();
-    ParticleRef<ParticleField::all, TestUserDataT> ref(src);
+    ScalarParticleRef<ParticleField::all, TestUserDataT> ref(src);
 
     constexpr MyTestUserData updated_data{99, -1.0};
 
@@ -130,7 +130,7 @@ TEST_F(ParticleViewsTest, ParticleRefPartialMask) {
     constexpr auto mask = ParticleField::position | ParticleField::mass | ParticleField::user_data;
 
     auto src = get_source(); // Source has ALL fields populated
-    ParticleRef<mask, TestUserDataT> ref(src); // Ref only maps subset
+    ScalarParticleRef<mask, TestUserDataT> ref(src); // Ref only maps subset
 
     // check present fields are correct
     EXPECT_EQ(ref.position, particle_data.position);
@@ -140,19 +140,16 @@ TEST_F(ParticleViewsTest, ParticleRefPartialMask) {
     EXPECT_EQ(ref.user_data, particle_data.user_data);
     EXPECT_TRUE((std::is_same_v<decltype(ref.user_data), TestUserDataT&>));
 
-    // check that absent fields are std::monostate
-    EXPECT_TRUE((std::is_same_v<decltype(ref.velocity), std::monostate>));
-    EXPECT_TRUE((std::is_same_v<decltype(ref.force), std::monostate>));
-    EXPECT_TRUE((std::is_same_v<decltype(ref.id), std::monostate>));
-    EXPECT_TRUE((std::is_same_v<decltype(ref.type), std::monostate>));
-    EXPECT_TRUE((std::is_same_v<decltype(ref.state), std::monostate>));
+    // check that absent fields are absent
+    EXPECT_TRUE(!(std::is_same_v<decltype(ref.velocity), math::Vec3Proxy<vec3::type>>));
+    EXPECT_TRUE(!(std::is_same_v<decltype(ref.force), math::Vec3Proxy<vec3::type>>));
 }
 
 
 // --- Test ParticleView ---
 TEST_F(ParticleViewsTest, ParticleViewIsConst) {
     auto src = get_const_source(); // Source is const
-    ParticleView<ParticleField::all, TestUserDataT> view(src);
+    ScalarParticleView<ParticleField::all, TestUserDataT> view(src);
 
     // check values
     EXPECT_EQ(view.position, particle_data.position);
@@ -171,7 +168,7 @@ TEST_F(ParticleViewsTest, RestrictedParticleRefAccess) {
     constexpr auto mask = ParticleField::position | ParticleField::force | ParticleField::id | ParticleField::user_data;
     auto src = get_source(); // Mutable source
 
-    RestrictedParticleRef<mask, TestUserDataT> restricted_ref(src);
+    ScalarRestrictedParticleRef<mask, TestUserDataT> restricted_ref(src);
 
     // check that 'force' is mutable
     EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.force), math::Vec3Proxy<vec3::type>>));
@@ -182,8 +179,8 @@ TEST_F(ParticleViewsTest, RestrictedParticleRefAccess) {
     EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.user_data), const TestUserDataT&>));
 
     // check that absent fields are monostate
-    EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.velocity), std::monostate>));
-    EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.mass), std::monostate>));
+    EXPECT_TRUE((!std::is_same_v<decltype(restricted_ref.velocity), math::Vec3Proxy<vec3::type>>));
+    EXPECT_TRUE((!std::is_same_v<decltype(restricted_ref.mass), math::Vec3Proxy<vec3::type>>));
 
     // Test write access
     restricted_ref.force = {999.0, 999.0, 999.0};

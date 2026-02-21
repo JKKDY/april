@@ -4,7 +4,7 @@
 #include "april/simd/packed.hpp"
 #include "april/simd/packed_ref.hpp"
 #include "april/math/vec3.hpp"
-#include "april/particle/access.hpp"
+#include "april/particle/scalar_access.hpp"
 
 namespace april::env {
     template<ParticleField M, IsUserData U> struct PackedParticleView;
@@ -13,9 +13,10 @@ namespace april::env {
     template<ParticleField M, ParticleField F, typename Source>
     constexpr auto init_packed(const Source& src) {
         if constexpr (has_field_v<M, F>) {
+            // no de-reference here because pointers are needed to initialize packed references
             return src.template get<F>();
         } else {
-            return std::monostate{};
+            return internal::AccessForbidden<F>();
         }
     }
 
@@ -41,7 +42,7 @@ namespace april::env {
         }
 
         template<typename ScalarAccessor>
-        requires IsAnyParticleAccessor<ScalarAccessor>
+        requires IsScalarParticleAccessor<ScalarAccessor>
         static PackedParticleBuffer broadcast(const ScalarAccessor& scalar) {
             PackedParticleBuffer buf;
 
@@ -240,6 +241,43 @@ namespace april::env {
         AP_NO_UNIQUE_ADDRESS field_type_t<const const_d_ref, ParticleField::mass, M> mass;
     };
 
+
+    //---------
+    // CONCEPTS
+    //---------
+    template<typename T> struct is_packed_buffer_impl         : std::false_type {};
+    template<typename T> struct is_packed_ref_impl            : std::false_type {};
+    template<typename T> struct is_packed_restricted_ref_impl : std::false_type {};
+    template<typename T> struct is_packed_view_impl           : std::false_type {};
+
+    // Specialization for Accessors
+    template<auto M>             struct is_packed_buffer_impl<PackedParticleBuffer<M>> : std::true_type {};
+    template<auto M, typename U> struct is_packed_ref_impl<PackedParticleRef<M, U>> : std::true_type {};
+    template<auto M, typename U> struct is_packed_restricted_ref_impl<PackedRestrictedParticleRef<M, U>> : std::true_type {};
+    template<auto M, typename U> struct is_packed_view_impl<PackedParticleView<M, U>> : std::true_type {};
+
+	// Concepts
+    template<typename T>
+    concept IsPackedParticleBuffer = is_packed_buffer_impl<std::remove_cvref_t<T>>::value;
+
+    template<typename T>
+    concept IsPackedParticleRef = is_packed_ref_impl<std::remove_cvref_t<T>>::value;
+
+    template<typename T>
+    concept IsPackedRestrictedParticleRef = is_packed_restricted_ref_impl<std::remove_cvref_t<T>>::value;
+
+    template<typename T>
+   concept IsPackedParticleView = is_packed_view_impl<std::remove_cvref_t<T>>::value;
+
+    template<typename T>
+    concept IsPackedParticleAccessor =
+        IsPackedParticleBuffer<T> ||
+        IsPackedParticleRef<T> ||
+        IsPackedRestrictedParticleRef<T> ||
+        IsPackedParticleView<T>;
+
+    template<typename T>
+    concept IsAnyParticleAccessor = IsScalarParticleAccessor<T> || IsPackedParticleAccessor<T>;
 }
 
 

@@ -10,7 +10,7 @@ namespace april::boundary {
 		Reflective(): Boundary(-1, false, false, true) {}
 
 		template<ParticleField M, env::IsUserData U>
-		void apply(env::ParticleRef<M, U> & particle, const env::Box & domain_box, const Face face) const noexcept{
+		void apply(env::ScalarParticleRef<M, U> & particle, const env::Box & domain_box, const Face face) const noexcept{
 			const int is_plus = face_sign_pos(face);
 			const int ax = axis_of_face(face);
 

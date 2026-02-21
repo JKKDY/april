@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "april/particle/access.hpp"
+#include "april/particle/scalar_access.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/absorb.hpp"
@@ -53,7 +53,7 @@ TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 
 	auto p = make_alive_particle();
 	auto src = make_source<Mask>(p);
-	env::ParticleRef<Mask, env::NoUserData> ref(src);
+	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
 
 	absorb.apply(ref, box, Face::XPlus);
 
@@ -85,7 +85,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 
 	auto p = make_alive_particle();
 	auto src = make_source<Mask>(p);
-	env::ParticleRef<Mask, env::NoUserData> ref(src);
+	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
 
 	env::Box box{{0,0,0}, {10,10,10}};
 

@@ -6,7 +6,7 @@
 #include <utility>
 
 #include "april/base/types.hpp"
-#include "april/particle/defs.hpp"
+#include "april/particle/particle_types.hpp"
 #include "april/env/domain.hpp"
 
 namespace april::container::internal {

@@ -2,7 +2,7 @@
 
 #include <concepts>
 #include "april/particle/fields.hpp"
-#include "april/particle/access.hpp"
+#include "april/particle/scalar_access.hpp"
 
 namespace april::field {
 
@@ -25,7 +25,7 @@ namespace april::field {
 		}
 
 		template<env::IsUserData U, env::HasFields Self>
-		void dispatch_apply(this const Self& self, const env::RestrictedParticleRef<env::FieldOf<Self>, U> & particle) {
+		void dispatch_apply(this const Self& self, const env::ScalarRestrictedParticleRef<env::FieldOf<Self>, U> & particle) {
 			static_assert(
 				requires { self.apply(particle); },
 				"Field must implement: void apply(env::RestrictedParticleRef<M, U> particle) const"
@@ -34,7 +34,7 @@ namespace april::field {
 		}
 
         template<ParticleField M, env::IsUserData U>
-		void invoke_apply(this const auto& self, env::RestrictedParticleRef<M, U> & particle) {
+		void invoke_apply(this const auto& self, env::ScalarRestrictedParticleRef<M, U> & particle) {
 			static_assert(
 				requires { self.apply(particle); },
 				"Field must implement: void apply(env::RestrictedParticleRef<M, U> & particle) const"

@@ -38,7 +38,7 @@ public:
     }
 
     template<env::IsUserData U>
-    void apply(const env::RestrictedParticleRef<fields, U>& /*particle*/) const {
+    void apply(const env::ScalarRestrictedParticleRef<fields, U>& /*particle*/) const {
         if (sinks) {
             sinks->apply_call_count++;
         }
@@ -120,7 +120,7 @@ public:
         if (sinks) sinks->update_call_count++;
     }
     template<env::IsUserData U>
-    void apply(const env::RestrictedParticleRef<fields, U>&) const {
+    void apply(const env::ScalarRestrictedParticleRef<fields, U>&) const {
         if (sinks) sinks->apply_call_count++;
     }
 };

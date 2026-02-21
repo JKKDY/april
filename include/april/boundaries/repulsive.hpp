@@ -1,6 +1,6 @@
 #pragma once
 
-#include "april/particle/access.hpp"
+#include "april/particle/scalar_access.hpp"
 #include "april/boundaries/boundary.hpp"
 
 namespace april::boundary {
@@ -27,7 +27,7 @@ namespace april::boundary {
 		boundary_force(force), simulate_halo(simulate_halo) {}
 
 		template<ParticleField M, env::IsUserData U>
-		void apply(env::ParticleRef<M, U> & particle, const env::Box & domain_box, const Face face) const noexcept{
+		void apply(env::ScalarParticleRef<M, U> & particle, const env::Box & domain_box, const Face face) const noexcept{
 			const int is_plus = face_sign_pos(face);
 			const int ax = axis_of_face(face);
 

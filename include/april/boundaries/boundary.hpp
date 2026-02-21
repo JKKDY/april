@@ -4,8 +4,8 @@
 #include <concepts>
 
 #include "april/base/traits.hpp"
-#include "april/particle/defs.hpp"
-#include "april/particle/access.hpp"
+#include "april/particle/particle_types.hpp"
+#include "april/particle/scalar_access.hpp"
 #include "april/env/domain.hpp"
 
 namespace april::boundary {
@@ -86,7 +86,7 @@ namespace april::boundary {
 
 		// TODO make this bindable to R-Values
 		template<ParticleField IncomingMask, env::IsUserData U>
-		void invoke_apply(this const auto & self,env::ParticleRef<IncomingMask, U> & particle, const env::Box & domain_box, Face face) noexcept {
+		void invoke_apply(this const auto & self,env::ScalarParticleRef<IncomingMask, U> & particle, const env::Box & domain_box, Face face) noexcept {
 			static_assert(
 			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },
 			   "BoundaryCondition subclass must implement: void dispatch_apply(particle)"
@@ -149,7 +149,7 @@ namespace april::boundary {
 			BoundarySentinel(): Boundary(-1, false, false, false) {}
 
 			template<ParticleField IncomingMask, env::IsUserData U>
-			void apply(env::ParticleRef<IncomingMask, U> &, const env::Box &, const Face) const noexcept {
+			void apply(env::ScalarParticleRef<IncomingMask, U> &, const env::Box &, const Face) const noexcept {
 				AP_ASSERT(false, "apply called on null boundary! this should never happen");
 			}
 		};

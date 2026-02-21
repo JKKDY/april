@@ -2,7 +2,7 @@
 #include <any>
 
 #include "april/base/types.hpp"
-#include "april/particle/defs.hpp"
+#include "april/particle/particle_types.hpp"
 #include "april/particle/particle.hpp"
 
 namespace april::env {

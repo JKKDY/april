@@ -35,7 +35,7 @@ TEST(UniformFieldTest, ApplyIsAdditive) {
 	env::ParticleSource<Mask, env::NoUserData, false> src;
 	src.force    = &p_rec.force;
 
-	env::RestrictedParticleRef<Mask, env::NoUserData> p_ref(src);
+	env::ScalarRestrictedParticleRef<Mask, env::NoUserData> p_ref(src);
 
 	// 4. Call apply()
 	field.apply(p_ref);

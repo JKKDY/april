@@ -7,8 +7,8 @@
 #include "april/base/traits.hpp"
 #include "april/base/types.hpp"
 #include "april/particle/fields.hpp"
-#include "april/particle/defs.hpp"
-#include "april/particle/access.hpp"
+#include "april/particle/particle_types.hpp"
+#include "april/particle/scalar_access.hpp"
 
 
 namespace april::force {
@@ -173,7 +173,7 @@ namespace april::force {
             ForceSentinel() : Force(-1.0) {}
 
             template<ParticleField M, env::IsUserData U>
-            vec3 eval(const env::ParticleView<M, U> &, const env::ParticleView<M, U> &, const vec3&) const noexcept {
+            vec3 eval(const env::ScalarParticleView<M, U> &, const env::ScalarParticleView<M, U> &, const vec3&) const noexcept {
                 AP_ASSERT(false, "NullForce should never be executed");
                 std::unreachable();
             }

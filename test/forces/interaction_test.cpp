@@ -8,17 +8,17 @@
 #include "april/forces/force.hpp"
 #include "april/forces/coulomb.hpp"
 #include "april/forces/force_table.hpp"
-#include "constant_force.h" // Assumes your provided struct is here
+#include "constant_force.h"
 
 using namespace april;
-using namespace april::force;
+// using namespace april::force;
 
 // 1. Define the ForceVariant and ForceTable types for the test
 // Must include ForceSentinel and NoForce as per internal requirements
-using TestForceVariant = std::variant<internal::ForceSentinel, ConstantForce, NoForce>;
-using ForceTable = internal::ForceTable<TestForceVariant>;
-using TypeInfo = internal::TypeInteraction<TestForceVariant>;
-using IdInfo = internal::IdInteraction<TestForceVariant>;
+using TestForceVariant = std::variant<force::internal::ForceSentinel, ConstantForce, force::NoForce>;
+using ForceTable = force::internal::ForceTable<TestForceVariant>;
+using TypeInfo = force::internal::TypeInteraction<TestForceVariant>;
+using IdInfo = force::internal::IdInteraction<TestForceVariant>;
 
 
 TEST(InteractionManagerTest, EmptyBuild) {

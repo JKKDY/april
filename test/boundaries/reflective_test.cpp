@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 
-#include "april/particle/access.hpp"
+#include "april/particle/scalar_access.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/reflective.hpp"
@@ -52,7 +52,7 @@ TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
 	// heading out X+. Intersection at {10, 5, 5}
 	auto p = make_particle({9.5,4.5,4.5}, {2,2,2});
 	auto src = make_source<Mask>(p);
-	env::ParticleRef<Mask, env::NoUserData> ref(src);
+	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
 
 	reflective.apply(ref, box, Face::XPlus);
 
@@ -91,7 +91,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPositi
 
 	auto p = make_particle({9.8,5,5}, {+1,0,0});
 	auto src = make_source<Mask>(p);
-	env::ParticleRef<Mask, env::NoUserData> ref(src);
+	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
 
 	env::Box box{{0,0,0}, {10,10,10}};
 

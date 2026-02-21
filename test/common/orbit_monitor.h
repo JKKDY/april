@@ -18,7 +18,7 @@ public:
 		EXPECT_EQ(sys.size(), 2u);
 		const ParticleID id1 = sys.min_id();
 		const ParticleID id2 = sys.max_id() - 1;
-		const ParticleView p = sys.template view_id<fields>(id1).mass < 1 ?
+		const ScalarParticleView p = sys.template view_id<fields>(id1).mass < 1 ?
 			sys.template view_id<fields>(id1) : sys.template view_id<fields>(id2);
 
 		EXPECT_NEAR(p.velocity.norm(), v, 1e-3);

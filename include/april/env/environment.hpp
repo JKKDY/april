@@ -12,7 +12,7 @@
 #include "april/fields/field.hpp"
 #include "april/env/traits.hpp"
 #include "april/particle/generators.hpp"
-#include "april/particle/defs.hpp"
+#include "april/particle/particle_types.hpp"
 
 
 namespace april::env {

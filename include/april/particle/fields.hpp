@@ -5,7 +5,6 @@
 
 namespace april {
 
-
 	enum class ParticleField : uint16_t {
 		none			= 0u,
 		position     	= 1u << 0,
@@ -21,6 +20,20 @@ namespace april {
 	};
 
 	AP_ENABLE_BITMASK_OPERATORS(ParticleField)
+
+	template<ParticleField F>
+	constexpr const char* field_name = [] {
+		if constexpr (F == ParticleField::position)     return "POSITION";
+		if constexpr (F == ParticleField::velocity)     return "VELOCITY";
+		if constexpr (F == ParticleField::force)        return "FORCE";
+		if constexpr (F == ParticleField::old_position) return "OLD_POSITION";
+		if constexpr (F == ParticleField::state)        return "STATE";
+		if constexpr (F == ParticleField::mass)         return "MASS";
+		if constexpr (F == ParticleField::type)         return "TYPE";
+		if constexpr (F == ParticleField::id)           return "ID";
+		if constexpr (F == ParticleField::user_data)    return "USER_DATA";
+		return "UNKNOWN_FIELD";
+	}();
 
 	namespace env {
 		template<class T>

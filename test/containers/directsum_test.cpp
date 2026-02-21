@@ -183,7 +183,7 @@ struct DummyPeriodicBoundary final : Boundary {
 	: Boundary(0.0, false, true, false ) {}
 
 	template<ParticleField M, env::IsUserData U>
-	void apply(env::ParticleRef<M, U> &, const env::Box &, const Face) const noexcept {}
+	void apply(env::ScalarParticleRef<M, U> &, const env::Box &, const Face) const noexcept {}
 };
 
 TYPED_TEST(DirectSumTest, PeriodicForceWrap_X) {

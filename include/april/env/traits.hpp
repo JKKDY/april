@@ -4,7 +4,7 @@
 
 #include "april/env/data.hpp"
 #include "april/particle/fields.hpp"
-#include "april/particle/defs.hpp"
+#include "april/particle/particle_types.hpp"
 
 #include "april/forces/force.hpp"
 #include "april/forces/force_table.hpp"
@@ -58,9 +58,9 @@ namespace april::env::internal {
 		// particles
 		using user_data_t = U;
 		using particle_record_t = ParticleRecord<user_data_t>;
-		template<ParticleField M> using particle_ref_t = ParticleRef<M, user_data_t>;
-		template<ParticleField M> using restricted_particle_ref_t = RestrictedParticleRef<M, user_data_t>;
-		template<ParticleField M> using particle_view_t = ParticleView<M, user_data_t>;
+		template<ParticleField M> using particle_ref_t = ScalarParticleRef<M, user_data_t>;
+		template<ParticleField M> using restricted_particle_ref_t = ScalarRestrictedParticleRef<M, user_data_t>;
+		template<ParticleField M> using particle_view_t = ScalarParticleView<M, user_data_t>;
 
 		// Environment Data type
 		using environment_data_t = EnvironmentData<

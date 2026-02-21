@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <string>
-#include <variant> // std::monostate
 #include <type_traits> // std::is_same_v
 
 #include "april/base/types.hpp"

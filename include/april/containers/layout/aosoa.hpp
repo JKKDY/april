@@ -432,7 +432,7 @@ namespace april::container::layout {
 		[[nodiscard]] auto access_particle(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-			env::ParticleSource<M, U, IsConst> src;
+			env::internal::ParticleSource<M, U, IsConst> src;
 
 			auto& chunk = self.ptr_chunks[chunk_idx];
 

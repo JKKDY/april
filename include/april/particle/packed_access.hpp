@@ -26,11 +26,14 @@ namespace april::env {
     // shadow object with actual SIMD registers. Allows for manipulations without direct write backs
     template<ParticleField M>
     struct PackedParticleBuffer {
-        field_type_t<pvec3, ParticleField::position, M> position;
-        field_type_t<pvec3, ParticleField::old_position, M> old_position;
-        field_type_t<pvec3, ParticleField::velocity, M> velocity;
-        field_type_t<pvec3, ParticleField::force, M> force;
-        field_type_t<simd::Packed<double>, ParticleField::mass, M> mass;
+    private:
+        template <typename T, ParticleField F> using field_type_t = internal::field_type_t<T, F, M>;
+    public:
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3, ParticleField::position> position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3, ParticleField::old_position> old_position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3, ParticleField::velocity> velocity;
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3, ParticleField::force> force;
+        AP_NO_UNIQUE_ADDRESS field_type_t<simd::Packed<double>, ParticleField::mass> mass;
 
         PackedParticleBuffer() = default;
         explicit PackedParticleBuffer(const auto & source) {
@@ -134,7 +137,10 @@ namespace april::env {
     //-------------------
     template<ParticleField M, IsUserData U>
     struct PackedParticleRef {
+    private:
+        template <typename T, ParticleField F> using field_type_t = internal::field_type_t<T, F, M>;
         using pvec3_ref = math::Vec3Proxy<pvec3::type>;
+    public:
 
         explicit PackedParticleRef(const auto& source) noexcept
             : force       (init_packed<M, ParticleField::force>(source))
@@ -152,13 +158,11 @@ namespace april::env {
             return PackedParticleBuffer<M>(*this);
         }
 
-
-        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::force, M> force;
-        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::position, M> position;
-        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::velocity, M> velocity;
-        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::old_position, M> old_position;
-
-        AP_NO_UNIQUE_ADDRESS field_type_t<simd::PackedRef<double>, ParticleField::mass, M> mass;
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::force> force;
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::position> position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::velocity> velocity;
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::old_position> old_position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<simd::PackedRef<double>, ParticleField::mass> mass;
     };
 
 
@@ -168,9 +172,12 @@ namespace april::env {
     //------------------------
     template<ParticleField M, IsUserData U>
     struct PackedRestrictedParticleRef {
+    private:
+        template <typename T, ParticleField F> using field_type_t = internal::field_type_t<T, F, M>;
         using pvec3_ref = math::Vec3Proxy<pvec3::type>;
         using const_pvec3_ref = math::Vec3Proxy<const pvec3::type>;
         using const_d_ref = simd::PackedRef<const double>;
+    public:
 
         explicit PackedRestrictedParticleRef(const auto& source) noexcept
             : force       (init_packed<M, ParticleField::force>(source))
@@ -189,13 +196,13 @@ namespace april::env {
         }
 
         // Force is Mutable
-        AP_NO_UNIQUE_ADDRESS pvec3_ref force;
+        AP_NO_UNIQUE_ADDRESS field_type_t<pvec3_ref, ParticleField::force> force;
 
         // Others are Read-Only
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::position, M> position;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::velocity, M> velocity;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::old_position, M> old_position;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_d_ref, ParticleField::mass, M> mass;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::position> position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::velocity> velocity;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::old_position> old_position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_d_ref, ParticleField::mass> mass;
     };
 
 
@@ -205,8 +212,11 @@ namespace april::env {
     //--------------
     template<ParticleField M, IsUserData U>
     struct PackedParticleView {
+    private:
+        template <typename T, ParticleField F> using field_type_t = internal::field_type_t<T, F, M>;
         using const_pvec3_ref = math::Vec3Proxy<const pvec3::type>;
         using const_d_ref = simd::PackedRef<const double>;
+    public:
 
         explicit PackedParticleView(const auto& source) noexcept
             : force       (init_packed<M, ParticleField::force>(source))
@@ -234,11 +244,11 @@ namespace april::env {
             return PackedParticleBuffer<M>(*this);
         }
 
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::force, M> force;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::position, M> position;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::velocity, M> velocity;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::old_position, M> old_position;
-        AP_NO_UNIQUE_ADDRESS field_type_t<const const_d_ref, ParticleField::mass, M> mass;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::force> force;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::position> position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::velocity> velocity;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_pvec3_ref, ParticleField::old_position> old_position;
+        AP_NO_UNIQUE_ADDRESS field_type_t<const const_d_ref, ParticleField::mass> mass;
     };
 
 

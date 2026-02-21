@@ -341,7 +341,7 @@ namespace april::container {
 		[[nodiscard]] auto access_particle(this auto&& self, const size_t i) {
 
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-			env::ParticleSource<M, U, IsConst> src;
+			env::internal::ParticleSource<M, U, IsConst> src;
 
 			if constexpr (env::has_field_v<M, ParticleField::force>)
 				src.force = self.template invoke_get_field_ptr<ParticleField::force>(i);
@@ -378,7 +378,7 @@ namespace april::container {
 
 		        // specialized path (direct ID access)
 		        constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-		        env::ParticleSource<M, U, IsConst> src;
+		        env::internal::ParticleSource<M, U, IsConst> src;
 
 		        if constexpr (env::has_field_v<M, ParticleField::force>)
         			src.force = self.template invoke_get_field_ptr_id<ParticleField::force>(id);

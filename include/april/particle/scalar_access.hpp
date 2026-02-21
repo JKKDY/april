@@ -28,6 +28,11 @@ namespace april::env {
 	// Reference to particle data passed to controllers and boundaries that can mutate particle data.
 	template<ParticleField M, IsUserData UserDataT>
 	struct ScalarParticleRef {
+	private:
+		template <typename T, ParticleField F> using field_type_t = internal::field_type_t<T, F, M>;
+		using vec3ref = math::Vec3Proxy<vec3::type>;
+	public:
+
 		template<class S>
 		explicit ScalarParticleRef(const S & source) noexcept
 			: force       (init_scalar_field<M, ParticleField::force>			(source))
@@ -45,17 +50,15 @@ namespace april::env {
 			return ScalarParticleView<M, UserDataT>(*this);
 		}
 
-		using vec3ref = math::Vec3Proxy<vec3::type>;
-
-		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, ParticleField::force, M> force;
-		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, ParticleField::position, M> position;
-		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, ParticleField::velocity, M> velocity;
-		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, ParticleField::old_position, M> old_position;
-		AP_NO_UNIQUE_ADDRESS field_type_t<double&, ParticleField::mass, M> mass;
-		AP_NO_UNIQUE_ADDRESS field_type_t<ParticleState&, ParticleField::state, M> state;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleType, ParticleField::type, M> type;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleID, ParticleField::id, M> id;
-		AP_NO_UNIQUE_ADDRESS field_type_t<UserDataT&, ParticleField::user_data, M> user_data;
+		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, ParticleField::force> force;
+		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, ParticleField::position> position;
+		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, ParticleField::velocity> velocity;
+		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, ParticleField::old_position> old_position;
+		AP_NO_UNIQUE_ADDRESS field_type_t<double&, ParticleField::mass> mass;
+		AP_NO_UNIQUE_ADDRESS field_type_t<ParticleState&, ParticleField::state> state;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleType, ParticleField::type> type;
+		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleID, ParticleField::id> id;
+		AP_NO_UNIQUE_ADDRESS field_type_t<UserDataT&, ParticleField::user_data> user_data;
 	};
 
 
@@ -65,37 +68,37 @@ namespace april::env {
 	// Restricted reference allowing only the force field to be modified, used for fields.
 	template<ParticleField M, IsUserData UserDataT>
 	struct ScalarRestrictedParticleRef {
+	private:
+	    template <typename T, ParticleField F> using field_type_t = internal::field_type_t<T, F, M>;
+	    using Vec3Ref = math::Vec3Proxy<vec3::type>;
+	    using ConstVec3Ref = math::Vec3Proxy<const vec3::type>;
+	public:
 
-		explicit ScalarRestrictedParticleRef(const auto& source) noexcept
-			: force       (init_scalar_field<M, ParticleField::force>			(source))
-			, position    (init_scalar_field<M, ParticleField::position>		(source))
-			, velocity    (init_scalar_field<M, ParticleField::velocity>		(source))
-			, old_position(init_scalar_field<M, ParticleField::old_position>	(source))
-			, mass        (init_scalar_field<M, ParticleField::mass>			(source))
-			, state       (init_scalar_field<M, ParticleField::state>			(source))
-			, type        (init_scalar_field<M, ParticleField::type>			(source))
-			, id          (init_scalar_field<M, ParticleField::id>				(source))
-			, user_data   (init_scalar_field<M, ParticleField::user_data>		(source))
-		{}
+	    explicit ScalarRestrictedParticleRef(const auto& source) noexcept
+	       : force       (init_scalar_field<M, ParticleField::force>        (source))
+	       , position    (init_scalar_field<M, ParticleField::position>      (source))
+	       , velocity    (init_scalar_field<M, ParticleField::velocity>      (source))
+	       , old_position(init_scalar_field<M, ParticleField::old_position>   (source))
+	       , mass        (init_scalar_field<M, ParticleField::mass>         (source))
+	       , state       (init_scalar_field<M, ParticleField::state>        (source))
+	       , type        (init_scalar_field<M, ParticleField::type>         (source))
+	       , id          (init_scalar_field<M, ParticleField::id>          (source))
+	       , user_data   (init_scalar_field<M, ParticleField::user_data>     (source))
+	    {}
 
-		ScalarParticleView<M, UserDataT> to_view() noexcept {
-			return ScalarParticleView<M, UserDataT>(*this);
-		}
+	    ScalarParticleView<M, UserDataT> to_view() noexcept {
+	       return ScalarParticleView<M, UserDataT>(*this);
+	    }
 
-		using Vec3Ref = math::Vec3Proxy<vec3::type>;
-		using ConstVec3Ref = math::Vec3Proxy<const vec3::type>;
-
-
-		// everything by const reference except for force
-		Vec3Ref force;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::position, M> position;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::velocity, M> velocity;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::old_position, M> old_position;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const double&, ParticleField::mass, M> mass;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleState, ParticleField::state, M> state;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleType, ParticleField::type, M> type;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleID, ParticleField::id, M> id;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const UserDataT&, ParticleField::user_data, M> user_data;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<Vec3Ref, ParticleField::force> force;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::position> position;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::velocity> velocity;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::old_position> old_position;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const double&, ParticleField::mass> mass;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleState, ParticleField::state> state;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleType, ParticleField::type> type;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleID, ParticleField::id> id;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const UserDataT&, ParticleField::user_data> user_data;
 	};
 
 
@@ -106,48 +109,49 @@ namespace april::env {
 	// Immutable reference to particle data, intended for read-only access (e.g., monitors).
 	template<ParticleField M, IsUserData UserDataT>
 	struct ScalarParticleView {
+	private:
+	    template <typename T, ParticleField F> using field_type_t = internal::field_type_t<T, F, M>;
+	    using ConstVec3Ref = math::Vec3Proxy<const vec3::type>;
+	public:
 
-		explicit ScalarParticleView(const auto & source) noexcept
-			: force       (init_scalar_field<M, ParticleField::force>			(source))
-			, position    (init_scalar_field<M, ParticleField::position>		(source))
-			, velocity    (init_scalar_field<M, ParticleField::velocity>		(source))
-			, old_position(init_scalar_field<M, ParticleField::old_position>	(source))
-			, mass        (init_scalar_field<M, ParticleField::mass>			(source))
-			, state       (init_scalar_field<M, ParticleField::state>			(source))
-			, type        (init_scalar_field<M, ParticleField::type>			(source))
-			, id          (init_scalar_field<M, ParticleField::id>				(source))
-			, user_data   (init_scalar_field<M, ParticleField::user_data>		(source))
-		{}
+	    explicit ScalarParticleView(const auto & source) noexcept
+	       : force       (init_scalar_field<M, ParticleField::force>        (source))
+	       , position    (init_scalar_field<M, ParticleField::position>      (source))
+	       , velocity    (init_scalar_field<M, ParticleField::velocity>      (source))
+	       , old_position(init_scalar_field<M, ParticleField::old_position>   (source))
+	       , mass        (init_scalar_field<M, ParticleField::mass>         (source))
+	       , state       (init_scalar_field<M, ParticleField::state>        (source))
+	       , type        (init_scalar_field<M, ParticleField::type>         (source))
+	       , id          (init_scalar_field<M, ParticleField::id>          (source))
+	       , user_data   (init_scalar_field<M, ParticleField::user_data>     (source))
+	    {}
 
-		template<typename RefT>
-		requires (
-			std::is_same_v<std::remove_cvref_t<RefT>, ScalarParticleRef<M, UserDataT>> ||
-			std::is_same_v<std::remove_cvref_t<RefT>, ScalarRestrictedParticleRef<M, UserDataT>>
-		)
-		explicit ScalarParticleView(const RefT& r) noexcept
-			: force        (r.force)     // Implicitly converts vec3& -> const vec3&
-			, position     (r.position)  // Exact match (const vec3& -> const vec3&)
-			, velocity     (r.velocity)
-			, old_position (r.old_position)
-			, mass         (r.mass)      // Exact match (const double -> const double)
-			, state        (r.state)
-			, type         (r.type)
-			, id           (r.id)
-			, user_data    (r.user_data)
-			{}
+	    template<typename RefT>
+	    requires (
+	       std::is_same_v<std::remove_cvref_t<RefT>, ScalarParticleRef<M, UserDataT>> ||
+	       std::is_same_v<std::remove_cvref_t<RefT>, ScalarRestrictedParticleRef<M, UserDataT>>
+	    )
+	    explicit ScalarParticleView(const RefT& r) noexcept
+	       : force        (r.force)
+	       , position     (r.position)
+	       , velocity     (r.velocity)
+	       , old_position (r.old_position)
+	       , mass         (r.mass)
+	       , state        (r.state)
+	       , type         (r.type)
+	       , id           (r.id)
+	       , user_data    (r.user_data)
+	       {}
 
-		using ConstVec3Ref = math::Vec3Proxy<const vec3::type>;
-
-		// everything by const reference
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::force, M> force;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::position, M> position;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::velocity, M> velocity;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::old_position, M> old_position;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const double&, ParticleField::mass, M> mass;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleState, ParticleField::state, M> state;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleType, ParticleField::type, M> type;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleID, ParticleField::id, M> id;
-		AP_NO_UNIQUE_ADDRESS field_type_t<const UserDataT&, ParticleField::user_data, M> user_data;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::force> force;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::position> position;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::velocity> velocity;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ConstVec3Ref, ParticleField::old_position> old_position;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const double&, ParticleField::mass> mass;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleState, ParticleField::state> state;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleType, ParticleField::type> type;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const ParticleID, ParticleField::id> id;
+	    AP_NO_UNIQUE_ADDRESS field_type_t<const UserDataT&, ParticleField::user_data> user_data;
 	};
 
 

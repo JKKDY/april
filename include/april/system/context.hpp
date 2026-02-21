@@ -4,7 +4,7 @@
 #include <cstddef>
 #include "april/particle/fields.hpp"
 #include "april/env/domain.hpp"
-#include "april/base/policy.hpp"
+#include "../exec/policy.hpp"
 
 namespace april::core {
 

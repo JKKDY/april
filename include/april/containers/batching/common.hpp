@@ -1,44 +1,22 @@
 #pragma once
-#include <cstdint>
 #include <concepts>
 
-#include "april/base/policy.hpp"
+#include "../../exec/policy.hpp"
 #include "april/particle/particle_types.hpp"
 
 
 namespace april::container {
 
-	//---------------
-	// BATCH POLICIES
-	//---------------
-	// enum class ParallelTrait : uint8_t {
-	// 	None,       // Execute immediately on the current thread (Caller owns parallelism)
-	//     Inner,		// System spawns threads for executing a single batch
-	// };
-
-	// enum class UpdatePolicy : uint8_t {
-	// 	Serial,		// Standard '+='. Fastest. Assumes thread-safety (Serial or Coloring).
-	// 	Atomic,		// Atomic CAS/Fetch-Add. Slower. Thread-safe for overlapping writes.
-	// };
-
-	// enum class ComputeTrait : uint8_t {
-	// 	Scalar,
-	// 	Vector,
-	// 	Hybrid
-	// };
-
 
 	//------------------------
 	// CONVENIENCE DEFINITIONS
 	//------------------------
-	template<april::internal::ParallelTrait P, april::internal::VectorTrait V>
+	template<exec::internal::ParallelTrait P, exec::internal::VectorTrait V>
 	struct BatchBase {
 		static constexpr auto parallel_trait = P;
 		static constexpr auto vector_trait = V;
 		std::pair<ParticleType, ParticleType> types {};
 	};
-
-	using SerialBatch = BatchBase<april::internal::ParallelTrait::None, april::internal::VectorTrait::ScalarOnly>;
 
 	struct TopologyBatch {
 		ParticleID id1, id2;
@@ -52,8 +30,8 @@ namespace april::container {
 	template <typename T>
 	concept IsBatchBase = requires(const T& b) {
 		// must have static constexpr trait flags
-		{ T::parallel_trait } -> std::convertible_to< april::internal::ParallelTrait>;
-		{ T::vector_trait }	-> std::convertible_to< april::internal::VectorTrait>;
+		{ T::parallel_trait } -> std::convertible_to<exec::internal::ParallelTrait>;
+		{ T::vector_trait }	-> std::convertible_to<exec::internal::VectorTrait>;
 
 		// must have type pair
 		{ b.types } -> std::convertible_to<std::pair<ParticleType, ParticleType>>;

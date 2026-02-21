@@ -59,7 +59,7 @@ namespace april {
 	using env::ParticleSphere;
 	using env::ScalarParticleView;
 	using env::Particle;
-	using env::particle_data;
+	using env::particle_data; // template tag
 
 	using env::between_types;
 	using env::to_type;
@@ -69,7 +69,7 @@ namespace april {
 	using boundary::Face;
 	using boundary::all_faces;
 
-	using boundary::boundaries;
+	using boundary::boundaries; // template pack
 	using boundary::Boundary;
 	using boundary::Absorb;
 	using boundary::Open;
@@ -78,7 +78,7 @@ namespace april {
 	using boundary::Repulsive;
 
 	// Forces
-	using force::forces;
+	using force::forces; // template pack
 	using force::Harmonic;
 	using force::NoForce;
 	using force::Gravity;
@@ -86,12 +86,12 @@ namespace april {
 	using force::Coulomb;
 
 	// Controllers
-	using controller::controllers;
+	using controller::controllers;  // template pack
 	using controller::Controller;
 	using controller::VelocityScalingThermostat;
 
 	// Fields
-	using field::fields;
+	using field::fields; // template pack
 	using field::UniformField;
 	using field::LocalForceField;
 
@@ -114,7 +114,7 @@ namespace april {
 	using core::SystemContext;
 
 	// Monitors
-	using monitor::monitors;
+	using monitor::monitors;  // template pack
 	using monitor::Monitor;
 	using monitor::BinaryOutput;
 	using monitor::TerminalOutput;

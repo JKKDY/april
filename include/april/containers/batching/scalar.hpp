@@ -4,15 +4,15 @@
 #include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
 #include "april/particle/fields.hpp"
-#include "april/base/policy.hpp"
+#include "../../exec/policy.hpp"
 
 namespace april::container::internal {
 
 	template<typename Container>
-	struct AsymmetricScalarBatch : SerialBatch {
+	struct AsymmetricScalarBatch : BatchBase<exec::internal::ParallelTrait::None, exec::internal::VectorTrait::ScalarOnly> {
 		explicit AsymmetricScalarBatch(Container & container) : container(container) {}
 
-		template<ParticleField Mask, ParallelPolicy P, april::internal::ExecutionMode E, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, exec::internal::ExecutionMode E, typename Func>
 		AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
 			// Map internal ExecutionMode back to public VectorPolicy
@@ -41,10 +41,10 @@ namespace april::container::internal {
 	};
 
 	template<typename Container>
-	struct SymmetricScalarBatch : SerialBatch {
+	struct SymmetricScalarBatch : BatchBase<exec::internal::ParallelTrait::None, exec::internal::VectorTrait::ScalarOnly> {
 		explicit SymmetricScalarBatch(Container & container) : container(container) {}
 
-		template<ParticleField Mask, ParallelPolicy P, april::internal::ExecutionMode E, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, exec::internal::ExecutionMode E, typename Func>
 		AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
 			// TODO implement packed

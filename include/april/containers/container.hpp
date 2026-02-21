@@ -3,7 +3,7 @@
 #include <bit>
 #include <vector>
 
-#include "april/base/policy.hpp"
+#include "../exec/policy.hpp"
 #include "april/math/range.hpp"
 
 #include "april/forces/force_table.hpp"
@@ -122,7 +122,7 @@ namespace april::container {
 		void for_each_particle(this auto&& self, Func && func, ParticleState state = ParticleState::ALL) {
 			self.template invoke_iterate_state<M, P, V, false>(func, state);
 		}
-		template<ParticleField M, april::ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
+		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
 		void for_each_particle_view(this const auto& self, Func && func, ParticleState state = ParticleState::ALL) {
 			self.template invoke_iterate_state<M, P, V, true>(func, state);
 		}
@@ -136,7 +136,7 @@ namespace april::container {
 
 			self.template invoke_iterate_range<M,  P, V, false>(func, start, stop);
 		}
-		template<ParticleField M, april::ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
+		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
 		void for_each_particle_view(this const auto& self, size_t start, size_t stop, Func && func) {
 			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
 			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));

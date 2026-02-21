@@ -1,7 +1,7 @@
 #pragma once
 #include <type_traits>
 #include <concepts>
-#include "april/base/policy.hpp"
+#include "../exec/policy.hpp"
 #include "april/particle/particle_types.hpp"
 #include "april/particle/scalar_access.hpp"
 #include "april/particle/packed_access.hpp"
@@ -35,7 +35,6 @@ namespace april::container::internal {
     };
 
     // Combined unary & binary checks
-    // TODO use this to restrict the kernels passed to the container/system
     template<typename K>
     concept IsUnaryKernel = IsScalarUnaryKernel<K> || IsVectorUnaryKernel<K>;
 
@@ -46,7 +45,7 @@ namespace april::container::internal {
     // get vector trait
     template<typename Kernel>
     struct KernelTraitResolver {
-        using VT = april::internal::ExecutionMode;
+        using VT = exec::internal::ExecutionMode;
         static constexpr VT value = [] {
             constexpr bool s = IsScalarUnaryKernel<Kernel> || IsScalarBinaryKernel<Kernel>;
             constexpr bool v = IsVectorUnaryKernel<Kernel> || IsVectorBinaryKernel<Kernel>;
@@ -62,85 +61,6 @@ namespace april::container::internal {
     };
 
     template<typename Kernel>
-    constexpr april::internal::ExecutionMode KernelTrait = KernelTraitResolver<std::remove_cvref_t<Kernel>>::value;
+    constexpr exec::internal::ExecutionMode KernelTrait = KernelTraitResolver<std::remove_cvref_t<Kernel>>::value;
 }
 
-
-namespace april {
-    namespace internal {
-        // ---------------------
-        // SCALAR KERNEL WRAPPER
-        // ---------------------
-        template<typename Func>
-        struct ScalarKernel {
-            Func func;
-
-            template<env::IsScalarParticleAccessor P>
-            requires std::is_invocable_v<const Func&, P>
-            decltype(auto) operator()(P&& p) const {
-                return func(std::forward<P>(p));
-            }
-
-            template<env::IsScalarParticleAccessor P1, env::IsScalarParticleAccessor P2>
-            requires std::same_as<std::remove_cvref_t<P1>, std::remove_cvref_t<P2>> &&
-                     std::is_invocable_v<const Func&, P1, P2>
-            decltype(auto) operator()(P1&& p1, P2&& p2) const {
-                return func(std::forward<P1>(p1), std::forward<P2>(p2));
-            }
-        };
-
-        // ---------------------
-        // PACKED KERNEL WRAPPER
-        // ---------------------
-        template<typename Func>
-        struct VectorKernel {
-            Func func;
-
-            template<env::IsPackedParticleAccessor P>
-            requires std::is_invocable_v<const Func&, P>
-            decltype(auto) operator()(P&& p) const {
-                return func(std::forward<P>(p));
-            }
-
-            template<env::IsPackedParticleAccessor P1, env::IsPackedParticleAccessor P2>
-            requires std::same_as<std::remove_cvref_t<P1>, std::remove_cvref_t<P2>> &&
-                     std::is_invocable_v<const Func&, P1, P2>
-            decltype(auto) operator()(P1&& p1, P2&& p2) const {
-                return func(std::forward<P1>(p1), std::forward<P2>(p2));
-            }
-        };
-
-        // ------------------------
-        // UNIVERSAL KERNEL WRAPPER
-        // ------------------------
-        template<typename Func>
-        struct UniversalKernel {
-            Func func;
-
-            template<env::IsAnyParticleAccessor P>
-            requires std::is_invocable_v<const Func&, P>
-            decltype(auto) operator()(P&& p) const {
-                return func(std::forward<P>(p));
-            }
-
-            template<env::IsAnyParticleAccessor P1, env::IsAnyParticleAccessor P2>
-            requires std::same_as<std::remove_cvref_t<P1>, std::remove_cvref_t<P2>> &&
-                     std::is_invocable_v<const Func&, P1, P2>
-            decltype(auto) operator()(P1&& p1, P2&& p2) const {
-                return func(std::forward<P1>(p1), std::forward<P2>(p2));
-            }
-        };
-    }
-
-
-    // Maker functions
-    template<typename Func> auto scalar_kernel(Func&& f) {
-        return internal::ScalarKernel<std::remove_cvref_t<Func>>{std::forward<Func>(f)};
-    }
-    template<typename Func> auto vector_kernel(Func&& f) {
-        return internal::VectorKernel<std::remove_cvref_t<Func>>{std::forward<Func>(f)};
-    }
-    template<typename Func> auto universal_kernel(Func&& f) {
-        return internal::UniversalKernel<std::remove_cvref_t<Func>>{std::forward<Func>(f)};
-    }
-}

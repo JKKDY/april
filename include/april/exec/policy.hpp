@@ -13,12 +13,12 @@ namespace april {
     enum class ParallelPolicy {
     	Serial,
     	Threaded, // On-Node (Shared Memory) - e.g. std::thread, OpenMP, TBB
-    	Distributed, // Multi-Node (Distributed Memory) - e.g. MPI, GASPI
+    	Distributed, // Multi-Node (Distributed Memory) - e.g. MPI
     	Hybrid // Both Threaded and Distributed
     };
 
 
-	namespace internal {
+	namespace exec::internal {
 		// what execution paths does a dispatcher support?
 		enum class VectorTrait : uint8_t {
 			ScalarOnly = 1 << 0,	// scalar path only

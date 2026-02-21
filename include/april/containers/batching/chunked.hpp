@@ -3,16 +3,16 @@
 #include "april/base/macros.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
-#include "april/base/policy.hpp"
+#include "../../exec/policy.hpp"
 #include "april/particle/fields.hpp"
 
 namespace april::container::internal {
 
    	template<typename Container, typename ChunkPtr>
-	struct AsymmetricChunkedBatch : SerialBatch {
+	struct AsymmetricChunkedBatch : BatchBase<exec::internal::ParallelTrait::None, exec::internal::VectorTrait::Mixed> {
 		explicit AsymmetricChunkedBatch(Container & container, ChunkPtr * chunks): container(container), chunks(chunks) {}
 
-		template<ParticleField Mask, ParallelPolicy P, april::internal::ExecutionMode E, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, exec::internal::ExecutionMode E, typename Func>
 		AP_FORCE_INLINE
    		void for_each_pair (Func && f) const {
 			// skip empty range
@@ -31,7 +31,7 @@ namespace april::container::internal {
 		    const size_t limit2_tail = (range2_tail == 0) ? stride : range2_tail;
 
 		    // body vs body with hardcoded stride x stride loop
-			if constexpr (static_cast<bool>(E & april::internal::ExecutionMode::Vector)) {
+			if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
 				for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
 					AP_PREFETCH(chunks + c1 + 1);
 					auto packed1 = container.template at_packed<Mask>(c1, 0);
@@ -71,7 +71,7 @@ namespace april::container::internal {
 			}
 
 			// body 1 vs tail 2 (iterate full chunks of R1 against the single partial chunk of R2)
-			if constexpr (static_cast<bool>(E & april::internal::ExecutionMode::Vector)) {
+			if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
 				for (size_t i = 0; i < limit2_tail; ++i) {
 					auto p2 = container.template at<Mask>(c2_body_end, i);
 					auto buffer2 = env::PackedParticleBuffer<Mask>::broadcast(p2);
@@ -107,7 +107,7 @@ namespace april::container::internal {
 			}
 
 			// body 2 vs tail 1 (iterate full chunks of R2 against the single partial chunk of R1
-			if constexpr (static_cast<bool>(E & april::internal::ExecutionMode::Vector)) {
+			if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
 				for (size_t i = 0; i < limit1_tail; ++i) {
 					auto p1 = container.template at<Mask>(c1_body_end, i);
 					auto buffer1 = env::PackedParticleBuffer<Mask>::broadcast(p1);
@@ -142,7 +142,7 @@ namespace april::container::internal {
 				}
 			}
 
-			if constexpr (static_cast<bool>(E & april::internal::ExecutionMode::Vector)) {
+			if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
 				// tail 1 vs tail 2 (Interaction between the two last chunks)
 				for (size_t i = 0; i < limit1_tail; ++i) {
 					auto p1 = container.template at<Mask>(c1_body_end, i);
@@ -176,10 +176,10 @@ namespace april::container::internal {
 
 
 	template<typename Container, typename ChunkPtr>
-	struct SymmetricChunkedBatch : SerialBatch {
+	struct SymmetricChunkedBatch : BatchBase<exec::internal::ParallelTrait::None, exec::internal::VectorTrait::Mixed> {
 		explicit SymmetricChunkedBatch(Container & container, ChunkPtr * chunks) : container(container), chunks(chunks) {}
 
-		template<ParticleField Mask, ParallelPolicy P, april::internal::ExecutionMode E, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, exec::internal::ExecutionMode E, typename Func>
 	    AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
 	        if (range_chunks.start == range_chunks.stop) return;
@@ -191,7 +191,7 @@ namespace april::container::internal {
 	        const size_t limit_tail = (range_tail == 0) ? width : range_tail;
 
 	        // body (iterate c1 up to the last full chunk)
-			if constexpr (static_cast<bool>(E & april::internal::ExecutionMode::Vector)) {
+			if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
 				for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
 					AP_PREFETCH(chunks + c1 + 1);
 
@@ -261,7 +261,7 @@ namespace april::container::internal {
 		        }
 			}
 
-			if constexpr (static_cast<bool>(E & april::internal::ExecutionMode::Vector)) {
+			if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
 				for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
 					AP_PREFETCH(chunks + c1 + 1);
 

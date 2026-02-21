@@ -8,7 +8,7 @@
 #include "april/system/context.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/boundaries/boundary.hpp"
-#include "april/base/policy.hpp"
+#include "../exec/policy.hpp"
 #include "april/containers/kernel_traits.hpp"
 
 namespace april::core {
@@ -322,7 +322,7 @@ namespace april::core {
 
 		template<ParticleField M, ParallelPolicy P, VectorPolicy V, container::IsBatch Batch, typename Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel) {
-		    using namespace april::internal;
+		    using namespace april::exec::internal;
 			constexpr VectorTrait batch_capabilities  = Batch::vector_trait;
 		    constexpr ExecutionMode kernel_capabilities = container::internal::KernelTrait<Kernel>;
 

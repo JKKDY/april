@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../../exec/policy.hpp"
-#include "april/particle/fields.hpp"
+
 #include "april/containers/batching/common.hpp"
 
 

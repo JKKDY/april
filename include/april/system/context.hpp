@@ -2,9 +2,8 @@
 
 #include <vector>
 #include <cstddef>
-#include "april/particle/fields.hpp"
 #include "april/env/domain.hpp"
-#include "../exec/policy.hpp"
+#include "april/exec/policy.hpp"
 
 namespace april::core {
 

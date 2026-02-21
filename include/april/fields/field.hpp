@@ -1,7 +1,6 @@
 #pragma once
 
 #include <concepts>
-#include "april/particle/fields.hpp"
 #include "april/particle/scalar_access.hpp"
 
 namespace april::field {

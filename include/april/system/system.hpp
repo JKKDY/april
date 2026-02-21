@@ -1,6 +1,5 @@
 #pragma once
 
-#include "april/particle/fields.hpp"
 #include "april/forces/force.hpp"
 #include "april/env/environment.hpp"
 #include "april/containers/container.hpp"
@@ -8,7 +7,9 @@
 #include "april/system/context.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/boundaries/boundary.hpp"
-#include "../exec/policy.hpp"
+#include "april/exec/policy.hpp"
+#include "april/exec/particle_kernel.hpp"
+
 #include "april/containers/kernel_traits.hpp"
 
 namespace april::core {
@@ -322,9 +323,9 @@ namespace april::core {
 
 		template<ParticleField M, ParallelPolicy P, VectorPolicy V, container::IsBatch Batch, typename Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel) {
-		    using namespace april::exec::internal;
+			using namespace april::exec::internal;
 			constexpr VectorTrait batch_capabilities  = Batch::vector_trait;
-		    constexpr ExecutionMode kernel_capabilities = container::internal::KernelTrait<Kernel>;
+			constexpr ExecutionMode kernel_capabilities = container::internal::KernelTrait<Kernel>;
 
 			// map VectorPolicy -> VectorTrait (execution mode)
 			constexpr ExecutionMode exec_mode = [] {
@@ -339,48 +340,48 @@ namespace april::core {
 				}
 			}();
 
-		    // Enforce Contracts
-		    if constexpr (V == VectorPolicy::Vector) {  // Case user demands strict vectorization
-		        // Batch must have a vector only path
-		        static_assert(has_flag(batch_capabilities, VectorTrait::VectorOnly),
-		            "Policy Violation: VectorPolicy::Vector requires a fully vectorized Batch. ");
+			// Enforce Contracts
+			if constexpr (V == VectorPolicy::Vector) {  // Case user demands strict vectorization
+				// Batch must have a vector only path
+				static_assert(has_flag(batch_capabilities, VectorTrait::VectorOnly),
+					"Policy Violation: VectorPolicy::Vector requires a fully vectorized Batch. ");
 
-		        // Kernel must be Vector-Capable
-		        static_assert(has_flag(kernel_capabilities, ExecutionMode::Vector),
-		            "Policy Violation: VectorPolicy::Vector requires a SIMD-capable Kernel.");
-		    }
-		    else if constexpr (V == VectorPolicy::Scalar) {  // Case user demands strict scalar computation
-		    	// Batch must have a scalar only path
-		    	static_assert(has_flag(batch_capabilities, VectorTrait::ScalarOnly),
+				// Kernel must be Vector-Capable
+				static_assert(has_flag(kernel_capabilities, ExecutionMode::Vector),
+					"Policy Violation: VectorPolicy::Vector requires a SIMD-capable Kernel.");
+			}
+			else if constexpr (V == VectorPolicy::Scalar) {  // Case user demands strict scalar computation
+				// Batch must have a scalar only path
+				static_assert(has_flag(batch_capabilities, VectorTrait::ScalarOnly),
 					"Policy Violation: VectorPolicy::Scalar requires a fully scalarized Batch. ");
 
-		        //  Kernel must be Scalar-Capable
-		        static_assert(has_flag(kernel_capabilities, ExecutionMode::Scalar),
-		            "Policy Violation: VectorPolicy::Scalar requires a Scalar-capable Kernel.");
-		    }
-		    else if constexpr (V == VectorPolicy::Auto) {  // Case auto (best effort vectorization)
-		    	constexpr bool CanRunVector = has_flag(batch_capabilities, VectorTrait::VectorOnly) &&
-		    		has_flag(kernel_capabilities, ExecutionMode::Vector);
+				//  Kernel must be Scalar-Capable
+				static_assert(has_flag(kernel_capabilities, ExecutionMode::Scalar),
+					"Policy Violation: VectorPolicy::Scalar requires a Scalar-capable Kernel.");
+			}
+			else if constexpr (V == VectorPolicy::Auto) {  // Case auto (best effort vectorization)
+				constexpr bool CanRunVector = has_flag(batch_capabilities, VectorTrait::VectorOnly) &&
+					has_flag(kernel_capabilities, ExecutionMode::Vector);
 
-		    	constexpr bool CanRunScalar = has_flag(batch_capabilities, VectorTrait::ScalarOnly) &&
-		    		has_flag(kernel_capabilities, ExecutionMode::Scalar);
+				constexpr bool CanRunScalar = has_flag(batch_capabilities, VectorTrait::ScalarOnly) &&
+					has_flag(kernel_capabilities, ExecutionMode::Scalar);
 
-		    	constexpr bool CanRunHybrid = has_flag(batch_capabilities, VectorTrait::Mixed) &&
-		    		kernel_capabilities == (ExecutionMode::Vector | ExecutionMode::Scalar);
+				constexpr bool CanRunHybrid = has_flag(batch_capabilities, VectorTrait::Mixed) &&
+					kernel_capabilities == (ExecutionMode::Vector | ExecutionMode::Scalar);
 
-		        static_assert(CanRunVector || CanRunScalar || CanRunHybrid,
-		            "Compatibility Failure: No valid execution path found between Batch and Kernel capability sets.");
-		    }
+				static_assert(CanRunVector || CanRunScalar || CanRunHybrid,
+					"Compatibility Failure: No valid execution path found between Batch and Kernel capability sets.");
+			}
 
 			// Execute
-		    if constexpr (container::IsBatchAtom<Batch>) {
-		        batch.template for_each_pair<M, P, exec_mode>(kernel);
-		    }
-		    else if constexpr (container::IsBatchAtomRange<Batch>) {
-		        for (const auto& atom : batch) {
-		            atom.template for_each_pair<M, P, exec_mode>(kernel);
-		        }
-		    }
+			if constexpr (container::IsBatchAtom<Batch>) {
+				batch.template for_each_pair<M, P, exec_mode>(kernel);
+			}
+			else if constexpr (container::IsBatchAtomRange<Batch>) {
+				for (const auto& atom : batch) {
+					atom.template for_each_pair<M, P, exec_mode>(kernel);
+				}
+			}
 		}
 	};
 
@@ -530,7 +531,7 @@ namespace april::core {
 						if (compiled_boundary.topology.may_change_particle_position) {
 							particles_to_update_buffer.push_back(p_idx);
 						}
-					}
+						}
 				}
 			};
 
@@ -591,6 +592,4 @@ namespace april::core {
 	template<typename T>
 	concept IsSystem = is_system_v<std::remove_cvref_t<T>>;
 
-
-}
-
+} // namespace april::core

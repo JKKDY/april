@@ -1,3 +1,6 @@
+//  SPDX-License-Identifier: AGPL-3.0-only WITH ${PROJECT_NAME}-Commercial-Use-Exception-1.0
+//  Copyright (c) ${YEAR} Julian Deller-Yee
+
 #pragma once
 
 #include <cstdint>

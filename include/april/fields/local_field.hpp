@@ -3,7 +3,7 @@
 #include "april/base/types.hpp"
 #include "april/system/context.hpp"
 #include "april/fields/field.hpp"
-#include "april/particle/fields.hpp"
+
 
 namespace april::field {
 	struct LocalForceField  final : Field {

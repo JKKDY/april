@@ -10,7 +10,7 @@
 #include "april/env/domain.hpp"
 #include "april/env/traits.hpp"
 
-#include "april/particle/fields.hpp"
+
 #include "april/particle/scalar_access.hpp"
 #include "april/particle/packed_access.hpp"
 

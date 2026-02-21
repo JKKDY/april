@@ -1,6 +1,5 @@
 #pragma once
 #include "april/env/environment.hpp"
-#include "april/particle/fields.hpp"
 
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/absorb.hpp"

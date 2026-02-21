@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-#include "april/particle/fields.hpp"
+
 #include "april/forces/force.hpp"
 
 

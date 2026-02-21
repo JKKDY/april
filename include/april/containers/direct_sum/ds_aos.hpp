@@ -2,7 +2,7 @@
 #include "april/particle/particle_types.hpp"
 #include "april/containers/layout/aos.hpp"
 #include "april/containers/direct_sum/ds_core.hpp"
-#include "april/containers/batching/scalar.hpp"
+#include "april/containers/batching/scalar_batch.hpp"
 
 namespace april::container::internal {
 

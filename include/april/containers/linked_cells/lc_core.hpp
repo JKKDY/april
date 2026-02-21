@@ -9,7 +9,6 @@
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
 #include "april/env/domain.hpp"
-#include "april/particle/fields.hpp"
 
 namespace april::container::internal {
 	template <class ContainerBase>

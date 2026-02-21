@@ -3,7 +3,7 @@
 #include "april/containers/linked_cells/lc_core.hpp"
 #include "april/containers/layout/aosoa.hpp"
 #include "april/math/range.hpp"
-#include "april/containers/batching/chunked.hpp"
+#include "april/containers/batching/chunked_batch.hpp"
 #include "april/containers/linked_cells/lc_batching.hpp"
 #include "april/containers/linked_cells/lc_config.hpp"
 

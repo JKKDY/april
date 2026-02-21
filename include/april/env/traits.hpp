@@ -3,7 +3,6 @@
 #include "april/base/traits.hpp"
 
 #include "april/env/data.hpp"
-#include "april/particle/fields.hpp"
 #include "april/particle/particle_types.hpp"
 
 #include "april/forces/force.hpp"

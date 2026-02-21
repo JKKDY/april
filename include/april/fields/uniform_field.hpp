@@ -2,7 +2,7 @@
 
 #include "april/base/types.hpp"
 #include "april/fields/field.hpp"
-#include "april/particle/fields.hpp"
+
 
 namespace april::field {
 	struct UniformField final : Field {

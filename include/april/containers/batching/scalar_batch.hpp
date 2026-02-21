@@ -3,7 +3,7 @@
 #include "april/base/macros.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
-#include "april/particle/fields.hpp"
+
 #include "../../exec/policy.hpp"
 
 namespace april::container::internal {

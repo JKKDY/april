@@ -4,9 +4,7 @@
 #include <concepts>
 #include <utility>
 
-#include "april/base/traits.hpp"
 #include "april/base/types.hpp"
-#include "april/particle/fields.hpp"
 #include "april/particle/particle_types.hpp"
 #include "april/particle/scalar_access.hpp"
 
@@ -24,6 +22,7 @@ namespace april::force {
                 const auto & p2,
                 const auto & r) {
 
+            // TODO: Force operator()
             // static_assert(
             //     requires { {self.eval(p1, p2, r)} -> std::same_as<decltype(r)>; },
             //     "Force must implement eval(auto p1, auto p2, auto r) -> decltype(r)"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "april/base/types.hpp"
-#include "april/particle/fields.hpp"
+
 #include "april/forces/force.hpp"
 
 

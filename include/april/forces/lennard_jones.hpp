@@ -3,7 +3,7 @@
 #include <cmath>
 #include "april/forces/force.hpp"
 #include "april/base/types.hpp"
-#include "april/particle/fields.hpp"
+
 
 
 namespace april::force {

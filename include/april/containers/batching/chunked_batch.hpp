@@ -4,7 +4,7 @@
 #include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
 #include "../../exec/policy.hpp"
-#include "april/particle/fields.hpp"
+
 
 namespace april::container::internal {
 

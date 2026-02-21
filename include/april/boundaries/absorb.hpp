@@ -1,6 +1,5 @@
 #pragma once
 
-#include "april/particle/fields.hpp"
 #include "april/boundaries/boundary.hpp"
 
 namespace april::boundary {

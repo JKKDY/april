@@ -11,11 +11,11 @@ namespace april::core {
 	//--------------
 	template <class ContainerDecl, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<
 		ContainerDecl, Traits>
-	template <ParticleField M, ParallelPolicy P, VectorPolicy V, container::IsBatch Batch, typename Kernel>
+	template <ParticleField M, ParallelPolicy P, VectorPolicy V, container::IsBatch Batch, exec::IsKernel Kernel>
 	void System<ContainerDecl, Traits>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
 			using namespace april::exec::internal;
 			constexpr VectorTrait batch_capabilities  = Batch::vector_trait;
-			constexpr ExecutionMode kernel_capabilities = container::internal::KernelTrait<Kernel>;
+			constexpr ExecutionMode kernel_capabilities = Kernel::Mode;
 
 			// map VectorPolicy -> VectorTrait (execution mode)
 			constexpr ExecutionMode exec_mode = [] {
@@ -88,9 +88,7 @@ namespace april::core {
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
 				constexpr ParticleField M = ForceT::fields | ParticleField::force | ParticleField::position;
 
-				auto kernel = [&](auto & p1, auto & p2) {
-					constexpr  bool is_packed = !env::IsScalarParticleAccessor<decltype(p1)>;
-
+				auto kernel = [&]<bool is_packed>(auto & p1, auto & p2) {
 					auto diff = p2.position - p1.position;
 
 					const auto r = [&] {
@@ -119,11 +117,10 @@ namespace april::core {
 						vec3 f = force(p1.to_view(), p2.to_view(), r);
 						p1.force += f;
 						p2.force -= f;
-
 					}
 				};
 
-				execute_batch_kernel<M, ParallelPolicy::Serial, VectorPolicy::Auto>(batch, kernel);
+				execute_batch_kernel<M, ParallelPolicy::Serial, VectorPolicy::Auto>(batch, april::universal_kernel(kernel));
 			};
 
 			auto [t1, t2] = batch.types;

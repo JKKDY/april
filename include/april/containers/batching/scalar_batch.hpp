@@ -5,6 +5,7 @@
 #include "april/math/range.hpp"
 
 #include "april/exec/policy.hpp"
+#include "april/exec/particle_kernel.hpp"
 
 namespace april::container::internal {
 
@@ -12,7 +13,7 @@ namespace april::container::internal {
 	struct AsymmetricScalarBatch : BatchBase<exec::internal::ParallelTrait::None, exec::internal::VectorTrait::ScalarOnly> {
 		explicit AsymmetricScalarBatch(Container & container) : container(container) {}
 
-		template<ParticleField Mask, ParallelPolicy P, exec::internal::ExecutionMode E, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, exec::internal::ExecutionMode E, exec::IsKernel Func>
 		AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
 			// Map internal ExecutionMode back to public VectorPolicy
@@ -48,7 +49,7 @@ namespace april::container::internal {
 	struct SymmetricScalarBatch : BatchBase<exec::internal::ParallelTrait::None, exec::internal::VectorTrait::ScalarOnly> {
 		explicit SymmetricScalarBatch(Container & container) : container(container) {}
 
-		template<ParticleField Mask, ParallelPolicy P, exec::internal::ExecutionMode E, typename Func>
+		template<ParticleField Mask, ParallelPolicy P, exec::internal::ExecutionMode E, exec::IsKernel Func>
 		AP_FORCE_INLINE
 		void for_each_pair (Func && f) const {
 			// TODO implement packed

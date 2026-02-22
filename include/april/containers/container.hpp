@@ -3,16 +3,18 @@
 #include <bit>
 #include <vector>
 
-#include "../exec/policy.hpp"
+#include "april/exec/policy.hpp"
+#include "april/exec/particle_kernel.hpp"
+
 #include "april/math/range.hpp"
 
 #include "april/forces/force_table.hpp"
 #include "april/env/domain.hpp"
 #include "april/env/traits.hpp"
 
-
 #include "april/particle/scalar_access.hpp"
 #include "april/particle/packed_access.hpp"
+
 
 
 
@@ -118,32 +120,53 @@ namespace april::container {
 		// PARTICLE ITERATION
 		// ------------------
 		// filter by state (safe, performs checks to skip garbage data)
-		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
-		void for_each_particle(this auto&& self, Func && func, ParticleState state = ParticleState::ALL) {
+		template<
+			ParticleField M,
+			ParallelPolicy P = ParallelPolicy::Serial,
+			VectorPolicy V = VectorPolicy::Auto,
+			exec::IsKernel Kernel>
+		void for_each_particle(this auto&& self, Kernel && func, ParticleState state = ParticleState::ALL) {
 			self.template invoke_iterate_state<M, P, V, false>(func, state);
 		}
-		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
-		void for_each_particle_view(this const auto& self, Func && func, ParticleState state = ParticleState::ALL) {
+
+		// view variant (const)
+		template<
+			ParticleField M,
+			ParallelPolicy P = ParallelPolicy::Serial,
+			VectorPolicy V = VectorPolicy::Auto,
+			exec::IsKernel Kernel>
+		void for_each_particle_view(this const auto& self, Kernel && func, ParticleState state = ParticleState::ALL) {
 			self.template invoke_iterate_state<M, P, V, true>(func, state);
 		}
 
-		// direct range based access (fast & branchless but unsafe will not perform any checks)
-		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
-		void for_each_particle(this auto&& self, size_t start, size_t stop, Func && func) {
+		// direct range based access (fast & branchless but unsafe; will not perform any checks)
+		template<
+			ParticleField M,
+			ParallelPolicy P = ParallelPolicy::Serial,
+			VectorPolicy V = VectorPolicy::Auto,
+			exec::IsKernel Kernel>
+		void for_each_particle(this auto&& self, size_t start, size_t stop, Kernel && func) {
 			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
 			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
 			AP_ASSERT(start <= stop, "Invalid range: start > stop");
 
 			self.template invoke_iterate_range<M,  P, V, false>(func, start, stop);
 		}
-		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
-		void for_each_particle_view(this const auto& self, size_t start, size_t stop, Func && func) {
+
+		// view variant (const)
+		template<
+			ParticleField M,
+			ParallelPolicy P = ParallelPolicy::Serial,
+			VectorPolicy V = VectorPolicy::Auto,
+			exec::IsKernel Kernel>
+		void for_each_particle_view(this const auto& self, size_t start, size_t stop, Kernel && func) {
 			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
 			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
 			AP_ASSERT(start <= stop, "Invalid range");
 
 			self.template invoke_iterate_range<M,  P, V, true>(func, start, stop);
 		}
+
 
 		template<ParticleField M, typename T, typename Mapper, typename Reducer = std::plus<T>>
 		[[nodiscard]] T invoke_reduce( // TODO restrict callable Mapper, Reducer (invoke_reduce)
@@ -284,9 +307,9 @@ namespace april::container {
 		const force::internal::InteractionSchema force_schema;
 		const env::Box domain; // Note: in the future this may be adjustable during run time
 
-		template<ParticleField M, april::ParallelPolicy P, VectorPolicy V, bool is_const, typename Func>
-		void invoke_iterate_range(this auto&& self, Func && func, size_t start, size_t end) {
-			auto kernel = [&](size_t i, auto && p) {
+		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
+		void invoke_iterate_range(this auto&& self, Kernel && func, size_t start, size_t end) {
+			auto bridge = [&](size_t i, auto && p) {
 				if constexpr (requires { func(i, p); }) {
 					return func(i, p); // user wants index
 				} else {
@@ -294,18 +317,20 @@ namespace april::container {
 				}
 			};
 
+			// auto kernel = exec::internal::KernelWrapper<Kernel::Mode, decltype(bridge)>{bridge};
+			auto kernel = exec::internal::KernelWrapper<std::remove_cvref_t<Kernel>::Mode, decltype(bridge)>{bridge};
 			self.template iterate_range<M, P, V, is_const>(kernel, start, end);
 		}
 
-		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, typename Func>
-		void invoke_iterate_state(this auto&& self, Func && func, const ParticleState state) {
-			auto kernel = [&](size_t i, auto && p) {
+		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
+		void invoke_iterate_state(this auto&& self, Kernel && func, const ParticleState state) {
+			auto kernel = universal_kernel([&](size_t i, auto && p) {
 				if constexpr (requires { func(i, p); }) {
 					func(i, p); // user wants index
 				} else {
 					func(p); // user only wants particle
 				}
-			};
+			});
 
 			// try optimized implementation. Else fallback to default. Default assumes valid data for the entire iteration range
 			if constexpr (requires {self.template iterate<M, P, V, is_const>(kernel, state);}) {
@@ -313,12 +338,12 @@ namespace april::container {
 			} else {
 				// note: iterate_range makes no checks so if it encounters memory that cannot be interpreted as
 				// particle data or memory it is not allowed to access it can crash.
-				self.template iterate_range<M | ParticleField::state, P, V, is_const>(
+				self.template iterate_range<M | ParticleField::state, P, V, is_const>(universal_kernel(
 					[&](size_t i, auto && p) {
 					if (self.index_is_valid(i) && static_cast<int>(p.state & state)) {
 						kernel(i, p);
 					}
-				}, 0, self.capacity());
+				}), 0, self.capacity());
 			}
 		}
 
@@ -471,6 +496,7 @@ namespace april::container {
 		&& IsContainer<typename ContainerDecl::template impl<typename Traits::user_data_t>>;
 
 } // namespace april::container
+
 
 
 

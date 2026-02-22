@@ -45,3 +45,4 @@
     [[nodiscard]] inline constexpr bool has_any_of(T mask, T flag) noexcept {  \
         return (mask & flag) != static_cast<T>(0);                             \
     }
+

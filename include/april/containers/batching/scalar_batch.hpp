@@ -4,7 +4,7 @@
 #include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
 
-#include "../../exec/policy.hpp"
+#include "april/exec/policy.hpp"
 
 namespace april::container::internal {
 
@@ -27,11 +27,15 @@ namespace april::container::internal {
 			// 	}
 			// }();
 
-			container.template for_each_particle<Mask, P, VectorPolicy::Scalar> (range1.start, range1.stop, [&](auto && p1) {
-				container.template for_each_particle<Mask, P, VectorPolicy::Scalar> (range2.start, range2.stop, [&](auto && p2) {
-					f(p1, p2);
-				});
-			});
+			container.template for_each_particle<Mask, P, VectorPolicy::Scalar> (range1.start, range1.stop, scalar_kernel(
+				[&](auto && p1) {
+					container.template for_each_particle<Mask, P, VectorPolicy::Scalar> (range2.start, range2.stop, scalar_kernel(
+						[&](auto && p2) {
+							f(p1, p2);
+						})
+					);
+				})
+			);
 		}
 
 		math::Range range1;
@@ -59,11 +63,15 @@ namespace april::container::internal {
 			// 	}
 			// }();
 
-			container.template for_each_particle<Mask, P, VectorPolicy::Scalar> (range.start, range.stop, [&](const size_t i, auto && p1) {
-				container.template for_each_particle<Mask, P, VectorPolicy::Scalar> (i + 1, range.stop, [&](auto && p2) {
-					f(p1, p2);
-				});
-			});
+			container.template for_each_particle<Mask, P, VectorPolicy::Scalar> (range.start, range.stop, scalar_kernel(
+				[&](const size_t i, auto && p1) {
+					container.template for_each_particle<Mask, P, VectorPolicy::Scalar> (i + 1, range.stop, scalar_kernel(
+						[&](auto && p2) {
+							f(p1, p2);
+						})
+					);
+				})
+			);
 		}
 
 		math::Range range;
@@ -71,6 +79,7 @@ namespace april::container::internal {
 		Container & container;
 	};
 }
+
 
 
 

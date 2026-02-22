@@ -28,20 +28,20 @@ namespace april::integrator {
 		void stoermer_verlet_step(double delta_t) const {
 			sys.update_all_components();
 
-			sys.template for_each_particle<pos_upd_fields>([&](auto p) {
+			sys.template for_each_particle<pos_upd_fields>(april::universal_kernel([&](auto p) {
 				p.old_position = p.position;
 				p.velocity += (delta_t / 2.0) * (p.force / p.mass);
 				p.position += delta_t * p.velocity;
-			}, State::MOVABLE);
+			}), State::MOVABLE);
 
 			sys.rebuild_structure();
 			sys.apply_boundary_conditions();
 			sys.update_forces();
 			sys.apply_force_fields();
 
-			sys.template for_each_particle<vel_upd_fields>([&](auto p) {
+			sys.template for_each_particle<vel_upd_fields>(april::universal_kernel([&](auto p) {
 				p.velocity += (delta_t / 2.0) * (p.force / p.mass);
-			}, State::MOVABLE);
+			}), State::MOVABLE);
 
 			sys.apply_controllers();
 		}
@@ -66,6 +66,7 @@ namespace april::integrator {
 	Yoshida4(Sys&, Ms...)
 		-> Yoshida4<Sys, monitor::MonitorPack<std::decay_t<Ms>...>>;
 }
+
 
 
 

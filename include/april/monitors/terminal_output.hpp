@@ -6,6 +6,7 @@
 #include <iostream>
 #include "april/system/context.hpp"
 #include "april/monitors/monitor.hpp"
+#include "april/exec/particle_kernel.hpp"
 
 namespace april::monitor {
 
@@ -33,12 +34,14 @@ namespace april::monitor {
 		void record(const core::SystemContext<S> & sys) {
 			std::cout << "\n ##########  step: " << sys.step() <<  "  ########## \n";
 
-			sys.template for_each_particle_view<fields>([&](const auto & p) {
+			sys.template for_each_particle_view<fields>(scalar_kernel(
+				[&](const auto & p) {
 				std::cout << particle_to_string(p) << "\n";
-			});
+			}));
 		}
 	};
 }
+
 
 
 

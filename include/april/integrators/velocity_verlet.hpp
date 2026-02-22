@@ -28,20 +28,24 @@ namespace april::integrator {
 		void integration_step() const {
 			sys.update_all_components();
 
-			sys.template for_each_particle<pos_upd_fields>([&](auto p) {
-				p.old_position = p.position;
-				p.velocity += (dt / 2.0) * (p.force / p.mass);
-				p.position += dt * p.velocity;
-			}, State::MOVABLE);
+			sys.template for_each_particle<pos_upd_fields>(april::universal_kernel(
+				[&](auto p) {
+					p.old_position = p.position;
+					p.velocity += (dt / 2.0) * (p.force / p.mass);
+					p.position += dt * p.velocity;
+				}
+			), State::MOVABLE);
 
 			sys.rebuild_structure();
 			sys.apply_boundary_conditions();
 			sys.update_forces();
 			sys.apply_force_fields();
 
-			sys.template for_each_particle<vel_upd_fields>([&](auto p) {
-			   p.velocity += (dt / 2.0) * (p.force / p.mass);
-			}, State::MOVABLE);
+			sys.template for_each_particle<vel_upd_fields>(april::universal_kernel(
+				[&](auto p) {
+					p.velocity += (dt / 2.0) * (p.force / p.mass);
+				}
+			), State::MOVABLE);
 
 			sys.apply_controllers();
 		}
@@ -57,6 +61,7 @@ namespace april::integrator {
 	VelocityVerlet(Sys&, Ms...)
 		-> VelocityVerlet<Sys, monitor::MonitorPack<std::decay_t<Ms>...>>;
 }
+
 
 
 

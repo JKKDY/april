@@ -43,15 +43,17 @@ namespace april::monitor {
 			write_binary(out, format_flags);            // 4 bytes
 
 
-			sys.template for_each_particle_view<fields>([&](const auto & p) {
-				write_binary(out, static_cast<float>(p.position.x));
-				write_binary(out, static_cast<float>(p.position.y));
-				write_binary(out, static_cast<float>(p.position.z));
+			sys.template for_each_particle_view<fields>(april::scalar_kernel(
+				[&](const auto & p) {
+					write_binary(out, static_cast<float>(p.position.x));
+					write_binary(out, static_cast<float>(p.position.y));
+					write_binary(out, static_cast<float>(p.position.z));
 
-				write_binary(out, static_cast<uint32_t>(p.type));
-				write_binary(out, static_cast<uint32_t>(p.id));
-				write_binary(out, static_cast<uint8_t>(p.state));
-			});
+					write_binary(out, static_cast<uint32_t>(p.type));
+					write_binary(out, static_cast<uint32_t>(p.id));
+					write_binary(out, static_cast<uint8_t>(p.state));
+				}
+			));
 		}
 
 		template<typename T> static void write_binary(std::ofstream& out, const T& value) {
@@ -68,6 +70,7 @@ namespace april::monitor {
 	};
 
 } // namespace april::core
+
 
 
 

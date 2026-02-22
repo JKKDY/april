@@ -44,7 +44,7 @@ namespace april::container::layout {
 			}
 		}
 
-		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, typename Kernel>
+		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
 		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
 			static_assert(V != VectorPolicy::Vector, "AoS cannot be vectorized. Change the vector policy to scalar or auto.");
 			for (size_t i = start; i < end; i++) {
@@ -170,6 +170,7 @@ namespace april::container::layout {
 		std::vector<TopologyBatch> topology_batches;
 	};
 }
+
 
 
 

@@ -130,9 +130,9 @@ namespace april::core {
 			force_table.dispatch(t1, t2, apply_batch_update);
 		};
 
-		particle_container.template for_each_particle<ParticleField::force>(
+		particle_container.template for_each_particle<ParticleField::force>(april::universal_kernel(
 			[](auto && p) { p.force = {}; } // reset forces
-		);
+		));
 		particle_container.invoke_for_each_interaction_batch(update_batch);
 
 

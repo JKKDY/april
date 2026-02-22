@@ -4,6 +4,8 @@
 #include <cstddef>
 #include "april/env/domain.hpp"
 #include "april/exec/policy.hpp"
+#include "april/exec/particle_kernel.hpp"
+#include "april/particle/particle_types.hpp"
 
 namespace april::core {
 
@@ -92,14 +94,22 @@ namespace april::core {
 		// --------------
 		// FUNCTIONAL OPS
 		// --------------
-		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
-		void for_each_particle(Func && func, ParticleState state = ParticleState::ALL) {
-			system.template for_each_particle<M, P, V, Func>(std::forward<Func>(func), state);
+		template<
+			ParticleField M,
+			ParallelPolicy P = ParallelPolicy::Serial,
+			VectorPolicy V = VectorPolicy::Auto,
+			exec::IsKernel Kernel>
+		void for_each_particle(Kernel && func, ParticleState state = ParticleState::ALL) {
+			system.template for_each_particle<M, P, V, Kernel>(std::forward<Kernel>(func), state);
 		}
 
-		template<ParticleField M, ParallelPolicy P=ParallelPolicy::Serial, VectorPolicy V=VectorPolicy::Auto, typename Func>
-		void for_each_particle_view(Func && func, ParticleState state = ParticleState::ALL) const {
-			system.template for_each_particle_view<M, P, V, Func>(std::forward<Func>(func), state);
+		template<
+			ParticleField M,
+			ParallelPolicy P = ParallelPolicy::Serial,
+			VectorPolicy V = VectorPolicy::Auto,
+			exec::IsKernel Kernel>
+		void for_each_particle_view(Kernel && func, ParticleState state = ParticleState::ALL) const {
+			system.template for_each_particle_view<M, P, V, Kernel>(std::forward<Kernel>(func), state);
 		}
 
 		template<typename Func>
@@ -133,6 +143,7 @@ namespace april::core {
 	};
 
 }
+
 
 
 

@@ -159,18 +159,18 @@ namespace april::core {
 			ParticleField M,
 			ParallelPolicy P=ParallelPolicy::Serial,
 			VectorPolicy V=VectorPolicy::Auto,
-			typename Func>
-		void for_each_particle(Func && func, ParticleState state = ParticleState::ALL) {
-			particle_container.template for_each_particle<M, P, V, Func>(std::forward<Func>(func), state);
+			exec::IsKernel Kernel>
+		void for_each_particle(Kernel && func, ParticleState state = ParticleState::ALL) {
+			particle_container.template for_each_particle<M, P, V, Kernel>(std::forward<Kernel>(func), state);
 		}
 
 		template<
 			ParticleField M,
 			ParallelPolicy P=ParallelPolicy::Serial,
 			VectorPolicy V=VectorPolicy::Auto,
-			typename Func>
-		void for_each_particle_view(Func && func, ParticleState state = ParticleState::ALL) const {
-			particle_container.template for_each_particle_view<M, P, V, Func>(std::forward<Func>(func), state);
+			exec::IsKernel Kernel>
+		void for_each_particle_view(Kernel && func, ParticleState state = ParticleState::ALL) const {
+			particle_container.template for_each_particle_view<M, P, V, Kernel>(std::forward<Kernel>(func), state);
 		}
 
 		template<ParticleField M, typename Mapper, typename T, typename Reducer = std::plus<T>>
@@ -339,3 +339,4 @@ namespace april::core {
 } // namespace april::core
 
 #include "april/system/internal/system_impl.hpp"
+

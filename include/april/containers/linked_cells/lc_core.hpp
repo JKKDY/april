@@ -9,6 +9,7 @@
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
 #include "april/env/domain.hpp"
+#include "april/exec/particle_kernel.hpp"
 
 namespace april::container::internal {
 	template <class ContainerBase>
@@ -60,12 +61,13 @@ namespace april::container::internal {
 				size_t start = self.bin_starts[i];
 				size_t end = start + self.bin_sizes[i];
 				self.template for_each_particle_view <ParticleField::type | ParticleField::position>(start, end,
+					scalar_kernel(
 					[&](const size_t idx, const auto & p) {
 						const size_t cid = self.cell_index_from_position(p.position);
 						const size_t bin = self.bin_index(cid, p.type);
 						self.bin_assignments[bin].push_back(idx);
 					}
-				);
+				));
 			}
 
 			self.reorder_storage(self.bin_assignments);
@@ -85,12 +87,13 @@ namespace april::container::internal {
 				if (start_idx == end_idx) continue;
 
 				self.template for_each_particle_view<ParticleField::position | ParticleField::state>(start_idx, end_idx,
+					scalar_kernel(
 					[&](const size_t i, const auto & particle) {
 						if (static_cast<uint8_t>(particle.state & ParticleState::ALIVE) &&
 							region.contains(particle.position)) {
 							ret.push_back(i);
 						}
-					}
+					})
 				);
 			}
 
@@ -516,6 +519,7 @@ namespace april::container::internal {
 		}
 	};
 }
+
 
 
 

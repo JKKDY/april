@@ -4,7 +4,6 @@
 #include "april/env/domain.hpp"
 #include "april/containers/container.hpp"
 #include "april/containers/batching/common.hpp"
-#include "april/containers/kernel_traits.hpp"
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
 #include "april/system/context.hpp"

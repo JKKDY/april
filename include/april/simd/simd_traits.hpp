@@ -8,18 +8,41 @@ namespace april::simd {
 
     // mask concept
     template<typename T>
-    concept IsSimdMask = requires(T m, T m2) {
+        concept IsSimdMask = requires(T m, T m2, bool* ptr, const bool* cptr) {
+        // Static Size Query
+        { T::size() } -> std::same_as<size_t>;
+
+        // Memory Loads (Static)
+        { T::load(cptr) }           -> std::same_as<T>;
+        { T::load_aligned(cptr) }   -> std::same_as<T>;
+        { T::load_unaligned(cptr) } -> std::same_as<T>;
+
+        // Memory Stores
+        { m.store(ptr) }           -> std::same_as<void>;
+        { m.store_aligned(ptr) }   -> std::same_as<void>;
+        { m.store_unaligned(ptr) } -> std::same_as<void>;
+
+        // Exports
+        { m.to_array() }  -> std::same_as<std::array<bool, T::size()>>;
+        { m.to_string() } -> std::same_as<std::string>;
+
         // Reductions
-        { all(m) } -> std::same_as<bool>;
-        { any(m) } -> std::same_as<bool>;
+        { all(m) }  -> std::same_as<bool>;
+        { any(m) }  -> std::same_as<bool>;
         { none(m) } -> std::same_as<bool>;
 
         // Logical Operators
-        { !m }       -> std::same_as<T>;
-        { m && m2 }  -> std::same_as<T>;
-        { m || m2 }  -> std::same_as<T>;
+        { !m }      -> std::same_as<T>;
+        { m && m2 } -> std::same_as<T>;
+        { m || m2 } -> std::same_as<T>;
 
-        // Comparisons (Mask == Mask)
+        // Bitwise Operators
+        { m & m2 } -> std::same_as<T>;
+        { m | m2 } -> std::same_as<T>;
+        { m ^ m2 } -> std::same_as<T>;
+        { ~m }     -> std::same_as<T>;
+
+        // Comparisons
         { m == m2 } -> std::same_as<T>;
         { m != m2 } -> std::same_as<T>;
     };

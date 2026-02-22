@@ -21,35 +21,69 @@ namespace april::simd::internal::std_simd {
         Mask(bool val) : data(val) {}
 
         operator native_type() const { return data; }
+        static constexpr size_t size() { return native_type::size(); }
 
-        friend bool all(const Mask& m) {
-            return stdx::all_of(m.data);
+        // ---------------------
+        // DATA LOADS
+        // ---------------------
+        static Mask load(const bool* ptr) {
+           load_unaligned(ptr);
+        }
+        static Mask load_aligned(const bool* ptr) {
+            Mask m;
+            m.data.copy_from(ptr, stdx::vector_aligned);
+            return m;
+        }
+        static Mask load_unaligned(const bool* ptr) {
+            Mask m;
+            m.data.copy_from(ptr, stdx::element_aligned);
+            return m;
         }
 
-        friend bool any(const Mask& m) {
-            return stdx::any_of(m.data);
-        }
+        // DATA STORES
+        void store(bool* ptr) const { store_unaligned(ptr); }
+        void store_aligned(bool* ptr) const {data.copy_to(ptr, stdx::vector_aligned); }
+        void store_unaligned(bool* ptr) const { data.copy_to(ptr, stdx::element_aligned); }
 
-        friend bool none(const Mask& m) {
-            return !any(m);
-        }
+        // Logical Reductions
+        friend bool all(const Mask& m) { return stdx::all_of(m.data); }
+        friend bool any(const Mask& m) { return stdx::any_of(m.data); }
+        friend bool none(const Mask& m) { return !any(m); }
 
-        // Logical Not (!)
-        friend Mask operator!(const Mask& m) {
-            return { !m.data };
-        }
-
-        // Note: std::simd uses && and || for element-wise boolean logic
+        // Bitwise/Logical Ops
+        friend Mask operator~(const Mask& m) { return { ~m.data }; }
+        friend Mask operator!(const Mask& m) { return { !m.data }; }
+        friend Mask operator^(const Mask& lhs, const Mask& rhs) { return { lhs.data ^ rhs.data }; }
         friend Mask operator&&(const Mask& lhs, const Mask& rhs) { return { lhs.data && rhs.data }; }
+        friend Mask operator&(const Mask& lhs, const Mask& rhs) { return { lhs.data & rhs.data }; }
         friend Mask operator||(const Mask& lhs, const Mask& rhs) { return { lhs.data || rhs.data }; }
-
-        // Also support bitwise operators just in case
-        friend Mask operator&(const Mask& lhs, const Mask& rhs) { return { lhs.data && rhs.data }; }
-        friend Mask operator|(const Mask& lhs, const Mask& rhs) { return { lhs.data || rhs.data }; }
+        friend Mask operator|(const Mask& lhs, const Mask& rhs) { return { lhs.data | rhs.data }; }
 
         // equality
         friend Mask operator==(const Mask& lhs, const Mask& rhs) { return { lhs.data == rhs.data }; }
         friend Mask operator!=(const Mask& lhs, const Mask& rhs) { return { lhs.data != rhs.data }; }
+
+        // ---------------------
+        // EXPORTS / DEBUGGING
+        // ---------------------
+        [[nodiscard]] std::array<bool, native_type::size()> to_array() const {
+            // alignas ensures the array starts at a vector-aligned memory boundary
+            alignas(alignof(native_type)) std::array<bool, size()> result;
+            store_aligned(result.data());
+            return result;
+        }
+
+        [[nodiscard]] std::string to_string() const {
+            auto arr = to_array();
+            std::stringstream ss;
+            ss << "[";
+            for (size_t i = 0; i < size(); ++i) {
+                ss << (arr[i] ? "true" : "false");
+                if (i < size() - 1) ss << ", ";
+            }
+            ss << "]";
+            return ss.str();
+        }
     };
 
 

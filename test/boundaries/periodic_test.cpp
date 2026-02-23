@@ -134,7 +134,7 @@ TEST(PeriodicBoundaryTest, Topology_IsOutsideCoupledAndWrapsForces) {
 TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 	std::variant<Periodic> variant = Periodic();
 	constexpr ParticleField Mask = Periodic::fields;
-	core::Domain domain({0,0,0}, {10,10,10});
+	Domain domain({0,0,0}, {10,10,10});
 
 	auto compiled = boundary::internal::compile_boundary(variant, core::Box::from_domain(domain), Face::ZPlus);
 
@@ -234,6 +234,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinu
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);
 	EXPECT_NEAR(p.position.z, 5.0, 1e-12);
 }
+
 
 
 

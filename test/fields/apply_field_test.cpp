@@ -200,7 +200,7 @@ TEST(FieldIntegrationTest, MultipleDifferentFieldsAreAdditive) {
     const vec3 uniform_force = {1.0, 1.0, 1.0};
     const vec3 local_force = {10.0, 0.0, 0.0};
 
-    core::Domain local_region;
+    Domain local_region;
     local_region.origin = {0,0,0};
     local_region.extent = {5,5,5};
 
@@ -237,6 +237,7 @@ TEST(FieldIntegrationTest, MultipleDifferentFieldsAreAdditive) {
     EXPECT_NEAR(p2.force.y, uniform_force.y, 1e-12);
     EXPECT_NEAR(p2.force.z, uniform_force.z, 1e-12);
 }
+
 
 
 

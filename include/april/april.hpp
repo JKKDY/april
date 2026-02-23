@@ -52,7 +52,7 @@
 namespace april {
 
 	// Environment
-	using core::Environment;
+	// using core::Environment;
 
 	// using ParticleCuboid;
 	// using ParticleSphere;
@@ -60,9 +60,9 @@ namespace april {
 	// using Particle;
 	// using core::particle_attributes; // template tag
 
-	using core::between_types;
-	using core::to_type;
-	using core::between_ids;
+	// using core::between_types;
+	// using core::to_type;
+	// using core::between_ids;
 
 	// Boundary
 	using boundary::Face;
@@ -107,9 +107,9 @@ namespace april {
 	using container::morton_order;
 
 	// System
-	using core::System;
-	using core::build_system;
-	using core::BuildInfo;
+	// using core::System;
+	// using core::build_system;
+	// using core::BuildInfo;
 	using core::SystemContext;
 
 	// Monitors
@@ -128,6 +128,7 @@ namespace april {
 	// shared
 	using utility::Trigger;
 }
+
 
 
 

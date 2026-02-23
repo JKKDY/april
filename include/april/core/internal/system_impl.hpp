@@ -4,7 +4,7 @@
 #include "april/forces/force.hpp"
 
 
-namespace april::core {
+namespace april {
 
 	//--------------
 	// EXECUTE BATCH
@@ -277,6 +277,7 @@ namespace april::core {
 		});
 	}
 }
+
 
 
 

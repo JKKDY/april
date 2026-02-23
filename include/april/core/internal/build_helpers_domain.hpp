@@ -32,7 +32,7 @@ namespace april::core::internal {
 
 	// given particle bounding box and user set parameters, calculate the simulation box
 	inline core::Box calculate_simulation_box(
-		const core::Domain& desired_domain,
+		const Domain& desired_domain,
 		const core::Box& required_box,
 		const core::Box& particle_bbox
 	) {
@@ -99,7 +99,7 @@ namespace april::core::internal {
 	}
 
 	inline core::Box determine_simulation_box(
-		const core::Domain& desired_domain,
+		const Domain& desired_domain,
 		const core::Box& particle_bbox,
 		const vec3d & margin_abs,
 		const vec3d & margin_fac
@@ -127,6 +127,7 @@ namespace april::core::internal {
 	}
 
 }
+
 
 
 

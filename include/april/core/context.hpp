@@ -86,7 +86,7 @@ namespace april::core {
 			return system.query_region(region);
 		}
 
-		[[nodiscard]] std::vector<size_t> query_region(const core::Domain & region) const {
+		[[nodiscard]] std::vector<size_t> query_region(const Domain & region) const {
 			return query_region(core::Box(region.min_corner().value(), region.max_corner().value()));
 		}
 
@@ -143,6 +143,7 @@ namespace april::core {
 	};
 
 }
+
 
 
 

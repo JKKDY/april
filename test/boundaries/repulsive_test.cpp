@@ -108,7 +108,7 @@ TEST(RepulsiveBoundaryTest, Topology_IsInsideAndNoChangesPosition) {
 TEST(RepulsiveBoundaryTest, CompiledBoundary_Apply_AddsInwardForce) {
 	ConstantForce f{2.0, 5.0};
 	std::variant<Repulsive<ConstantForce>> variant = Repulsive(f);
-	core::Domain domain({0,0,0}, {10,10,10});
+	Domain domain({0,0,0}, {10,10,10});
 
 	constexpr ParticleField Mask = Repulsive<ConstantForce>::fields;
 
@@ -307,6 +307,7 @@ TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
         EXPECT_NEAR(p.force.x, 4.0, 1e-12) << "Halo should double the effective distance passed to the force";
     }
 }
+
 
 
 

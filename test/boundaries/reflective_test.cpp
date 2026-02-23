@@ -84,7 +84,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPositi
 	std::variant<Reflective> reflect = Reflective();
 	constexpr ParticleField Mask = Reflective::fields;
 
-	core::Domain domain({0,0,0}, {10,10,10});
+	Domain domain({0,0,0}, {10,10,10});
 
 	// Compile boundary for X+ face
 	auto compiled = boundary::internal::compile_boundary(reflect, core::Box::from_domain(domain), Face::XPlus);
@@ -178,6 +178,7 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
         EXPECT_EQ(p.velocity.z, expected_vel[uid].z);
     }
 }
+
 
 
 

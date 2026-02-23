@@ -1,21 +1,23 @@
 #pragma once
 
 #include <vector>
-#include <limits>
 #include <any>
 
 #include "april/base/types.hpp"
-#include "domain.hpp"
+#include "april/core/domain.hpp"
+#include "april/core/internal/environment_traits.hpp"
+#include "april/core/internal/environment_data.hpp"
+
 #include "april/forces/force.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/controllers/controller.hpp"
 #include "april/fields/field.hpp"
-#include "internal/environment_traits.hpp"
+
 #include "april/particle/generators.hpp"
 #include "april/particle/particle_types.hpp"
 
 
-namespace april::core {
+namespace april {
 
     struct to_type { ParticleType type; };
     struct between_types { ParticleType t1, t2; };
@@ -30,7 +32,7 @@ namespace april::core {
         particle::IsParticleAttributes ParticleData>
     class Environment {
     public:
-        using traits = internal::EnvironmentTraits<FPack, BPack, CPack, FFPack, ParticleData>;
+        using traits = core::internal::EnvironmentTraits<FPack, BPack, CPack, FFPack, ParticleData>;
 
         explicit Environment(FPack, BPack, CPack, FFPack, ParticleData) {}
 
@@ -40,20 +42,20 @@ namespace april::core {
 
         // accepts any subset & order of packs
         template<class... Args>
-        requires (internal::is_any_pack_v<std::remove_cvref_t<Args>> && ...) &&
+        requires (core::internal::is_any_pack_v<std::remove_cvref_t<Args>> && ...) &&
             (!std::same_as<std::remove_cvref_t<Args>, Environment> && ...) // make sonarqube shut up about perfect forwarding
         explicit Environment(Args&&...)
             : Environment(
-                internal::get_pack_t<force::ForcePack, Args...>{},
-                internal::get_pack_t<boundary::BoundaryPack, Args...>{},
-                internal::get_pack_t<controller::ControllerPack,Args...>{},
-                internal::get_pack_t<field::FieldPack, Args...>{},
-                internal::get_particle_attributes_t<Args...>{}
+                core::internal::get_pack_t<force::ForcePack, Args...>{},
+                core::internal::get_pack_t<boundary::BoundaryPack, Args...>{},
+                core::internal::get_pack_t<controller::ControllerPack,Args...>{},
+                core::internal::get_pack_t<field::FieldPack, Args...>{},
+                core::internal::get_particle_attributes_t<Args...>{}
             ) {}
 
     private:
         traits::environment_data_t data;
-        friend auto internal::get_env_data<FPack, BPack, CPack, FFPack> (const Environment& env);
+        friend auto core::internal::get_env_data<FPack, BPack, CPack, FFPack> (const Environment& env);
 
     public:
         //--------------
@@ -341,30 +343,34 @@ namespace april::core {
     template<class... Args>
     Environment(Args...)
         -> Environment<
-            internal::get_pack_t<force::ForcePack, Args...>,
-            internal::get_pack_t<boundary::BoundaryPack, Args...>,
-            internal::get_pack_t<controller::ControllerPack,Args...>,
-            internal::get_pack_t<field::FieldPack, Args...>,
-            internal::get_particle_attributes_t<Args...>
+            core::internal::get_pack_t<force::ForcePack, Args...>,
+            core::internal::get_pack_t<boundary::BoundaryPack, Args...>,
+            core::internal::get_pack_t<controller::ControllerPack,Args...>,
+            core::internal::get_pack_t<field::FieldPack, Args...>,
+            core::internal::get_particle_attributes_t<Args...>
         >;
 
 
+    namespace core {
+        namespace internal {
+            template<typename T>
+            inline constexpr bool is_environment_v = false;
 
-    template<typename T>
-    inline constexpr bool is_environment_v = false;
+            template<
+                force::IsForcePack FPack,
+                boundary::IsBoundaryPack BPack,
+                controller::IsControllerPack CPack,
+                field::IsFieldPack FFPack,
+                particle::IsParticleAttributes ParticleData
+            >
+            inline constexpr bool is_environment_v<Environment<FPack, BPack, CPack, FFPack, ParticleData>> = true;
+        }
 
-    template<
-        force::IsForcePack FPack,
-        boundary::IsBoundaryPack BPack,
-        controller::IsControllerPack CPack,
-        field::IsFieldPack FFPack,
-        particle::IsParticleAttributes ParticleData
-    >
-    inline constexpr bool is_environment_v<Environment<FPack, BPack, CPack, FFPack, ParticleData>> = true;
-
-    template<typename T>
-    concept IsEnvironment = is_environment_v<std::remove_cvref_t<T>>;
+        template<typename T>
+        concept IsEnvironment = internal::is_environment_v<std::remove_cvref_t<T>>;
+    }
 }
+
 
 
 

@@ -11,7 +11,7 @@ TEST(LocalFieldTest, SpatialCheck) {
     const vec3 field_force = {10.0, 0.0, 0.0};
     
     // Define a local region from {5,5,5} to {10,10,10}
-    core::Domain local_region;
+    Domain local_region;
     local_region.origin = {5,5,5};
     local_region.extent = {5,5,5};
 
@@ -58,7 +58,7 @@ TEST(LocalFieldTest, TimeCheck) {
     const vec3 field_force = {10.0, 0.0, 0.0};
     
     // Region covers the whole domain
-    core::Domain local_region;
+    Domain local_region;
     local_region.origin = {0,0,0};
     local_region.extent = {20,20,20};
 
@@ -98,6 +98,7 @@ TEST(LocalFieldTest, TimeCheck) {
     // Step 5 (t=0.05): update() -> active=false.
     EXPECT_NEAR(p3.force.x, 0.0, 1e-12); // Should be inactive again
 }
+
 
 
 

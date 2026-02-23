@@ -285,7 +285,7 @@ TYPED_TEST(LinkedCellsTest, CollectIndicesInRegion) {
 
         // Case 1: small inner region (should include one particle)
         {
-            core::Domain region({0.1, 0.1, 0.1}, {0.9, 0.9, 0.9});
+            Domain region({0.1, 0.1, 0.1}, {0.9, 0.9, 0.9});
             auto indices = sys.query_region(region);
             ASSERT_EQ(indices.size(), 1u);
 	        auto p = export_particles(sys)[indices[0]];
@@ -296,14 +296,14 @@ TYPED_TEST(LinkedCellsTest, CollectIndicesInRegion) {
 
         // Case 2: mid region (should include all 27)
         {
-            core::Domain region({0, 0, 0}, {5, 5, 5});
+            Domain region({0, 0, 0}, {5, 5, 5});
             auto indices = sys.query_region(region);
             EXPECT_EQ(indices.size(), 27u);
         }
 
         // Case 3: partially overlapping region
         {
-            core::Domain region({1.5, 1.5, 1.5}, {4.5, 4.5, 4.5});
+            Domain region({1.5, 1.5, 1.5}, {4.5, 4.5, 4.5});
             std::vector indices = sys.query_region(region);
             EXPECT_GT(indices.size(), 0u);
             EXPECT_LT(indices.size(), 27u);
@@ -326,7 +326,7 @@ TYPED_TEST(LinkedCellsTest, CollectIndicesInRegion) {
 
         // Case 4: region completely outside
         {
-            core::Domain region({10, 10, 10}, {12, 12, 12});
+            Domain region({10, 10, 10}, {12, 12, 12});
             auto indices = sys.query_region(region);
             EXPECT_TRUE(indices.empty());
         }
@@ -594,6 +594,7 @@ TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
 		EXPECT_EQ(res_view.velocity.z, val * 3);
 	}
 }
+
 
 
 

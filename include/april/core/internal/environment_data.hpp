@@ -18,18 +18,13 @@
 
 
 namespace april {
-    struct ParticleCuboid;
-    struct ParticleSphere;
-}
-
-namespace april::core {
     template<
-        force::IsForcePack FPack,
-        boundary::IsBoundaryPack BPack,
-        controller::IsControllerPack CPack,
-        field::IsFieldPack FFPack,
-    	particle::IsParticleAttributes ParticleData>
-    class Environment;
+       force::IsForcePack FPack,
+       boundary::IsBoundaryPack BPack,
+       controller::IsControllerPack CPack,
+       field::IsFieldPack FFPack,
+       particle::IsParticleAttributes ParticleData>
+   class Environment;
 }
 
 namespace april::core::internal {
@@ -73,6 +68,7 @@ namespace april::core::internal {
         return env.data;
     }
 }
+
 
 
 

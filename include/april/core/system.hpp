@@ -8,15 +8,15 @@
 #include "april/exec/particle_kernel.hpp"
 #include "april/core/context.hpp"
 
-namespace april::core {
+namespace april {
 	struct BuildInfo;
 
-	template <class C, internal::IsEnvironmentTraits Traits>
+	template <class C, core::internal::IsEnvironmentTraits Traits>
 	requires container::IsContainerDecl<C, Traits>
 	class System;
 
 
-	template <class Container, IsEnvironment EnvT>
+	template <class Container, core::IsEnvironment EnvT>
 	requires container::IsContainerDecl<Container, typename EnvT::traits>
 	System<Container, typename EnvT::traits> build_system(
 		const EnvT & environment,
@@ -24,7 +24,7 @@ namespace april::core {
 		BuildInfo * build_info = nullptr
 	);
 
-	template <class ContainerDecl, internal::IsEnvironmentTraits Traits>
+	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits>
 	requires container::IsContainerDecl<ContainerDecl, Traits>
 	class System final {
 		// --------------
@@ -40,7 +40,7 @@ namespace april::core {
 		// ----------------
 		// PUBLIC API TYPES
 		// ----------------
-		using SysContext = SystemContext<System>;
+		using SysContext = core::SystemContext<System>;
 		using TrigContext = utility::TriggerContextImpl<System>;
 		using Container = ContainerDecl::template impl<typename Traits::particle_attributes_t>;
 		using ParticleRec = Traits::particle_record_t;
@@ -60,7 +60,7 @@ namespace april::core {
 		// -----------------
 		[[nodiscard]] double time() const noexcept { return time_; }
 		[[nodiscard]] size_t step() const noexcept { return step_; }
-		[[nodiscard]] core::Domain domain() const { return {simulation_box.min, simulation_box.extent}; }
+		[[nodiscard]] Domain domain() const { return {simulation_box.min, simulation_box.extent}; }
 		[[nodiscard]] core::Box box() const { return simulation_box; }
 
 		void update_time(const double dt) noexcept { time_ += dt; }
@@ -146,7 +146,7 @@ namespace april::core {
 			return particle_container.invoke_collect_indices_in_region(region);
 		}
 
-		[[nodiscard]] std::vector<size_t> query_region(const core::Domain & region) const {
+		[[nodiscard]] std::vector<size_t> query_region(const Domain & region) const {
 			return query_region(core::Box(region.min_corner().value(), region.max_corner().value()));
 		}
 
@@ -278,7 +278,7 @@ namespace april::core {
 		double time_ = 0;
 		size_t step_ = 0;
 
-		SystemContext<System> system_context;
+		core::SystemContext<System> system_context;
 		utility::TriggerContextImpl<System> trig_context;
 
 
@@ -323,22 +323,24 @@ namespace april::core {
 	};
 
 
+	namespace core {
+		namespace internal {
+			template<typename>
+			inline constexpr bool is_system_v = false;
 
-	// Default: assume any type is not a System
-	template<typename>
-	inline constexpr bool is_system_v = false;
+			// template specialization: mark all System<C, Env> instantiations as true
+			template<class C, IsEnvironmentTraits Traits>
+			inline constexpr bool is_system_v<System<C, Traits>> = true;
+		}
 
-	// Specialization: mark all System<C, Env> instantiations as true
-	template<class C, internal::IsEnvironmentTraits Traits>
-	inline constexpr bool is_system_v<System<C, Traits>> = true;
-
-	// Concept: true if T (after removing cv/ref) is a System specialization
-	template<typename T>
-	concept IsSystem = is_system_v<std::remove_cvref_t<T>>;
+		template<typename T>
+		concept IsSystem = internal::is_system_v<std::remove_cvref_t<T>>;
+	}
 
 } // namespace april::core
 
 #include "april/core/internal/system_impl.hpp"
+
 
 
 

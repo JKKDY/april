@@ -78,7 +78,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 	std::variant<Absorb> absorb = Absorb();
 	constexpr ParticleField Mask = Absorb::fields;
 
-	core::Domain domain{{0,0,0}, {10,10,10}};
+	Domain domain{{0,0,0}, {10,10,10}};
 
 	// Compile boundary for X+ face
 	auto compiled = boundary::internal::compile_boundary(absorb, core::Box::from_domain(domain), Face::XPlus);
@@ -168,6 +168,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 			<< " should be marked DEAD by Absorb boundary.";
 	}
 }
+
 
 
 

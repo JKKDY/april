@@ -9,11 +9,11 @@
 #include "april/monitors/monitor.hpp"
 
 
-namespace april::monitor {
+namespace april {
 
-	class BinaryOutput final : public Monitor {
+	class BinaryOutput final : public monitor::Monitor {
 	public:
-		static constexpr ParticleField fields = ParticleField::all;
+		static constexpr auto fields = ParticleField::all;
 		explicit BinaryOutput(
 			const utility::Trigger & trigger,
 			std::string dir = "output",

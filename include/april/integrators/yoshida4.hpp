@@ -9,11 +9,11 @@ namespace april::integrator {
 	template<core::IsSystem Sys, class Pack> class Yoshida4;
 
 	template <core::IsSystem Sys, class ... TMonitors>
-	class Yoshida4<Sys, monitor::MonitorPack<TMonitors...>>
-		: public Integrator<Sys, monitor::MonitorPack<TMonitors...>> {
+	class Yoshida4<Sys, monitor::internal::MonitorPack<TMonitors...>>
+		: public Integrator<Sys, monitor::internal::MonitorPack<TMonitors...>> {
 	public:
 		using State = ParticleState;
-		using Base = Integrator<Sys, monitor::MonitorPack<TMonitors...>>;
+		using Base = Integrator<Sys, monitor::internal::MonitorPack<TMonitors...>>;
 		using Base::dt;
 		using Base::sys;
 		using Base::Base;
@@ -58,13 +58,13 @@ namespace april::integrator {
 
 	// Deduction guide so user can write StoermerVerlet(sys, MonitorPack<M1, M2, M3>)
 	template<class Sys, class... Ms>
-	Yoshida4(Sys&, monitor::MonitorPack<Ms...>)
-		-> Yoshida4<Sys, monitor::MonitorPack<Ms...>>;
+	Yoshida4(Sys&, monitor::internal::MonitorPack<Ms...>)
+		-> Yoshida4<Sys, monitor::internal::MonitorPack<Ms...>>;
 
 	// Deduction guide so user can write StoermerVerlet(sys, m1, m2, m3)
 	template<class Sys, class... Ms>
 	Yoshida4(Sys&, Ms...)
-		-> Yoshida4<Sys, monitor::MonitorPack<std::decay_t<Ms>...>>;
+		-> Yoshida4<Sys, monitor::internal::MonitorPack<std::decay_t<Ms>...>>;
 }
 
 

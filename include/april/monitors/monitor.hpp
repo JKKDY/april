@@ -67,10 +67,13 @@ namespace april::monitor {
 
 	template <class M> concept IsMonitor = std::derived_from<M, Monitor>;
 
-	template<IsMonitor... Ms> struct MonitorPack {};
+	namespace internal {
+		template<IsMonitor... Ms> struct MonitorPack {};
+	}
+}
 
-	template<class... Ms> inline constexpr MonitorPack<Ms...> monitors{};
-
+namespace april {
+	template<class... Ms> inline constexpr monitor::internal::MonitorPack<Ms...> monitors{};
 }
 
 

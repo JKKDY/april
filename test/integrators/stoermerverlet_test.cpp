@@ -120,7 +120,7 @@ TEST(StoermerVerletTest, OrbitTest) {
 	constexpr auto algo = DirectSumAoS();
 	auto system = build_system(env, algo);
 
-	VelocityVerlet integrator(system, monitor::monitors<OrbitMonitor>);
+	VelocityVerlet integrator(system, monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for_duration(0.001, T);
 
@@ -168,14 +168,14 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	auto system = build_system(env, algo);
 
 	{
-		VelocityVerlet integrator(system, monitor::monitors<OrbitMonitor>);
+		VelocityVerlet integrator(system, monitors<OrbitMonitor>);
 		integrator.add_monitor(OrbitMonitor(v, R));
 		integrator.run_for_duration(0.001, T/2);
 		EXPECT_NEAR(system.time(), T/2, 0.005);
 	}
 
 	{
-		VelocityVerlet integrator(system, monitor::monitors<OrbitMonitor>);
+		VelocityVerlet integrator(system, monitors<OrbitMonitor>);
 		integrator.add_monitor(OrbitMonitor(v, R));
 		integrator.run_for_duration(0.001, T/2);
 		EXPECT_NEAR(system.time(), T, 0.005);

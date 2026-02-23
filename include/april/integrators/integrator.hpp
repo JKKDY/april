@@ -13,14 +13,14 @@ namespace april::integrator {
 	template<core::IsSystem Sys, class Pack> class Integrator;  // primary template
 
 	template <core::IsSystem Sys, class... TMonitors>  // partial specialization
-	class Integrator<Sys, monitor::MonitorPack<TMonitors...>> {
+	class Integrator<Sys, monitor::internal::MonitorPack<TMonitors...>> {
 	public:
 
 		explicit Integrator(Sys& sys_ref)
 			: sys(sys_ref)
 		{}
 
-		explicit Integrator(Sys& s, monitor::MonitorPack<TMonitors...>) : sys(s) {}
+		explicit Integrator(Sys& s, monitor::internal::MonitorPack<TMonitors...>) : sys(s) {}
 
 		template<typename T> requires same_as_any<T, TMonitors...>
 		void add_monitor(T monitor) {

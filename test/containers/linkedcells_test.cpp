@@ -233,7 +233,7 @@ TYPED_TEST(LinkedCellsTest, OrbitTest) {
 	auto sys = build_system(env, TypeParam::create(v));
 	sys.update_forces();
 
-	VelocityVerlet integrator(sys, monitor::monitors<OrbitMonitor>);
+	VelocityVerlet integrator(sys, monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for_duration(0.001, T);
 

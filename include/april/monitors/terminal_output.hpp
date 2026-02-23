@@ -8,11 +8,11 @@
 #include "april/monitors/monitor.hpp"
 #include "april/exec/particle_kernel.hpp"
 
-namespace april::monitor {
+namespace april {
 
-	class TerminalOutput final : public Monitor {
+	class TerminalOutput final : public monitor::Monitor {
 	public:
-		static constexpr ParticleField fields = ParticleField::all;
+		static constexpr auto fields = ParticleField::all;
 
 		using Monitor::Monitor;
 

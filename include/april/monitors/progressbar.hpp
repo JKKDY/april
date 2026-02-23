@@ -3,9 +3,9 @@
 
 #include "april/monitors/monitor.hpp"
 
-namespace april::monitor {
+namespace april {
 
-	class ProgressBar : public Monitor {
+	class ProgressBar : public monitor::Monitor {
 	public:
 		using Monitor::num_steps;
 

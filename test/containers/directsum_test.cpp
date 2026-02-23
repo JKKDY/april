@@ -177,7 +177,7 @@ TYPED_TEST(DirectSumTest, CollectIndicesInRegion) {
 
 // does nothing except signaling the container to be periodic
 struct DummyPeriodicBoundary final : boundary::Boundary {
-	static constexpr ParticleField fields = ParticleField::none;
+	static constexpr auto fields = ParticleField::none;
 
 	DummyPeriodicBoundary()
 	: Boundary(0.0, false, true, false ) {}

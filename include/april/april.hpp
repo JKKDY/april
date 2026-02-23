@@ -86,13 +86,13 @@ namespace april {
 
 	// Controllers
 	// using controller::controllers;  // template pack
-	using controller::Controller;
+	// using controller::Controller;
 	// using controller::VelocityScalingThermostat;
 
 	// Fields
-	using field::fields; // template pack
-	using field::UniformField;
-	using field::LocalForceField;
+	// using field::fields; // template pack
+	// using field::UniformField;
+	// using field::LocalForceField;
 
 	// Containers
 	using container::Container;

@@ -4,7 +4,6 @@
 #include "april/particle/scalar_access.hpp"
 
 namespace april::field {
-
 	class Field {
 	public:
 		// TODO add filters for region, types and ids. Right now dispatch apply is applied to everything
@@ -32,7 +31,7 @@ namespace april::field {
 			self.apply(particle);
 		}
 
-        template<ParticleField M, particle::IsParticleAttributes U>
+		template<ParticleField M, particle::IsParticleAttributes U>
 		void invoke_apply(this const auto& self, particle::internal::ScalarRestrictedParticleRef<M, U> & particle) {
 			static_assert(
 				requires { self.apply(particle); },
@@ -61,24 +60,32 @@ namespace april::field {
 	template <class FFs>
 	concept IsField = std::derived_from<FFs, Field>;
 
-	// define field Pack
-	template<IsField...>
-	struct FieldPack {};
+	namespace  internal {
+		// define field Pack
+		template<IsField...>
+		struct FieldPack {};
 
+	}
+}
+
+namespace april {
 	// constrained variable template
 	template<class... FFs>
-	requires (IsField<FFs> && ...)
-	inline constexpr FieldPack<FFs...> fields {};
+	requires (field::IsField<FFs> && ...)
+	inline constexpr field::internal::FieldPack<FFs...> fields {};
 
-	// Concept to check if a type T is a ForcePack
-	template<typename T>
-	inline constexpr bool is_field_pack_v = false; // Default
+	namespace field::internal {
+		// Concept to check if a type T is a ForcePack
+		template<typename T>
+		inline constexpr bool is_field_pack_v = false; // Default
 
-	template<IsField... FFs>
-	inline constexpr bool is_field_pack_v<FieldPack<FFs...>> = true; // Specialization
+		template<IsField... FFs>
+		inline constexpr bool is_field_pack_v<FieldPack<FFs...>> = true; // Specialization
 
-	template<typename T>
-	concept IsFieldPack = is_field_pack_v<std::remove_cvref_t<T>>;
+		template<typename T>
+		concept IsFieldPack = is_field_pack_v<std::remove_cvref_t<T>>;
+	}
+
 }
 
 

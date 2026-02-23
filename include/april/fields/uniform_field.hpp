@@ -4,9 +4,9 @@
 #include "april/fields/field.hpp"
 
 
-namespace april::field {
-	struct UniformField final : Field {
-		static constexpr ParticleField fields = ParticleField::force;
+namespace april {
+	struct UniformField final : field::Field {
+		static constexpr auto fields = ParticleField::force;
 
 		explicit UniformField(const vec3 & force_dir): force(force_dir) {}
 

@@ -2,6 +2,8 @@
 #include <vector>
 #include <memory>
 #include "april/april.hpp"
+#include "april/fields/field.hpp"
+
 #include "utils.h"
 
 using namespace april;

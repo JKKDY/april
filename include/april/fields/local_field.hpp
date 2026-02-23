@@ -5,8 +5,8 @@
 #include "april/fields/field.hpp"
 
 
-namespace april::field {
-	struct LocalForceField  final : Field {
+namespace april {
+	struct LocalForceField  final : field::Field {
 		static constexpr ParticleField fields = ParticleField::position | ParticleField::force;
 
 		LocalForceField(const vec3 & force_dir, const Domain & domain, const double start_time, const double stop_time):

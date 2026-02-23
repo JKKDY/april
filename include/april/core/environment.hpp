@@ -27,7 +27,7 @@ namespace april {
         force::internal::IsForcePack FPack,
         boundary::IsBoundaryPack BPack,
         controller::internal::IsControllerPack CPack,
-        field::IsFieldPack FFPack,
+        field::internal::IsFieldPack FFPack,
         particle::IsParticleAttributes ParticleData>
     class Environment {
     public:
@@ -37,7 +37,7 @@ namespace april {
 
         // empty convenience constructor
         Environment()
-        : Environment(forces<>, boundary::boundaries<>, controllers<>, field::fields<>, NoParticleAttributes{}) {}
+        : Environment(forces<>, boundary::boundaries<>, controllers<>, fields<>, NoParticleAttributes{}) {}
 
         // accepts any subset & order of packs
         template<class... Args>
@@ -48,7 +48,7 @@ namespace april {
                 core::internal::get_pack_t<force::internal::ForcePack, Args...>{},
                 core::internal::get_pack_t<boundary::BoundaryPack, Args...>{},
                 core::internal::get_pack_t<controller::internal::ControllerPack,Args...>{},
-                core::internal::get_pack_t<field::FieldPack, Args...>{},
+                core::internal::get_pack_t<field::internal::FieldPack, Args...>{},
                 core::internal::get_particle_attributes_t<Args...>{}
             ) {}
 
@@ -345,7 +345,7 @@ namespace april {
             core::internal::get_pack_t<force::internal::ForcePack, Args...>,
             core::internal::get_pack_t<boundary::BoundaryPack, Args...>,
             core::internal::get_pack_t<controller::internal::ControllerPack,Args...>,
-            core::internal::get_pack_t<field::FieldPack, Args...>,
+            core::internal::get_pack_t<field::internal::FieldPack, Args...>,
             core::internal::get_particle_attributes_t<Args...>
         >;
 
@@ -359,7 +359,7 @@ namespace april {
                 force::internal::IsForcePack FPack,
                 boundary::IsBoundaryPack BPack,
                 controller::internal::IsControllerPack CPack,
-                field::IsFieldPack FFPack,
+                field::internal::IsFieldPack FFPack,
                 particle::IsParticleAttributes ParticleData
             >
             inline constexpr bool is_environment_v<Environment<FPack, BPack, CPack, FFPack, ParticleData>> = true;

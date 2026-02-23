@@ -22,7 +22,7 @@ namespace april {
        force::internal::IsForcePack FPack,
        boundary::IsBoundaryPack BPack,
        controller::internal::IsControllerPack CPack,
-       field::IsFieldPack FFPack,
+       field::internal::IsFieldPack FFPack,
        particle::IsParticleAttributes ParticleData>
    class Environment;
 }
@@ -62,7 +62,7 @@ namespace april::core::internal {
         force::internal::IsForcePack FPack,
         boundary::IsBoundaryPack BPack,
         controller::internal::IsControllerPack CPack,
-        field::IsFieldPack FFPack,
+        field::internal::IsFieldPack FFPack,
         particle::IsParticleAttributes ParticleData>
     auto get_env_data(const Environment<FPack, BPack, CPack, FFPack, ParticleData>& env) {
         return env.data;

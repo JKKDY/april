@@ -31,14 +31,14 @@ namespace april::core::internal {
 		force::internal::ForcePack<Fs...>,
 		boundary::BoundaryPack<BCs...>,
 		controller::internal::ControllerPack<Cs...>,
-		field::FieldPack<FFs...>,
+		field::internal::FieldPack<FFs...>,
 		Attributes>
 	{
 		// Core Packs
 		using FPackT  = force::internal::ForcePack<Fs...>;
 		using BPack_t  = boundary::BoundaryPack<BCs...>;
 		using CPack_t  = controller::internal::ControllerPack<Cs...>;
-		using FFPack_t = field::FieldPack<FFs...>;
+		using FFPack_t = field::internal::FieldPack<FFs...>;
 
 		// Derived Variants
 		using force_variant_t    = force::internal::VariantType_t<Fs...>;
@@ -155,7 +155,7 @@ namespace april::core::internal {
 
 	template<class T> static constexpr bool is_any_pack_v =
 		force::internal::IsForcePack<T> || boundary::IsBoundaryPack<T> ||
-		controller::internal::IsControllerPack<T> || field::IsFieldPack<T> ||
+		controller::internal::IsControllerPack<T> || field::internal::IsFieldPack<T> ||
 		is_particle_data_v<T>;
 
 }

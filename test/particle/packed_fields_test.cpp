@@ -9,7 +9,6 @@
 using namespace april;
 using namespace april::particle;
 using namespace april::particle::internal;
-using namespace april::core;
 
 // Define a test mask (Standard Physics Fields)
 static constexpr auto TestMask = ParticleField::position | ParticleField::velocity | ParticleField::force | ParticleField::mass;
@@ -400,6 +399,10 @@ TEST_F(PackedParticleViewsTest, BufferBroadcastFromScalar) {
         EXPECT_DOUBLE_EQ(mass_arr[i], 10.5) << "Broadcast failed on mass at lane " << i;
     }
 }
+
+
+
+
 
 
 

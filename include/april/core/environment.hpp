@@ -23,12 +23,11 @@ namespace april::core {
 
 
     template<
-    force::IsForcePack FPack,
-    boundary::IsBoundaryPack BPack,
-    controller::IsControllerPack CPack,
-    field::IsFieldPack FFPack,
-    IsParticleAttributes ParticleData
-    >
+        force::IsForcePack FPack,
+        boundary::IsBoundaryPack BPack,
+        controller::IsControllerPack CPack,
+        field::IsFieldPack FFPack,
+        particle::IsParticleAttributes ParticleData>
     class Environment {
     public:
         using traits = internal::EnvironmentTraits<FPack, BPack, CPack, FFPack, ParticleData>;
@@ -359,13 +358,16 @@ namespace april::core {
         boundary::IsBoundaryPack BPack,
         controller::IsControllerPack CPack,
         field::IsFieldPack FFPack,
-        IsParticleAttributes ParticleData
+        particle::IsParticleAttributes ParticleData
     >
     inline constexpr bool is_environment_v<Environment<FPack, BPack, CPack, FFPack, ParticleData>> = true;
 
     template<typename T>
     concept IsEnvironment = is_environment_v<std::remove_cvref_t<T>>;
 }
+
+
+
 
 
 

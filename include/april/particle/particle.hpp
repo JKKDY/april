@@ -64,7 +64,7 @@ namespace april {
     namespace particle
     {
         // used internally in system. Holds all data of a particle
-        template<core::IsParticleAttributes A>
+        template<particle::IsParticleAttributes A>
         struct ParticleRecord {
             using particle_attributes_t = A;
             ParticleRecord() = default;
@@ -87,6 +87,9 @@ namespace april {
         };
     }
 }
+
+
+
 
 
 

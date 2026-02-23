@@ -47,7 +47,7 @@ namespace april::container {
 
 
 
-	template<class C, core::IsParticleAttributes A>
+	template<class C, particle::IsParticleAttributes A>
 	class Container {
 	public:
 		using ParticleRecord = particle::ParticleRecord<A>;
@@ -368,23 +368,23 @@ namespace april::container {
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 			particle::internal::ParticleSource<M, A, IsConst> src;
 
-			if constexpr (core::has_field_v<M, ParticleField::force>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::force>)
 				src.force = self.template invoke_get_field_ptr<ParticleField::force>(i);
-			if constexpr (core::has_field_v<M, ParticleField::position>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::position>)
 				src.position = self.template invoke_get_field_ptr<ParticleField::position>(i);
-			if constexpr (core::has_field_v<M, ParticleField::velocity>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::velocity>)
 				src.velocity = self.template invoke_get_field_ptr<ParticleField::velocity>(i);
-			if constexpr (core::has_field_v<M, ParticleField::old_position>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::old_position>)
 				src.old_position = self.template invoke_get_field_ptr<ParticleField::old_position>(i);
-			if constexpr (core::has_field_v<M, ParticleField::mass>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::mass>)
 				src.mass = self.template invoke_get_field_ptr<ParticleField::mass>(i);
-			if constexpr (core::has_field_v<M, ParticleField::state>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::state>)
 				src.state = self.template invoke_get_field_ptr<ParticleField::state>(i);
-			if constexpr (core::has_field_v<M, ParticleField::type>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::type>)
 				src.type = self.template invoke_get_field_ptr<ParticleField::type>(i);
-			if constexpr (core::has_field_v<M, ParticleField::id>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::id>)
 				src.id = self.template invoke_get_field_ptr<ParticleField::id>(i);
-			if constexpr (core::has_field_v<M, ParticleField::attributes>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::attributes>)
 				src.attributes = self.template invoke_get_field_ptr<ParticleField::attributes>(i);
 
 			return src;
@@ -405,23 +405,23 @@ namespace april::container {
 		        constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 		        particle::internal::ParticleSource<M, A, IsConst> src;
 
-		        if constexpr (core::has_field_v<M, ParticleField::force>)
+		        if constexpr (particle::internal::has_field_v<M, ParticleField::force>)
         			src.force = self.template invoke_get_field_ptr_id<ParticleField::force>(id);
-		        if constexpr (core::has_field_v<M, ParticleField::position>)
+		        if constexpr (particle::internal::has_field_v<M, ParticleField::position>)
         			src.position = self.template invoke_get_field_ptr_id<ParticleField::position>(id);
-		        if constexpr (core::has_field_v<M, ParticleField::velocity>)
+		        if constexpr (particle::internal::has_field_v<M, ParticleField::velocity>)
         			src.velocity = self.template invoke_get_field_ptr_id<ParticleField::velocity>(id);
-		        if constexpr (core::has_field_v<M, ParticleField::old_position>)
+		        if constexpr (particle::internal::has_field_v<M, ParticleField::old_position>)
         			src.old_position = self.template invoke_get_field_ptr_id<ParticleField::old_position>(id);
-		        if constexpr (core::has_field_v<M, ParticleField::mass>)
+		        if constexpr (particle::internal::has_field_v<M, ParticleField::mass>)
         			src.mass = self.template invoke_get_field_ptr_id<ParticleField::mass>(id);
-		        if constexpr (core::has_field_v<M, ParticleField::state>)
+		        if constexpr (particle::internal::has_field_v<M, ParticleField::state>)
         			src.state = self.template invoke_get_field_ptr_id<ParticleField::state>(id);
-		        if constexpr (core::has_field_v<M, ParticleField::type>)
+		        if constexpr (particle::internal::has_field_v<M, ParticleField::type>)
         			src.type = self.template invoke_get_field_ptr_id<ParticleField::type>(id);
-		        if constexpr (core::has_field_v<M, ParticleField::id>)
+		        if constexpr (particle::internal::has_field_v<M, ParticleField::id>)
         			src.id = self.template invoke_get_field_ptr_id<ParticleField::id>(id);
-		        if constexpr (core::has_field_v<M, ParticleField::attributes>)
+		        if constexpr (particle::internal::has_field_v<M, ParticleField::attributes>)
         			src.attributes = self.template invoke_get_field_ptr_id<ParticleField::attributes>(id);
 
 		        return src;
@@ -496,6 +496,9 @@ namespace april::container {
 		&& IsContainer<typename ContainerDecl::template impl<typename Traits::particle_attributes_t>>;
 
 } // namespace april::container
+
+
+
 
 
 

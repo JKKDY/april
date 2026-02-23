@@ -229,7 +229,7 @@ namespace april::core::internal {
 		return std::pair{type_map, id_map};
 	}
 
-	template <IsParticleAttributes UserData>
+	template <particle::IsParticleAttributes UserData>
 	std::vector<particle::ParticleRecord<UserData>> build_particles(
 		const std::vector<Particle>& particle_infos,
 		const std::unordered_map<ParticleType, ParticleType> & type_map,
@@ -250,8 +250,8 @@ namespace april::core::internal {
 			particle.velocity = p.velocity;
 			particle.force = p.force.value_or(vec3{});
 			particle.old_position = p.old_position.value_or(vec3{});
-			if constexpr (std::is_same_v<UserData, core::NoParticleAttributes>) {
-				particle.attributes = core::NoParticleAttributes();
+			if constexpr (std::is_same_v<UserData, NoParticleAttributes>) {
+				particle.attributes = NoParticleAttributes();
 			} else {
 				AP_ASSERT((std::any_cast<UserData>(&p.user_data) != nullptr), "user data particle with id "
 					+ std::to_string(p.id.value())
@@ -266,6 +266,9 @@ namespace april::core::internal {
 		return particles;
 	}
 }
+
+
+
 
 
 

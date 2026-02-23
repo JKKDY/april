@@ -22,19 +22,17 @@ namespace april::core::internal {
 	// this class holds relevant types derived from template parameter packs
 	// this significantly cleans up dependent type declarations in other classes
 	template<
-	force::IsForce... Fs,
-	boundary::IsBoundary... BCs,
-	controller::IsController... Cs,
-	field::IsField... FFs,
-	IsParticleAttributes U
-	>
+		force::IsForce... Fs,
+		boundary::IsBoundary... BCs,
+		controller::IsController... Cs,
+		field::IsField... FFs,
+		particle::IsParticleAttributes Attributes>
 	struct EnvironmentTraits<
 		force::ForcePack<Fs...>,
 		boundary::BoundaryPack<BCs...>,
 		controller::ControllerPack<Cs...>,
 		field::FieldPack<FFs...>,
-		U
-	>
+		Attributes>
 	{
 		// Core Packs
 		using FPackT  = force::ForcePack<Fs...>;
@@ -55,7 +53,7 @@ namespace april::core::internal {
 		using force_table_t    = force::internal::ForceTable<force_variant_t>;
 
 		// particles
-		using particle_attributes_t = U;
+		using particle_attributes_t = Attributes;
 		using particle_record_t = particle::ParticleRecord<particle_attributes_t>;
 		template<ParticleField M> using particle_ref_t = particle::internal::ScalarParticleRef<M, particle_attributes_t>;
 		template<ParticleField M> using restricted_particle_ref_t = particle::internal::ScalarRestrictedParticleRef<M, particle_attributes_t>;
@@ -130,7 +128,7 @@ namespace april::core::internal {
 	struct is_particle_data : std::false_type {};
 
 	template<class U>
-	struct is_particle_data<ParticleAttributes<U>> : std::true_type {};
+	struct is_particle_data<particle::ParticleAttributes<U>> : std::true_type {};
 
 	template<class T>
 	inline constexpr bool is_particle_data_v = is_particle_data<std::remove_cvref_t<T>>::value;
@@ -138,7 +136,7 @@ namespace april::core::internal {
 
 	// Base Case
 	template<class ... Args>
-	struct get_particle_attributes { using type = ParticleAttributes<>::particle_attributes_t;};
+	struct get_particle_attributes { using type = particle::ParticleAttributes<>::particle_attributes_t;};
 
 	// recursion
 	template<class Head, class ... Tail>
@@ -146,7 +144,7 @@ namespace april::core::internal {
 
 	// match case:
 	template<class UserData, class ... Tail>
-	struct get_particle_attributes<ParticleAttributes<UserData>, Tail...> {
+	struct get_particle_attributes<particle::ParticleAttributes<UserData>, Tail...> {
 		static_assert(!(... || is_particle_data_v<Tail>), "Multiple Particle<...> markers provided to Environment().");
 		using type = UserData;
 	};
@@ -161,6 +159,9 @@ namespace april::core::internal {
 		is_particle_data_v<T>;
 
 }
+
+
+
 
 
 

@@ -6,7 +6,7 @@
 
 using namespace april;
 
-using ParticleRecord = particle::ParticleRecord<core::NoParticleAttributes>;
+using ParticleRecord = particle::ParticleRecord<NoParticleAttributes>;
 
 struct TouchSpy final : Boundary {
 	static constexpr ParticleField fields = ParticleField::id;
@@ -15,7 +15,7 @@ struct TouchSpy final : Boundary {
 	explicit TouchSpy(const double thickness, std::vector<ParticleID>* sink)
 	: Boundary(thickness, false, false, false), sink(sink) {}
 
-	template<ParticleField M, core::IsParticleAttributes U>
+	template<ParticleField M, particle::IsParticleAttributes U>
 	void apply(particle::internal::ScalarParticleRef<M, U> & p, const core::Box &, Face) const noexcept {
 		if (sink) sink->push_back(p.id);
 	}
@@ -294,6 +294,10 @@ TYPED_TEST(BoundaryTestT, InsideSlab_AllFaces_OneParticleEach) {
 	EXPECT_EQ(szm, std::vector{get_id(4)});
 	EXPECT_EQ(szp, std::vector{get_id(5)});
 }
+
+
+
+
 
 
 

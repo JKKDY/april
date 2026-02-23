@@ -75,11 +75,11 @@ namespace april::particle::internal {
 
 	// conditional switch between type and a void struct that will throw on access during compile time
 	template<typename T, ParticleField F, ParticleField M>
-	using field_type_t = std::conditional_t<core::has_field_v<M, F>, T, AccessForbidden<F>>;
+	using field_type_t = std::conditional_t<has_field_v<M, F>, T, AccessForbidden<F>>;
 
 
 
-	template<ParticleField M, core::IsParticleAttributes U, bool IsConst>
+	template<ParticleField M, IsParticleAttributes U, bool IsConst>
 	struct ParticleSource {
 		// selects T* or const T*
 		template<typename T>
@@ -102,7 +102,7 @@ namespace april::particle::internal {
 		// getter (Used by ParticleRef/View)
 		template<ParticleField F>
 		constexpr auto get() const noexcept {
-			if constexpr (core::has_field_v<M, F>) {
+			if constexpr (particle::internal::has_field_v<M, F>) {
 				if constexpr (F == ParticleField::force) return force;
 				else if constexpr (F == ParticleField::position) return position;
 				else if constexpr (F == ParticleField::velocity) return velocity;
@@ -118,6 +118,9 @@ namespace april::particle::internal {
 		}
 	};
 }
+
+
+
 
 
 

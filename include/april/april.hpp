@@ -58,7 +58,7 @@ namespace april {
 	// using ParticleSphere;
 	// using particle::internal::ScalarParticleView;
 	// using Particle;
-	using core::particle_attributes; // template tag
+	// using core::particle_attributes; // template tag
 
 	using core::between_types;
 	using core::to_type;
@@ -128,6 +128,9 @@ namespace april {
 	// shared
 	using utility::Trigger;
 }
+
+
+
 
 
 

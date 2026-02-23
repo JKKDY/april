@@ -21,7 +21,7 @@ template<typename T> static T read_binary(std::ifstream& in) {
 }
 
 // helper to create dummy particle
-using ParticleRec =  particle::ParticleRecord<core::NoParticleAttributes>;
+using ParticleRec =  particle::ParticleRecord<NoParticleAttributes>;
 static ParticleRec make_particle_rec(const ParticleType type, const ParticleID id,
 	const vec3& pos={0,0,0}, const ParticleState state= ParticleState::ALIVE) {
 	ParticleRec rec;
@@ -80,15 +80,15 @@ public:
 		// We map the requested fields M to the record's members
 		particle::internal::ParticleSource<M, user_data_t, true> src;
 
-		if constexpr (core::has_field_v<M, ParticleField::position>)     src.position     = &record.position;
-		if constexpr (core::has_field_v<M, ParticleField::velocity>)     src.velocity     = &record.velocity;
-		if constexpr (core::has_field_v<M, ParticleField::force>)        src.force        = &record.force;
-		if constexpr (core::has_field_v<M, ParticleField::old_position>) src.old_position = &record.old_position;
-		if constexpr (core::has_field_v<M, ParticleField::mass>)         src.mass         = &record.mass;
-		if constexpr (core::has_field_v<M, ParticleField::state>)        src.state        = &record.state;
-		if constexpr (core::has_field_v<M, ParticleField::type>)         src.type         = &record.type;
-		if constexpr (core::has_field_v<M, ParticleField::id>)           src.id           = &record.id;
-		if constexpr (core::has_field_v<M, ParticleField::attributes>)    src.attributes    = &record.attributes;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::position>)     src.position     = &record.position;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::velocity>)     src.velocity     = &record.velocity;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::force>)        src.force        = &record.force;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::old_position>) src.old_position = &record.old_position;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::mass>)         src.mass         = &record.mass;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::state>)        src.state        = &record.state;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::type>)         src.type         = &record.type;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::id>)           src.id           = &record.id;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::attributes>)    src.attributes    = &record.attributes;
 
 		// 3. Construct View
 		return ParticleView<M>(src);
@@ -296,6 +296,10 @@ TEST(TerminalOutputTest, terminal_test) {
 	// So 4 calls = 8 occurrences of the string
 	EXPECT_EQ(count, 8);
 }
+
+
+
+
 
 
 

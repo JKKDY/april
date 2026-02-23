@@ -55,9 +55,9 @@ namespace april {
 	using ParticleType = uint16_t;
 	using ParticleID = uint32_t;
 
+	struct NoParticleAttributes {};
 
-	// TODO rename core -> particle
-	namespace core {
+	namespace particle {
 		template <typename T>
 		concept IsParticleAttributes =
 			std::default_initializable<T> &&
@@ -66,17 +66,16 @@ namespace april {
 			std::is_standard_layout_v<T> &&
 			(!std::is_polymorphic_v<T>);
 
-
-		struct NoParticleAttributes {};
-
 		// template struct used to tell the environment what user data will be used
 		template<typename Data = NoParticleAttributes>
 		struct ParticleAttributes { using particle_attributes_t = Data; };
+	}
 
-		template<typename Data = NoParticleAttributes>
-		inline constexpr ParticleAttributes<Data> particle_attributes {};
+	template<typename Data = NoParticleAttributes>
+	inline constexpr particle::ParticleAttributes<Data> particle_attributes {};
 
-		// TODO move to internal
+
+	namespace particle::internal {
 		template<class T>
 		concept HasFields = requires { std::remove_cvref_t<T>::fields; };
 
@@ -87,6 +86,9 @@ namespace april {
 		inline constexpr bool has_field_v = (M & F) != ParticleField::none;
 	}
 }
+
+
+
 
 
 

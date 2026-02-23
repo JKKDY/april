@@ -23,11 +23,12 @@ namespace april {
 }
 
 namespace april::core {
-    template<force::IsForcePack FPack,
-            boundary::IsBoundaryPack BPack,
-            controller::IsControllerPack CPack,
-            field::IsFieldPack FFPack,
-    	    IsParticleAttributes ParticleData>
+    template<
+        force::IsForcePack FPack,
+        boundary::IsBoundaryPack BPack,
+        controller::IsControllerPack CPack,
+        field::IsFieldPack FFPack,
+    	particle::IsParticleAttributes ParticleData>
     class Environment;
 }
 
@@ -63,16 +64,18 @@ namespace april::core::internal {
 
     // friend function of environment to access the environment data
     template<
-    force::IsForcePack FPack,
-    boundary::IsBoundaryPack BPack,
-    controller::IsControllerPack CPack,
-    field::IsFieldPack FFPack,
-    IsParticleAttributes ParticleData
-    >
+        force::IsForcePack FPack,
+        boundary::IsBoundaryPack BPack,
+        controller::IsControllerPack CPack,
+        field::IsFieldPack FFPack,
+        particle::IsParticleAttributes ParticleData>
     auto get_env_data(const Environment<FPack, BPack, CPack, FFPack, ParticleData>& env) {
         return env.data;
     }
 }
+
+
+
 
 
 

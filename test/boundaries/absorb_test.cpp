@@ -13,8 +13,8 @@ using namespace april;
 using PID = ParticleID;
 
 // simple helper to make a dummy particle
-static particle::ParticleRecord<core::NoParticleAttributes> make_alive_particle() {
-	particle::ParticleRecord<core::NoParticleAttributes> p;
+static particle::ParticleRecord<NoParticleAttributes> make_alive_particle() {
+	particle::ParticleRecord<NoParticleAttributes> p;
 	p.id = 0;
 	p.position = {5.0, 5.0, 5.0};
 	p.velocity = {0,0,0};
@@ -31,15 +31,15 @@ auto make_source(RecordT& record) {
 
 	particle::internal::ParticleSource<Mask, UserDataT, IsConst> src;
 
-	if constexpr (core::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
-	if constexpr (core::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (core::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
-	if constexpr (core::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
-	if constexpr (core::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
-	if constexpr (core::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
-	if constexpr (core::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
-	if constexpr (core::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
-	if constexpr (core::has_field_v<Mask, ParticleField::attributes>)    src.attributes    = &record.attributes;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)    src.attributes    = &record.attributes;
 
 	return src;
 }
@@ -53,7 +53,7 @@ TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 
 	auto p = make_alive_particle();
 	auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, core::NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
 
 	absorb.apply(ref, box, Face::XPlus);
 
@@ -85,7 +85,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 
 	auto p = make_alive_particle();
 	auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, core::NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
 
 	core::Box box{{0,0,0}, {10,10,10}};
 
@@ -168,6 +168,10 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 			<< " should be marked DEAD by Absorb boundary.";
 	}
 }
+
+
+
+
 
 
 

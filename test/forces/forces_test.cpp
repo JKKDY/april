@@ -22,7 +22,7 @@ struct ForceTestUserData {
 };
 
 
-static_assert(core::IsParticleAttributes<ForceTestUserData>, "Test data must satisfy IsUserData");
+static_assert(particle::IsParticleAttributes<ForceTestUserData>, "Test data must satisfy IsUserData");
 
 static constexpr ParticleField TestMask = ParticleField::position | ParticleField::mass | ParticleField::attributes;
 
@@ -249,6 +249,10 @@ TEST_F(ForceMixingTest, LennardJones_LorentzBerthelot) {
     // 4. Double check the public accessor we DO have (cutoff)
     EXPECT_DOUBLE_EQ(mixed.cutoff(), 12.0);
 }
+
+
+
+
 
 
 

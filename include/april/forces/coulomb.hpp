@@ -14,7 +14,7 @@ namespace april::force {
 		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = no_cutoff)
 			: Force(cutoff), coulomb_constant(coulomb_const) {}
 
-		template<ParticleField M, core::IsParticleAttributes U>
+		template<ParticleField M, particle::IsParticleAttributes U>
 		requires requires {
 			{ U::charge } -> std::convertible_to<double>;
 		}
@@ -37,6 +37,9 @@ namespace april::force {
 	};
 
 }
+
+
+
 
 
 

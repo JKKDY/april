@@ -20,7 +20,7 @@ struct MyTestUserData {
 using TestUserDataT = MyTestUserData;
 
 // make sure test type is valid
-static_assert(core::IsParticleAttributes<TestUserDataT>, "MyTestUserData does not satisfy IsUserData");
+static_assert(particle::IsParticleAttributes<TestUserDataT>, "MyTestUserData does not satisfy IsUserData");
 
 
 // create a particle record with data
@@ -185,6 +185,10 @@ TEST_F(ParticleViewsTest, RestrictedParticleRefAccess) {
     restricted_ref.force = {999.0, 999.0, 999.0};
     EXPECT_EQ(particle_data.force, vec3(999.0, 999.0, 999.0));
 }
+
+
+
+
 
 
 

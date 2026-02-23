@@ -8,7 +8,7 @@
 
 namespace april::container::layout {
 
-    template<core::IsParticleAttributes Attributes>
+    template<particle::IsParticleAttributes Attributes>
     struct SoAStorage {
         alignas(64) std::vector<vec3::type> pos_x, pos_y, pos_z;
         alignas(64) std::vector<vec3::type> vel_x, vel_y, vel_z;
@@ -104,7 +104,7 @@ namespace april::container::layout {
 
 
 
-    template<typename Config, core::IsParticleAttributes Attributes>
+    template<typename Config, particle::IsParticleAttributes Attributes>
     class SoA : public Container<Config, Attributes> {
     public:
         using Base = Container<Config, Attributes>;
@@ -277,6 +277,9 @@ namespace april::container::layout {
         std::vector<TopologyBatch> topology_batches;
     };
 }
+
+
+
 
 
 

@@ -14,7 +14,7 @@
 
 
 namespace april::container::layout {
-	template <core::IsParticleAttributes Attributes, size_t Size>
+	template <particle::IsParticleAttributes Attributes, size_t Size>
 	struct alignas(64) ParticleChunk {
 		// Enforce alignment requirements (Size 8 * double 8 bytes = 64 bytes = 1 AVX-512 Register)
 		static_assert(std::has_single_bit(Size),
@@ -53,7 +53,7 @@ namespace april::container::layout {
 	};
 
 
-	template<typename Config, core::IsParticleAttributes A, size_t ChunkSize=8>
+	template<typename Config, particle::IsParticleAttributes A, size_t ChunkSize=8>
 	class AoSoA : public Container<Config, A> {
 	public:
 		static constexpr size_t chunk_size = ChunkSize;
@@ -436,29 +436,32 @@ namespace april::container::layout {
 
 			auto& chunk = self.ptr_chunks[chunk_idx];
 
-			if constexpr (core::has_field_v<M, ParticleField::force>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::force>)
 				src.force = math::Vec3Ptr { &chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx] };
-			if constexpr (core::has_field_v<M, ParticleField::position>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::position>)
 				src.position = math::Vec3Ptr { &chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx] };
-			if constexpr (core::has_field_v<M, ParticleField::velocity>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::velocity>)
 				src.velocity = math::Vec3Ptr { &chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx] };
-			if constexpr (core::has_field_v<M, ParticleField::old_position>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::old_position>)
 				src.old_position = math::Vec3Ptr { &chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx] };
-			if constexpr (core::has_field_v<M, ParticleField::mass>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::mass>)
 				src.mass = &chunk.mass[lane_idx];
-			if constexpr (core::has_field_v<M, ParticleField::state>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::state>)
 				src.state = &chunk.state[lane_idx];
-			if constexpr (core::has_field_v<M, ParticleField::type>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::type>)
 				src.type = &chunk.type[lane_idx];
-			if constexpr (core::has_field_v<M, ParticleField::id>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::id>)
 				src.id = &chunk.id[lane_idx];
-			if constexpr (core::has_field_v<M, ParticleField::attributes>)
+			if constexpr (particle::internal::has_field_v<M, ParticleField::attributes>)
 				src.attributes = &chunk.attributes[lane_idx];
 
 			return src;
 		}
 	};
 }
+
+
+
 
 
 

@@ -3,7 +3,6 @@
 #include "april/forces/force.hpp"
 
 using namespace april;
-using namespace april::core;
 
 // A tiny force that returns a constant vector and mixes by summing
 struct ConstantForce final : force::Force {

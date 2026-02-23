@@ -8,12 +8,12 @@
 #include "april/particle/scalar_access.hpp"
 
 namespace april::particle::internal {
-    template<ParticleField M, core::IsParticleAttributes U> struct PackedParticleView;
+    template<ParticleField M, IsParticleAttributes U> struct PackedParticleView;
 
 
     template<ParticleField M, ParticleField F, typename Source>
     constexpr auto init_packed(const Source& src) {
-        if constexpr (core::has_field_v<M, F>) {
+        if constexpr (particle::internal::has_field_v<M, F>) {
             // no de-reference here because pointers are needed to initialize packed references
             return src.template get<F>();
         } else {
@@ -38,11 +38,11 @@ namespace april::particle::internal {
 
         PackedParticleBuffer() = default;
         explicit PackedParticleBuffer(const auto & source) {
-            if constexpr (core::has_field_v<M, ParticleField::position>) position = source.position;
-            if constexpr (core::has_field_v<M, ParticleField::old_position>) old_position = source.old_position;
-            if constexpr (core::has_field_v<M, ParticleField::velocity>) velocity = source.velocity;
-            if constexpr (core::has_field_v<M, ParticleField::force>) force = source.force;
-            if constexpr (core::has_field_v<M, ParticleField::mass>) mass = source.mass;
+            if constexpr (particle::internal::has_field_v<M, ParticleField::position>) position = source.position;
+            if constexpr (particle::internal::has_field_v<M, ParticleField::old_position>) old_position = source.old_position;
+            if constexpr (particle::internal::has_field_v<M, ParticleField::velocity>) velocity = source.velocity;
+            if constexpr (particle::internal::has_field_v<M, ParticleField::force>) force = source.force;
+            if constexpr (particle::internal::has_field_v<M, ParticleField::mass>) mass = source.mass;
         }
 
         template<typename ScalarAccessor>
@@ -136,7 +136,7 @@ namespace april::particle::internal {
     //-------------------
     // PARTICLE REFERENCE
     //-------------------
-    template<ParticleField M, core::IsParticleAttributes U>
+    template<ParticleField M, IsParticleAttributes U>
     struct PackedParticleRef {
     private:
         template <typename T, ParticleField F> using field_type_t = field_type_t<T, F, M>;
@@ -171,7 +171,7 @@ namespace april::particle::internal {
     //------------------------
     // RESTRICTED PARTICLE REF
     //------------------------
-    template<ParticleField M, core::IsParticleAttributes U>
+    template<ParticleField M, IsParticleAttributes U>
     struct PackedRestrictedParticleRef {
     private:
         template <typename T, ParticleField F> using field_type_t = field_type_t<T, F, M>;
@@ -211,7 +211,7 @@ namespace april::particle::internal {
     //--------------
     // PARTICLE VIEW
     //--------------
-    template<ParticleField M, core::IsParticleAttributes U>
+    template<ParticleField M, IsParticleAttributes U>
     struct PackedParticleView {
     private:
         template <typename T, ParticleField F> using field_type_t = field_type_t<T, F, M>;
@@ -294,6 +294,9 @@ namespace april::particle {
     template<typename T>
     concept IsAnyParticleAccessor = IsScalarParticleAccessor<T> || IsPackedParticleAccessor<T>;
 }
+
+
+
 
 
 

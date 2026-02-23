@@ -194,7 +194,7 @@ namespace april::core {
 			auto update_batch = [&]<container::IsBatch Batch, /*TODO container::IsBCP*/ typename BCP>(const Batch& batch, BCP && apply_bcp) {
 				auto bridge = [&](auto && p1, auto && p2) {
 					vec3 r = {};
-					if constexpr (core::has_field_v<M, ParticleField::position> &&
+					if constexpr (particle::internal::has_field_v<M, ParticleField::position> &&
 						std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
 						r = p2.position - p1.position;
 						} else {
@@ -339,6 +339,9 @@ namespace april::core {
 } // namespace april::core
 
 #include "april/core/internal/system_impl.hpp"
+
+
+
 
 
 

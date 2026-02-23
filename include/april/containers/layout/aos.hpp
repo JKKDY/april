@@ -8,7 +8,7 @@
 
 namespace april::container::layout {
 
-	template<typename Config, core::IsParticleAttributes A>
+	template<typename Config, particle::IsParticleAttributes A>
 	class AoS : public Container<Config, A>{
 	public:
 		using Base = Container<Config, A>;
@@ -170,6 +170,9 @@ namespace april::container::layout {
 		std::vector<TopologyBatch> topology_batches;
 	};
 }
+
+
+
 
 
 

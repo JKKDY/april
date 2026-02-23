@@ -340,7 +340,7 @@ struct DummyPeriodicBoundary final : Boundary {
 	DummyPeriodicBoundary()
 	: Boundary(0.0, false, true, false ) {}
 
-	template<ParticleField M, core::IsParticleAttributes U>
+	template<ParticleField M, particle::IsParticleAttributes U>
 		void apply(particle::internal::ScalarParticleRef<M, U> &, const core::Box &, const Face) const noexcept{
 	}
 };
@@ -594,6 +594,10 @@ TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
 		EXPECT_EQ(res_view.velocity.z, val * 3);
 	}
 }
+
+
+
+
 
 
 

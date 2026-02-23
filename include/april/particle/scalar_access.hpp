@@ -6,13 +6,13 @@
 #include "april/particle/source.hpp"
 
 namespace april::particle::internal {
-	template<ParticleField M, core::IsParticleAttributes UserDataT> struct ScalarParticleView;
-	template<ParticleField M, core::IsParticleAttributes UserDataT> struct ScalarParticleRef;
+	template<ParticleField M, IsParticleAttributes UserDataT> struct ScalarParticleView;
+	template<ParticleField M, IsParticleAttributes UserDataT> struct ScalarParticleRef;
 
 
 	template<ParticleField M, ParticleField F, typename Source>
 	constexpr decltype(auto) init_scalar_field(const Source& src) {
-		if constexpr (core::has_field_v<M, F>) {
+		if constexpr (particle::internal::has_field_v<M, F>) {
 			return *src.template get<F>();
 		} else {
 			return internal::AccessForbidden<F>();
@@ -25,10 +25,10 @@ namespace april::particle::internal {
 	// PARTICLE REFERENCE
 	//-------------------
 	// Reference to particle data passed to controllers and boundaries that can mutate particle data.
-	template<ParticleField M, core::IsParticleAttributes UserDataT>
+	template<ParticleField M, IsParticleAttributes UserDataT>
 	struct ScalarParticleRef {
 	private:
-		template <typename T, ParticleField F> using field_type_t = internal::field_type_t<T, F, M>;
+		template <typename T, ParticleField F> using field_type_t = field_type_t<T, F, M>;
 		using vec3ref = math::Vec3Proxy<vec3::type>;
 	public:
 
@@ -65,10 +65,10 @@ namespace april::particle::internal {
 	// RESTRICTED PARTICLE REF
 	//------------------------
 	// Restricted reference allowing only the force field to be modified, used for fields.
-	template<ParticleField M, core::IsParticleAttributes UserDataT>
+	template<ParticleField M, IsParticleAttributes UserDataT>
 	struct ScalarRestrictedParticleRef {
 	private:
-	    template <typename T, ParticleField F> using field_type_t = internal::field_type_t<T, F, M>;
+	    template <typename T, ParticleField F> using field_type_t = field_type_t<T, F, M>;
 	    using Vec3Ref = math::Vec3Proxy<vec3::type>;
 	    using ConstVec3Ref = math::Vec3Proxy<const vec3::type>;
 	public:
@@ -106,10 +106,10 @@ namespace april::particle::internal {
 	// PARTICLE VIEW
 	//--------------
 	// Immutable reference to particle data, intended for read-only access (e.g., monitors).
-	template<ParticleField M, core::IsParticleAttributes UserDataT>
+	template<ParticleField M, IsParticleAttributes UserDataT>
 	struct ScalarParticleView {
 	private:
-	    template <typename T, ParticleField F> using field_type_t = internal::field_type_t<T, F, M>;
+	    template <typename T, ParticleField F> using field_type_t = field_type_t<T, F, M>;
 	    using ConstVec3Ref = math::Vec3Proxy<const vec3::type>;
 	public:
 
@@ -186,6 +186,9 @@ namespace april::particle {
 		IsScalarParticleRef<T> ||
 		IsScalarParticleView<T>;
 }
+
+
+
 
 
 

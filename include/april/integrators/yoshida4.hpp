@@ -16,13 +16,14 @@ namespace april::integrator {
 		using Base::Base;
 
 		static constexpr ParticleField pos_upd_fields =
-			ParticleField::state | ParticleField::velocity | ParticleField::position | ParticleField::mass | ParticleField::old_position | ParticleField::force;
+			ParticleField::state | ParticleField::velocity | ParticleField::position | ParticleField::mass |
+			ParticleField::old_position | ParticleField::force;
 
 		static constexpr ParticleField vel_upd_fields =
 			ParticleField::state | ParticleField::velocity | ParticleField::force | ParticleField::mass;
 
 
-		void stoermer_verlet_step(double delta_t) const {
+		void velocity_verlet_step(double delta_t) const {
 			sys.update_all_components();
 
 			sys.template for_each_particle<pos_upd_fields>(april::universal_kernel([&](auto p) {
@@ -47,19 +48,20 @@ namespace april::integrator {
 			constexpr double w1 = 1.3512071919596578;
 			constexpr double w2 = -1.7024143839193153;
 
-			stoermer_verlet_step(w1*dt);
-			stoermer_verlet_step(w2*dt);
-			stoermer_verlet_step(w1*dt);
+			velocity_verlet_step(w1*dt);
+			velocity_verlet_step(w2*dt);
+			velocity_verlet_step(w1*dt);
 		}
 	};
 
-	// Deduction guide so user can write StoermerVerlet(sys, MonitorPack<M1, M2, M3>)
-	template<class Sys, class... Ms>
+	// Deduction guide so user can write Yoshida4(sys, MonitorPack<M1, M2, M3>)
+	template<core::IsSystem Sys, class... Ms>
 	Yoshida4(Sys&, monitor::internal::MonitorPack<Ms...>)
 		-> Yoshida4<Sys, monitor::internal::MonitorPack<Ms...>>;
 
 	// Deduction guide so user can write StoermerVerlet(sys, m1, m2, m3)
-	template<class Sys, class... Ms>
+	template<core::IsSystem Sys, class... Ms>
+	requires (monitor::IsMonitor<std::decay_t<Ms>> && ...)
 	Yoshida4(Sys&, Ms...)
 		-> Yoshida4<Sys, monitor::internal::MonitorPack<std::decay_t<Ms>...>>;
 }

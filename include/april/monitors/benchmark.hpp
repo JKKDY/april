@@ -57,8 +57,8 @@ namespace april {
           }
        };
 
-       Benchmark() : Monitor(utility::Trigger::always()) {}
-       explicit Benchmark(BenchmarkResult * res) : Monitor(utility::Trigger::always()), result(res) {}
+       Benchmark() : Monitor(Trigger::always()) {}
+       explicit Benchmark(BenchmarkResult * res) : Monitor(Trigger::always()), result(res) {}
 
        void initialize() {
           glob_start_time = std::chrono::steady_clock::now();
@@ -130,6 +130,7 @@ namespace april {
        BenchmarkResult * result = nullptr;
     };
 }
+
 
 
 

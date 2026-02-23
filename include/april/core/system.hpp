@@ -41,7 +41,7 @@ namespace april {
 		// PUBLIC API TYPES
 		// ----------------
 		using SysContext = core::SystemContext<System>;
-		using TrigContext = utility::TriggerContextImpl<System>;
+		using TrigContext = utility::internal::TriggerContextImpl<System>;
 		using Container = ContainerDecl::template impl<typename Traits::particle_attributes_t>;
 		using ParticleRec = Traits::particle_record_t;
 
@@ -279,7 +279,7 @@ namespace april {
 		size_t step_ = 0;
 
 		core::SystemContext<System> system_context;
-		utility::TriggerContextImpl<System> trig_context;
+		utility::internal::TriggerContextImpl<System> trig_context;
 
 
 		// private constructor since System should only be creatable through build_system(...)
@@ -340,6 +340,7 @@ namespace april {
 } // namespace april::core
 
 #include "april/core/internal/system_impl.hpp"
+
 
 
 

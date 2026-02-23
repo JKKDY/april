@@ -6,15 +6,15 @@
 using namespace april;
 
 
-class OrbitMonitor final : public Monitor {
+class OrbitMonitor final : public monitor::Monitor {
 public:
 	OrbitMonitor(): Monitor(Trigger::always()) {}
 	explicit OrbitMonitor(const double v, const double r): Monitor(Trigger::always()), v(v), r(r) {}
 
-	static constexpr ParticleField fields = ParticleField::all;
+	static constexpr auto fields = ParticleField::all;
 
 	template<class S>
-	void record(const SystemContext<S> & sys) const {
+	void record(const core::SystemContext<S> & sys) const {
 		EXPECT_EQ(sys.size(), 2u);
 		const ParticleID id1 = sys.min_id();
 		const ParticleID id2 = sys.max_id() - 1;

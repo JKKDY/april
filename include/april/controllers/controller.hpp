@@ -9,9 +9,9 @@ namespace april::controller  {
 
 	class Controller {
 	public:
-		explicit Controller(utility::Trigger trig) : trigger(std::move(trig)) {}
+		explicit Controller(Trigger trig) : trigger(std::move(trig)) {}
 
-		[[nodiscard]] bool should_trigger(const utility::TriggerContext & sys) const {
+		[[nodiscard]] bool should_trigger(const utility::internal::TriggerContext & sys) const {
 			return trigger(sys);
 		}
 
@@ -39,7 +39,7 @@ namespace april::controller  {
 		}
 
 	private:
-		utility::Trigger trigger;
+		Trigger trigger;
 	};
 
 
@@ -72,6 +72,8 @@ namespace april {
 	requires (controller::IsController<Cs> && ...)
 	inline constexpr controller::internal::ControllerPack<Cs...> controllers {};
 }
+
+
 
 
 

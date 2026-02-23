@@ -5,8 +5,7 @@
 #include <functional>
 #include "april/core/context.hpp"
 
-namespace april::utility {
-
+namespace april::utility::internal {
 	struct TriggerContext {
 		virtual ~TriggerContext() = default;
 
@@ -36,17 +35,21 @@ namespace april::utility {
 	private:
 		const System& system;
 	};
+}
 
+namespace april{
 	struct Trigger {
-		using TriggerFn = std::function<bool(const TriggerContext&)>;
+	private:
+		using TriggerContext = utility::internal::TriggerContext;
+	public:
+		using TriggerFn = std::function<bool(const utility::internal::TriggerContext&)>;
 
-		bool operator()(const TriggerContext& sys) const {
+		bool operator()(const utility::internal::TriggerContext& sys) const {
 			return fn_(sys);
 		}
 
 		explicit Trigger(TriggerFn fn) : fn_(std::move(fn)) {}
 
-		// ---- convenience constructors ----
 
 		// step based triggers:
 		// trigger every N steps
@@ -119,7 +122,7 @@ namespace april::utility {
 
 
 
-		// ---- Chaining operators ----
+		// Chaining operators:
 		// Logical AND
 		friend Trigger operator&&(Trigger lhs, Trigger rhs) {
 			return Trigger{[lhs = std::move(lhs), rhs = std::move(rhs)]
@@ -147,18 +150,5 @@ namespace april::utility {
 		TriggerFn fn_;
 	};
 }
-
-// Todo: implement optional CRTP based triggers for more performance
-
-
-
-
-
-
-
-
-
-
-
 
 

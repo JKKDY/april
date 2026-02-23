@@ -15,7 +15,7 @@ namespace april {
 	public:
 		static constexpr auto fields = ParticleField::all;
 		explicit BinaryOutput(
-			const utility::Trigger & trigger,
+			const Trigger & trigger,
 			std::string dir = "output",
 			std::string base_name = "output")
 		:
@@ -70,6 +70,7 @@ namespace april {
 	};
 
 } // namespace april::core
+
 
 
 

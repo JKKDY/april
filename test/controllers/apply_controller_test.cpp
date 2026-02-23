@@ -22,7 +22,7 @@ public:
     SpySinks* sinks = nullptr; // Raw pointer, not an owner
 
     // Constructor used in the test to pass in the sinks
-    explicit SpyController(utility::Trigger trig, SpySinks* sinks_ptr)
+    explicit SpyController(Trigger trig, SpySinks* sinks_ptr)
         : Controller(std::move(trig)), sinks(sinks_ptr) {}
 
     // Default constructor is required for the controller::controllers<...> pack
@@ -30,13 +30,13 @@ public:
 
     // Implement init: increment counter
     template<class S>
-    void init(const SystemContext<S>&) {
+    void init(const core::SystemContext<S>&) {
         if (sinks) sinks->init_call_count++;
     }
 
     // Implement apply: increment counter and record step/time
     template<class S>
-    void apply(SystemContext<S>& ctx) {
+    void apply(core::SystemContext<S>& ctx) {
         if (sinks) {
             sinks->apply_call_count++;
             sinks->steps_at_apply.push_back(ctx.step());
@@ -215,7 +215,7 @@ TEST_F(ControllerTest, TriggerLogicalNot) {
 class SpyController2 : public controller::Controller {
 public:
     SpySinks* sinks = nullptr;
-    SpyController2(utility::Trigger trig, SpySinks* sinks_ptr)
+    SpyController2(Trigger trig, SpySinks* sinks_ptr)
         : Controller(std::move(trig)), sinks(sinks_ptr) {}
     SpyController2() : Controller(Trigger::never()), sinks(nullptr) {}
 
@@ -236,15 +236,15 @@ public:
 // and modify a particle by its ID.
 class ContextSpyController : public controller::Controller {
 public:
-    static constexpr ParticleField mask = ParticleField::velocity;
+    static constexpr auto mask = ParticleField::velocity;
 
-    ContextSpyController(utility::Trigger trig, ParticleID id)
+    ContextSpyController(Trigger trig, ParticleID id)
         : Controller(std::move(trig)), target_id(id) {}
 
     ContextSpyController() : Controller(Trigger::never()), target_id(0) {}
 
     template<class S>
-    void apply(SystemContext<S>& ctx) {
+    void apply(core::SystemContext<S>& ctx) {
         // Use the context to get a particle by ID and modify it
         auto p = ctx.template at<mask>(target_id);
         p.velocity = {100.0, 200.0, 300.0};
@@ -366,6 +366,7 @@ TEST_F(ControllerTest, ContextAccess_ModifiesParticles) {
     EXPECT_EQ(p2.velocity.y, target_vel.y);
     EXPECT_EQ(p2.velocity.z, target_vel.z);
 }
+
 
 
 

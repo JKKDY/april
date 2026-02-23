@@ -12,8 +12,8 @@ namespace april {
 		static constexpr ParticleField vel = ParticleField::velocity;
 
 	public:
-		explicit VelocityScalingThermostat(const utility::Trigger & trig): Controller(trig) {}
-		VelocityScalingThermostat(const double init_T, const double target_T, const double max_dT, const utility::Trigger & trig)
+		explicit VelocityScalingThermostat(const Trigger & trig): Controller(trig) {}
+		VelocityScalingThermostat(const double init_T, const double target_T, const double max_dT, const Trigger & trig)
 		: Controller(trig),
 		 _init_temp(init_T),
 		 _target_temp(target_T),
@@ -123,6 +123,7 @@ namespace april {
 	};
 
 } // namespace april::controller
+
 
 
 

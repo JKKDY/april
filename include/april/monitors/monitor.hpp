@@ -10,9 +10,9 @@ namespace april::monitor {
 
 	class Monitor {
 	public:
-		explicit Monitor(utility::Trigger  trig) : trigger(std::move(trig)) {}
+		explicit Monitor(Trigger  trig) : trigger(std::move(trig)) {}
 
-		[[nodiscard]] bool should_trigger(const utility::TriggerContext & sys) const {
+		[[nodiscard]] bool should_trigger(const utility::internal::TriggerContext & sys) const {
 			return trigger(sys);
 		}
 
@@ -61,7 +61,7 @@ namespace april::monitor {
 		double start_time{};
 		double end_time{};
 		size_t num_steps{};
-		utility::Trigger trigger;
+		Trigger trigger;
 	};
 
 
@@ -86,6 +86,8 @@ namespace april::monitor {
 namespace april {
 	template<class... Ms> inline constexpr monitor::internal::MonitorPack<Ms...> monitors{};
 }
+
+
 
 
 

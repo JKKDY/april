@@ -57,7 +57,8 @@ namespace april::integrator {
 		-> VelocityVerlet<Sys, monitor::internal::MonitorPack<Ms...>>;
 
 	// Deduction guide so user can write StoermerVerlet(sys, m1, m2, m3)
-	template<core::IsSystem Sys, monitor::IsMonitor... Ms>
+	template<core::IsSystem Sys,typename ... Ms>
+	requires (monitor::IsMonitor<std::decay_t<Ms>> && ...)
 	VelocityVerlet(Sys&, Ms...)
 		-> VelocityVerlet<Sys, monitor::internal::MonitorPack<std::decay_t<Ms>...>>;
 }

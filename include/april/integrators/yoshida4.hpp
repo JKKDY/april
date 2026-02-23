@@ -4,13 +4,13 @@
 
 #include "april/monitors/monitor.hpp"
 
-namespace april::integrator {
+namespace april {
 
 	template <core::IsSystem Sys, monitor::internal::IsMonitorPack Monitors>
-	class Yoshida4 : public Integrator<Sys, Monitors> {
+	class Yoshida4 : public integrator::Integrator<Sys, Monitors> {
 	public:
 		using State = ParticleState;
-		using Base = Integrator<Sys, Monitors>;
+		using Base = integrator::Integrator<Sys, Monitors>;
 		using Base::dt;
 		using Base::sys;
 		using Base::Base;
@@ -21,7 +21,6 @@ namespace april::integrator {
 
 		static constexpr ParticleField vel_upd_fields =
 			ParticleField::state | ParticleField::velocity | ParticleField::force | ParticleField::mass;
-
 
 		void velocity_verlet_step(double delta_t) const {
 			sys.update_all_components();

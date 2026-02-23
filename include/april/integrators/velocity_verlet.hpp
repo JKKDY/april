@@ -4,16 +4,13 @@
 
 #include "april/monitors/monitor.hpp"
 
-namespace april::integrator {
-
-	template<core::IsSystem Sys, monitor::internal::IsMonitorPack Pack> class VelocityVerlet;
+namespace april {
 
 	template <core::IsSystem Sys,  monitor::internal::IsMonitorPack Monitors>
-	class VelocityVerlet
-		: public Integrator<Sys, Monitors> {
+	class VelocityVerlet : public integrator::Integrator<Sys, Monitors> {
 	public:
 		using State = ParticleState;
-		using Base = Integrator<Sys, Monitors>;
+		using Base = integrator::Integrator<Sys, Monitors>;
 		using Base::dt;
 		using Base::sys;
 		using Base::Base;

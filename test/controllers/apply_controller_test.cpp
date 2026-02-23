@@ -217,7 +217,7 @@ public:
     SpySinks* sinks = nullptr;
     SpyController2(Trigger trig, SpySinks* sinks_ptr)
         : Controller(std::move(trig)), sinks(sinks_ptr) {}
-    SpyController2() : Controller(Trigger::never()), sinks(nullptr) {}
+    SpyController2() : Controller(Trigger::never()) {}
 
     template<class S>
     void init(const core::SystemContext<S>&) {

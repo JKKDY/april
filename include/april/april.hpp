@@ -53,10 +53,8 @@ namespace april {
 
 	// Environment
 	// using core::Environment;
-
 	// using ParticleCuboid;
 	// using ParticleSphere;
-	// using particle::internal::ScalarParticleView;
 	// using Particle;
 	// using core::particle_attributes; // template tag
 
@@ -67,9 +65,8 @@ namespace april {
 	// Boundary
 	// using boundary::Face;
 	// using boundary::all_faces;
-	//
+
 	// using boundary::boundaries; // template pack
-	// using boundary::Boundary;
 	// using boundary::Absorb;
 	// using boundary::Open;
 	// using boundary::Periodic;
@@ -110,20 +107,17 @@ namespace april {
 	// using core::System;
 	// using core::build_system;
 	// using core::BuildInfo;
-	// using core::SystemContext;
 
 	// Monitors
 	// using monitor::monitors;  // template pack
-	// using monitor::Monitor;
 	// using monitor::BinaryOutput;
 	// using monitor::TerminalOutput;
 	// using monitor::ProgressBar;
 	// using monitor::Benchmark;
 
 	// Integrators
-	using integrator::Integrator;
-	using integrator::VelocityVerlet;
-	using integrator::Yoshida4;
+	// using integrator::VelocityVerlet;
+	// using integrator::Yoshida4;
 
 	// shared
 	// using Trigger;

@@ -6,14 +6,11 @@
 
 namespace april::integrator {
 
-	template<core::IsSystem Sys, class Pack> class Yoshida4;
-
-	template <core::IsSystem Sys, class ... TMonitors>
-	class Yoshida4<Sys, monitor::internal::MonitorPack<TMonitors...>>
-		: public Integrator<Sys, monitor::internal::MonitorPack<TMonitors...>> {
+	template <core::IsSystem Sys, monitor::internal::IsMonitorPack Monitors>
+	class Yoshida4 : public Integrator<Sys, Monitors> {
 	public:
 		using State = ParticleState;
-		using Base = Integrator<Sys, monitor::internal::MonitorPack<TMonitors...>>;
+		using Base = Integrator<Sys, Monitors>;
 		using Base::dt;
 		using Base::sys;
 		using Base::Base;

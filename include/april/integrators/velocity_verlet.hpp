@@ -6,14 +6,14 @@
 
 namespace april::integrator {
 
-	template<core::IsSystem Sys, class Pack> class VelocityVerlet;
+	template<core::IsSystem Sys, monitor::internal::IsMonitorPack Pack> class VelocityVerlet;
 
-	template <core::IsSystem Sys, class ... TMonitors>
-	class VelocityVerlet<Sys, monitor::internal::MonitorPack<TMonitors...>>
-		: public Integrator<Sys, monitor::internal::MonitorPack<TMonitors...>> {
+	template <core::IsSystem Sys,  monitor::internal::IsMonitorPack Monitors>
+	class VelocityVerlet
+		: public Integrator<Sys, Monitors> {
 	public:
 		using State = ParticleState;
-		using Base = Integrator<Sys, monitor::internal::MonitorPack<TMonitors...>>;
+		using Base = Integrator<Sys, Monitors>;
 		using Base::dt;
 		using Base::sys;
 		using Base::Base;
@@ -52,24 +52,13 @@ namespace april::integrator {
 	};
 
 	// Deduction guide so user can write StoermerVerlet(sys, MonitorPack<M1, M2, M3>)
-	template<class Sys, class... Ms>
+	template<core::IsSystem Sys, monitor::IsMonitor... Ms>
 	VelocityVerlet(Sys&, monitor::internal::MonitorPack<Ms...>)
 		-> VelocityVerlet<Sys, monitor::internal::MonitorPack<Ms...>>;
 
 	// Deduction guide so user can write StoermerVerlet(sys, m1, m2, m3)
-	template<class Sys, class... Ms>
+	template<core::IsSystem Sys, monitor::IsMonitor... Ms>
 	VelocityVerlet(Sys&, Ms...)
 		-> VelocityVerlet<Sys, monitor::internal::MonitorPack<std::decay_t<Ms>...>>;
 }
-
-
-
-
-
-
-
-
-
-
-
 

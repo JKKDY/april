@@ -69,6 +69,17 @@ namespace april::monitor {
 
 	namespace internal {
 		template<IsMonitor... Ms> struct MonitorPack {};
+
+		// check if type is monitor pack
+		template<typename T>
+		inline constexpr bool is_monitor_pack_v = false;
+
+		template<IsMonitor... Ms>
+		inline constexpr bool is_monitor_pack_v<MonitorPack<Ms...>> = true;
+
+		template<typename T>
+		concept IsMonitorPack = is_monitor_pack_v<std::remove_cvref_t<T>>;
+
 	}
 }
 

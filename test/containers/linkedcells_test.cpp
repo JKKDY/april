@@ -334,7 +334,7 @@ TYPED_TEST(LinkedCellsTest, CollectIndicesInRegion) {
 }
 
 // does nothing except signaling the container to be periodic
-struct DummyPeriodicBoundary final : Boundary {
+struct DummyPeriodicBoundary final : boundary::Boundary {
 	static constexpr ParticleField fields = ParticleField::none;
 
 	DummyPeriodicBoundary()
@@ -594,6 +594,7 @@ TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
 		EXPECT_EQ(res_view.velocity.z, val * 3);
 	}
 }
+
 
 
 

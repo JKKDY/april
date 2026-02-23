@@ -29,14 +29,14 @@ namespace april::core::internal {
 		particle::IsParticleAttributes Attributes>
 	struct EnvironmentTraits<
 		force::internal::ForcePack<Fs...>,
-		boundary::BoundaryPack<BCs...>,
+		boundary::internal::BoundaryPack<BCs...>,
 		controller::internal::ControllerPack<Cs...>,
 		field::internal::FieldPack<FFs...>,
 		Attributes>
 	{
 		// Core Packs
 		using FPackT  = force::internal::ForcePack<Fs...>;
-		using BPack_t  = boundary::BoundaryPack<BCs...>;
+		using BPack_t  = boundary::internal::BoundaryPack<BCs...>;
 		using CPack_t  = controller::internal::ControllerPack<Cs...>;
 		using FFPack_t = field::internal::FieldPack<FFs...>;
 
@@ -154,7 +154,7 @@ namespace april::core::internal {
 
 
 	template<class T> static constexpr bool is_any_pack_v =
-		force::internal::IsForcePack<T> || boundary::IsBoundaryPack<T> ||
+		force::internal::IsForcePack<T> || boundary::internal::IsBoundaryPack<T> ||
 		controller::internal::IsControllerPack<T> || field::internal::IsFieldPack<T> ||
 		is_particle_data_v<T>;
 

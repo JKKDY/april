@@ -2,9 +2,9 @@
 
 #include "april/boundaries/boundary.hpp"
 
-namespace april::boundary {
-	struct Absorb : Boundary {
-		static constexpr ParticleField fields = ParticleField::state;
+namespace april {
+	struct Absorb : boundary::Boundary {
+		static constexpr auto fields = ParticleField::state;
 
 		Absorb(): Boundary(-1, false, false, false) {}
 

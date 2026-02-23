@@ -25,7 +25,7 @@ namespace april {
 
     template<
         force::internal::IsForcePack FPack,
-        boundary::IsBoundaryPack BPack,
+        boundary::internal::IsBoundaryPack BPack,
         controller::internal::IsControllerPack CPack,
         field::internal::IsFieldPack FFPack,
         particle::IsParticleAttributes ParticleData>
@@ -37,7 +37,7 @@ namespace april {
 
         // empty convenience constructor
         Environment()
-        : Environment(forces<>, boundary::boundaries<>, controllers<>, fields<>, NoParticleAttributes{}) {}
+        : Environment(forces<>, boundaries<>, controllers<>, fields<>, NoParticleAttributes{}) {}
 
         // accepts any subset & order of packs
         template<class... Args>
@@ -46,7 +46,7 @@ namespace april {
         explicit Environment(Args&&...)
             : Environment(
                 core::internal::get_pack_t<force::internal::ForcePack, Args...>{},
-                core::internal::get_pack_t<boundary::BoundaryPack, Args...>{},
+                core::internal::get_pack_t<boundary::internal::BoundaryPack, Args...>{},
                 core::internal::get_pack_t<controller::internal::ControllerPack,Args...>{},
                 core::internal::get_pack_t<field::internal::FieldPack, Args...>{},
                 core::internal::get_particle_attributes_t<Args...>{}
@@ -130,23 +130,23 @@ namespace april {
         //---------------
         // Single boundary on one face
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
-        void set_boundary(B boundary, const boundary::Face face) {
-            data.boundaries[face_to_int(face)].template emplace<B>(std::move(boundary));
+        void set_boundary(B boundary, const Face face) {
+            data.boundaries[boundary::face_to_int(face)].template emplace<B>(std::move(boundary));
         }
 
         // Same boundary applied to multiple faces
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
-        void set_boundaries(B boundary, const std::vector<boundary::Face> & faces) {
-            for (const boundary::Face face : faces) {
-                data.boundaries[face_to_int(face)].template emplace<B>(boundary);
+        void set_boundaries(B boundary, const std::vector<Face> & faces) {
+            for (const Face face : faces) {
+                data.boundaries[boundary::face_to_int(face)].template emplace<B>(boundary);
             }
         }
 
         // Boundaries provided as array (per-face)
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
         void set_boundaries(const std::array<B, 6> & boundaries) {
-            for (const boundary::Face face : boundary::all_faces) {
-                data.boundaries[face_to_int(face)].template emplace<B>(boundaries[face_to_int(face)]);
+            for (const Face face : all_faces) {
+                data.boundaries[boundary::face_to_int(face)].template emplace<B>(boundaries[boundary::face_to_int(face)]);
             }
         }
 
@@ -260,13 +260,13 @@ namespace april {
         }
 
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
-        Environment& with_boundary(B&& boundary, boundary::Face face) {
+        Environment& with_boundary(B&& boundary, Face face) {
             set_boundary(std::forward<B>(boundary), face);
             return *this;
         }
 
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
-        Environment& with_boundaries(B&& boundary, const std::vector<boundary::Face>& faces) {
+        Environment& with_boundaries(B&& boundary, const std::vector<Face>& faces) {
             set_boundaries(std::forward<B>(boundary), faces);
             return *this;
         }
@@ -343,7 +343,7 @@ namespace april {
     Environment(Args...)
         -> Environment<
             core::internal::get_pack_t<force::internal::ForcePack, Args...>,
-            core::internal::get_pack_t<boundary::BoundaryPack, Args...>,
+            core::internal::get_pack_t<boundary::internal::BoundaryPack, Args...>,
             core::internal::get_pack_t<controller::internal::ControllerPack,Args...>,
             core::internal::get_pack_t<field::internal::FieldPack, Args...>,
             core::internal::get_particle_attributes_t<Args...>
@@ -357,7 +357,7 @@ namespace april {
 
             template<
                 force::internal::IsForcePack FPack,
-                boundary::IsBoundaryPack BPack,
+                boundary::internal::IsBoundaryPack BPack,
                 controller::internal::IsControllerPack CPack,
                 field::internal::IsFieldPack FFPack,
                 particle::IsParticleAttributes ParticleData

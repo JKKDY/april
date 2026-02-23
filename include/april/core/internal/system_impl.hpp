@@ -170,7 +170,7 @@ namespace april {
 
 		const core::Box domain_box = this->box();
 
-		for (boundary::Face face : boundary::all_faces) {
+		for (Face face : all_faces) {
 
 			const auto& compiled_boundary = boundary_table[face];
 
@@ -201,7 +201,7 @@ namespace april {
 					// with the equation y = t * diff + p where:
 					// diff is the path traveled, p is the particles starting position and y is the face
 
-					const int ax = axis_of_face(face);
+					const int ax = boundary::axis_of_face(face);
 					const vec3 diff = particle.position - particle.old_position;
 					const double y = diff[ax] < 0 ? domain_box.min[ax] : domain_box.max[ax];
 					const double t = (y - particle.old_position[ax]) / diff[ax];
@@ -209,7 +209,7 @@ namespace april {
 					const vec3 intersection = t * diff + particle.old_position;
 
 					// and check if that point is on the domains surface
-					auto [ax1, ax2] = non_face_axis(face);
+					auto [ax1, ax2] = boundary::non_face_axis(face);
 					if (domain_box.max[ax1] >= intersection[ax1] && domain_box.min[ax1] <= intersection[ax1] &&
 						domain_box.max[ax2] >= intersection[ax2] && domain_box.min[ax2] <= intersection[ax2]) {
 

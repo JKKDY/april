@@ -20,7 +20,7 @@
 namespace april {
     template<
        force::internal::IsForcePack FPack,
-       boundary::IsBoundaryPack BPack,
+       boundary::internal::IsBoundaryPack BPack,
        controller::internal::IsControllerPack CPack,
        field::internal::IsFieldPack FFPack,
        particle::IsParticleAttributes ParticleData>
@@ -60,7 +60,7 @@ namespace april::core::internal {
     // friend function of environment to access the environment data
     template<
         force::internal::IsForcePack FPack,
-        boundary::IsBoundaryPack BPack,
+        boundary::internal::IsBoundaryPack BPack,
         controller::internal::IsControllerPack CPack,
         field::internal::IsFieldPack FFPack,
         particle::IsParticleAttributes ParticleData>

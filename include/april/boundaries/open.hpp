@@ -3,9 +3,9 @@
 
 #include "april/boundaries/boundary.hpp"
 
-namespace april::boundary {
-	struct Open : Boundary {
-		static constexpr ParticleField fields = ParticleField::none;
+namespace april {
+	struct Open : boundary::Boundary {
+		static constexpr auto fields = ParticleField::none;
 
 		Open(): Boundary(-1, false, false, false) {}
 

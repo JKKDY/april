@@ -107,7 +107,7 @@ TYPED_TEST_SUITE(AbsorbBoundarySystemTestT, ContainerTypes);
 
 // Particle inside the domain should remain alive
 TYPED_TEST(AbsorbBoundarySystemTestT, InsideDomain_RemainsAlive) {
-	Environment env(forces<NoForce>, boundary::boundaries<Absorb>);
+	Environment env(forces<NoForce>, boundaries<Absorb>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -134,7 +134,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, InsideDomain_RemainsAlive) {
 
 // Absorb boundary full-pipeline test: one particle per face
 TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
-	Environment env(forces<NoForce>, boundary::boundaries<Absorb>);
+	Environment env(forces<NoForce>, boundaries<Absorb>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -168,6 +168,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 			<< " should be marked DEAD by Absorb boundary.";
 	}
 }
+
 
 
 

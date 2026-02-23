@@ -8,8 +8,8 @@ using namespace april;
 
 using ParticleRecord = particle::ParticleRecord<NoParticleAttributes>;
 
-struct TouchSpy final : Boundary {
-	static constexpr ParticleField fields = ParticleField::id;
+struct TouchSpy final : boundary::Boundary {
+	static constexpr auto fields = ParticleField::id;
 
 	// thickness >= 0 → inside slab; < 0 → outside half-space
 	explicit TouchSpy(const double thickness, std::vector<ParticleID>* sink)
@@ -33,7 +33,7 @@ TYPED_TEST_SUITE(BoundaryTestT, ContainerTypes);
 
 TYPED_TEST(BoundaryTestT, InsideSlab_XMinus_AppliesOnlyToSlabParticles) {
 	// Domain: [0,10]^3
-	Environment env (forces<NoForce>, boundary::boundaries<TouchSpy>);
+	Environment env (forces<NoForce>, boundaries<TouchSpy>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 
@@ -74,7 +74,7 @@ TYPED_TEST(BoundaryTestT, InsideSlab_XMinus_AppliesOnlyToSlabParticles) {
 
 
 TYPED_TEST(BoundaryTestT, OutsideHalfspace_XPlus_TouchesOnlyActualExiters) {
-	Environment env (forces<NoForce>, boundary::boundaries<TouchSpy>);
+	Environment env (forces<NoForce>, boundaries<TouchSpy>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -120,7 +120,7 @@ TYPED_TEST(BoundaryTestT, OutsideHalfspace_XPlus_TouchesOnlyActualExiters) {
 
 
 TYPED_TEST(BoundaryTestT, CornerExit_TriggersRelevantFaces) {
-	Environment env (forces<NoForce>, boundary::boundaries<TouchSpy>);
+	Environment env (forces<NoForce>, boundaries<TouchSpy>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -166,7 +166,7 @@ TYPED_TEST(BoundaryTestT, CornerExit_TriggersRelevantFaces) {
 
 TYPED_TEST(BoundaryTestT, InsideCorner_TouchesAllOverlappingFaces) {
 	// Domain [0,10]^3
-	Environment env(forces<NoForce>, boundary::boundaries<TouchSpy>);
+	Environment env(forces<NoForce>, boundaries<TouchSpy>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -210,7 +210,7 @@ TYPED_TEST(BoundaryTestT, InsideCorner_TouchesAllOverlappingFaces) {
 
 
 TYPED_TEST(BoundaryTestT, NearCornerExit_TriggersCorrectFace) {
-	Environment env (forces<NoForce>, boundary::boundaries<TouchSpy>);
+	Environment env (forces<NoForce>, boundaries<TouchSpy>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -253,7 +253,7 @@ TYPED_TEST(BoundaryTestT, NearCornerExit_TriggersCorrectFace) {
 
 
 TYPED_TEST(BoundaryTestT, InsideSlab_AllFaces_OneParticleEach) {
-	Environment env(forces<NoForce>, boundary::boundaries<TouchSpy>);
+	Environment env(forces<NoForce>, boundaries<TouchSpy>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -294,6 +294,7 @@ TYPED_TEST(BoundaryTestT, InsideSlab_AllFaces_OneParticleEach) {
 	EXPECT_EQ(szm, std::vector{get_id(4)});
 	EXPECT_EQ(szp, std::vector{get_id(5)});
 }
+
 
 
 

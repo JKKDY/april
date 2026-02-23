@@ -65,16 +65,16 @@ namespace april {
 	// using core::between_ids;
 
 	// Boundary
-	using boundary::Face;
-	using boundary::all_faces;
-
-	using boundary::boundaries; // template pack
-	using boundary::Boundary;
-	using boundary::Absorb;
-	using boundary::Open;
-	using boundary::Periodic;
-	using boundary::Reflective;
-	using boundary::Repulsive;
+	// using boundary::Face;
+	// using boundary::all_faces;
+	//
+	// using boundary::boundaries; // template pack
+	// using boundary::Boundary;
+	// using boundary::Absorb;
+	// using boundary::Open;
+	// using boundary::Periodic;
+	// using boundary::Reflective;
+	// using boundary::Repulsive;
 
 	// Forces
 	// using force::forces; // template pack

@@ -118,7 +118,7 @@ TYPED_TEST_SUITE(ReflectiveBoundarySystemTestT, ContainerTypes);
 
 
 TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
-    Environment env(forces<NoForce>, boundary::boundaries<Reflective>);
+    Environment env(forces<NoForce>, boundaries<Reflective>);
     env.set_origin({0,0,0});
     env.set_extent({10,10,10});
     env.add_force(NoForce{}, to_type(0));
@@ -178,6 +178,7 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
         EXPECT_EQ(p.velocity.z, expected_vel[uid].z);
     }
 }
+
 
 
 

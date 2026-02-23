@@ -162,7 +162,7 @@ using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, LinkedCellsAoS
 TYPED_TEST_SUITE(PeriodicBoundarySystemTestT, ContainerTypes);
 
 TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
-	Environment env(forces<NoForce>, boundary::boundaries<Periodic>);
+	Environment env(forces<NoForce>, boundaries<Periodic>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -209,7 +209,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 
 
 TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinuity) {
-	Environment env(forces<NoForce>, boundary::boundaries<Periodic>);
+	Environment env(forces<NoForce>, boundaries<Periodic>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -234,6 +234,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinu
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);
 	EXPECT_NEAR(p.position.z, 5.0, 1e-12);
 }
+
 
 
 

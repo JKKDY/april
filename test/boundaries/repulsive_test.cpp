@@ -140,7 +140,7 @@ TYPED_TEST_SUITE(RepulsiveBoundarySystemTestT, ContainerTypes);
 
 TYPED_TEST(RepulsiveBoundarySystemTestT, EachFace_AppliesInwardForce) {
 	ConstantForce f{3.0, 5.0};
-	Environment env(forces<NoForce>, boundary::boundaries<Repulsive<ConstantForce>>);
+	Environment env(forces<NoForce>, boundaries<Repulsive<ConstantForce>>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -186,9 +186,9 @@ TYPED_TEST(RepulsiveBoundarySystemTestT, EachFace_AppliesInwardForce) {
 TEST(RepulsiveBoundaryTest, ExponentialForce_CalculatesCorrectly) {
     // A=10, lambda=2.0, rc=10
     // Formula: 10 * exp(-d / 2.0)
-    boundary::ExponentialForce exp_force{10.0, 2.0, 10.0};
-    const boundary::Repulsive rep(exp_force);
-    constexpr ParticleField Mask = boundary::Repulsive<boundary::ExponentialForce>::fields;
+    WallForce::ExponentialForce exp_force{10.0, 2.0, 10.0};
+    const Repulsive rep(exp_force);
+    constexpr ParticleField Mask = Repulsive<WallForce::ExponentialForce>::fields;
 
     // Particle 1.0 unit away from 0.0 (XMinus wall)
     auto p = make_particle({1.0, 5, 5});
@@ -208,13 +208,13 @@ TEST(RepulsiveBoundaryTest, ExponentialForce_CalculatesCorrectly) {
 TEST(RepulsiveBoundaryTest, PowerLawForce_CalculatesCorrectly) {
     // A=2.0, n=2.0, rc=10
     // Formula: 2.0 / d^2
-    boundary::PowerLawForce pow_force{2.0, 2.0, 10.0};
-    const boundary::Repulsive rep(pow_force);
-    constexpr ParticleField Mask = boundary::Repulsive<boundary::PowerLawForce>::fields;
+    WallForce::PowerLawForce pow_force{2.0, 2.0, 10.0};
+    const Repulsive rep(pow_force);
+    constexpr ParticleField Mask = Repulsive<WallForce::PowerLawForce>::fields;
 
     // Particle 2.0 units away from 0.0
     auto p = make_particle({2.0, 5, 5});
-    auto src = make_source<Mask>(p);
+    const auto src = make_source<Mask>(p);
     particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
     const core::Box box({0,0,0}, {10,10,10});
 
@@ -226,15 +226,15 @@ TEST(RepulsiveBoundaryTest, PowerLawForce_CalculatesCorrectly) {
 
 TEST(RepulsiveBoundaryTest, LennardJones93Force_CalculatesCorrectly) {
     // eps=1, sigma=1, rc=5
-    boundary::LennardJones93Force lj93{1.0, 1.0, 5.0};
-    const boundary::Repulsive rep(lj93);
+    WallForce::LennardJones93Force lj93{1.0, 1.0, 5.0};
+    const Repulsive rep(lj93);
     constexpr ParticleField Mask = decltype(rep)::fields;
 
     // Distance = 1.0 (sigma)
     // Formula: 4*eps * (3*(s/r)^3 - 9*(s/r)^9)
     // At r=s: 4 * (3 - 9) = -24
     auto p = make_particle({1.0, 5, 5});
-    auto src = make_source<Mask>(p);
+    const auto src = make_source<Mask>(p);
     particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
     const core::Box box({0,0,0}, {10,10,10});
 
@@ -249,8 +249,8 @@ TEST(RepulsiveBoundaryTest, LennardJones93Force_CalculatesCorrectly) {
 
 TEST(RepulsiveBoundaryTest, AdhesiveLJForce_IsAlwaysRepulsive) {
     // This force uses std::abs, so it should always push away from the wall
-    boundary::AdhesiveLJForce adj_lj{1.0, 1.0, 5.0};
-    const boundary::Repulsive rep(adj_lj);
+    WallForce::AdhesiveLJForce adj_lj{1.0, 1.0, 5.0};
+    const Repulsive rep(adj_lj);
     constexpr ParticleField Mask = decltype(rep)::fields;
 
     // At sigma (1.0), standard LJ Force is 24 * eps * (2 - 1) = 24.
@@ -271,13 +271,13 @@ TEST(RepulsiveBoundaryTest, AdhesiveLJForce_IsAlwaysRepulsive) {
 
 TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
     LinearIdentityForce lin_force; // Returns distance as magnitude
-    constexpr ParticleField Mask = boundary::Repulsive<LinearIdentityForce>::fields;
+    constexpr ParticleField Mask = Repulsive<LinearIdentityForce>::fields;
     const core::Box box({0,0,0}, {10,10,10});
 
     // Case 1: Halo OFF
     {
         // simulate_halo = false
-        const boundary::Repulsive rep_no_halo(lin_force, false);
+        const Repulsive rep_no_halo(lin_force, false);
 
         // Particle at distance 2.0 from X- wall (pos=2.0)
         auto p = make_particle({2.0, 5, 5});
@@ -293,7 +293,7 @@ TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
     // Case 2: Halo ON
     {
         // simulate_halo = true
-        const boundary::Repulsive rep_halo(lin_force, true);
+        const Repulsive rep_halo(lin_force, true);
 
         // Particle at distance 2.0 from X- wall (pos=2.0)
         auto p = make_particle({2.0, 5, 5});
@@ -307,13 +307,4 @@ TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
         EXPECT_NEAR(p.force.x, 4.0, 1e-12) << "Halo should double the effective distance passed to the force";
     }
 }
-
-
-
-
-
-
-
-
-
 

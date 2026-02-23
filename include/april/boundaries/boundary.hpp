@@ -8,8 +8,8 @@
 #include "april/particle/scalar_access.hpp"
 #include "april/core/domain.hpp"
 
-namespace april::boundary {
 
+namespace april {
 	struct Open;
 
 	enum class Face : uint8_t {
@@ -23,8 +23,9 @@ namespace april::boundary {
 		Face::YMinus, Face::YPlus,
 		Face::ZMinus, Face::ZPlus
 	};
+}
 
-
+namespace april::boundary {
 	inline int face_to_int(Face f) noexcept {
 		return static_cast<int>(f);
 	}
@@ -67,7 +68,7 @@ namespace april::boundary {
 		// (e.g. periodic boundaries: X- and X+ must both be periodic).
 		bool couples_axis;
 
-		// If true, this boundary changes iteration behaviour in the container
+		// If true, this boundary changes iteration behavior in the container
 		// (e.g. periodic: requires min-image / ghost cells).
 		// Otherwise, only particle dynamics are affected.
 		bool force_wrap;
@@ -84,7 +85,6 @@ namespace april::boundary {
 			topology(thickness, couples_axis, force_wrap, may_change_particle_pos)
 		{}
 
-		// TODO make this bindable to R-Values
 		template<ParticleField IncomingMask, particle::IsParticleAttributes U>
 		void invoke_apply(this const auto & self,particle::internal::ScalarParticleRef<IncomingMask, U> & particle, const core::Box & domain_box, Face face) noexcept {
 			static_assert(
@@ -119,29 +119,32 @@ namespace april::boundary {
 	template <class BC>
 	concept IsBoundary = std::derived_from<BC, Boundary>;
 
-	// define boundary pack
-	template<IsBoundary... BCs>
-	struct BoundaryPack {
-	};
+	namespace internal {
+		// define boundary pack
+		template<IsBoundary... BCs>
+		struct BoundaryPack {
+		};
+	}
+}
+
+namespace april {
 
 	// constrained variable template
 	template<class... BCs>
-	requires (IsBoundary<BCs> && ...)
-	inline constexpr BoundaryPack<BCs...> boundaries {};
+	requires (boundary::IsBoundary<BCs> && ...)
+	inline constexpr boundary::internal::BoundaryPack<BCs...> boundaries {};
 
 
-	// Concept to check if a type T is a ControllerPack
-	template<typename T>
-	inline constexpr bool is_boundary_pack_v = false; // Default
+	namespace boundary::internal {
+		// Concept to check if a type T is a ControllerPack
+		template<typename T>
+		inline constexpr bool is_boundary_pack_v = false; // Default
 
-	template<IsBoundary... BCs>
-	inline constexpr bool is_boundary_pack_v<BoundaryPack<BCs...>> = true; // Specialization
+		template<IsBoundary... BCs>
+		inline constexpr bool is_boundary_pack_v<BoundaryPack<BCs...>> = true; // Specialization
 
-	template<typename T>
-	concept IsBoundaryPack = is_boundary_pack_v<std::remove_cvref_t<T>>;
-
-
-	namespace internal {
+		template<typename T>
+		concept IsBoundaryPack = is_boundary_pack_v<std::remove_cvref_t<T>>;
 
 		struct BoundarySentinel : Boundary {
 			static constexpr ParticleField fields = ParticleField::none;

@@ -3,16 +3,16 @@
 
 #include "april/boundaries/boundary.hpp"
 
-namespace april::boundary {
-	struct Reflective : Boundary {
+namespace april {
+	struct Reflective : boundary::Boundary {
 		static constexpr ParticleField fields = ParticleField::position | ParticleField::old_position | ParticleField::velocity;
 
 		Reflective(): Boundary(-1, false, false, true) {}
 
 		template<ParticleField M, particle::IsParticleAttributes U>
 		void apply(particle::internal::ScalarParticleRef<M, U> & particle, const core::Box & domain_box, const Face face) const noexcept{
-			const int is_plus = face_sign_pos(face);
-			const int ax = axis_of_face(face);
+			const int is_plus = boundary::face_sign_pos(face);
+			const int ax = boundary::axis_of_face(face);
 
 			const vec3 diff = particle.position - particle.old_position;
 			vec3 diff_reflected = diff;

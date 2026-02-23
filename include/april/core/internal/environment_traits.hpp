@@ -30,14 +30,14 @@ namespace april::core::internal {
 	struct EnvironmentTraits<
 		force::ForcePack<Fs...>,
 		boundary::BoundaryPack<BCs...>,
-		controller::ControllerPack<Cs...>,
+		controller::internal::ControllerPack<Cs...>,
 		field::FieldPack<FFs...>,
 		Attributes>
 	{
 		// Core Packs
 		using FPackT  = force::ForcePack<Fs...>;
 		using BPack_t  = boundary::BoundaryPack<BCs...>;
-		using CPack_t  = controller::ControllerPack<Cs...>;
+		using CPack_t  = controller::internal::ControllerPack<Cs...>;
 		using FFPack_t = field::FieldPack<FFs...>;
 
 		// Derived Variants

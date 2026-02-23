@@ -85,9 +85,9 @@ namespace april {
 	using force::Coulomb;
 
 	// Controllers
-	using controller::controllers;  // template pack
+	// using controller::controllers;  // template pack
 	using controller::Controller;
-	using controller::VelocityScalingThermostat;
+	// using controller::VelocityScalingThermostat;
 
 	// Fields
 	using field::fields; // template pack

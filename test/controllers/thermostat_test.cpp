@@ -239,11 +239,11 @@ TEST(ThermostatBehaviorTest, Apply_HeatsThenCoolsWithTriggers) {
 
     // Controller 1: Heats to 40.0 between steps 0 and 19
     env.add_controller(VelocityScalingThermostat(
-        controller::temperature_not_set, T_heat, 5.0, Trigger::between(0, 20)
+        temperature_not_set, T_heat, 5.0, Trigger::between(0, 20)
     ));
     // Controller 2: Cools to 2.5 after step 20
     env.add_controller(VelocityScalingThermostat(
-        controller::temperature_not_set, T_cool, 5.0, Trigger::after(20)
+        temperature_not_set, T_cool, 5.0, Trigger::after(20)
     ));
 
     auto system = build_system(env, DirectSumAoS());

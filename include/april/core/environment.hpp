@@ -38,7 +38,7 @@ namespace april {
 
         // empty convenience constructor
         Environment()
-        : Environment(force::forces<>, boundary::boundaries<>, controller::controllers<>, field::fields<>, NoParticleAttributes{}) {}
+        : Environment(force::forces<>, boundary::boundaries<>, controllers<>, field::fields<>, NoParticleAttributes{}) {}
 
         // accepts any subset & order of packs
         template<class... Args>
@@ -48,7 +48,7 @@ namespace april {
             : Environment(
                 core::internal::get_pack_t<force::ForcePack, Args...>{},
                 core::internal::get_pack_t<boundary::BoundaryPack, Args...>{},
-                core::internal::get_pack_t<controller::ControllerPack,Args...>{},
+                core::internal::get_pack_t<controller::internal::ControllerPack,Args...>{},
                 core::internal::get_pack_t<field::FieldPack, Args...>{},
                 core::internal::get_particle_attributes_t<Args...>{}
             ) {}
@@ -345,7 +345,7 @@ namespace april {
         -> Environment<
             core::internal::get_pack_t<force::ForcePack, Args...>,
             core::internal::get_pack_t<boundary::BoundaryPack, Args...>,
-            core::internal::get_pack_t<controller::ControllerPack,Args...>,
+            core::internal::get_pack_t<controller::internal::ControllerPack,Args...>,
             core::internal::get_pack_t<field::FieldPack, Args...>,
             core::internal::get_particle_attributes_t<Args...>
         >;

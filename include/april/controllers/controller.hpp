@@ -44,32 +44,35 @@ namespace april::controller  {
 
 
 
-
 	template <class C>
 	concept IsController = std::derived_from<C, Controller>;
 
-	// define controller Pack
-	template<IsController...>
-	struct ControllerPack {};
 
-	// constrained variable template
-	template<class... Cs>
-	requires (IsController<Cs> && ...)
-	inline constexpr ControllerPack<Cs...> controllers {};
+	namespace internal {
+		// define controller Pack
+		template<IsController...>
+		struct ControllerPack {};
 
+		// Concept to check if a type T is a ControllerPack
+		template<typename T>
+		inline constexpr bool is_controller_pack_v = false; // Default
 
-	// Concept to check if a type T is a ControllerPack
-	template<typename T>
-	inline constexpr bool is_controller_pack_v = false; // Default
-
-	template<IsController... Cs>
-	inline constexpr bool is_controller_pack_v<ControllerPack<Cs...>> = true; // Specialization
+		template<IsController... Cs>
+		inline constexpr bool is_controller_pack_v<ControllerPack<Cs...>> = true; // Specialization
+	}
 
 	template<typename T>
-	concept IsControllerPack = is_controller_pack_v<std::remove_cvref_t<T>>;
+	concept IsControllerPack = internal::is_controller_pack_v<std::remove_cvref_t<T>>;
 
 } // namespace april::controller
 
+
+namespace april {
+	// constrained variable template
+	template<class... Cs>
+	requires (controller::IsController<Cs> && ...)
+	inline constexpr controller::internal::ControllerPack<Cs...> controllers {};
+}
 
 
 

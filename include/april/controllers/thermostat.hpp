@@ -2,11 +2,12 @@
 
 #include "april/controllers/controller.hpp"
 #include "april/math/statistics.hpp"
-namespace april::controller {
+namespace april {
 
+	// TODO get rid of this magic value
 	static constexpr double temperature_not_set = -1.0;
 
-	class VelocityScalingThermostat : public Controller {
+	class VelocityScalingThermostat : public controller::Controller {
 		static constexpr ParticleField mass_vel = ParticleField::velocity | ParticleField::mass;
 		static constexpr ParticleField vel = ParticleField::velocity;
 

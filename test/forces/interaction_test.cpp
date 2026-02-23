@@ -15,7 +15,7 @@ using namespace april;
 
 // 1. Define the ForceVariant and ForceTable types for the test
 // Must include ForceSentinel and NoForce as per internal requirements
-using TestForceVariant = std::variant<force::internal::ForceSentinel, ConstantForce, force::NoForce>;
+using TestForceVariant = std::variant<force::internal::ForceSentinel, ConstantForce, NoForce>;
 using ForceTable = force::internal::ForceTable<TestForceVariant>;
 using TypeInfo = force::internal::TypeInteraction<TestForceVariant>;
 using IdInfo = force::internal::IdInteraction<TestForceVariant>;

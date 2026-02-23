@@ -3,10 +3,10 @@
 #include "april/forces/force.hpp"
 
 
-namespace april::force {
+namespace april {
 	// No-op force: always returns zero vector and mixes to itself.
-	struct NoForce : Force{
-		static constexpr ParticleField fields = ParticleField::none;
+	struct NoForce : force::Force{
+		static constexpr auto fields = ParticleField::none;
 
 		NoForce(): Force(0) {}
 

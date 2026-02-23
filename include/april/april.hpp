@@ -77,12 +77,12 @@ namespace april {
 	using boundary::Repulsive;
 
 	// Forces
-	using force::forces; // template pack
-	using force::Harmonic;
-	using force::NoForce;
-	using force::Gravity;
-	using force::LennardJones;
-	using force::Coulomb;
+	// using force::forces; // template pack
+	// using force::Harmonic;
+	// using force::NoForce;
+	// using force::Gravity;
+	// using force::LennardJones;
+	// using force::Coulomb;
 
 	// Controllers
 	// using controller::controllers;  // template pack

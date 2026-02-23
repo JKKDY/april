@@ -59,11 +59,10 @@ namespace april::controller  {
 
 		template<IsController... Cs>
 		inline constexpr bool is_controller_pack_v<ControllerPack<Cs...>> = true; // Specialization
+
+		template<typename T>
+		concept IsControllerPack = internal::is_controller_pack_v<std::remove_cvref_t<T>>;
 	}
-
-	template<typename T>
-	concept IsControllerPack = internal::is_controller_pack_v<std::remove_cvref_t<T>>;
-
 } // namespace april::controller
 
 

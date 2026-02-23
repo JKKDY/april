@@ -6,7 +6,6 @@
 #include "april/base/types.hpp"
 #include "april/core/domain.hpp"
 #include "april/core/internal/environment_traits.hpp"
-#include "april/core/internal/environment_data.hpp"
 
 #include "april/forces/force.hpp"
 #include "april/boundaries/boundary.hpp"
@@ -25,9 +24,9 @@ namespace april {
 
 
     template<
-        force::IsForcePack FPack,
+        force::internal::IsForcePack FPack,
         boundary::IsBoundaryPack BPack,
-        controller::IsControllerPack CPack,
+        controller::internal::IsControllerPack CPack,
         field::IsFieldPack FFPack,
         particle::IsParticleAttributes ParticleData>
     class Environment {
@@ -38,7 +37,7 @@ namespace april {
 
         // empty convenience constructor
         Environment()
-        : Environment(force::forces<>, boundary::boundaries<>, controllers<>, field::fields<>, NoParticleAttributes{}) {}
+        : Environment(forces<>, boundary::boundaries<>, controllers<>, field::fields<>, NoParticleAttributes{}) {}
 
         // accepts any subset & order of packs
         template<class... Args>
@@ -46,7 +45,7 @@ namespace april {
             (!std::same_as<std::remove_cvref_t<Args>, Environment> && ...) // make sonarqube shut up about perfect forwarding
         explicit Environment(Args&&...)
             : Environment(
-                core::internal::get_pack_t<force::ForcePack, Args...>{},
+                core::internal::get_pack_t<force::internal::ForcePack, Args...>{},
                 core::internal::get_pack_t<boundary::BoundaryPack, Args...>{},
                 core::internal::get_pack_t<controller::internal::ControllerPack,Args...>{},
                 core::internal::get_pack_t<field::FieldPack, Args...>{},
@@ -343,7 +342,7 @@ namespace april {
     template<class... Args>
     Environment(Args...)
         -> Environment<
-            core::internal::get_pack_t<force::ForcePack, Args...>,
+            core::internal::get_pack_t<force::internal::ForcePack, Args...>,
             core::internal::get_pack_t<boundary::BoundaryPack, Args...>,
             core::internal::get_pack_t<controller::internal::ControllerPack,Args...>,
             core::internal::get_pack_t<field::FieldPack, Args...>,
@@ -357,9 +356,9 @@ namespace april {
             inline constexpr bool is_environment_v = false;
 
             template<
-                force::IsForcePack FPack,
+                force::internal::IsForcePack FPack,
                 boundary::IsBoundaryPack BPack,
-                controller::IsControllerPack CPack,
+                controller::internal::IsControllerPack CPack,
                 field::IsFieldPack FFPack,
                 particle::IsParticleAttributes ParticleData
             >

@@ -6,13 +6,13 @@
 #include "april/forces/force.hpp"
 
 
-namespace april::force {
-    struct Gravity : Force{
-        static constexpr ParticleField fields = ParticleField::mass;
+namespace april {
+    struct Gravity : force::Force {
+        static constexpr auto fields = ParticleField::mass;
 
         double grav_constant;
 
-        explicit Gravity(const double grav_const = 1.0, const double cutoff = no_cutoff)
+        explicit Gravity(const double grav_const = 1.0, const double cutoff = force::no_cutoff)
             : Force(cutoff), grav_constant(grav_const) {}
 
         auto eval(const auto & p1, const auto & p2, const auto& r) const noexcept {

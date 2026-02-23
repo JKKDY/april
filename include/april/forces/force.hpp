@@ -9,6 +9,10 @@
 #include "april/particle/scalar_access.hpp"
 
 
+namespace april {
+    struct NoForce;
+}
+
 namespace april::force {
 
     constexpr double no_cutoff = 1.0e150; // 1.0e150 squared is 1.0e300 <  max of double = 1.79e308
@@ -114,26 +118,23 @@ namespace april::force {
     template <class F>
     concept IsForce = std::derived_from<F, Force>;
 
-    // define Force pack
-    template<IsForce... Fs> struct ForcePack {};
-    template<class... Fs> inline constexpr ForcePack<Fs...> forces{};
-
-
-    // Concept to check if a type T is a ForcePack
-    template<typename T>
-    inline constexpr bool is_force_pack_v = false; // Default
-
-    template<IsForce... Fs>
-    inline constexpr bool is_force_pack_v<ForcePack<Fs...>> = true; // Specialization
-
-    template<typename T>
-    concept IsForcePack = is_force_pack_v<std::remove_cvref_t<T>>;
-
-
-    struct NoForce;
 
     namespace internal {
+        // define Force pack
+        template<IsForce... Fs> struct ForcePack {};
 
+        // Concept to check if a type T is a ForcePack
+        template<typename T>
+        inline constexpr bool is_force_pack_v = false; // Default
+
+        template<IsForce... Fs>
+        inline constexpr bool is_force_pack_v<ForcePack<Fs...>> = true; // Specialization
+
+        template<typename T>
+        concept IsForcePack = is_force_pack_v<std::remove_cvref_t<T>>;
+
+
+        // check if std::variant of forces
         template<typename T>
         struct is_force_variant : std::false_type {};
 
@@ -167,7 +168,7 @@ namespace april::force {
 
         // internal placeholder only
         struct ForceSentinel : Force {
-            static constexpr ParticleField fields = ParticleField::none;
+            static constexpr auto fields = ParticleField::none;
 
             ForceSentinel() : Force(-1.0) {}
 
@@ -184,14 +185,14 @@ namespace april::force {
 
         template<class... Fs>
         struct VariantType {
-            // 1. Disallow the internal sentinel type in user packs
+            // Disallow the internal sentinel type in user packs
             static_assert((!std::is_same_v<ForceSentinel, Fs> && ...),
                           "ForceSentinel must NOT appear in ForcePack (internal sentinel only).");
 
-            // 2. Detect whether NoForce is already supplied
+            // Detect whether NoForce is already supplied
             static constexpr bool has_no_force = (std::is_same_v<NoForce, Fs> || ...);
 
-            // 3. Compute the variant type
+            // Compute the variant type
             using type = std::conditional_t<
                 has_no_force,
                 std::variant<ForceSentinel, Fs...>,           // user already included NoForce
@@ -202,11 +203,14 @@ namespace april::force {
         // Convenience alias
         template<class... Fs>
         using VariantType_t = VariantType<Fs...>::type;
-    }
-} // namespace april::env
+    } // namespace internal
+} // namespace april::force
 
 
-
+namespace april {
+    // define Force pack
+    template<class... Fs> inline constexpr force::internal::ForcePack<Fs...> forces{};
+}
 
 
 

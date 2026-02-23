@@ -300,7 +300,7 @@ namespace april::force::internal {
                 for (size_t b = 0; b < n_ids; b++) {
                     auto & v = id_forces[id_index(a, b)];
                     if (a != b && std::holds_alternative<ForceSentinel>(v)) {
-                        v = NoForce();
+                        v = april::NoForce();
                     }
                 }
             }

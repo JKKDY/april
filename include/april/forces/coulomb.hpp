@@ -5,13 +5,13 @@
 #include "april/base/types.hpp"
 #include "april/forces/force.hpp"
 
-namespace april::force {
-	struct Coulomb : Force{
-		static constexpr ParticleField fields = ParticleField::attributes;
+namespace april {
+	struct Coulomb : force::Force{
+		static constexpr auto fields = ParticleField::attributes;
 
 		double coulomb_constant;
 
-		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = no_cutoff)
+		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = force::no_cutoff)
 			: Force(cutoff), coulomb_constant(coulomb_const) {}
 
 		template<ParticleField M, particle::IsParticleAttributes U>

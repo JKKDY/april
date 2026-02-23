@@ -6,11 +6,11 @@
 
 
 
-namespace april::force {
+namespace april {
 
 	// Lennard-Jones potential (12-6). epsilon: well depth; sigma: zero-cross distance.
-	struct LennardJones : Force{
-		static constexpr ParticleField fields = ParticleField::none;
+	struct LennardJones : force::Force {
+		static constexpr auto fields = ParticleField::none;
 
 		LennardJones(const double epsilon, const double sigma, const double cutoff = -1.0)
 		: Force(cutoff < 0.0 ? 3.0 * sigma : cutoff), epsilon_(epsilon), sigma_(sigma) {

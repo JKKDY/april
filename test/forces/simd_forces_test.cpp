@@ -52,7 +52,7 @@ TYPED_TEST(ForceKernelTest, LennardJones) {
     using Vec3P  = TestFixture::Vec3P;
     using Vec3S  = TestFixture::Vec3S;
 
-    force::LennardJones lj(1.0, 1.0); // Epsilon=1, Sigma=1
+    LennardJones lj(1.0, 1.0); // Epsilon=1, Sigma=1
 
     // Setup Inputs
     std::vector<Vec3S> inputs(TestFixture::Width);
@@ -93,7 +93,7 @@ TYPED_TEST(ForceKernelTest, HarmonicSpring) {
 
     constexpr double k = 100.0;
     constexpr double r0 = 2.0;
-    force::Harmonic spring(k, r0);
+    Harmonic spring(k, r0);
 
     std::vector<Vec3S> inputs(TestFixture::Width);
     std::vector<Vec3S> expected(TestFixture::Width);
@@ -131,7 +131,7 @@ TYPED_TEST(ForceKernelTest, NewtonianGravity) {
     using Vec3S  = TestFixture::Vec3S;
 
     // Use a distinct constant to verify math (G=9.81)
-    force::Gravity grav(9.81);
+    Gravity grav(9.81);
 
     // 1. Define Mock Particles
     // We need different types for the Scalar loop vs the SIMD call.
@@ -177,7 +177,7 @@ TYPED_TEST(ForceKernelTest, NoForce) {
     using Packed = TestFixture::Packed;
     using Vec3P  = TestFixture::Vec3P;
 
-    force::NoForce no_force;
+    NoForce no_force;
 
     // Inputs: (Values don't matter, but shouldn't crash)
     // We use huge numbers just to be sure it doesn't try to normalize them

@@ -4,7 +4,7 @@
 #include <sstream>
 
 #include <iostream>
-#include "april/system/context.hpp"
+#include "april/core/context.hpp"
 #include "april/monitors/monitor.hpp"
 #include "april/exec/particle_kernel.hpp"
 

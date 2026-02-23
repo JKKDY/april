@@ -7,7 +7,7 @@
 #include "april/base/types.hpp"
 
 using namespace april;
-using namespace april::env;
+using namespace april::core;
 
 // Define a test mask (Standard Physics Fields)
 static constexpr auto TestMask = ParticleField::position | ParticleField::velocity | ParticleField::force | ParticleField::mass;

@@ -171,8 +171,8 @@ namespace april::force {
 
             ForceSentinel() : Force(-1.0) {}
 
-            template<ParticleField M, env::IsUserData U>
-            vec3 eval(const env::ScalarParticleView<M, U> &, const env::ScalarParticleView<M, U> &, const vec3&) const noexcept {
+            template<ParticleField M, core::IsUserData U>
+            vec3 eval(const core::ScalarParticleView<M, U> &, const core::ScalarParticleView<M, U> &, const vec3&) const noexcept {
                 AP_ASSERT(false, "NullForce should never be executed");
                 std::unreachable();
             }

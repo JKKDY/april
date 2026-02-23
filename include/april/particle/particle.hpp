@@ -6,7 +6,7 @@
 #include "april/particle/particle_types.hpp"
 
 
-namespace april::env {
+namespace april::core {
 
     // user facing declaration with optional fields and non typed field for user data
     struct Particle {

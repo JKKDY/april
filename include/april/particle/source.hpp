@@ -5,7 +5,7 @@
 #include "april/particle/particle_types.hpp"
 
 
-namespace april::env::internal {
+namespace april::core::internal {
 
 	// A Poison struct
 	// will throw at compile time if any operator call is instantiated

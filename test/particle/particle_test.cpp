@@ -5,7 +5,7 @@
 #include "april/base/types.hpp"
 #include "april/particle/particle.hpp"
 
-using namespace april::env;
+using namespace april::core;
 using namespace april;
 
 TEST(ParticleTest, FluentSettersAndChaining) {

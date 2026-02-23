@@ -3,14 +3,14 @@
 #include <cstddef>
 
 #include <functional>
-#include "april/system/context.hpp"
+#include "april/core/context.hpp"
 
-namespace april::shared {
+namespace april::utility {
 
 	struct TriggerContext {
 		virtual ~TriggerContext() = default;
 
-		[[nodiscard]] virtual env::Box box() const noexcept = 0;
+		[[nodiscard]] virtual core::Box box() const noexcept = 0;
 		[[nodiscard]] virtual double time() const noexcept = 0;
 		[[nodiscard]] virtual size_t step() const noexcept = 0;
 		[[nodiscard]] virtual size_t size() const noexcept = 0;
@@ -23,7 +23,7 @@ namespace april::shared {
 	struct TriggerContextImpl final : TriggerContext {
 		explicit TriggerContextImpl(const System & sys): system(sys) {}
 
-		[[nodiscard]] env::Box box() const noexcept override { return system.box(); }
+		[[nodiscard]] core::Box box() const noexcept override { return system.box(); }
 		[[nodiscard]] double time() const noexcept override { return system.time(); }
 		[[nodiscard]] size_t step() const noexcept override { return system.step(); }
 		[[nodiscard]] size_t size() const noexcept override {

@@ -55,8 +55,8 @@ namespace april::monitor {
 
     class Benchmark : public Monitor {
     public:
-       Benchmark() : Monitor(shared::Trigger::always()) {}
-       explicit Benchmark(BenchmarkResult * res) : Monitor(shared::Trigger::always()), result(res) {}
+       Benchmark() : Monitor(utility::Trigger::always()) {}
+       explicit Benchmark(BenchmarkResult * res) : Monitor(utility::Trigger::always()), result(res) {}
 
        void initialize() {
           glob_start_time = std::chrono::steady_clock::now();

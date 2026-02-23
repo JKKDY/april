@@ -4,7 +4,7 @@
 
 #include "april/base/traits.hpp"
 
-namespace april::shared::internal {
+namespace april::utility::internal {
 
 
 	template<class... Ts>

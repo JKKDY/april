@@ -26,8 +26,8 @@ namespace april::boundary {
 		Boundary(force.cutoff(), false, false, false),
 		boundary_force(force), simulate_halo(simulate_halo) {}
 
-		template<ParticleField M, env::IsUserData U>
-		void apply(env::ScalarParticleRef<M, U> & particle, const env::Box & domain_box, const Face face) const noexcept{
+		template<ParticleField M, core::IsUserData U>
+		void apply(core::ScalarParticleRef<M, U> & particle, const core::Box & domain_box, const Face face) const noexcept{
 			const int is_plus = face_sign_pos(face);
 			const int ax = axis_of_face(face);
 

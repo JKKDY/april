@@ -1,7 +1,7 @@
 #pragma once
 
 #include "april/base/types.hpp"
-#include "april/system/context.hpp"
+#include "april/core/context.hpp"
 #include "april/fields/field.hpp"
 
 
@@ -9,12 +9,12 @@ namespace april::field {
 	struct LocalForceField  final : Field {
 		static constexpr ParticleField fields = ParticleField::position | ParticleField::force;
 
-		LocalForceField(const vec3 & force_dir, const env::Domain & domain, const double start_time, const double stop_time):
-		force(force_dir), region(env::Box::from_domain(domain)), start(start_time), stop(stop_time), active(start_time == 0) {}
+		LocalForceField(const vec3 & force_dir, const core::Domain & domain, const double start_time, const double stop_time):
+		force(force_dir), region(core::Box::from_domain(domain)), start(start_time), stop(stop_time), active(start_time == 0) {}
 
 
-		template<env::IsUserData U>
-		void apply(const env::ScalarRestrictedParticleRef<fields, U> & particle) const {
+		template<core::IsUserData U>
+		void apply(const core::ScalarRestrictedParticleRef<fields, U> & particle) const {
 			if (active && region.contains(particle.position))
 				particle.force += force;
 		}
@@ -26,7 +26,7 @@ namespace april::field {
 
 	private:
 		const vec3 force;
-		env::Box region;
+		core::Box region;
 		double start;
 		double stop;
 		bool active;

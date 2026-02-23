@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <cstddef>
-#include "april/env/domain.hpp"
+#include "domain.hpp"
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
 #include "april/particle/particle_types.hpp"
@@ -19,7 +19,7 @@ namespace april::core {
 		explicit SystemContext(System & sys): system(sys) {}
 		[[nodiscard]] double time() const noexcept { return system.time(); }
 		[[nodiscard]] size_t step() const noexcept { return system.step(); }
-		[[nodiscard]] env::Box box() const noexcept { return system.box(); }
+		[[nodiscard]] core::Box box() const noexcept { return system.box(); }
 
 
 		// ------------------
@@ -82,12 +82,12 @@ namespace april::core {
 			return system.size();
 		}
 
-		[[nodiscard]] std::vector<size_t> query_region(const env::Box & region) const {
+		[[nodiscard]] std::vector<size_t> query_region(const core::Box & region) const {
 			return system.query_region(region);
 		}
 
-		[[nodiscard]] std::vector<size_t> query_region(const env::Domain & region) const {
-			return query_region(env::Box(region.min_corner().value(), region.max_corner().value()));
+		[[nodiscard]] std::vector<size_t> query_region(const core::Domain & region) const {
+			return query_region(core::Box(region.min_corner().value(), region.max_corner().value()));
 		}
 
 

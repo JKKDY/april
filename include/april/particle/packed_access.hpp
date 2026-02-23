@@ -6,7 +6,7 @@
 #include "april/math/vec3.hpp"
 #include "april/particle/scalar_access.hpp"
 
-namespace april::env {
+namespace april::core {
     template<ParticleField M, IsUserData U> struct PackedParticleView;
 
 

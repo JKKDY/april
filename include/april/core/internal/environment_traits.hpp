@@ -2,7 +2,7 @@
 
 #include "april/base/traits.hpp"
 
-#include "april/env/data.hpp"
+#include "environment_data.hpp"
 #include "april/particle/particle_types.hpp"
 
 #include "april/forces/force.hpp"
@@ -15,7 +15,7 @@
 #include "april/fields/field.hpp"
 #include "april/utility/pack_storage.hpp"
 
-namespace april::env::internal {
+namespace april::core::internal {
 	template<class FPack, class BPack, class CPack, class FFPack, class U>
 	   struct EnvironmentTraits;
 
@@ -47,8 +47,8 @@ namespace april::env::internal {
 		using boundary_variant_t = boundary::internal::VariantType_t<BCs...>;
 
 		// Derived Storage Types
-		using controller_storage_t = shared::internal::PackStorage<Cs...>;
-		using field_storage_t      = shared::internal::PackStorage<FFs...>;
+		using controller_storage_t = utility::internal::PackStorage<Cs...>;
+		using field_storage_t      = utility::internal::PackStorage<FFs...>;
 
 		// Table Types
 		using boundary_table_t = boundary::internal::BoundaryTable<boundary_variant_t>;

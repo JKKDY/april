@@ -1,3 +1,6 @@
+//  SPDX-License-Identifier: AGPL-3.0-only WITH ${PROJECT_NAME}-Commercial-Use-Exception-1.0
+//  Copyright (c) ${YEAR} Julian Deller-Yee
+
 #pragma once
 
 #include <vector>
@@ -5,17 +8,17 @@
 #include <any>
 
 #include "april/base/types.hpp"
-#include "april/env/domain.hpp"
+#include "domain.hpp"
 #include "april/forces/force.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/controllers/controller.hpp"
 #include "april/fields/field.hpp"
-#include "april/env/traits.hpp"
+#include "internal/environment_traits.hpp"
 #include "april/particle/generators.hpp"
 #include "april/particle/particle_types.hpp"
 
 
-namespace april::env {
+namespace april::core {
     inline const auto MARGIN_DONT_CARE = vec3(std::numeric_limits<double>::max());
 
 

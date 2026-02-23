@@ -21,7 +21,7 @@ template<typename T> static T read_binary(std::ifstream& in) {
 }
 
 // helper to create dummy particle
-using ParticleRec =  env::internal::ParticleRecord<env::NoUserData>;
+using ParticleRec =  core::internal::ParticleRecord<core::NoUserData>;
 static ParticleRec make_particle_rec(const ParticleType type, const ParticleID id,
 	const vec3& pos={0,0,0}, const ParticleState state= ParticleState::ALIVE) {
 	ParticleRec rec;
@@ -35,7 +35,7 @@ static ParticleRec make_particle_rec(const ParticleType type, const ParticleID i
 }
 
 using namespace april;
-using namespace april::env;
+using namespace april::core;
 
 class DummySystem {
 public:
@@ -78,17 +78,17 @@ public:
 
 		// 2. Create Source (IsConst = true)
 		// We map the requested fields M to the record's members
-		env::internal::ParticleSource<M, user_data_t, true> src;
+		core::internal::ParticleSource<M, user_data_t, true> src;
 
-		if constexpr (env::has_field_v<M, ParticleField::position>)     src.position     = &record.position;
-		if constexpr (env::has_field_v<M, ParticleField::velocity>)     src.velocity     = &record.velocity;
-		if constexpr (env::has_field_v<M, ParticleField::force>)        src.force        = &record.force;
-		if constexpr (env::has_field_v<M, ParticleField::old_position>) src.old_position = &record.old_position;
-		if constexpr (env::has_field_v<M, ParticleField::mass>)         src.mass         = &record.mass;
-		if constexpr (env::has_field_v<M, ParticleField::state>)        src.state        = &record.state;
-		if constexpr (env::has_field_v<M, ParticleField::type>)         src.type         = &record.type;
-		if constexpr (env::has_field_v<M, ParticleField::id>)           src.id           = &record.id;
-		if constexpr (env::has_field_v<M, ParticleField::user_data>)    src.user_data    = &record.user_data;
+		if constexpr (core::has_field_v<M, ParticleField::position>)     src.position     = &record.position;
+		if constexpr (core::has_field_v<M, ParticleField::velocity>)     src.velocity     = &record.velocity;
+		if constexpr (core::has_field_v<M, ParticleField::force>)        src.force        = &record.force;
+		if constexpr (core::has_field_v<M, ParticleField::old_position>) src.old_position = &record.old_position;
+		if constexpr (core::has_field_v<M, ParticleField::mass>)         src.mass         = &record.mass;
+		if constexpr (core::has_field_v<M, ParticleField::state>)        src.state        = &record.state;
+		if constexpr (core::has_field_v<M, ParticleField::type>)         src.type         = &record.type;
+		if constexpr (core::has_field_v<M, ParticleField::id>)           src.id           = &record.id;
+		if constexpr (core::has_field_v<M, ParticleField::user_data>)    src.user_data    = &record.user_data;
 
 		// 3. Construct View
 		return ParticleView<M>(src);

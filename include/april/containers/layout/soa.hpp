@@ -104,7 +104,7 @@ namespace april::container::layout {
 
 
 
-    template<typename Config, env::IsUserData U>
+    template<typename Config, core::IsUserData U>
     class SoA : public Container<Config, U> {
     public:
         using Base = Container<Config, U>;
@@ -183,7 +183,7 @@ namespace april::container::layout {
         std::vector<uint32_t> id_to_index_map;
 
         // explode AoS input into SoA vectors
-        void build_storage(const std::vector<env::internal::ParticleRecord<U>>& particles) {
+        void build_storage(const std::vector<core::internal::ParticleRecord<U>>& particles) {
             size_t n = particles.size();
             data.resize(n);
             id_to_index_map.resize(n);

@@ -23,8 +23,8 @@ namespace april::field {
 			}
 		}
 
-		template<env::IsUserData U, env::HasFields Self>
-		void dispatch_apply(this const Self& self, const env::ScalarRestrictedParticleRef<env::FieldOf<Self>, U> & particle) {
+		template<core::IsUserData U, core::HasFields Self>
+		void dispatch_apply(this const Self& self, const core::ScalarRestrictedParticleRef<core::FieldOf<Self>, U> & particle) {
 			static_assert(
 				requires { self.apply(particle); },
 				"Field must implement: void apply(env::RestrictedParticleRef<M, U> particle) const"
@@ -32,8 +32,8 @@ namespace april::field {
 			self.apply(particle);
 		}
 
-        template<ParticleField M, env::IsUserData U>
-		void invoke_apply(this const auto& self, env::ScalarRestrictedParticleRef<M, U> & particle) {
+        template<ParticleField M, core::IsUserData U>
+		void invoke_apply(this const auto& self, core::ScalarRestrictedParticleRef<M, U> & particle) {
 			static_assert(
 				requires { self.apply(particle); },
 				"Field must implement: void apply(env::RestrictedParticleRef<M, U> & particle) const"

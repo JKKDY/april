@@ -78,7 +78,7 @@ namespace april::container::internal {
 			if constexpr (vectorize) {
 				for (size_t i = 0; i < limit2_tail; ++i) {
 					auto p2 = container.template at<Mask>(c2_body_end, i);
-					auto buffer2 = env::PackedParticleBuffer<Mask>::broadcast(p2);
+					auto buffer2 = core::PackedParticleBuffer<Mask>::broadcast(p2);
 					buffer2.force = {0,0,0};
 
 					for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
@@ -114,7 +114,7 @@ namespace april::container::internal {
 			if constexpr (vectorize) {
 				for (size_t i = 0; i < limit1_tail; ++i) {
 					auto p1 = container.template at<Mask>(c1_body_end, i);
-					auto buffer1 = env::PackedParticleBuffer<Mask>::broadcast(p1);
+					auto buffer1 = core::PackedParticleBuffer<Mask>::broadcast(p1);
 					buffer1.force = {0,0,0};
 
 					for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
@@ -163,7 +163,7 @@ namespace april::container::internal {
 				// loop over second chunk till cutoff
 				for (size_t i = 0; i < limit2_tail; ++i) {
 					auto p2 = container.template at<Mask>(c2_body_end, i);
-					auto buffer2 = env::PackedParticleBuffer<Mask>::broadcast(p2);
+					auto buffer2 = core::PackedParticleBuffer<Mask>::broadcast(p2);
 					buffer2.force = {0, 0, 0};
 
 					// scalar p2 vs entire Chunk 1
@@ -307,7 +307,7 @@ namespace april::container::internal {
 					for (size_t j = 0; j < limit_tail; ++j) {
 						auto p2 = container.template at<Mask>(c_body_end, j);
 
-						auto buffer2 = env::PackedParticleBuffer<Mask>::broadcast(p2);
+						auto buffer2 = core::PackedParticleBuffer<Mask>::broadcast(p2);
 						buffer2.force = {0,0,0};
 
 						f(buffer1, buffer2);
@@ -334,7 +334,6 @@ namespace april::container::internal {
 			}
 
 			if constexpr (vectorize) {
-
 				// initialize static mask elements
 				alignas(64) double idx_arr[Container::chunk_size];
 				for (size_t k = 0; k < Container::chunk_size; ++k) idx_arr[k] = static_cast<double>(k);
@@ -353,7 +352,7 @@ namespace april::container::internal {
 				// loop over valid particles in the tail
 				for (size_t i = 0; i < limit_tail; ++i) {
 					auto p1 = container.template at<Mask>(c_body_end, i);
-					auto buffer1 = env::PackedParticleBuffer<Mask>::broadcast(p1);
+					auto buffer1 = core::PackedParticleBuffer<Mask>::broadcast(p1);
 					buffer1.force = {0, 0, 0};
 
 					// Fresh buffer to capture forces exerted on the chunk from just this p1

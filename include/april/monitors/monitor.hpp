@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include "april/system/context.hpp"
+#include "april/core/context.hpp"
 #include "april/utility/trigger.hpp"
 
 namespace april::monitor {
@@ -10,9 +10,9 @@ namespace april::monitor {
 
 	class Monitor {
 	public:
-		explicit Monitor(shared::Trigger  trig) : trigger(std::move(trig)) {}
+		explicit Monitor(utility::Trigger  trig) : trigger(std::move(trig)) {}
 
-		[[nodiscard]] bool should_trigger(const shared::TriggerContext & sys) const {
+		[[nodiscard]] bool should_trigger(const utility::TriggerContext & sys) const {
 			return trigger(sys);
 		}
 
@@ -61,7 +61,7 @@ namespace april::monitor {
 		double start_time{};
 		double end_time{};
 		size_t num_steps{};
-		shared::Trigger trigger;
+		utility::Trigger trigger;
 	};
 
 

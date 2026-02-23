@@ -51,7 +51,7 @@ struct Particle {
 
 int main() {
     std::cout<< sizeof(Particle) << std::endl;
-    std::cout<< sizeof(april::env::internal::ParticleRecord<april::env::NoUserData>) << std::endl;
+    std::cout<< sizeof(april::core::internal::ParticleRecord<april::core::NoUserData>) << std::endl;
 
     // 1. Initialization
     const size_t N = NX * NY * NZ;

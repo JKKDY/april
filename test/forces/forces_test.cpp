@@ -11,7 +11,7 @@
 #include "april/forces/force_table.hpp"
 
 using namespace april::force;
-using namespace april::env;
+using namespace april::core;
 using namespace april;
 
 
@@ -33,7 +33,7 @@ protected:
 
     // B. The Source (The struct of pointers)
     // IsConst = false allows us to point to our mutable member variables
-    using SourceT = env::internal::ParticleSource<TestMask, ForceTestUserData, false>;
+    using SourceT = core::internal::ParticleSource<TestMask, ForceTestUserData, false>;
     SourceT source1;
     SourceT source2;
 

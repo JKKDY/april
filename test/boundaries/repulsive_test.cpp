@@ -35,8 +35,8 @@ struct LinearIdentityForce {
 	}
 };
 
-inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& pos) {
-	env::internal::ParticleRecord<env::NoUserData> p;
+inline core::internal::ParticleRecord<core::NoUserData> make_particle(const vec3& pos) {
+	core::internal::ParticleRecord<core::NoUserData> p;
 	p.id = 0;
 	p.position = pos;
 	p.force = {0,0,0};
@@ -52,17 +52,17 @@ auto make_source(RecordT& record) {
 	constexpr bool IsConst = std::is_const_v<RecordT>;
 	using UserDataT = RecordT::user_data_t;
 
-	env::internal::ParticleSource<Mask, UserDataT, IsConst> src;
+	core::internal::ParticleSource<Mask, UserDataT, IsConst> src;
 
-	if constexpr (env::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
-	if constexpr (env::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (env::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
-	if constexpr (env::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
-	if constexpr (env::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
-	if constexpr (env::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
-	if constexpr (env::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
-	if constexpr (env::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
-	if constexpr (env::has_field_v<Mask, ParticleField::user_data>)    src.user_data    = &record.user_data;
+	if constexpr (core::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
+	if constexpr (core::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
+	if constexpr (core::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
+	if constexpr (core::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
+	if constexpr (core::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
+	if constexpr (core::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
+	if constexpr (core::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
+	if constexpr (core::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
+	if constexpr (core::has_field_v<Mask, ParticleField::user_data>)    src.user_data    = &record.user_data;
 
 	return src;
 }
@@ -75,9 +75,9 @@ TEST(RepulsiveBoundaryTest, Apply_AddsInwardForce) {
 
 	auto p = make_particle({9.5,5,5});
 	auto src = make_source<Mask>(p);
-	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
+	core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
 
-	const env::Box box({0,0,0}, {10,10,10});
+	const core::Box box({0,0,0}, {10,10,10});
 
 	rep.apply(ref, box, Face::XPlus);
 
@@ -108,17 +108,17 @@ TEST(RepulsiveBoundaryTest, Topology_IsInsideAndNoChangesPosition) {
 TEST(RepulsiveBoundaryTest, CompiledBoundary_Apply_AddsInwardForce) {
 	ConstantForce f{2.0, 5.0};
 	std::variant<Repulsive<ConstantForce>> variant = Repulsive(f);
-	env::Domain domain({0,0,0}, {10,10,10});
+	core::Domain domain({0,0,0}, {10,10,10});
 
 	constexpr ParticleField Mask = Repulsive<ConstantForce>::fields;
 
-	auto compiled = boundary::internal::compile_boundary(variant, env::Box::from_domain(domain), Face::YMinus);
+	auto compiled = boundary::internal::compile_boundary(variant, core::Box::from_domain(domain), Face::YMinus);
 
 	auto p = make_particle({5,0.3,5});
 	auto src = make_source<Mask>(p);
-	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
+	core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
 
-	const env::Box box({0,0,0}, {10,10,10});
+	const core::Box box({0,0,0}, {10,10,10});
 
 	compiled.dispatch([&](auto && bc) {
 		bc.apply(ref, box, Face::YMinus);
@@ -193,8 +193,8 @@ TEST(RepulsiveBoundaryTest, ExponentialForce_CalculatesCorrectly) {
     // Particle 1.0 unit away from 0.0 (XMinus wall)
     auto p = make_particle({1.0, 5, 5});
     auto src = make_source<Mask>(p);
-    env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
-    const env::Box box({0,0,0}, {10,10,10});
+    core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
+    const core::Box box({0,0,0}, {10,10,10});
 
     rep.apply(ref, box, Face::XMinus);
 
@@ -215,8 +215,8 @@ TEST(RepulsiveBoundaryTest, PowerLawForce_CalculatesCorrectly) {
     // Particle 2.0 units away from 0.0
     auto p = make_particle({2.0, 5, 5});
     auto src = make_source<Mask>(p);
-    env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
-    const env::Box box({0,0,0}, {10,10,10});
+    core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
+    const core::Box box({0,0,0}, {10,10,10});
 
     rep.apply(ref, box, Face::XMinus);
 
@@ -235,8 +235,8 @@ TEST(RepulsiveBoundaryTest, LennardJones93Force_CalculatesCorrectly) {
     // At r=s: 4 * (3 - 9) = -24
     auto p = make_particle({1.0, 5, 5});
     auto src = make_source<Mask>(p);
-    env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
-    const env::Box box({0,0,0}, {10,10,10});
+    core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
+    const core::Box box({0,0,0}, {10,10,10});
 
     rep.apply(ref, box, Face::XMinus);
 
@@ -256,8 +256,8 @@ TEST(RepulsiveBoundaryTest, AdhesiveLJForce_IsAlwaysRepulsive) {
     // At sigma (1.0), standard LJ Force is 24 * eps * (2 - 1) = 24.
     auto p = make_particle({1.0, 5, 5});
     auto src = make_source<Mask>(p);
-    env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
-    const env::Box box({0,0,0}, {10,10,10});
+    core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
+    const core::Box box({0,0,0}, {10,10,10});
 
     rep.apply(ref, box, Face::XMinus);
 
@@ -272,7 +272,7 @@ TEST(RepulsiveBoundaryTest, AdhesiveLJForce_IsAlwaysRepulsive) {
 TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
     LinearIdentityForce lin_force; // Returns distance as magnitude
     constexpr ParticleField Mask = boundary::Repulsive<LinearIdentityForce>::fields;
-    const env::Box box({0,0,0}, {10,10,10});
+    const core::Box box({0,0,0}, {10,10,10});
 
     // Case 1: Halo OFF
     {
@@ -282,7 +282,7 @@ TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
         // Particle at distance 2.0 from X- wall (pos=2.0)
         auto p = make_particle({2.0, 5, 5});
         auto src = make_source<Mask>(p);
-        env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
+        core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
 
         rep_no_halo.apply(ref, box, Face::XMinus);
 
@@ -298,7 +298,7 @@ TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
         // Particle at distance 2.0 from X- wall (pos=2.0)
         auto p = make_particle({2.0, 5, 5});
         auto src = make_source<Mask>(p);
-        env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
+        core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
 
         rep_halo.apply(ref, box, Face::XMinus);
 

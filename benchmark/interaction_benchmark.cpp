@@ -84,7 +84,7 @@ int main() {
 
 
 		n_interactions = 0;
-		system.for_each_interaction_pair<+env::ParticleField::position>(
+		system.for_each_interaction_pair<+core::ParticleField::position>(
 			[&](auto, auto, auto) {
 				n_interactions++;
 			}

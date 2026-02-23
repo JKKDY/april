@@ -10,8 +10,8 @@
 using namespace april;
 
 // simple helper to make a dummy particle
-inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& pos, const vec3& vel = {0,0,0}) {
-	env::internal::ParticleRecord<env::NoUserData> p;
+inline core::internal::ParticleRecord<core::NoUserData> make_particle(const vec3& pos, const vec3& vel = {0,0,0}) {
+	core::internal::ParticleRecord<core::NoUserData> p;
 	p.id = 0;
 	p.position = pos + vel;
 	p.old_position = pos;
@@ -27,17 +27,17 @@ auto make_source(RecordT& record) {
 	constexpr bool IsConst = std::is_const_v<RecordT>;
 	using UserDataT = RecordT::user_data_t;
 
-	env::internal::ParticleSource<Mask, UserDataT, IsConst> src;
+	core::internal::ParticleSource<Mask, UserDataT, IsConst> src;
 
-	if constexpr (env::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
-	if constexpr (env::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (env::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
-	if constexpr (env::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
-	if constexpr (env::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
-	if constexpr (env::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
-	if constexpr (env::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
-	if constexpr (env::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
-	if constexpr (env::has_field_v<Mask, ParticleField::user_data>)    src.user_data    = &record.user_data;
+	if constexpr (core::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
+	if constexpr (core::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
+	if constexpr (core::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
+	if constexpr (core::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
+	if constexpr (core::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
+	if constexpr (core::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
+	if constexpr (core::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
+	if constexpr (core::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
+	if constexpr (core::has_field_v<Mask, ParticleField::user_data>)    src.user_data    = &record.user_data;
 
 	return src;
 }
@@ -47,12 +47,12 @@ TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
 	const Reflective reflective;
 	constexpr ParticleField Mask = Reflective::fields;
 
-	const env::Box box({0,0,0}, {10,10,10});
+	const core::Box box({0,0,0}, {10,10,10});
 
 	// heading out X+. Intersection at {10, 5, 5}
 	auto p = make_particle({9.5,4.5,4.5}, {2,2,2});
 	auto src = make_source<Mask>(p);
-	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
+	core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
 
 	reflective.apply(ref, box, Face::XPlus);
 
@@ -84,16 +84,16 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPositi
 	std::variant<Reflective> reflect = Reflective();
 	constexpr ParticleField Mask = Reflective::fields;
 
-	env::Domain domain({0,0,0}, {10,10,10});
+	core::Domain domain({0,0,0}, {10,10,10});
 
 	// Compile boundary for X+ face
-	auto compiled = boundary::internal::compile_boundary(reflect, env::Box::from_domain(domain), Face::XPlus);
+	auto compiled = boundary::internal::compile_boundary(reflect, core::Box::from_domain(domain), Face::XPlus);
 
 	auto p = make_particle({9.8,5,5}, {+1,0,0});
 	auto src = make_source<Mask>(p);
-	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
+	core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
 
-	env::Box box{{0,0,0}, {10,10,10}};
+	core::Box box{{0,0,0}, {10,10,10}};
 
 	compiled.dispatch([&](auto && bc) {
 		bc.apply(ref, box, Face::XPlus);

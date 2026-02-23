@@ -127,8 +127,8 @@ TYPED_TEST(DirectSumTest, CollectIndicesInRegion) {
 
     // Case 1: small inner region (should include one particle)
     {
-        env::Domain region({0.1, 0.1, 0.1}, {0.9, 0.9, 0.9});
-        auto indices = sys.query_region(env::Box::from_domain(region));
+        core::Domain region({0.1, 0.1, 0.1}, {0.9, 0.9, 0.9});
+        auto indices = sys.query_region(core::Box::from_domain(region));
         ASSERT_EQ(indices.size(), 1u);
         auto p = export_particles(sys)[indices[0]];
         EXPECT_EQ(p.position.x, 0.25);
@@ -138,15 +138,15 @@ TYPED_TEST(DirectSumTest, CollectIndicesInRegion) {
 
     // Case 2: mid region (should include all 27)
     {
-        env::Domain region({0, 0, 0}, {5, 5, 5});
-        auto indices = sys.query_region(env::Box::from_domain(region));
+        core::Domain region({0, 0, 0}, {5, 5, 5});
+        auto indices = sys.query_region(core::Box::from_domain(region));
         EXPECT_EQ(indices.size(), 27u);
     }
 
     // Case 3: partially overlapping region
     {
-        env::Domain region({1.5, 1.5, 1.5}, {4.5, 4.5, 4.5});
-        std::vector indices = sys.query_region(env::Box::from_domain(region));
+        core::Domain region({1.5, 1.5, 1.5}, {4.5, 4.5, 4.5});
+        std::vector indices = sys.query_region(core::Box::from_domain(region));
         EXPECT_GT(indices.size(), 0u);
         EXPECT_LT(indices.size(), 27u);
 
@@ -168,8 +168,8 @@ TYPED_TEST(DirectSumTest, CollectIndicesInRegion) {
 
     // Case 4: region completely outside
     {
-        env::Domain region({10, 10, 10}, {12, 12, 12});
-        auto indices = sys.query_region(env::Box::from_domain(region));
+        core::Domain region({10, 10, 10}, {12, 12, 12});
+        auto indices = sys.query_region(core::Box::from_domain(region));
         EXPECT_TRUE(indices.empty());
     }
 }
@@ -182,8 +182,8 @@ struct DummyPeriodicBoundary final : Boundary {
 	DummyPeriodicBoundary()
 	: Boundary(0.0, false, true, false ) {}
 
-	template<ParticleField M, env::IsUserData U>
-	void apply(env::ScalarParticleRef<M, U> &, const env::Box &, const Face) const noexcept {}
+	template<ParticleField M, core::IsUserData U>
+	void apply(core::ScalarParticleRef<M, U> &, const core::Box &, const Face) const noexcept {}
 };
 
 TYPED_TEST(DirectSumTest, PeriodicForceWrap_X) {

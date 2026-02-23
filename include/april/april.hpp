@@ -1,5 +1,5 @@
 #pragma once
-#include "april/env/environment.hpp"
+#include "core/environment.hpp"
 
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/absorb.hpp"
@@ -44,25 +44,25 @@
 #include "april/integrators/velocity_verlet.hpp"
 #include "april/integrators/yoshida4.hpp"
 
-#include "april/system/build.hpp"
-#include "april/system/system.hpp"
-#include "april/system/context.hpp"
+#include "april/core/build.hpp"
+#include "april/core/system.hpp"
+#include "april/core/context.hpp"
 
 
 namespace april {
 
 	// Environment
-	using env::Environment;
+	using core::Environment;
 
-	using env::ParticleCuboid;
-	using env::ParticleSphere;
-	using env::ScalarParticleView;
-	using env::Particle;
-	using env::particle_data; // template tag
+	using core::ParticleCuboid;
+	using core::ParticleSphere;
+	using core::ScalarParticleView;
+	using core::Particle;
+	using core::particle_data; // template tag
 
-	using env::between_types;
-	using env::to_type;
-	using env::between_ids;
+	using core::between_types;
+	using core::to_type;
+	using core::between_ids;
 
 	// Boundary
 	using boundary::Face;
@@ -126,7 +126,7 @@ namespace april {
 	using integrator::Yoshida4;
 
 	// shared
-	using shared::Trigger;
+	using utility::Trigger;
 }
 
 

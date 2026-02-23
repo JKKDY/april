@@ -8,8 +8,8 @@ using namespace april;
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/periodic.hpp"
 
-inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& pos, const vec3& vel = {0,0,0}) {
-	env::internal::ParticleRecord<env::NoUserData> p;
+inline core::internal::ParticleRecord<core::NoUserData> make_particle(const vec3& pos, const vec3& vel = {0,0,0}) {
+	core::internal::ParticleRecord<core::NoUserData> p;
 	p.id = 0;
 	p.position = pos + vel;
 	p.old_position = pos;
@@ -25,17 +25,17 @@ auto make_source(RecordT& record) {
 	constexpr bool IsConst = std::is_const_v<RecordT>;
 	using UserDataT = RecordT::user_data_t;
 
-	env::internal::ParticleSource<Mask, UserDataT, IsConst> src;
+	core::internal::ParticleSource<Mask, UserDataT, IsConst> src;
 
-	if constexpr (env::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
-	if constexpr (env::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (env::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
-	if constexpr (env::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
-	if constexpr (env::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
-	if constexpr (env::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
-	if constexpr (env::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
-	if constexpr (env::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
-	if constexpr (env::has_field_v<Mask, ParticleField::user_data>)    src.user_data    = &record.user_data;
+	if constexpr (core::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
+	if constexpr (core::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
+	if constexpr (core::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
+	if constexpr (core::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
+	if constexpr (core::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
+	if constexpr (core::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
+	if constexpr (core::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
+	if constexpr (core::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
+	if constexpr (core::has_field_v<Mask, ParticleField::user_data>)    src.user_data    = &record.user_data;
 
 	return src;
 }
@@ -46,12 +46,12 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 	const Periodic periodic;
 	constexpr ParticleField Mask = Periodic::fields;
 
-	const env::Box box({0,0,0}, {10,10,10});
+	const core::Box box({0,0,0}, {10,10,10});
 
 	// Particle just beyond +X boundary
 	auto p = make_particle({10.2, 5.0, 5.0});
 	auto src = make_source<Mask>(p);
-	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
+	core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
 
 	periodic.apply(ref, box, Face::XPlus);
 
@@ -63,12 +63,12 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 	const Periodic periodic;
 	constexpr ParticleField Mask = Periodic::fields;
-	const env::Box box({0,0,0}, {10,10,10});
+	const core::Box box({0,0,0}, {10,10,10});
 
 	// Particle just beyond -X boundary
 	auto p = make_particle({-0.3, 5.0, 5.0});
 	auto src = make_source<Mask>(p);
-	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
+	core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
 
 	periodic.apply(ref, box, Face::XMinus);
 
@@ -79,7 +79,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 
 TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 	const Periodic periodic;
-	const env::Box box({0,0,0}, {10,10,10});
+	const core::Box box({0,0,0}, {10,10,10});
 	constexpr ParticleField Mask = Periodic::fields;
 
 
@@ -107,7 +107,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 	for (size_t i = 0; i < faces.size(); ++i) {
 		auto p = make_particle(start_positions[i]);
 		auto src = make_source<Mask>(p);
-		env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
+		core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
 		periodic.apply(ref, box, faces[i]);
 		EXPECT_NEAR(p.position.x, expected[i].x, 1e-12);
 		EXPECT_NEAR(p.position.y, expected[i].y, 1e-12);
@@ -134,15 +134,15 @@ TEST(PeriodicBoundaryTest, Topology_IsOutsideCoupledAndWrapsForces) {
 TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 	std::variant<Periodic> variant = Periodic();
 	constexpr ParticleField Mask = Periodic::fields;
-	env::Domain domain({0,0,0}, {10,10,10});
+	core::Domain domain({0,0,0}, {10,10,10});
 
-	auto compiled = boundary::internal::compile_boundary(variant, env::Box::from_domain(domain), Face::ZPlus);
+	auto compiled = boundary::internal::compile_boundary(variant, core::Box::from_domain(domain), Face::ZPlus);
 
 	auto p = make_particle({5,5,10.2});
 	auto src = make_source<Mask>(p);
-	env::ScalarParticleRef<Mask, env::NoUserData> ref(src);
+	core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
 
-	env::Box box({0,0,0}, {10,10,10});
+	core::Box box({0,0,0}, {10,10,10});
 
 	compiled.dispatch([&](auto && bc) {
 		bc.apply(ref, box, Face::ZPlus);

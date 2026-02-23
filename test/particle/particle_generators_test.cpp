@@ -7,7 +7,7 @@
 #include "april/particle/particle.hpp"
 #include "april/particle/generators.hpp"
 
-using namespace april::env;
+using namespace april::core;
 using namespace april;
 
 

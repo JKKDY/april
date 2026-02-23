@@ -25,7 +25,7 @@ namespace april::boundary::internal {
 
 	template<IsBoundaryVariant BVariant> class CompiledBoundary{
 	public:
-		CompiledBoundary(const BVariant & boundary, const env::Box & region, const Face face, const env::Box & domain):
+		CompiledBoundary(const BVariant & boundary, const core::Box & region, const Face face, const core::Box & domain):
 			boundary_region(region),
 			simulation_domain(domain),
 			topology(get_topology(boundary)),
@@ -39,8 +39,8 @@ namespace april::boundary::internal {
 			}, boundary_v);
 		}
 
-		const env::Box boundary_region;
-		const env::Box simulation_domain;
+		const core::Box boundary_region;
+		const core::Box simulation_domain;
 		const Topology topology;
 		const Face face;
 
@@ -50,7 +50,7 @@ namespace april::boundary::internal {
 
 
 	template<IsBoundaryVariant BVariant>
-	CompiledBoundary<BVariant> compile_boundary(const BVariant & boundary, const env::Box & simulation_box, const Face face) {
+	CompiledBoundary<BVariant> compile_boundary(const BVariant & boundary, const core::Box & simulation_box, const Face face) {
 		constexpr double NEG_INF = std::numeric_limits<double>::lowest() / 4; // divide by 4 to avoid overflow
 		constexpr double POS_INF = std::numeric_limits<double>::max() / 4;
 
@@ -87,7 +87,7 @@ namespace april::boundary::internal {
 			}
 		}
 
-		return internal::CompiledBoundary<BVariant>(boundary, env::Box{min, max}, face, simulation_box);
+		return internal::CompiledBoundary<BVariant>(boundary, core::Box{min, max}, face, simulation_box);
 	}
 
 
@@ -95,7 +95,7 @@ namespace april::boundary::internal {
 	template<IsBoundaryVariant BVariant>
 	struct BoundaryTable {
 
-		BoundaryTable(const std::array<BVariant, 6> & boundaries, const env::Box & simulation_box):
+		BoundaryTable(const std::array<BVariant, 6> & boundaries, const core::Box & simulation_box):
 			table({
 				compile_boundary<BVariant>(boundaries[face_to_int(Face::XMinus)], simulation_box, Face::XMinus),
 				compile_boundary<BVariant>(boundaries[face_to_int(Face::XPlus )], simulation_box, Face::XPlus ),

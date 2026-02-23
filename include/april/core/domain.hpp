@@ -1,9 +1,12 @@
+//  SPDX-License-Identifier: AGPL-3.0-only WITH ${PROJECT_NAME}-Commercial-Use-Exception-1.0
+//  Copyright (c) ${YEAR} Julian Deller-Yee
+
 #pragma once
 
 #include <optional>
 #include "april/base/types.hpp"
 
-namespace april::env {
+namespace april::core {
 	struct Domain {
 		Domain() = default;
 		Domain(const vec3d & originIn, const vec3d & extentIn): origin(originIn), extent(extentIn) {}

@@ -6,7 +6,7 @@
 #include "april/particle/scalar_access.hpp"
 #include "april/particle/particle.hpp"
 
-using namespace april::env;
+using namespace april::core;
 using namespace april;
 
 struct MyTestUserData {

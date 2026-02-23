@@ -9,7 +9,7 @@ namespace april::core {
 	//--------------
 	// EXECUTE BATCH
 	//--------------
-	template <class ContainerDecl, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<
+	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<
 		ContainerDecl, Traits>
 	template <ParticleField M, ParallelPolicy P, VectorPolicy V, container::IsBatch Batch, exec::IsKernel Kernel>
 	void System<ContainerDecl, Traits>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
@@ -79,7 +79,7 @@ namespace april::core {
 	//--------------
 	// UPDATE FORCES
 	//--------------
-	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
+	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::update_forces() {
 
 		// batch update lambda. passed into container::for_each_interaction_batch
@@ -164,11 +164,11 @@ namespace april::core {
 	//-----------------
 	// APPLY BOUNDARIES
 	//-----------------
-	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
+	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::apply_boundary_conditions() {
 		particles_to_update_buffer.clear();
 
-		const env::Box domain_box = this->box();
+		const core::Box domain_box = this->box();
 
 		for (boundary::Face face : boundary::all_faces) {
 
@@ -238,7 +238,7 @@ namespace april::core {
 	//------------------
 	// APPLY CONTROLLERS
 	//------------------
-	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
+	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::apply_controllers() {
 		controllers.for_each_item([this](auto & controller) {
 			if (controller.should_trigger(trig_context)) {
@@ -251,7 +251,7 @@ namespace april::core {
 	//-------------
 	// APPLY FIELDS
 	//-------------
-	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
+	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::apply_force_fields() {
 		fields.for_each_item([this]<typename F>(F & field) {
 			for (size_t i = 0; i < size(); ++i) {
@@ -266,7 +266,7 @@ namespace april::core {
 	//-------
 	// UPDATE
 	//-------
-	template <class C, env::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
+	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::update_all_components() {
 		fields.for_each_item([this](auto & field) {
 			field.template dispatch_update<System>(system_context);

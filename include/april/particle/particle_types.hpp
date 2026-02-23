@@ -56,7 +56,7 @@ namespace april {
 	using ParticleID = uint32_t;
 
 
-	namespace env {
+	namespace core {
 		template <typename T>
 		concept IsUserData =
 			std::default_initializable<T> &&

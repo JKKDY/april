@@ -8,7 +8,7 @@
 
 namespace april::container::layout {
 
-	template<typename Config, env::IsUserData U>
+	template<typename Config, core::IsUserData U>
 	class AoS : public Container<Config, U>{
 	public:
 		using Base = Container<Config, U>;
@@ -16,7 +16,7 @@ namespace april::container::layout {
 		using Base::Base;
 		friend Base;
 
-		using Particle = env::internal::ParticleRecord<U>;
+		using Particle = core::internal::ParticleRecord<U>;
 
 		AoS(const Config & config, const internal::ContainerCreateInfo & info):
 			Container<Config, U>(config, info)

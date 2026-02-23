@@ -6,9 +6,9 @@
 #include <cstdlib>
 
 
-#define AP_ASSERT(Expr, Msg) april::utils::debug::ap_assert(#Expr, (Expr), __FILE__, __LINE__, (Msg))
+#define AP_ASSERT(Expr, Msg) april::utility::internal::ap_assert(#Expr, (Expr), __FILE__, __LINE__, (Msg))
 
-namespace april::utils::debug {
+namespace april::utility::internal {
 
     inline void ap_assert(const char* expr_str, bool expr, const char* file, int line, const char* msg) {
         if (!expr) {
@@ -23,7 +23,7 @@ namespace april::utils::debug {
         ap_assert(expr_str, expr, file, line, msg.c_str());
     }
 
-} // namespace april::utils::debug
+} // namespace april::utility::debug
 
 #else
 

@@ -7,7 +7,7 @@
 
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
-#include "april/env/domain.hpp"
+#include "../../core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
 
 
@@ -64,7 +64,7 @@ namespace april::container::internal {
 			}
 		}
 
-		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const env::Box & region) {
+		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const core::Box & region) {
 			std::vector<size_t> ret;
 			const double domain_vol = self.domain.volume();
 			const auto intersection = self.domain.intersection(region);

@@ -1,6 +1,6 @@
 #pragma once
 #include "april/integrators/integrator.hpp"
-#include "april/system/system.hpp"
+#include "april/core/system.hpp"
 
 #include "april/monitors/monitor.hpp"
 

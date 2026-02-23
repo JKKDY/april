@@ -5,7 +5,7 @@
 #include "april/particle/particle_types.hpp"
 #include "april/particle/source.hpp"
 
-namespace april::env {
+namespace april::core {
 	template<ParticleField M, IsUserData UserDataT> struct ScalarParticleView;
 	template<ParticleField M, IsUserData UserDataT> struct ScalarParticleRef;
 

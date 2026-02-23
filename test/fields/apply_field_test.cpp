@@ -37,8 +37,8 @@ public:
         }
     }
 
-    template<env::IsUserData U>
-    void apply(const env::ScalarRestrictedParticleRef<fields, U>& /*particle*/) const {
+    template<core::IsUserData U>
+    void apply(const core::ScalarRestrictedParticleRef<fields, U>& /*particle*/) const {
         if (sinks) {
             sinks->apply_call_count++;
         }
@@ -119,8 +119,8 @@ public:
     void update(const core::SystemContext<S>&) {
         if (sinks) sinks->update_call_count++;
     }
-    template<env::IsUserData U>
-    void apply(const env::ScalarRestrictedParticleRef<fields, U>&) const {
+    template<core::IsUserData U>
+    void apply(const core::ScalarRestrictedParticleRef<fields, U>&) const {
         if (sinks) sinks->apply_call_count++;
     }
 };
@@ -200,7 +200,7 @@ TEST(FieldIntegrationTest, MultipleDifferentFieldsAreAdditive) {
     const vec3 uniform_force = {1.0, 1.0, 1.0};
     const vec3 local_force = {10.0, 0.0, 0.0};
 
-    env::Domain local_region;
+    core::Domain local_region;
     local_region.origin = {0,0,0};
     local_region.extent = {5,5,5};
 

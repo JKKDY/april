@@ -9,8 +9,8 @@
 #include "april/math/range.hpp"
 
 #include "april/forces/force_table.hpp"
-#include "april/env/domain.hpp"
-#include "april/env/traits.hpp"
+#include "../core/domain.hpp"
+#include "../core/internal/environment_traits.hpp"
 
 #include "april/particle/scalar_access.hpp"
 #include "april/particle/packed_access.hpp"
@@ -34,23 +34,23 @@ namespace april::container {
 		struct ContainerHints {
 			// TODO add regions that will be queried in the future so the container can keep track of particles better
 			std::vector<ParticleID> interacting_particles;
-			std::vector<env::Box> query_regions;
+			std::vector<core::Box> query_regions;
 		};
 
 		struct ContainerCreateInfo {
 			ContainerFlags flags {};
 			ContainerHints hints {};
 			force::internal::InteractionSchema force_schema {};
-			env::Box domain {};
+			core::Box domain {};
 		};
 	}
 
 
 
-	template<class C, env::IsUserData U>
+	template<class C, core::IsUserData U>
 	class Container {
 	public:
-		using ParticleRecord = env::internal::ParticleRecord<U>;
+		using ParticleRecord = core::internal::ParticleRecord<U>;
 		using UserData = U;
 		using Config = C;
 
@@ -69,49 +69,49 @@ namespace april::container {
 		// INDEX ACCESSORS
 		template<ParticleField M>
 		[[nodiscard]] auto at(this auto&& self, size_t index) {
-			return env::ScalarParticleRef<M, U>{ self.template access_particle<M>(index) };
+			return core::ScalarParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto view(this const auto& self, size_t index) {
-			return env::ScalarParticleView<M, U>{ self.template access_particle<M>(index) };
+			return core::ScalarParticleView<M, U>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t index) {
-			return env::ScalarRestrictedParticleRef<M, U>{ self.template access_particle<M>(index) };
+			return core::ScalarRestrictedParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t index) {
-			return env::PackedParticleRef<M, U>{ self.template access_particle<M>(index) };
+			return core::PackedParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t index) {
-			return env::PackedParticleView<M, U>{ self.template access_particle<M>(index) };
+			return core::PackedParticleView<M, U>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at_packed(this auto&& self, size_t index) {
-			return env::PackedRestrictedParticleRef<M, U>{ self.template access_particle<M>(index) };
+			return core::PackedRestrictedParticleRef<M, U>{ self.template access_particle<M>(index) };
 		}
 
 
 		// ID ACCESSORS
 		template<ParticleField M>
 		[[nodiscard]] auto at_id(this auto&& self, ParticleID id) {
-			return env::ScalarParticleRef<M, U>{ self.template access_particle_id<M>(id) };
+			return core::ScalarParticleRef<M, U>{ self.template access_particle_id<M>(id) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto view_id(this const auto & self, ParticleID id) {
-			return env::ScalarParticleView<M, U>{ self.template access_particle_id<M>(id) };
+			return core::ScalarParticleView<M, U>{ self.template access_particle_id<M>(id) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at_id(this auto&& self, ParticleID id) {
-			return env::ScalarRestrictedParticleRef<M, U>{ self.template access_particle_id<M>(id) };
+			return core::ScalarRestrictedParticleRef<M, U>{ self.template access_particle_id<M>(id) };
 		}
 
 
@@ -262,7 +262,7 @@ namespace april::container {
 			AP_ASSERT(false, "remove_particle not supported yet");
 			self.remove_particle(id);
 		}
-		void invoke_resize_domain(this auto&& self, const env::Box & new_domain) {
+		void invoke_resize_domain(this auto&& self, const core::Box & new_domain) {
 			AP_ASSERT(false, "resize_domain not supported yet");
 			self.resize_domain(new_domain);
 		}
@@ -284,7 +284,7 @@ namespace april::container {
 		[[nodiscard]] size_t invoke_particle_count(this const auto& self) {
 			return self.particle_count();
 		}
-		[[nodiscard]] std::vector<size_t> invoke_collect_indices_in_region(this const auto& self, const env::Box & region) {
+		[[nodiscard]] std::vector<size_t> invoke_collect_indices_in_region(this const auto& self, const core::Box & region) {
 			if constexpr (requires { self.collect_indices_in_region(region); }) {
 				return self.collect_indices_in_region(region);
 			} else {
@@ -295,7 +295,7 @@ namespace april::container {
 		}
 
 		// TODO implement on containers, use this instead of non buffer version in system
-		void invoke_collect_indices_in_region(this const auto& self, const env::Box & region, std::vector<size_t> & buffer) {
+		void invoke_collect_indices_in_region(this const auto& self, const core::Box & region, std::vector<size_t> & buffer) {
 			return self.collect_indices_in_region(region, buffer);
 		}
 
@@ -305,7 +305,7 @@ namespace april::container {
 		const internal::ContainerFlags flags;
 		const internal::ContainerHints hints;
 		const force::internal::InteractionSchema force_schema;
-		const env::Box domain; // Note: in the future this may be adjustable during run time
+		const core::Box domain; // Note: in the future this may be adjustable during run time
 
 		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
 		void invoke_iterate_range(this auto&& self, Kernel && func, size_t start, size_t end) {
@@ -366,25 +366,25 @@ namespace april::container {
 		[[nodiscard]] auto access_particle(this auto&& self, const size_t i) {
 
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-			env::internal::ParticleSource<M, U, IsConst> src;
+			core::internal::ParticleSource<M, U, IsConst> src;
 
-			if constexpr (env::has_field_v<M, ParticleField::force>)
+			if constexpr (core::has_field_v<M, ParticleField::force>)
 				src.force = self.template invoke_get_field_ptr<ParticleField::force>(i);
-			if constexpr (env::has_field_v<M, ParticleField::position>)
+			if constexpr (core::has_field_v<M, ParticleField::position>)
 				src.position = self.template invoke_get_field_ptr<ParticleField::position>(i);
-			if constexpr (env::has_field_v<M, ParticleField::velocity>)
+			if constexpr (core::has_field_v<M, ParticleField::velocity>)
 				src.velocity = self.template invoke_get_field_ptr<ParticleField::velocity>(i);
-			if constexpr (env::has_field_v<M, ParticleField::old_position>)
+			if constexpr (core::has_field_v<M, ParticleField::old_position>)
 				src.old_position = self.template invoke_get_field_ptr<ParticleField::old_position>(i);
-			if constexpr (env::has_field_v<M, ParticleField::mass>)
+			if constexpr (core::has_field_v<M, ParticleField::mass>)
 				src.mass = self.template invoke_get_field_ptr<ParticleField::mass>(i);
-			if constexpr (env::has_field_v<M, ParticleField::state>)
+			if constexpr (core::has_field_v<M, ParticleField::state>)
 				src.state = self.template invoke_get_field_ptr<ParticleField::state>(i);
-			if constexpr (env::has_field_v<M, ParticleField::type>)
+			if constexpr (core::has_field_v<M, ParticleField::type>)
 				src.type = self.template invoke_get_field_ptr<ParticleField::type>(i);
-			if constexpr (env::has_field_v<M, ParticleField::id>)
+			if constexpr (core::has_field_v<M, ParticleField::id>)
 				src.id = self.template invoke_get_field_ptr<ParticleField::id>(i);
-			if constexpr (env::has_field_v<M, ParticleField::user_data>)
+			if constexpr (core::has_field_v<M, ParticleField::user_data>)
 				src.user_data = self.template invoke_get_field_ptr<ParticleField::user_data>(i);
 
 			return src;
@@ -403,25 +403,25 @@ namespace april::container {
 
 		        // specialized path (direct ID access)
 		        constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-		        env::internal::ParticleSource<M, U, IsConst> src;
+		        core::internal::ParticleSource<M, U, IsConst> src;
 
-		        if constexpr (env::has_field_v<M, ParticleField::force>)
+		        if constexpr (core::has_field_v<M, ParticleField::force>)
         			src.force = self.template invoke_get_field_ptr_id<ParticleField::force>(id);
-		        if constexpr (env::has_field_v<M, ParticleField::position>)
+		        if constexpr (core::has_field_v<M, ParticleField::position>)
         			src.position = self.template invoke_get_field_ptr_id<ParticleField::position>(id);
-		        if constexpr (env::has_field_v<M, ParticleField::velocity>)
+		        if constexpr (core::has_field_v<M, ParticleField::velocity>)
         			src.velocity = self.template invoke_get_field_ptr_id<ParticleField::velocity>(id);
-		        if constexpr (env::has_field_v<M, ParticleField::old_position>)
+		        if constexpr (core::has_field_v<M, ParticleField::old_position>)
         			src.old_position = self.template invoke_get_field_ptr_id<ParticleField::old_position>(id);
-		        if constexpr (env::has_field_v<M, ParticleField::mass>)
+		        if constexpr (core::has_field_v<M, ParticleField::mass>)
         			src.mass = self.template invoke_get_field_ptr_id<ParticleField::mass>(id);
-		        if constexpr (env::has_field_v<M, ParticleField::state>)
+		        if constexpr (core::has_field_v<M, ParticleField::state>)
         			src.state = self.template invoke_get_field_ptr_id<ParticleField::state>(id);
-		        if constexpr (env::has_field_v<M, ParticleField::type>)
+		        if constexpr (core::has_field_v<M, ParticleField::type>)
         			src.type = self.template invoke_get_field_ptr_id<ParticleField::type>(id);
-		        if constexpr (env::has_field_v<M, ParticleField::id>)
+		        if constexpr (core::has_field_v<M, ParticleField::id>)
         			src.id = self.template invoke_get_field_ptr_id<ParticleField::id>(id);
-		        if constexpr (env::has_field_v<M, ParticleField::user_data>)
+		        if constexpr (core::has_field_v<M, ParticleField::user_data>)
         			src.user_data = self.template invoke_get_field_ptr_id<ParticleField::user_data>(id);
 
 		        return src;
@@ -442,9 +442,9 @@ namespace april::container {
 	    const C cc,
 	    ParticleID id,
 	    size_t index,
-	    const env::Box& region,
-	    const env::internal::ParticleRecord<typename C::UserData>& p,
-	    const std::vector<env::internal::ParticleRecord<typename C::UserData>>& particles
+	    const core::Box& region,
+	    const core::internal::ParticleRecord<typename C::UserData>& p,
+	    const std::vector<core::internal::ParticleRecord<typename C::UserData>>& particles
 	) {
 	    { c.build(particles) };
 	    { c.rebuild_structure() };
@@ -491,7 +491,7 @@ namespace april::container {
 
 
 	template<typename ContainerDecl, typename Traits> concept IsContainerDecl =
-		env::internal::IsEnvironmentTraits<Traits>
+		core::internal::IsEnvironmentTraits<Traits>
 		&& requires { typename ContainerDecl::template impl<typename Traits::user_data_t>; }
 		&& IsContainer<typename ContainerDecl::template impl<typename Traits::user_data_t>>;
 

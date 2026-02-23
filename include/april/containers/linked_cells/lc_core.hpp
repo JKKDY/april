@@ -8,7 +8,7 @@
 
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
-#include "april/env/domain.hpp"
+#include "../../core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
 
 namespace april::container::internal {
@@ -73,7 +73,7 @@ namespace april::container::internal {
 			self.reorder_storage(self.bin_assignments);
 		}
 
-		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const env::Box & region) {
+		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const core::Box & region) {
 			std::vector<cell_index_t> cells = self.get_cells_in_region(region);
 			std::vector<size_t> ret;
 
@@ -431,7 +431,7 @@ namespace april::container::internal {
 		}
 
 		// gather all cell ids whose cells have an intersection with the box region
-		[[nodiscard]] std::vector<cell_index_t> get_cells_in_region(this const auto& self, const env::Box & box) {
+		[[nodiscard]] std::vector<cell_index_t> get_cells_in_region(this const auto& self, const core::Box & box) {
 			//  Convert world coords to cell coords (relative to domain origin)
 			const vec3d min = (box.min - self.domain.min) * self.inv_cell_size;
 			const vec3d max = (box.max - self.domain.min) * self.inv_cell_size;

@@ -1,22 +1,22 @@
 #pragma once
 
-#include "april/env/environment.hpp"
-#include "april/env/domain.hpp"
+#include "environment.hpp"
+#include "domain.hpp"
 #include "april/containers/container.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
-#include "april/system/context.hpp"
+#include "april/core/context.hpp"
 
 namespace april::core {
 	struct BuildInfo;
 
-	template <class C, env::internal::IsEnvironmentTraits Traits>
+	template <class C, core::internal::IsEnvironmentTraits Traits>
 	requires container::IsContainerDecl<C, Traits>
 	class System;
 
 
-	template <class Container, env::IsEnvironment EnvT>
+	template <class Container, core::IsEnvironment EnvT>
 	requires container::IsContainerDecl<Container, typename EnvT::traits>
 	System<Container, typename EnvT::traits> build_system(
 		const EnvT & environment,
@@ -24,7 +24,7 @@ namespace april::core {
 		BuildInfo * build_info = nullptr
 	);
 
-	template <class ContainerDecl, env::internal::IsEnvironmentTraits Traits>
+	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits>
 	requires container::IsContainerDecl<ContainerDecl, Traits>
 	class System final {
 		// --------------
@@ -41,7 +41,7 @@ namespace april::core {
 		// PUBLIC API TYPES
 		// ----------------
 		using SysContext = SystemContext<System>;
-		using TrigContext = shared::TriggerContextImpl<System>;
+		using TrigContext = utility::TriggerContextImpl<System>;
 		using Container = ContainerDecl::template impl<typename Traits::user_data_t>;
 		using ParticleRec = Traits::particle_record_t;
 
@@ -60,8 +60,8 @@ namespace april::core {
 		// -----------------
 		[[nodiscard]] double time() const noexcept { return time_; }
 		[[nodiscard]] size_t step() const noexcept { return step_; }
-		[[nodiscard]] env::Domain domain() const { return {simulation_box.min, simulation_box.extent}; }
-		[[nodiscard]] env::Box box() const { return simulation_box; }
+		[[nodiscard]] core::Domain domain() const { return {simulation_box.min, simulation_box.extent}; }
+		[[nodiscard]] core::Box box() const { return simulation_box; }
 
 		void update_time(const double dt) noexcept { time_ += dt; }
 		void increment_step() noexcept { ++step_; }
@@ -75,33 +75,33 @@ namespace april::core {
 
 		// INDEX ACCESSORS (fast)
 		template<ParticleField M>
-		[[nodiscard]] env::ScalarParticleRef<M, ParticleData> at(const size_t index) {
+		[[nodiscard]] core::ScalarParticleRef<M, ParticleData> at(const size_t index) {
 			return particle_container.template at<M>(index);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] env::ScalarParticleView<M, ParticleData> view(const size_t index) const {
+		[[nodiscard]] core::ScalarParticleView<M, ParticleData> view(const size_t index) const {
 			return particle_container.template view<M>(index);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] env::ScalarRestrictedParticleRef<M, ParticleData> restricted_at(const size_t index) {
+		[[nodiscard]] core::ScalarRestrictedParticleRef<M, ParticleData> restricted_at(const size_t index) {
 			return particle_container.template restricted_at<M>(index);
 		}
 
 		// ID ACCESSORS (stable)
 		template<ParticleField M>
-		[[nodiscard]] env::ScalarParticleRef<M, ParticleData> at_id(const ParticleID id) {
+		[[nodiscard]] core::ScalarParticleRef<M, ParticleData> at_id(const ParticleID id) {
 			return particle_container.template at_id<M>(id);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] env::ScalarParticleView<M, ParticleData> view_id(const ParticleID id) const {
+		[[nodiscard]] core::ScalarParticleView<M, ParticleData> view_id(const ParticleID id) const {
 			return particle_container.template view_id<M>(id);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] env::ScalarRestrictedParticleRef<M, ParticleData> restricted_at_id(const ParticleID id) {
+		[[nodiscard]] core::ScalarRestrictedParticleRef<M, ParticleData> restricted_at_id(const ParticleID id) {
 			return particle_container.template restricted_at_id<M>(id);
 		}
 
@@ -142,12 +142,12 @@ namespace april::core {
 		[[nodiscard]] size_t capacity() const noexcept {
 			return particle_container.capacity();
 		}
-		[[nodiscard]] std::vector<size_t> query_region(const env::Box & region) const {
+		[[nodiscard]] std::vector<size_t> query_region(const core::Box & region) const {
 			return particle_container.invoke_collect_indices_in_region(region);
 		}
 
-		[[nodiscard]] std::vector<size_t> query_region(const env::Domain & region) const {
-			return query_region(env::Box(region.min_corner().value(), region.max_corner().value()));
+		[[nodiscard]] std::vector<size_t> query_region(const core::Domain & region) const {
+			return query_region(core::Box(region.min_corner().value(), region.max_corner().value()));
 		}
 
 
@@ -194,7 +194,7 @@ namespace april::core {
 			auto update_batch = [&]<container::IsBatch Batch, /*TODO container::IsBCP*/ typename BCP>(const Batch& batch, BCP && apply_bcp) {
 				auto bridge = [&](auto && p1, auto && p2) {
 					vec3 r = {};
-					if constexpr (env::has_field_v<M, ParticleField::position> &&
+					if constexpr (core::has_field_v<M, ParticleField::position> &&
 						std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
 						r = p2.position - p1.position;
 						} else {
@@ -266,7 +266,7 @@ namespace april::core {
 
 
 	private:
-		env::Box simulation_box; // TODO rename to domain
+		core::Box simulation_box; // TODO rename to domain
 		BoundaryTable boundary_table;
 		ForceTable force_table;
 		ControllerStorage controllers;
@@ -279,14 +279,14 @@ namespace april::core {
 		size_t step_ = 0;
 
 		SystemContext<System> system_context;
-		shared::TriggerContextImpl<System> trig_context;
+		utility::TriggerContextImpl<System> trig_context;
 
 
 		// private constructor since System should only be creatable through build_system(...)
 		System(
 			const ContainerDecl& container_cfg,
 			const container::internal::ContainerCreateInfo & container_info,
-			const env::Box& domain_in,
+			const core::Box& domain_in,
 			const std::vector<ParticleRec>& particles,
 			const BoundaryTable& boundaries_in,
 			const ForceTable& forces_in,
@@ -309,7 +309,7 @@ namespace april::core {
 
 		// Friend factory: only entry point for constructing a System
 		// Avoids exposing constructor internals publicly.
-		template <class Container, env::IsEnvironment EnvT>
+		template <class Container, core::IsEnvironment EnvT>
 		requires container::IsContainerDecl<Container, typename EnvT::traits>
 		friend System<Container, typename EnvT::traits>
 		build_system(
@@ -329,7 +329,7 @@ namespace april::core {
 	inline constexpr bool is_system_v = false;
 
 	// Specialization: mark all System<C, Env> instantiations as true
-	template<class C, env::internal::IsEnvironmentTraits Traits>
+	template<class C, core::internal::IsEnvironmentTraits Traits>
 	inline constexpr bool is_system_v<System<C, Traits>> = true;
 
 	// Concept: true if T (after removing cv/ref) is a System specialization
@@ -338,5 +338,5 @@ namespace april::core {
 
 } // namespace april::core
 
-#include "april/system/internal/system_impl.hpp"
+#include "april/core/internal/system_impl.hpp"
 

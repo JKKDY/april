@@ -7,9 +7,9 @@ using namespace april;
 
 
 // Helper functions to analyze the results of a simulation
-using ParticleRec = env::internal::ParticleRecord<env::NoUserData>;
+using ParticleRec = core::internal::ParticleRecord<core::NoUserData>;
 
-uint8_t get_dimensions(const env::Box& box) {
+uint8_t get_dimensions(const core::Box& box) {
      return 3 -
         (box.extent.x == 0) -
         (box.extent.y == 0) -
@@ -25,7 +25,7 @@ vec3 get_system_avg_v(const std::vector<ParticleRec>& particles) {
     return sum / static_cast<double>(particles.size());
 }
 
-double get_system_temp(const std::vector<ParticleRec>& particles, const vec3& avg_v, const env::Box& box) {
+double get_system_temp(const std::vector<ParticleRec>& particles, const vec3& avg_v, const core::Box& box) {
     double kinetic = 0.0;
     for (const auto& p : particles) {
         const vec3 dv = p.velocity - avg_v;

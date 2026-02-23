@@ -15,7 +15,7 @@ namespace april::monitor {
 	public:
 		static constexpr ParticleField fields = ParticleField::all;
 		explicit BinaryOutput(
-			const shared::Trigger & trigger,
+			const utility::Trigger & trigger,
 			std::string dir = "output",
 			std::string base_name = "output")
 		:

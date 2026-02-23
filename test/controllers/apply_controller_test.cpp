@@ -20,7 +20,7 @@ public:
     SpySinks* sinks = nullptr; // Raw pointer, not an owner
 
     // Constructor used in the test to pass in the sinks
-    explicit SpyController(shared::Trigger trig, SpySinks* sinks_ptr)
+    explicit SpyController(utility::Trigger trig, SpySinks* sinks_ptr)
         : Controller(std::move(trig)), sinks(sinks_ptr) {}
 
     // Default constructor is required for the controller::controllers<...> pack
@@ -213,7 +213,7 @@ TEST_F(ControllerTest, TriggerLogicalNot) {
 class SpyController2 : public controller::Controller {
 public:
     SpySinks* sinks = nullptr;
-    SpyController2(shared::Trigger trig, SpySinks* sinks_ptr)
+    SpyController2(utility::Trigger trig, SpySinks* sinks_ptr)
         : Controller(std::move(trig)), sinks(sinks_ptr) {}
     SpyController2() : Controller(Trigger::never()), sinks(nullptr) {}
 
@@ -236,7 +236,7 @@ class ContextSpyController : public controller::Controller {
 public:
     static constexpr ParticleField mask = ParticleField::velocity;
 
-    ContextSpyController(shared::Trigger trig, ParticleID id)
+    ContextSpyController(utility::Trigger trig, ParticleID id)
         : Controller(std::move(trig)), target_id(id) {}
 
     ContextSpyController() : Controller(Trigger::never()), target_id(0) {}

@@ -1,13 +1,13 @@
 #pragma once
 
 #include <vector>
-#include "april/system/system.hpp"
-#include "april/env/environment.hpp"
+#include "april/core/system.hpp"
+#include "environment.hpp"
 #include "april/containers/container.hpp"
-#include "april/env/domain.hpp"
-#include "april/system/internal/build_helpers_particle.hpp"
-#include "april/system/internal/build_helpers_domain.hpp"
-#include "april/system/internal/build_helpers_boundary.hpp"
+#include "domain.hpp"
+#include "april/core/internal/build_helpers_particle.hpp"
+#include "april/core/internal/build_helpers_domain.hpp"
+#include "april/core/internal/build_helpers_boundary.hpp"
 
 
 namespace april::core {
@@ -15,12 +15,12 @@ namespace april::core {
 	struct BuildInfo {
 		std::unordered_map<ParticleType, ParticleType> type_map;
 		std::unordered_map<ParticleID, ParticleID> id_map;
-		env::Domain particle_box;
-		env::Domain simulation_domain;
+		core::Domain particle_box;
+		core::Domain simulation_domain;
 	};
 
 
-	template <class Container, env::IsEnvironment EnvT>
+	template <class Container, core::IsEnvironment EnvT>
 	requires container::IsContainerDecl<Container, typename EnvT::traits>
 	System<Container, typename EnvT::traits> build_system(
 		const EnvT & environment,
@@ -31,18 +31,18 @@ namespace april::core {
 		using ForceTable = typename EnvT::traits::force_table_t;
 		using ParticleRecord = typename EnvT::traits::particle_record_t;
 
-		using EnvData = env::internal::EnvironmentData< // explicit type so the IDE can perform code completion
+		using EnvData = core::internal::EnvironmentData< // explicit type so the IDE can perform code completion
 			typename EnvT::traits::force_variant_t,
 			typename EnvT::traits::boundary_variant_t,
 			typename EnvT::traits::controller_storage_t,
 			typename EnvT::traits::field_storage_t>;
 
 		// get a copy of the environment data
-		EnvData env = env::internal::get_env_data(environment);
+		EnvData env = core::internal::get_env_data(environment);
 
 		// validate & set simulation domain
-		const env::Box particle_bbox = internal::particle_bounding_box(env.particles);
-		const env::Box simulation_box = internal::determine_simulation_box(
+		const core::Box particle_bbox = internal::particle_bounding_box(env.particles);
+		const core::Box simulation_box = internal::determine_simulation_box(
 			env.domain, particle_bbox, env.margin_abs, env.margin_fac);
 
 		// validate & create Particles
@@ -75,8 +75,8 @@ namespace april::core {
 		if (build_info) {
 			build_info->type_map = type_map;
 			build_info->id_map = id_map;
-			build_info->particle_box = env::Domain(particle_bbox.min, particle_bbox.extent);
-			build_info->simulation_domain = env::Domain(simulation_box.min, simulation_box.extent);
+			build_info->particle_box = core::Domain(particle_bbox.min, particle_bbox.extent);
+			build_info->simulation_domain = core::Domain(simulation_box.min, simulation_box.extent);
 		}
 
 		container::internal::ContainerCreateInfo container_info {

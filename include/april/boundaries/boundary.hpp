@@ -85,8 +85,8 @@ namespace april::boundary {
 		{}
 
 		// TODO make this bindable to R-Values
-		template<ParticleField IncomingMask, core::IsUserData U>
-		void invoke_apply(this const auto & self,core::ScalarParticleRef<IncomingMask, U> & particle, const core::Box & domain_box, Face face) noexcept {
+		template<ParticleField IncomingMask, core::IsParticleAttributes U>
+		void invoke_apply(this const auto & self,particle::internal::ScalarParticleRef<IncomingMask, U> & particle, const core::Box & domain_box, Face face) noexcept {
 			static_assert(
 			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },
 			   "BoundaryCondition subclass must implement: void dispatch_apply(particle)"
@@ -148,8 +148,8 @@ namespace april::boundary {
 
 			BoundarySentinel(): Boundary(-1, false, false, false) {}
 
-			template<ParticleField IncomingMask, core::IsUserData U>
-			void apply(core::ScalarParticleRef<IncomingMask, U> &, const core::Box &, const Face) const noexcept {
+			template<ParticleField IncomingMask, core::IsParticleAttributes U>
+			void apply(particle::internal::ScalarParticleRef<IncomingMask, U> &, const core::Box &, const Face) const noexcept {
 				AP_ASSERT(false, "apply called on null boundary! this should never happen");
 			}
 		};
@@ -178,6 +178,10 @@ namespace april::boundary {
 		using VariantType_t = typename VariantType<BCs...>::type;
 	}
 }
+
+
+
+
 
 
 

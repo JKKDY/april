@@ -5,9 +5,9 @@ using namespace april;
 
 // Helper to create a dummy particle record for testing
 // We don't need the full utils.h for this.
-static core::internal::ParticleRecord<core::NoUserData>
+static particle::ParticleRecord<core::NoParticleAttributes>
 make_test_particle(const vec3& force) {
-	core::internal::ParticleRecord<core::NoUserData> p;
+	particle::ParticleRecord<core::NoParticleAttributes> p;
 	p.force = force;
 	// Other fields are not needed by UniformField,
 	// but we set them for completeness.
@@ -32,10 +32,10 @@ TEST(UniformFieldTest, ApplyIsAdditive) {
 	// 3. Create the necessary reference for the 'apply' method
 	constexpr ParticleField Mask = UniformField::fields;
 
-	core::internal::ParticleSource<Mask, core::NoUserData, false> src;
+	particle::internal::ParticleSource<Mask, core::NoParticleAttributes, false> src;
 	src.force    = &p_rec.force;
 
-	core::ScalarRestrictedParticleRef<Mask, core::NoUserData> p_ref(src);
+	particle::internal::ScalarRestrictedParticleRef<Mask, core::NoParticleAttributes> p_ref(src);
 
 	// 4. Call apply()
 	field.apply(p_ref);
@@ -53,5 +53,8 @@ TEST(UniformFieldTest, ApplyIsAdditive) {
 	EXPECT_NEAR(p_rec.force.y,  0.0 + (2 * field_force.y), 1e-12);
 	EXPECT_NEAR(p_rec.force.z,  0.0 + (2 * field_force.z), 1e-12);
 }
+
+
+
 
 

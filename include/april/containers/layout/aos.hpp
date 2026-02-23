@@ -8,18 +8,18 @@
 
 namespace april::container::layout {
 
-	template<typename Config, core::IsUserData U>
-	class AoS : public Container<Config, U>{
+	template<typename Config, core::IsParticleAttributes A>
+	class AoS : public Container<Config, A>{
 	public:
-		using Base = Container<Config, U>;
+		using Base = Container<Config, A>;
 		using Base::force_schema;
 		using Base::Base;
 		friend Base;
 
-		using Particle = core::internal::ParticleRecord<U>;
+		using Particle = particle::ParticleRecord<A>;
 
 		AoS(const Config & config, const internal::ContainerCreateInfo & info):
-			Container<Config, U>(config, info)
+			Container<Config, A>(config, info)
 		{
 			// TODO move topology batch related code into the core implementations instead of the layouts
 			// precompute topology batches (id based batches)
@@ -163,13 +163,17 @@ namespace april::container::layout {
 			else if constexpr (F == ParticleField::state)			return &self.particles[i].state;
 			else if constexpr (F == ParticleField::type)			return &self.particles[i].type;
 			else if constexpr (F == ParticleField::id)				return &self.particles[i].id;
-			else if constexpr (F == ParticleField::user_data)		return &self.particles[i].user_data;
+			else if constexpr (F == ParticleField::attributes)		return &self.particles[i].attributes;
 		}
 
 	private:
 		std::vector<TopologyBatch> topology_batches;
 	};
 }
+
+
+
+
 
 
 

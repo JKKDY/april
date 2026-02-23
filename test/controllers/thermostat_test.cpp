@@ -7,7 +7,7 @@ using namespace april;
 
 
 // Helper functions to analyze the results of a simulation
-using ParticleRec = core::internal::ParticleRecord<core::NoUserData>;
+using ParticleRec = particle::ParticleRecord<core::NoParticleAttributes>;
 
 uint8_t get_dimensions(const core::Box& box) {
      return 3 -
@@ -262,6 +262,9 @@ TEST(ThermostatBehaviorTest, Apply_HeatsThenCoolsWithTriggers) {
     auto T_cooled = get_system_temp(p_cooled, v_cooled, system.box());
     EXPECT_NEAR(T_cooled, T_cool, 0.1);
 }
+
+
+
 
 
 

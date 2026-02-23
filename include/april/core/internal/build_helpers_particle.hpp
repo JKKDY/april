@@ -18,8 +18,6 @@ std::string demangled_type_name() {
 #else
 
 #include <cxxabi.h>
-#include <cstdlib> // For std::free
-
 template<typename T>
 		std::string demangled_type_name() {
 	int status = 0;
@@ -113,7 +111,7 @@ namespace april::core::internal {
 		}
 	}
 
-	inline void validate_particles(const std::vector<core::Particle>& particles) {
+	inline void validate_particles(const std::vector<Particle>& particles) {
 		// check for positive particle masses
 		for (auto & p : particles) {
 			if (p.mass <= 0) {
@@ -147,12 +145,12 @@ namespace april::core::internal {
 	}
 
 	inline void assign_missing_particle_ids(
-		std::vector<core::Particle>& particles,
+		std::vector<Particle>& particles,
 		std::unordered_set<ParticleID>& user_ids
 	) {
 		// give particles with undefined id a valid id
 		ParticleID id = 0;
-		for (core::Particle & p: particles) {
+		for (Particle & p: particles) {
 			if (p.id.has_value()) continue;
 
 			// find the next free id
@@ -215,7 +213,7 @@ namespace april::core::internal {
 	inline std::pair<std::unordered_map<ParticleType, ParticleType>,
 	   std::unordered_map<ParticleID, ParticleID>>
 	create_particle_mappings(
-		const std::vector<core::Particle>& particles,
+		const std::vector<Particle>& particles,
 		const std::unordered_set<ParticleType>& user_types,
 		const std::unordered_set<ParticleID>& user_ids,
 		const std::vector<std::pair<ParticleType, ParticleType>>& type_pairs,
@@ -231,19 +229,19 @@ namespace april::core::internal {
 		return std::pair{type_map, id_map};
 	}
 
-	template <core::IsUserData UserData>
-	std::vector<core::internal::ParticleRecord<UserData>> build_particles(
-		const std::vector<core::Particle>& particle_infos,
+	template <IsParticleAttributes UserData>
+	std::vector<particle::ParticleRecord<UserData>> build_particles(
+		const std::vector<Particle>& particle_infos,
 		const std::unordered_map<ParticleType, ParticleType> & type_map,
 		const std::unordered_map<ParticleID, ParticleID> & id_map
 	) {
-		std::vector<core::internal::ParticleRecord<UserData>> particles;
+		std::vector<particle::ParticleRecord<UserData>> particles;
 		particles.reserve(particle_infos.size());
 
 		for (const auto & p : particle_infos) {
 			AP_ASSERT(p.id.has_value(), "particle id not set during build phase");
 
-			core::internal::ParticleRecord<UserData> particle;
+			particle::ParticleRecord<UserData> particle;
 			particle.id = id_map.at(p.id.value());
 			particle.type = type_map.at(p.type);
 			particle.mass = p.mass;
@@ -252,14 +250,14 @@ namespace april::core::internal {
 			particle.velocity = p.velocity;
 			particle.force = p.force.value_or(vec3{});
 			particle.old_position = p.old_position.value_or(vec3{});
-			if constexpr (std::is_same_v<UserData, core::NoUserData>) {
-				particle.user_data = core::NoUserData();
+			if constexpr (std::is_same_v<UserData, core::NoParticleAttributes>) {
+				particle.attributes = core::NoParticleAttributes();
 			} else {
 				AP_ASSERT((std::any_cast<UserData>(&p.user_data) != nullptr), "user data particle with id "
 					+ std::to_string(p.id.value())
 					+ " is not of expected type " + demangled_type_name<UserData>()
 					+ " but has (mangled) type " + p.user_data.type().name());
-				particle.user_data = std::any_cast<UserData>(p.user_data);
+				particle.attributes = std::any_cast<UserData>(p.user_data);
 			}
 
 			particles.push_back(particle);
@@ -268,6 +266,10 @@ namespace april::core::internal {
 		return particles;
 	}
 }
+
+
+
+
 
 
 

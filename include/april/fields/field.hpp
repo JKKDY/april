@@ -23,8 +23,8 @@ namespace april::field {
 			}
 		}
 
-		template<core::IsUserData U, core::HasFields Self>
-		void dispatch_apply(this const Self& self, const core::ScalarRestrictedParticleRef<core::FieldOf<Self>, U> & particle) {
+		template<core::IsParticleAttributes U, core::HasFields Self>
+		void dispatch_apply(this const Self& self, const particle::internal::ScalarRestrictedParticleRef<core::FieldOf<Self>, U> & particle) {
 			static_assert(
 				requires { self.apply(particle); },
 				"Field must implement: void apply(env::RestrictedParticleRef<M, U> particle) const"
@@ -32,8 +32,8 @@ namespace april::field {
 			self.apply(particle);
 		}
 
-        template<ParticleField M, core::IsUserData U>
-		void invoke_apply(this const auto& self, core::ScalarRestrictedParticleRef<M, U> & particle) {
+        template<ParticleField M, core::IsParticleAttributes U>
+		void invoke_apply(this const auto& self, particle::internal::ScalarRestrictedParticleRef<M, U> & particle) {
 			static_assert(
 				requires { self.apply(particle); },
 				"Field must implement: void apply(env::RestrictedParticleRef<M, U> & particle) const"
@@ -80,6 +80,10 @@ namespace april::field {
 	template<typename T>
 	concept IsFieldPack = is_field_pack_v<std::remove_cvref_t<T>>;
 }
+
+
+
+
 
 
 

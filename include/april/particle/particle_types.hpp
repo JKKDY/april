@@ -18,7 +18,7 @@ namespace april {
 		mass         	= 1u << 5,
 		type         	= 1u << 6,
 		id           	= 1u << 7,
-		user_data    	= 1u << 8,
+		attributes    	= 1u << 8,
 		all			 	= static_cast<uint16_t>(~0u)
 	};
 
@@ -34,7 +34,7 @@ namespace april {
 		if constexpr (F == ParticleField::mass)         return "MASS";
 		if constexpr (F == ParticleField::type)         return "TYPE";
 		if constexpr (F == ParticleField::id)           return "ID";
-		if constexpr (F == ParticleField::user_data)    return "USER_DATA";
+		if constexpr (F == ParticleField::attributes)    return "USER_DATA";
 		return "UNKNOWN_FIELD";
 	}();
 
@@ -56,9 +56,10 @@ namespace april {
 	using ParticleID = uint32_t;
 
 
+	// TODO rename core -> particle
 	namespace core {
 		template <typename T>
-		concept IsUserData =
+		concept IsParticleAttributes =
 			std::default_initializable<T> &&
 			std::is_trivially_copyable_v<T> &&
 			std::is_trivially_destructible_v<T> &&
@@ -66,18 +67,16 @@ namespace april {
 			(!std::is_polymorphic_v<T>);
 
 
-		struct NoUserData {};
+		struct NoParticleAttributes {};
 
-		// used to tell the environment what user data will be used
-		template<typename Data = NoUserData>
-		struct ParticleData {
-			using user_data_t = Data;
-		};
+		// template struct used to tell the environment what user data will be used
+		template<typename Data = NoParticleAttributes>
+		struct ParticleAttributes { using particle_attributes_t = Data; };
 
-		template<typename Data = NoUserData>
-		inline constexpr ParticleData<Data> particle_data {};
+		template<typename Data = NoParticleAttributes>
+		inline constexpr ParticleAttributes<Data> particle_attributes {};
 
-
+		// TODO move to internal
 		template<class T>
 		concept HasFields = requires { std::remove_cvref_t<T>::fields; };
 
@@ -88,6 +87,10 @@ namespace april {
 		inline constexpr bool has_field_v = (M & F) != ParticleField::none;
 	}
 }
+
+
+
+
 
 
 

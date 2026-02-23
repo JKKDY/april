@@ -7,20 +7,20 @@
 
 namespace april::force {
 	struct Coulomb : Force{
-		static constexpr ParticleField fields = ParticleField::user_data;
+		static constexpr ParticleField fields = ParticleField::attributes;
 
 		double coulomb_constant;
 
 		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = no_cutoff)
 			: Force(cutoff), coulomb_constant(coulomb_const) {}
 
-		template<ParticleField M, core::IsUserData U>
+		template<ParticleField M, core::IsParticleAttributes U>
 		requires requires {
 			{ U::charge } -> std::convertible_to<double>;
 		}
-		auto eval(const core::ScalarParticleView<M, U> & p1, const core::ScalarParticleView<M, U> & p2, const vec3& r) const noexcept {
+		auto eval(const particle::internal::ScalarParticleView<M, U> & p1, const particle::internal::ScalarParticleView<M, U> & p2, const vec3& r) const noexcept {
 			const double inv_r = r.inv_norm();
-			const double mag = coulomb_constant * p1.user_data.charge * p2.user_data.charge * inv_r * inv_r;
+			const double mag = coulomb_constant * p1.attributes.charge * p2.attributes.charge * inv_r * inv_r;
 
 			return mag * inv_r * r;  // Force vector pointing along +r
 		}
@@ -37,6 +37,10 @@ namespace april::force {
 	};
 
 }
+
+
+
+
 
 
 

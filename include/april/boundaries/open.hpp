@@ -9,10 +9,14 @@ namespace april::boundary {
 
 		Open(): Boundary(-1, false, false, false) {}
 
-		template<ParticleField M, core::IsUserData U>
-		void apply(core::ScalarParticleRef<M, U> &, const core::Box &, const Face) const noexcept{}
+		template<ParticleField M, core::IsParticleAttributes U>
+		void apply(particle::internal::ScalarParticleRef<M, U> &, const core::Box &, const Face) const noexcept{}
 	};
 }
+
+
+
+
 
 
 

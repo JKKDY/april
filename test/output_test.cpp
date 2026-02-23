@@ -21,7 +21,7 @@ template<typename T> static T read_binary(std::ifstream& in) {
 }
 
 // helper to create dummy particle
-using ParticleRec =  core::internal::ParticleRecord<core::NoUserData>;
+using ParticleRec =  particle::ParticleRecord<core::NoParticleAttributes>;
 static ParticleRec make_particle_rec(const ParticleType type, const ParticleID id,
 	const vec3& pos={0,0,0}, const ParticleState state= ParticleState::ALIVE) {
 	ParticleRec rec;
@@ -39,10 +39,10 @@ using namespace april::core;
 
 class DummySystem {
 public:
-	using user_data_t = NoUserData;
-	template<ParticleField M> using ParticleRef         = ScalarParticleRef<M, user_data_t>;
-	template<ParticleField M> using ParticleView        = ScalarParticleView<M, user_data_t>;
-	template<ParticleField M> using RestrictedParticleRef = ScalarRestrictedParticleRef<M, user_data_t>;
+	using user_data_t = NoParticleAttributes;
+	template<ParticleField M> using ParticleRef         = particle::internal::ScalarParticleRef<M, user_data_t>;
+	template<ParticleField M> using ParticleView        = particle::internal::ScalarParticleView<M, user_data_t>;
+	template<ParticleField M> using RestrictedParticleRef = particle::internal::ScalarRestrictedParticleRef<M, user_data_t>;
 
 	explicit DummySystem(
 		const size_t step,
@@ -78,7 +78,7 @@ public:
 
 		// 2. Create Source (IsConst = true)
 		// We map the requested fields M to the record's members
-		core::internal::ParticleSource<M, user_data_t, true> src;
+		particle::internal::ParticleSource<M, user_data_t, true> src;
 
 		if constexpr (core::has_field_v<M, ParticleField::position>)     src.position     = &record.position;
 		if constexpr (core::has_field_v<M, ParticleField::velocity>)     src.velocity     = &record.velocity;
@@ -88,7 +88,7 @@ public:
 		if constexpr (core::has_field_v<M, ParticleField::state>)        src.state        = &record.state;
 		if constexpr (core::has_field_v<M, ParticleField::type>)         src.type         = &record.type;
 		if constexpr (core::has_field_v<M, ParticleField::id>)           src.id           = &record.id;
-		if constexpr (core::has_field_v<M, ParticleField::user_data>)    src.user_data    = &record.user_data;
+		if constexpr (core::has_field_v<M, ParticleField::attributes>)    src.attributes    = &record.attributes;
 
 		// 3. Construct View
 		return ParticleView<M>(src);
@@ -296,5 +296,8 @@ TEST(TerminalOutputTest, terminal_test) {
 	// So 4 calls = 8 occurrences of the string
 	EXPECT_EQ(count, 8);
 }
+
+
+
 
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "environment.hpp"
-#include "domain.hpp"
+#include "april/core/environment.hpp"
+#include "april/core/domain.hpp"
 #include "april/containers/container.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/exec/policy.hpp"
@@ -11,12 +11,12 @@
 namespace april::core {
 	struct BuildInfo;
 
-	template <class C, core::internal::IsEnvironmentTraits Traits>
+	template <class C, internal::IsEnvironmentTraits Traits>
 	requires container::IsContainerDecl<C, Traits>
 	class System;
 
 
-	template <class Container, core::IsEnvironment EnvT>
+	template <class Container, IsEnvironment EnvT>
 	requires container::IsContainerDecl<Container, typename EnvT::traits>
 	System<Container, typename EnvT::traits> build_system(
 		const EnvT & environment,
@@ -24,7 +24,7 @@ namespace april::core {
 		BuildInfo * build_info = nullptr
 	);
 
-	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits>
+	template <class ContainerDecl, internal::IsEnvironmentTraits Traits>
 	requires container::IsContainerDecl<ContainerDecl, Traits>
 	class System final {
 		// --------------
@@ -34,7 +34,7 @@ namespace april::core {
 		using FieldStorage	    = Traits::field_storage_t;
 		using ForceTable     	= Traits::force_table_t;
 		using BoundaryTable  	= Traits::boundary_table_t;
-		using ParticleData		= Traits::user_data_t;
+		using ParticleData		= Traits::particle_attributes_t;
 	public:
 
 		// ----------------
@@ -42,7 +42,7 @@ namespace april::core {
 		// ----------------
 		using SysContext = SystemContext<System>;
 		using TrigContext = utility::TriggerContextImpl<System>;
-		using Container = ContainerDecl::template impl<typename Traits::user_data_t>;
+		using Container = ContainerDecl::template impl<typename Traits::particle_attributes_t>;
 		using ParticleRec = Traits::particle_record_t;
 
 		template<ParticleField M>
@@ -75,33 +75,33 @@ namespace april::core {
 
 		// INDEX ACCESSORS (fast)
 		template<ParticleField M>
-		[[nodiscard]] core::ScalarParticleRef<M, ParticleData> at(const size_t index) {
+		[[nodiscard]] particle::internal::ScalarParticleRef<M, ParticleData> at(const size_t index) {
 			return particle_container.template at<M>(index);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] core::ScalarParticleView<M, ParticleData> view(const size_t index) const {
+		[[nodiscard]] particle::internal::ScalarParticleView<M, ParticleData> view(const size_t index) const {
 			return particle_container.template view<M>(index);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] core::ScalarRestrictedParticleRef<M, ParticleData> restricted_at(const size_t index) {
+		[[nodiscard]] particle::internal::ScalarRestrictedParticleRef<M, ParticleData> restricted_at(const size_t index) {
 			return particle_container.template restricted_at<M>(index);
 		}
 
 		// ID ACCESSORS (stable)
 		template<ParticleField M>
-		[[nodiscard]] core::ScalarParticleRef<M, ParticleData> at_id(const ParticleID id) {
+		[[nodiscard]] particle::internal::ScalarParticleRef<M, ParticleData> at_id(const ParticleID id) {
 			return particle_container.template at_id<M>(id);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] core::ScalarParticleView<M, ParticleData> view_id(const ParticleID id) const {
+		[[nodiscard]] particle::internal::ScalarParticleView<M, ParticleData> view_id(const ParticleID id) const {
 			return particle_container.template view_id<M>(id);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] core::ScalarRestrictedParticleRef<M, ParticleData> restricted_at_id(const ParticleID id) {
+		[[nodiscard]] particle::internal::ScalarRestrictedParticleRef<M, ParticleData> restricted_at_id(const ParticleID id) {
 			return particle_container.template restricted_at_id<M>(id);
 		}
 
@@ -329,7 +329,7 @@ namespace april::core {
 	inline constexpr bool is_system_v = false;
 
 	// Specialization: mark all System<C, Env> instantiations as true
-	template<class C, core::internal::IsEnvironmentTraits Traits>
+	template<class C, internal::IsEnvironmentTraits Traits>
 	inline constexpr bool is_system_v<System<C, Traits>> = true;
 
 	// Concept: true if T (after removing cv/ref) is a System specialization
@@ -339,4 +339,8 @@ namespace april::core {
 } // namespace april::core
 
 #include "april/core/internal/system_impl.hpp"
+
+
+
+
 

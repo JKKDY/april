@@ -5,7 +5,7 @@
 #include "april/particle/particle_types.hpp"
 
 
-namespace april::core::internal {
+namespace april::particle::internal {
 
 	// A Poison struct
 	// will throw at compile time if any operator call is instantiated
@@ -75,11 +75,11 @@ namespace april::core::internal {
 
 	// conditional switch between type and a void struct that will throw on access during compile time
 	template<typename T, ParticleField F, ParticleField M>
-	using field_type_t = std::conditional_t<has_field_v<M, F>, T, AccessForbidden<F>>;
+	using field_type_t = std::conditional_t<core::has_field_v<M, F>, T, AccessForbidden<F>>;
 
 
 
-	template<ParticleField M, IsUserData U, bool IsConst>
+	template<ParticleField M, core::IsParticleAttributes U, bool IsConst>
 	struct ParticleSource {
 		// selects T* or const T*
 		template<typename T>
@@ -97,12 +97,12 @@ namespace april::core::internal {
 		AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<ParticleState>, ParticleField::state, M> state;
 		AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<ParticleType>, ParticleField::type, M> type;
 		AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<ParticleID>, ParticleField::id, M> id;
-		AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<U>, ParticleField::user_data, M> user_data;
+		AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<U>, ParticleField::attributes, M> attributes;
 
 		// getter (Used by ParticleRef/View)
 		template<ParticleField F>
 		constexpr auto get() const noexcept {
-			if constexpr (has_field_v<M, F>) {
+			if constexpr (core::has_field_v<M, F>) {
 				if constexpr (F == ParticleField::force) return force;
 				else if constexpr (F == ParticleField::position) return position;
 				else if constexpr (F == ParticleField::velocity) return velocity;
@@ -111,13 +111,17 @@ namespace april::core::internal {
 				else if constexpr (F == ParticleField::state) return state;
 				else if constexpr (F == ParticleField::type) return type;
 				else if constexpr (F == ParticleField::id) return id;
-				else if constexpr (F == ParticleField::user_data) return user_data;
+				else if constexpr (F == ParticleField::attributes) return attributes;
 			} else {
 				return static_cast<Ptr<void>>(nullptr);
 			}
 		}
 	};
 }
+
+
+
+
 
 
 

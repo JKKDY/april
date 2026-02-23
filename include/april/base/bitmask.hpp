@@ -46,3 +46,7 @@
         return (mask & flag) != static_cast<T>(0);                             \
     }
 
+
+
+
+

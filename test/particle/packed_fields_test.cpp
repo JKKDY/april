@@ -7,6 +7,8 @@
 #include "april/base/types.hpp"
 
 using namespace april;
+using namespace april::particle;
+using namespace april::particle::internal;
 using namespace april::core;
 
 // Define a test mask (Standard Physics Fields)
@@ -37,7 +39,7 @@ protected:
     }
 
     auto get_source() {
-        internal::ParticleSource<TestMask, NoUserData, false> src;
+        internal::ParticleSource<TestMask, NoParticleAttributes, false> src;
         
         // Setup SoA Pointers for Position
         src.position.x = pos_x.data();
@@ -78,7 +80,7 @@ TEST_F(PackedParticleViewsTest, ReadValues) {
     const auto src = get_source();
 
     // Create the Packed Ref
-    const PackedParticleRef<TestMask, NoUserData> p(src);
+    const PackedParticleRef<TestMask, NoParticleAttributes> p(src);
 
     // Read Position (Load)
     const pvec3 pos = p.position; // Implicit load of N particles
@@ -94,7 +96,7 @@ TEST_F(PackedParticleViewsTest, ReadValues) {
 // Write Check (Broadcast)
 TEST_F(PackedParticleViewsTest, WriteBroadcast) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, NoUserData> p(src);
+    PackedParticleRef<TestMask, NoParticleAttributes> p(src);
 
     // Write constant force to all particles in the SIMD chunk
     p.force = pvec3(10.0, 20.0, 30.0);
@@ -114,7 +116,7 @@ TEST_F(PackedParticleViewsTest, WriteBroadcast) {
 // Physics Kernel Logic (Read-Modify-Write)
 TEST_F(PackedParticleViewsTest, PhysicsUpdate) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, NoUserData> p(src);
+    PackedParticleRef<TestMask, NoParticleAttributes> p(src);
 
     constexpr double dt = 0.1;
 
@@ -137,7 +139,7 @@ TEST_F(PackedParticleViewsTest, PhysicsUpdate) {
 // Force Kernel Logic (Interaction)
 TEST_F(PackedParticleViewsTest, ForceKernel) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, NoUserData> p(src);
+    PackedParticleRef<TestMask, NoParticleAttributes> p(src);
 
     // Simple drag force: F = -v * mass
     p.force = -p.velocity * p.mass;
@@ -163,18 +165,18 @@ concept VelocityAssignable =
     };
 TEST_F(PackedParticleViewsTest, ConstView) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, NoUserData> ref(src);
+    PackedParticleRef<TestMask, NoParticleAttributes> ref(src);
 
     // Convert to View
-    const PackedParticleView<TestMask, NoUserData> view = ref.to_view();
+    const PackedParticleView<TestMask, NoParticleAttributes> view = ref.to_view();
 
     // Read is allowed
     const pvec3 v = view.velocity;
     EXPECT_DOUBLE_EQ(v.x.to_array()[0], 1.0);
 
     // Write should fail compile on view, should succeed on ref
-    static_assert(!VelocityAssignable<PackedParticleView<TestMask, NoUserData>>);
-    static_assert( VelocityAssignable<PackedParticleRef<TestMask, NoUserData>>);
+    static_assert(!VelocityAssignable<PackedParticleView<TestMask, NoParticleAttributes>>);
+    static_assert( VelocityAssignable<PackedParticleRef<TestMask, NoParticleAttributes>>);
 }
 
 
@@ -184,13 +186,13 @@ TEST_F(PackedParticleViewsTest, ConstView) {
 // and that modifying the registers DOES NOT touch memory until commit.
 TEST_F(PackedParticleViewsTest, BufferIsolation) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, NoUserData> ref(src);
+    PackedParticleRef<TestMask, NoParticleAttributes> ref(src);
 
     // 1. Load into Registers
     auto buffer = ref.load_buffer();
 
     // Verify initial load (Memory was set to Vel={1.0, 0.0, 0.0})
-    auto buf_vel_x = buffer.velocity.x.to_array();
+    const auto buf_vel_x = buffer.velocity.x.to_array();
     constexpr size_t Width = packedd::size();
 
     for(size_t i = 0; i < Width; ++i) {
@@ -202,7 +204,7 @@ TEST_F(PackedParticleViewsTest, BufferIsolation) {
 
     // 3. Verify Memory is UNTOUCHED
     // We explicitly read from the reference (proxy) to ensure it hits memory
-    auto ref_vel_x = ref.velocity.x.to_array();
+    const auto ref_vel_x = ref.velocity.x.to_array();
 
     for(size_t i = 0; i < Width; ++i) {
         // Memory should still be 1.0
@@ -212,7 +214,7 @@ TEST_F(PackedParticleViewsTest, BufferIsolation) {
     }
 
     // 4. Verify Register IS Modified
-    auto new_buf_vel_x = buffer.velocity.x.to_array();
+    const auto new_buf_vel_x = buffer.velocity.x.to_array();
     for(size_t i = 0; i < Width; ++i) {
         EXPECT_DOUBLE_EQ(new_buf_vel_x[i], 99.0) << "Register update failed at lane " << i;
     }
@@ -222,7 +224,7 @@ TEST_F(PackedParticleViewsTest, BufferIsolation) {
 // Verifies "rotate_left" shifts elements correctly across the whole vector.
 TEST_F(PackedParticleViewsTest, BufferRotation) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, NoUserData> ref(src);
+    const PackedParticleRef<TestMask, NoParticleAttributes> ref(src);
 
     // Memory setup: Position X is {0, 1, 2, 3 ...}
     auto buffer = ref.load_buffer();
@@ -237,7 +239,7 @@ TEST_F(PackedParticleViewsTest, BufferRotation) {
     for(size_t i = 0; i < Width; ++i) {
         // The value at index i should be the value originally at (i + 1)
         // Wraps around at the end: index[Width-1] gets value 0.0
-        double expected = static_cast<double>((i + 1) % Width);
+        const double expected = static_cast<double>((i + 1) % Width);
 
         EXPECT_DOUBLE_EQ(pos_x[i], expected)
             << "Rotate Left failed at lane " << i;
@@ -249,7 +251,7 @@ TEST_F(PackedParticleViewsTest, BufferRotation) {
 
     pos_x = buffer.position.x.to_array();
     for(size_t i = 0; i < Width; ++i) {
-        double expected = static_cast<double>(i);
+        const double expected = static_cast<double>(i);
         EXPECT_DOUBLE_EQ(pos_x[i], expected)
             << "Rotate Right (Restore) failed at lane " << i;
     }
@@ -259,7 +261,7 @@ TEST_F(PackedParticleViewsTest, BufferRotation) {
 // Verifies that we can write specific fields back to memory for ALL lanes.
 TEST_F(PackedParticleViewsTest, BufferCommit) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, NoUserData> ref(src);
+    PackedParticleRef<TestMask, NoParticleAttributes> ref(src);
 
     auto buffer = ref.load_buffer();
 
@@ -282,7 +284,7 @@ TEST_F(PackedParticleViewsTest, BufferCommit) {
 
         // Position should remain UNTOUCHED (still equal to index i)
         // It must NOT be 999.0
-        double expected_pos = static_cast<double>(i);
+        const double expected_pos = static_cast<double>(i);
         EXPECT_DOUBLE_EQ(pos_x[i], expected_pos) << "Position accidentally overwritten at lane " << i;
     }
 }
@@ -291,10 +293,10 @@ TEST_F(PackedParticleViewsTest, BufferCommit) {
 // A robust integration test for the loop logic.
 TEST_F(PackedParticleViewsTest, SystolicLoopSim) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, NoUserData> p1(src);
+    PackedParticleRef<TestMask, NoParticleAttributes> p1(src);
 
     // p1 and p2 point to same memory: PosX = {0, 1, 2, 3}
-    PackedParticleRef<TestMask, NoUserData> p2(src);
+    const PackedParticleRef<TestMask, NoParticleAttributes> p2(src);
 
     auto b1 = p1.load_buffer();
     auto b2 = p2.load_buffer();
@@ -305,7 +307,7 @@ TEST_F(PackedParticleViewsTest, SystolicLoopSim) {
     b2.rotate_left();
 
     // Interaction: F = (pos2 - pos1)
-    auto delta = b2.position - b1.position;
+    const auto delta = b2.position - b1.position;
 
     // Accumulate
     b1.force += delta;
@@ -347,7 +349,7 @@ TEST_F(PackedParticleViewsTest, BufferBroadcastFromScalar) {
     double s_frc_x = 7.5, s_frc_y = 8.5, s_frc_z = 9.5;
     double s_mass  = 10.5;
 
-    internal::ParticleSource<TestMask, NoUserData, false> scalar_src;
+    internal::ParticleSource<TestMask, NoParticleAttributes, false> scalar_src;
     scalar_src.position.x = &s_pos_x;
     scalar_src.position.y = &s_pos_y;
     scalar_src.position.z = &s_pos_z;
@@ -360,7 +362,7 @@ TEST_F(PackedParticleViewsTest, BufferBroadcastFromScalar) {
     scalar_src.mass = &s_mass;
 
     // Create the scalar reference
-    ScalarParticleRef<TestMask, NoUserData> scalar_ref(scalar_src);
+    ScalarParticleRef<TestMask, NoParticleAttributes> scalar_ref(scalar_src);
 
     // 2. Broadcast into a SIMD buffer
     auto buffer = PackedParticleBuffer<TestMask>::broadcast(scalar_ref);
@@ -398,5 +400,8 @@ TEST_F(PackedParticleViewsTest, BufferBroadcastFromScalar) {
         EXPECT_DOUBLE_EQ(mass_arr[i], 10.5) << "Broadcast failed on mass at lane " << i;
     }
 }
+
+
+
 
 

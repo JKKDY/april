@@ -10,7 +10,7 @@ namespace april {
         template<typename Func, typename... Args>
         concept IsKernelInvocable =
         requires(const Func& f, Args&&... args) {
-            f.template operator()<(core::IsPackedParticleAccessor<std::remove_cvref_t<Args>> || ...)>(std::forward<Args>(args)...);
+            f.template operator()<(particle::IsPackedParticleAccessor<std::remove_cvref_t<Args>> || ...)>(std::forward<Args>(args)...);
         } ||
         std::invocable<const Func&, Args...>;
 
@@ -23,7 +23,7 @@ namespace april {
             template<typename... Args>
             requires IsKernelInvocable<Func, Args...>
             decltype(auto) operator()(Args&&... args) const {
-                constexpr bool packed = (core::IsPackedParticleAccessor<std::remove_cvref_t<Args>> || ...);
+                constexpr bool packed = (particle::IsPackedParticleAccessor<std::remove_cvref_t<Args>> || ...);
 
                 // Mode checks
                 if constexpr (Mode == ExecutionMode::Scalar)
@@ -73,4 +73,8 @@ namespace april {
         return exec::internal::UniversalKernel<F>{std::forward<F>(f)};
     }
 } //namespace april
+
+
+
+
 

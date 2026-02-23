@@ -60,7 +60,7 @@ namespace april::core {
 		);
 
 		const std::vector<ParticleRecord> particles =
-			internal::build_particles<typename EnvT::traits::user_data_t>(env.particles, type_map, id_map);
+			internal::build_particles<typename EnvT::traits::particle_attributes_t>(env.particles, type_map, id_map);
 
 		// create boundary table
 		internal::set_default_boundaries(env.boundaries);
@@ -98,6 +98,10 @@ namespace april::core {
 		);
 	}
 }
+
+
+
+
 
 
 

@@ -9,12 +9,12 @@
 #include "april/containers/container.hpp"
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
-#include "../../exec/policy.hpp"
+#include "april/exec/policy.hpp"
 
 
 
 namespace april::container::layout {
-	template <typename U, size_t Size>
+	template <core::IsParticleAttributes Attributes, size_t Size>
 	struct alignas(64) ParticleChunk {
 		// Enforce alignment requirements (Size 8 * double 8 bytes = 64 bytes = 1 AVX-512 Register)
 		static_assert(std::has_single_bit(Size),
@@ -49,17 +49,17 @@ namespace april::container::layout {
 		alignas(64) std::array<ParticleState, Size> state;
 		alignas(64) std::array<ParticleType, Size> type;
 		alignas(64) std::array<ParticleID, Size> id;
-		alignas(64) std::array<U, Size> user_data;
+		alignas(64) std::array<Attributes, Size> attributes;
 	};
 
 
-	template<typename Config, core::IsUserData U, size_t ChunkSize=8>
-	class AoSoA : public Container<Config, U> {
+	template<typename Config, core::IsParticleAttributes A, size_t ChunkSize=8>
+	class AoSoA : public Container<Config, A> {
 	public:
 		static constexpr size_t chunk_size = ChunkSize;
-		using ChunkT = ParticleChunk<U, chunk_size>;
+		using ChunkT = ParticleChunk<A, chunk_size>;
 
-		using Base = Container<Config, U>;
+		using Base = Container<Config, A>;
 		using Base::force_schema;
 		using Base::Base; // Inherit constructors
 		friend Base;
@@ -105,10 +105,10 @@ namespace april::container::layout {
 			auto * AP_RESTRICT chunks = self.ptr_chunks;
 
 			auto exec = [&](size_t c, size_t i) {
-				if constexpr (is_const) {// read only
-					kernel(curr_idx++, self.template view<M>(c, i));
-				} else { // read-write
-					kernel(curr_idx++, self.template at<M>(c, i));
+				if constexpr (is_const) {
+					kernel(curr_idx++, self.template view<M>(c, i)); // read only
+				} else {
+					kernel(curr_idx++, self.template at<M>(c, i)); // read-write
 				}
 			};
 
@@ -156,28 +156,28 @@ namespace april::container::layout {
 		// ACCESSORS (chunk based)
 		template<ParticleField M>
 		[[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return core::ScalarParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::ScalarParticleRef<M, A>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-			return core::ScalarParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::ScalarParticleView<M, A>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return core::ScalarRestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::ScalarRestrictedParticleRef<M, A>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return core::PackedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::PackedParticleRef<M, A>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-			return core::PackedParticleView<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::PackedParticleView<M, A>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return core::PackedRestrictedParticleRef<M, U>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::PackedRestrictedParticleRef<M, A>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 
 
@@ -231,7 +231,7 @@ namespace april::container::layout {
 			ptr_chunks = data.data();
 		}
 
-		void build_storage(const std::vector<core::internal::ParticleRecord<U>>& particles) {
+		void build_storage(const std::vector<particle::ParticleRecord<A>>& particles) {
 			n_particles = particles.size();
 
 			const size_t n_chunks = (n_particles + chunk_size - 1) / chunk_size;
@@ -275,7 +275,7 @@ namespace april::container::layout {
 				chunk.state[l_idx] = p.state;
 				chunk.type[l_idx]  = p.type;
 				chunk.id[l_idx]    = p.id;
-				chunk.user_data[l_idx] = p.user_data;
+				chunk.attributes[l_idx] = p.attributes;
 
 				// Map ID
 				id_to_index_map[static_cast<size_t>(p.id)] = i;
@@ -346,7 +346,7 @@ namespace april::container::layout {
 					dst_chunk.state[dst_l] = src_chunk.state[src_l];
 					dst_chunk.type[dst_l]  = src_chunk.type[src_l];
 					dst_chunk.id[dst_l]    = src_chunk.id[src_l];
-					dst_chunk.user_data[dst_l] = src_chunk.user_data[src_l];
+					dst_chunk.attributes[dst_l] = src_chunk.attributes[src_l];
 
 					const size_t new_physical_idx = dst_c * chunk_size + dst_l;
 					const ParticleID id = dst_chunk.id[dst_l];
@@ -422,7 +422,7 @@ namespace april::container::layout {
 			else if constexpr (F == ParticleField::state)     return &chunk.state[lane_idx];
 			else if constexpr (F == ParticleField::type)      return &chunk.type[lane_idx];
 			else if constexpr (F == ParticleField::id)        return &chunk.id[lane_idx];
-			else if constexpr (F == ParticleField::user_data) return &chunk.user_data[lane_idx];
+			else if constexpr (F == ParticleField::attributes) return &chunk.attributes[lane_idx];
 		}
 
 	private:
@@ -432,7 +432,7 @@ namespace april::container::layout {
 		[[nodiscard]] auto access_particle(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-			core::internal::ParticleSource<M, U, IsConst> src;
+			particle::internal::ParticleSource<M, A, IsConst> src;
 
 			auto& chunk = self.ptr_chunks[chunk_idx];
 
@@ -452,13 +452,17 @@ namespace april::container::layout {
 				src.type = &chunk.type[lane_idx];
 			if constexpr (core::has_field_v<M, ParticleField::id>)
 				src.id = &chunk.id[lane_idx];
-			if constexpr (core::has_field_v<M, ParticleField::user_data>)
-				src.user_data = &chunk.user_data[lane_idx];
+			if constexpr (core::has_field_v<M, ParticleField::attributes>)
+				src.attributes = &chunk.attributes[lane_idx];
 
 			return src;
 		}
 	};
 }
+
+
+
+
 
 
 

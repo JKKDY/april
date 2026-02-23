@@ -37,8 +37,8 @@ public:
         }
     }
 
-    template<core::IsUserData U>
-    void apply(const core::ScalarRestrictedParticleRef<fields, U>& /*particle*/) const {
+    template<core::IsParticleAttributes U>
+    void apply(const particle::internal::ScalarRestrictedParticleRef<fields, U>& /*particle*/) const {
         if (sinks) {
             sinks->apply_call_count++;
         }
@@ -119,8 +119,8 @@ public:
     void update(const core::SystemContext<S>&) {
         if (sinks) sinks->update_call_count++;
     }
-    template<core::IsUserData U>
-    void apply(const core::ScalarRestrictedParticleRef<fields, U>&) const {
+    template<core::IsParticleAttributes U>
+    void apply(const particle::internal::ScalarRestrictedParticleRef<fields, U>&) const {
         if (sinks) sinks->apply_call_count++;
     }
 };
@@ -237,5 +237,8 @@ TEST(FieldIntegrationTest, MultipleDifferentFieldsAreAdditive) {
     EXPECT_NEAR(p2.force.y, uniform_force.y, 1e-12);
     EXPECT_NEAR(p2.force.z, uniform_force.z, 1e-12);
 }
+
+
+
 
 

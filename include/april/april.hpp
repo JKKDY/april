@@ -54,11 +54,11 @@ namespace april {
 	// Environment
 	using core::Environment;
 
-	using core::ParticleCuboid;
-	using core::ParticleSphere;
-	using core::ScalarParticleView;
-	using core::Particle;
-	using core::particle_data; // template tag
+	// using ParticleCuboid;
+	// using ParticleSphere;
+	// using particle::internal::ScalarParticleView;
+	// using Particle;
+	using core::particle_attributes; // template tag
 
 	using core::between_types;
 	using core::to_type;
@@ -128,6 +128,10 @@ namespace april {
 	// shared
 	using utility::Trigger;
 }
+
+
+
+
 
 
 

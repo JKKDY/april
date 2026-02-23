@@ -8,8 +8,8 @@ using namespace april;
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/periodic.hpp"
 
-inline core::internal::ParticleRecord<core::NoUserData> make_particle(const vec3& pos, const vec3& vel = {0,0,0}) {
-	core::internal::ParticleRecord<core::NoUserData> p;
+inline particle::ParticleRecord<core::NoParticleAttributes> make_particle(const vec3& pos, const vec3& vel = {0,0,0}) {
+	particle::ParticleRecord<core::NoParticleAttributes> p;
 	p.id = 0;
 	p.position = pos + vel;
 	p.old_position = pos;
@@ -23,9 +23,9 @@ template<ParticleField Mask, typename RecordT>
 auto make_source(RecordT& record) {
 	// Determine constness based on RecordT (allows making const sources from const records)
 	constexpr bool IsConst = std::is_const_v<RecordT>;
-	using UserDataT = RecordT::user_data_t;
+	using UserDataT = RecordT::particle_attributes_t;
 
-	core::internal::ParticleSource<Mask, UserDataT, IsConst> src;
+	particle::internal::ParticleSource<Mask, UserDataT, IsConst> src;
 
 	if constexpr (core::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
 	if constexpr (core::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
@@ -35,7 +35,7 @@ auto make_source(RecordT& record) {
 	if constexpr (core::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
 	if constexpr (core::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
 	if constexpr (core::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
-	if constexpr (core::has_field_v<Mask, ParticleField::user_data>)    src.user_data    = &record.user_data;
+	if constexpr (core::has_field_v<Mask, ParticleField::attributes>)    src.attributes    = &record.attributes;
 
 	return src;
 }
@@ -51,7 +51,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 	// Particle just beyond +X boundary
 	auto p = make_particle({10.2, 5.0, 5.0});
 	auto src = make_source<Mask>(p);
-	core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
+	particle::internal::ScalarParticleRef<Mask, core::NoParticleAttributes> ref(src);
 
 	periodic.apply(ref, box, Face::XPlus);
 
@@ -68,7 +68,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 	// Particle just beyond -X boundary
 	auto p = make_particle({-0.3, 5.0, 5.0});
 	auto src = make_source<Mask>(p);
-	core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
+	particle::internal::ScalarParticleRef<Mask, core::NoParticleAttributes> ref(src);
 
 	periodic.apply(ref, box, Face::XMinus);
 
@@ -107,7 +107,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 	for (size_t i = 0; i < faces.size(); ++i) {
 		auto p = make_particle(start_positions[i]);
 		auto src = make_source<Mask>(p);
-		core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
+		particle::internal::ScalarParticleRef<Mask, core::NoParticleAttributes> ref(src);
 		periodic.apply(ref, box, faces[i]);
 		EXPECT_NEAR(p.position.x, expected[i].x, 1e-12);
 		EXPECT_NEAR(p.position.y, expected[i].y, 1e-12);
@@ -140,7 +140,7 @@ TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 
 	auto p = make_particle({5,5,10.2});
 	auto src = make_source<Mask>(p);
-	core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
+	particle::internal::ScalarParticleRef<Mask, core::NoParticleAttributes> ref(src);
 
 	core::Box box({0,0,0}, {10,10,10});
 
@@ -234,6 +234,9 @@ TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinu
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);
 	EXPECT_NEAR(p.position.z, 5.0, 1e-12);
 }
+
+
+
 
 
 

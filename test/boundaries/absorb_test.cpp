@@ -13,8 +13,8 @@ using namespace april;
 using PID = ParticleID;
 
 // simple helper to make a dummy particle
-static core::internal::ParticleRecord<core::NoUserData> make_alive_particle() {
-	core::internal::ParticleRecord<core::NoUserData> p;
+static particle::ParticleRecord<core::NoParticleAttributes> make_alive_particle() {
+	particle::ParticleRecord<core::NoParticleAttributes> p;
 	p.id = 0;
 	p.position = {5.0, 5.0, 5.0};
 	p.velocity = {0,0,0};
@@ -27,9 +27,9 @@ template<ParticleField Mask, typename RecordT>
 auto make_source(RecordT& record) {
 	// Determine constness based on RecordT (allows making const sources from const records)
 	constexpr bool IsConst = std::is_const_v<RecordT>;
-	using UserDataT = RecordT::user_data_t;
+	using UserDataT = RecordT::particle_attributes_t;
 
-	core::internal::ParticleSource<Mask, UserDataT, IsConst> src;
+	particle::internal::ParticleSource<Mask, UserDataT, IsConst> src;
 
 	if constexpr (core::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
 	if constexpr (core::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
@@ -39,7 +39,7 @@ auto make_source(RecordT& record) {
 	if constexpr (core::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
 	if constexpr (core::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
 	if constexpr (core::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
-	if constexpr (core::has_field_v<Mask, ParticleField::user_data>)    src.user_data    = &record.user_data;
+	if constexpr (core::has_field_v<Mask, ParticleField::attributes>)    src.attributes    = &record.attributes;
 
 	return src;
 }
@@ -53,7 +53,7 @@ TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 
 	auto p = make_alive_particle();
 	auto src = make_source<Mask>(p);
-	core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
+	particle::internal::ScalarParticleRef<Mask, core::NoParticleAttributes> ref(src);
 
 	absorb.apply(ref, box, Face::XPlus);
 
@@ -85,7 +85,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 
 	auto p = make_alive_particle();
 	auto src = make_source<Mask>(p);
-	core::ScalarParticleRef<Mask, core::NoUserData> ref(src);
+	particle::internal::ScalarParticleRef<Mask, core::NoParticleAttributes> ref(src);
 
 	core::Box box{{0,0,0}, {10,10,10}};
 
@@ -168,5 +168,8 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 			<< " should be marked DEAD by Absorb boundary.";
 	}
 }
+
+
+
 
 

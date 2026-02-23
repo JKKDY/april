@@ -2,7 +2,7 @@
 
 #include <utility>
 #include "april/base/types.hpp"
-#include "../domain.hpp"
+#include "april/core/domain.hpp"
 #include "april/particle/generators.hpp"
 
 
@@ -10,7 +10,7 @@ namespace april::core::internal {
 	// ---- Domain Validation & Setting ----
 
 	// calculate the minimal bounding box that contains all particles
-	inline core::Box particle_bounding_box(const std::vector<core::Particle>& particles) {
+	inline core::Box particle_bounding_box(const std::vector<Particle>& particles) {
 		if (particles.empty()) return {};
 
 		vec3d min = particles[0].position;
@@ -127,6 +127,10 @@ namespace april::core::internal {
 	}
 
 }
+
+
+
+
 
 
 

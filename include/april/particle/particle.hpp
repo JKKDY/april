@@ -6,7 +6,7 @@
 #include "april/particle/particle_types.hpp"
 
 
-namespace april::core {
+namespace april {
 
     // user facing declaration with optional fields and non typed field for user data
     struct Particle {
@@ -61,12 +61,12 @@ namespace april::core {
     };
 
 
-    namespace internal
+    namespace particle
     {
         // used internally in system. Holds all data of a particle
-        template<IsUserData U>
+        template<core::IsParticleAttributes A>
         struct ParticleRecord {
-            using user_data_t = U;
+            using particle_attributes_t = A;
             ParticleRecord() = default;
 
             vec3 position;			// current position of the particle.
@@ -79,7 +79,7 @@ namespace april::core {
             ParticleID id {};		// id of the particle.
             ParticleType type {};	// type of the particle.
 
-            [[no_unique_address]] U user_data; // optional user data
+            [[no_unique_address]] A attributes; // optional user data
 
             bool operator==(const ParticleRecord& other) const {
                 return id == other.id;
@@ -87,6 +87,10 @@ namespace april::core {
         };
     }
 }
+
+
+
+
 
 
 

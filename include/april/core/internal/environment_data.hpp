@@ -9,23 +9,26 @@
 #include <array>
 
 #include "april/base/types.hpp"
-#include "../domain.hpp"
+#include "april/core/domain.hpp"
 #include "april/forces/force.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/controllers/controller.hpp"
 #include "april/fields/field.hpp"
 #include "april/particle/generators.hpp"
 
+
+namespace april {
+    struct ParticleCuboid;
+    struct ParticleSphere;
+}
+
 namespace april::core {
     template<force::IsForcePack FPack,
             boundary::IsBoundaryPack BPack,
             controller::IsControllerPack CPack,
             field::IsFieldPack FFPack,
-    	    IsUserData ParticleData>
+    	    IsParticleAttributes ParticleData>
     class Environment;
-
-    struct ParticleCuboid;
-    struct ParticleSphere;
 }
 
 namespace april::core::internal {
@@ -64,12 +67,16 @@ namespace april::core::internal {
     boundary::IsBoundaryPack BPack,
     controller::IsControllerPack CPack,
     field::IsFieldPack FFPack,
-    IsUserData ParticleData
+    IsParticleAttributes ParticleData
     >
     auto get_env_data(const Environment<FPack, BPack, CPack, FFPack, ParticleData>& env) {
         return env.data;
     }
 }
+
+
+
+
 
 
 

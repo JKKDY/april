@@ -5,7 +5,7 @@
 #include "april/particle/particle_types.hpp"
 #include "april/particle/particle.hpp"
 
-namespace april::core {
+namespace april {
 
     inline const auto ZERO_THERMAL_V = [](const vec3&) {return vec3{}; };
 
@@ -198,6 +198,10 @@ namespace april::core {
 
 
 }
+
+
+
+
 
 
 

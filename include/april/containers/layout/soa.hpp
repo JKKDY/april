@@ -8,7 +8,7 @@
 
 namespace april::container::layout {
 
-    template<typename UserData>
+    template<core::IsParticleAttributes Attributes>
     struct SoAStorage {
         alignas(64) std::vector<vec3::type> pos_x, pos_y, pos_z;
         alignas(64) std::vector<vec3::type> vel_x, vel_y, vel_z;
@@ -19,7 +19,7 @@ namespace april::container::layout {
         alignas(64) std::vector<ParticleState> state;
         alignas(64) std::vector<ParticleType> type;
         alignas(64) std::vector<ParticleID> id;
-        alignas(64) std::vector<UserData> user_data;
+        alignas(64) std::vector<Attributes> attributes;
 
         vec3::type * AP_RESTRICT ptr_pos_x = nullptr;
         vec3::type * AP_RESTRICT ptr_pos_y = nullptr;
@@ -45,7 +45,7 @@ namespace april::container::layout {
         ParticleState * AP_RESTRICT ptr_state = nullptr;
         ParticleType  * AP_RESTRICT ptr_type  = nullptr;
         ParticleID    * AP_RESTRICT ptr_id    = nullptr;
-        UserData * AP_RESTRICT ptr_user_data = nullptr;
+        Attributes * AP_RESTRICT ptr_attributes = nullptr;
 
         void update_pointer_cache() {
             ptr_pos_x = pos_x.data(); ptr_pos_y = pos_y.data(); ptr_pos_z = pos_z.data();
@@ -57,7 +57,7 @@ namespace april::container::layout {
             ptr_state = state.data();
             ptr_type = type.data();
             ptr_id = id.data();
-            ptr_user_data = user_data.data();
+            ptr_attributes = attributes.data();
         }
 
         void resize(const size_t n) {
@@ -66,7 +66,7 @@ namespace april::container::layout {
             frc_x.resize(n); frc_y.resize(n); frc_z.resize(n);
             old_x.resize(n); old_y.resize(n); old_z.resize(n);
             mass.resize(n); state.resize(n); type.resize(n); id.resize(n);
-            user_data.resize(n);
+            attributes.resize(n);
             update_pointer_cache();
         }
 
@@ -82,7 +82,7 @@ namespace april::container::layout {
             state[dest_i]     = src.state[src_i];
             type[dest_i]      = src.type[src_i];
             id[dest_i]        = src.id[src_i];
-            user_data[dest_i] = src.user_data[src_i];
+            attributes[dest_i] = src.attributes[src_i];
         }
 
         void swap(const size_t i, const size_t j) {
@@ -98,16 +98,16 @@ namespace april::container::layout {
             std::swap(state[i], state[j]);
             std::swap(type[i], type[j]);
             std::swap(id[i], id[j]);
-            std::swap(user_data[i], user_data[j]);
+            std::swap(attributes[i], attributes[j]);
         }
     };
 
 
 
-    template<typename Config, core::IsUserData U>
-    class SoA : public Container<Config, U> {
+    template<typename Config, core::IsParticleAttributes Attributes>
+    class SoA : public Container<Config, Attributes> {
     public:
-        using Base = Container<Config, U>;
+        using Base = Container<Config, Attributes>;
         using Base::force_schema;
         using Base::Base;
         friend Base;
@@ -176,14 +176,14 @@ namespace april::container::layout {
         }
 
     protected:
-        SoAStorage<U> tmp;
-        SoAStorage<U> data;
+        SoAStorage<Attributes> tmp;
+        SoAStorage<Attributes> data;
         std::vector<size_t> bin_starts; // first particle index of each bin
         std::vector<size_t> bin_sizes; // number of particles in each bin
         std::vector<uint32_t> id_to_index_map;
 
         // explode AoS input into SoA vectors
-        void build_storage(const std::vector<core::internal::ParticleRecord<U>>& particles) {
+        void build_storage(const std::vector<particle::ParticleRecord<Attributes>>& particles) {
             size_t n = particles.size();
             data.resize(n);
             id_to_index_map.resize(n);
@@ -207,7 +207,7 @@ namespace april::container::layout {
                 data.state[i] = p.state;
                 data.type[i] = p.type;
                 data.id[i] = p.id;
-                data.user_data[i] = p.user_data;
+                data.attributes[i] = p.attributes;
 
                 // ID Map
                 id_to_index_map[static_cast<size_t>(p.id)] = i;
@@ -270,13 +270,17 @@ namespace april::container::layout {
             else if constexpr (F == ParticleField::state)     return self.data.ptr_state + i;
             else if constexpr (F == ParticleField::type)      return self.data.ptr_type + i;
             else if constexpr (F == ParticleField::id)        return self.data.ptr_id + i;
-            else if constexpr (F == ParticleField::user_data) return self.data.ptr_user_data + i;
+            else if constexpr (F == ParticleField::attributes) return self.data.ptr_attributes + i;
         }
 
     private:
         std::vector<TopologyBatch> topology_batches;
     };
 }
+
+
+
+
 
 
 

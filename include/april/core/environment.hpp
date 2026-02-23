@@ -1,6 +1,3 @@
-//  SPDX-License-Identifier: AGPL-3.0-only WITH ${PROJECT_NAME}-Commercial-Use-Exception-1.0
-//  Copyright (c) ${YEAR} Julian Deller-Yee
-
 #pragma once
 
 #include <vector>
@@ -19,15 +16,10 @@
 
 
 namespace april::core {
-    inline const auto MARGIN_DONT_CARE = vec3(std::numeric_limits<double>::max());
-
 
     struct to_type { ParticleType type; };
-
     struct between_types { ParticleType t1, t2; };
-
     struct between_ids { ParticleID id1, id2; };
-
 
 
     template<
@@ -35,7 +27,7 @@ namespace april::core {
     boundary::IsBoundaryPack BPack,
     controller::IsControllerPack CPack,
     field::IsFieldPack FFPack,
-    IsUserData ParticleData
+    IsParticleAttributes ParticleData
     >
     class Environment {
     public:
@@ -45,7 +37,7 @@ namespace april::core {
 
         // empty convenience constructor
         Environment()
-        : Environment(force::forces<>, boundary::boundaries<>, controller::controllers<>, field::fields<>, NoUserData{}) {}
+        : Environment(force::forces<>, boundary::boundaries<>, controller::controllers<>, field::fields<>, NoParticleAttributes{}) {}
 
         // accepts any subset & order of packs
         template<class... Args>
@@ -57,16 +49,17 @@ namespace april::core {
                 internal::get_pack_t<boundary::BoundaryPack, Args...>{},
                 internal::get_pack_t<controller::ControllerPack,Args...>{},
                 internal::get_pack_t<field::FieldPack, Args...>{},
-                internal::get_user_data_t<Args...>{}
+                internal::get_particle_attributes_t<Args...>{}
             ) {}
 
     private:
-        typename traits::environment_data_t data;
-
+        traits::environment_data_t data;
         friend auto internal::get_env_data<FPack, BPack, CPack, FFPack> (const Environment& env);
 
     public:
-        // --- Add particles ---
+        //--------------
+        // ADD PARTICLES
+        //--------------
 
         // Single particle
         void add_particle(const Particle& particle) {
@@ -108,7 +101,10 @@ namespace april::core {
             add_particles(generator.to_particles());
         }
 
-        // --- Add Forces ---
+
+        //-----------------
+        // ADD INTERACTIONS
+        //-----------------
         // Force applied to a single particle type (self-interaction)
         template<force::IsForce F> requires traits::template is_valid_force_v<F>
         void add_force(F force, to_type scope) {
@@ -128,7 +124,10 @@ namespace april::core {
             data.id_interactions.emplace_back(scope.id1, scope.id2, typename traits::force_variant_t{std::move(force)});
         }
 
-        // --- Add Boundaries ---
+
+        //---------------
+        // ADD BOUNDARIES
+        //---------------
         // Single boundary on one face
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
         void set_boundary(B boundary, const boundary::Face face) {
@@ -151,7 +150,10 @@ namespace april::core {
             }
         }
 
-        // --- Add Controllers ---
+
+        //----------------
+        // ADD CONTROLLERS
+        //----------------
         template<controller::IsController C> requires traits::template is_valid_controller_v<C>
         void add_controller(C controller) {
             data.controllers.add(controller);
@@ -162,7 +164,11 @@ namespace april::core {
             (data.controllers.add(std::forward<C>(controllers)), ...);
         }
 
-        // --- Add Fields ---
+
+
+        //-----------
+        // ADD FIELDS
+        //-----------
         template<field::IsField F>  requires traits::template is_valid_field_v<F>
         void add_field(F field) {
             data.fields.add(field);
@@ -173,7 +179,9 @@ namespace april::core {
             (data.fields.add(std::forward<F>(fields)), ...);
         }
 
-        // --- Set Domain ---
+        //-----------
+        // SET DOMAIN
+        //-----------
         void set_origin(const vec3d& origin) {
             this->data.domain.origin = origin;
         }
@@ -207,7 +215,9 @@ namespace april::core {
         }
 
 
-        // --- DSL-style chaining helpers ---
+        //-------------------
+        // DSL-STYLE CHAINING
+        //-------------------
         Environment& with_particle(const Particle& p) {
             add_particle(p);
             return *this;
@@ -224,15 +234,12 @@ namespace april::core {
             return *this;
         }
 
-        Environment& with_particles(const ParticleCuboid& cuboid) {
-            add_particles(cuboid);
+        template<IsParticleGenerator G>
+        Environment& with_particles(const G& particles) {
+            add_particles(particles);
             return *this;
         }
 
-        Environment& with_particles(const ParticleSphere& sphere) {
-            add_particles(sphere);
-            return *this;
-        }
 
         template<force::IsForce F> requires traits::template is_valid_force_v<F>
         Environment& with_force(F&& force, to_type scope) {
@@ -331,7 +338,7 @@ namespace april::core {
     };
 
 
-    // one CTAD guide to deduce the four template parameters from any-order args
+    // one CTAD guide to deduce the five template parameters from any-order args
     template<class... Args>
     Environment(Args...)
         -> Environment<
@@ -339,7 +346,7 @@ namespace april::core {
             internal::get_pack_t<boundary::BoundaryPack, Args...>,
             internal::get_pack_t<controller::ControllerPack,Args...>,
             internal::get_pack_t<field::FieldPack, Args...>,
-            internal::get_user_data_t<Args...>
+            internal::get_particle_attributes_t<Args...>
         >;
 
 
@@ -352,13 +359,17 @@ namespace april::core {
         boundary::IsBoundaryPack BPack,
         controller::IsControllerPack CPack,
         field::IsFieldPack FFPack,
-        IsUserData ParticleData
+        IsParticleAttributes ParticleData
     >
     inline constexpr bool is_environment_v<Environment<FPack, BPack, CPack, FFPack, ParticleData>> = true;
 
     template<typename T>
     concept IsEnvironment = is_environment_v<std::remove_cvref_t<T>>;
 }
+
+
+
+
 
 
 

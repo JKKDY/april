@@ -20,7 +20,7 @@ System::ParticleRec get_particle(System& sys, size_t index) {
 	rec.old_position = p_ref.old_position;
 	rec.state       = p_ref.state;
 	rec.mass        = p_ref.mass;
-	rec.user_data   = p_ref.user_data;
+	rec.attributes   = p_ref.attributes;
 
 	return rec;
 }
@@ -40,7 +40,7 @@ System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
 	rec.old_position = p_ref.old_position;
 	rec.state       = p_ref.state;
 	rec.mass        = p_ref.mass;
-	rec.user_data   = p_ref.user_data;
+	rec.attributes   = p_ref.attributes;
 
 	return rec;
 }

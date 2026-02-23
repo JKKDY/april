@@ -10,8 +10,8 @@ namespace april::container::internal {
     class DirectSumAoSImpl : public DirectSumCore<layout::AoS<Config, U>> {
     public:
         using Base = DirectSumCore<layout::AoS<Config, U>>;
-        using SymmetricBatch = SymmetricScalarBatch<DirectSumAoSImpl>;
-        using AsymmetricBatch = AsymmetricScalarBatch<DirectSumAoSImpl>;
+        using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumAoSImpl>;
+        using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumAoSImpl>;
 
         using Base::Base;
         friend Base;

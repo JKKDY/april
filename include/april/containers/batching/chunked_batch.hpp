@@ -8,7 +8,7 @@
 #include "april/exec/particle_kernel.hpp"
 
 
-namespace april::container::internal {
+namespace april::container::batching {
 
    	template<typename Container, typename ChunkPtr>
 	struct AsymmetricChunkedBatch : BatchBase<exec::internal::ParallelTrait::None, exec::internal::VectorTrait::Mixed> {

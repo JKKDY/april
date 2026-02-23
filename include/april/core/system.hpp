@@ -191,11 +191,11 @@ namespace april {
 
 		template<ParticleField M, exec::IsKernel Kernel>
 		void for_each_interaction_pair(Kernel && func) { // func(particle, particle, dist)
-			auto update_batch = [&]<container::IsBatch Batch, /*TODO container::IsBCP*/ typename BCP>(const Batch& batch, BCP && apply_bcp) {
+			auto update_batch = [&]<container::batching::IsBatch Batch, /*TODO container::IsBCP*/ typename BCP>(const Batch& batch, BCP && apply_bcp) {
 				auto bridge = [&](auto && p1, auto && p2) {
 					vec3 r = {};
 					if constexpr (particle::internal::has_field_v<M, ParticleField::position> &&
-						std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
+						std::is_same_v<std::decay_t<BCP>, container::batching::NoBatchBCP>) {
 						r = p2.position - p1.position;
 						} else {
 							r = apply_bcp(p2.position - p1.position);
@@ -318,7 +318,7 @@ namespace april {
 			 BuildInfo * build_info
 		);
 
-		template<ParticleField M, ParallelPolicy P, VectorPolicy V, container::IsBatch Batch, exec::IsKernel Kernel>
+		template<ParticleField M, ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel);
 	};
 

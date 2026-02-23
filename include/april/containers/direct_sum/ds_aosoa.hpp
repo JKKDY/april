@@ -11,8 +11,8 @@ namespace april::container::internal {
     public:
         using Base = DirectSumCore<layout::AoSoA<Config, U>>;
         using Base::chunk_size;
-        using SymmetricBatch = SymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>;
-        using AsymmetricBatch = AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>;
+        using SymmetricBatch = batching::SymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>;
+        using AsymmetricBatch = batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>;
 
         using Base::Base;
         friend Base;

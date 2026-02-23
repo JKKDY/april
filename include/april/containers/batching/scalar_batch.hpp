@@ -7,7 +7,7 @@
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
 
-namespace april::container::internal {
+namespace april::container::batching {
 
 	template<typename Container>
 	struct AsymmetricScalarBatch : BatchBase<exec::internal::ParallelTrait::None, exec::internal::VectorTrait::ScalarOnly> {

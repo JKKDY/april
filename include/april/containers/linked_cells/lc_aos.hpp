@@ -12,8 +12,8 @@ namespace april::container::internal {
     template <class Config, class U>
     class LinkedCellsAoSImpl : public LinkedCellsCore<layout::AoS<Config, U>> {
     public:
-		using AsymBatch = AsymmetricScalarBatch<LinkedCellsAoSImpl>;
-    	using SymBatch = SymmetricScalarBatch<LinkedCellsAoSImpl>;
+		using AsymBatch = batching::AsymmetricScalarBatch<LinkedCellsAoSImpl>;
+    	using SymBatch = batching::SymmetricScalarBatch<LinkedCellsAoSImpl>;
 
     	using Base = LinkedCellsCore<layout::AoS<Config, U>>;
 
@@ -58,7 +58,7 @@ namespace april::container::internal {
 
 					// dispatch if work exists
 					if (!self.batch.empty()) {
-						func(self.batch, NoBatchBCP{});
+						func(self.batch, batching::NoBatchBCP{});
 					}
 				});
 			});

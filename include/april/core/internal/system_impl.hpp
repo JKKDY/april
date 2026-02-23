@@ -11,10 +11,10 @@ namespace april {
 	//--------------
 	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<
 		ContainerDecl, Traits>
-	template <ParticleField M, ParallelPolicy P, VectorPolicy V, container::IsBatch Batch, exec::IsKernel Kernel>
+	template <ParticleField M, ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
 	void System<ContainerDecl, Traits>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
 			using namespace april::exec::internal;
-			constexpr VectorTrait batch_capabilities  = Batch::vector_trait;
+			constexpr VectorTrait batch_capabilities = Batch::vector_trait;
 			constexpr ExecutionMode kernel_capabilities = Kernel::Mode;
 
 			// map VectorPolicy -> VectorTrait (execution mode)
@@ -64,10 +64,10 @@ namespace april {
 			}
 
 			// Execute
-			if constexpr (container::IsBatchAtom<Batch>) {
+			if constexpr (container::batching::IsBatchAtom<Batch>) {
 				batch.template for_each_pair<M, P, exec_mode>(kernel);
 			}
-			else if constexpr (container::IsBatchAtomRange<Batch>) {
+			else if constexpr (container::batching::IsBatchAtomRange<Batch>) {
 				for (const auto& atom : batch) {
 					atom.template for_each_pair<M, P, exec_mode>(kernel);
 				}
@@ -83,7 +83,7 @@ namespace april {
 	void System<C, Traits>::update_forces() {
 
 		// batch update lambda. passed into container::for_each_interaction_batch
-		auto update_batch = [&]<container::IsBatch Batch, container::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
+		auto update_batch = [&]<container::batching::IsBatch Batch, container::batching::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
 
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
 				constexpr ParticleField M = ForceT::fields | ParticleField::force | ParticleField::position;
@@ -92,7 +92,7 @@ namespace april {
 					auto diff = p2.position - p1.position;
 
 					const auto r = [&] {
-						if constexpr (std::is_same_v<std::decay_t<BCP>, container::NoBatchBCP>) {
+						if constexpr (std::is_same_v<std::decay_t<BCP>, container::batching::NoBatchBCP>) {
 							return diff;
 						} else {
 							return apply_bcp(diff);

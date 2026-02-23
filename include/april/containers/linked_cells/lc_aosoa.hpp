@@ -13,8 +13,8 @@ namespace april::container::internal {
     class LinkedCellsAoSoAImpl : public LinkedCellsCore<layout::AoSoA<Config, U, ChunkSize>> {
     public:
     	using Base = LinkedCellsCore<layout::AoSoA<Config, U, ChunkSize>>;
-		using AsymBatch = AsymmetricChunkedBatch<LinkedCellsAoSoAImpl, typename Base::ChunkT>;
-    	using SymBatch = SymmetricChunkedBatch<LinkedCellsAoSoAImpl, typename Base::ChunkT>;
+		using AsymBatch = batching::AsymmetricChunkedBatch<LinkedCellsAoSoAImpl, typename Base::ChunkT>;
+    	using SymBatch = batching::SymmetricChunkedBatch<LinkedCellsAoSoAImpl, typename Base::ChunkT>;
 
     	using Base::Base;
     	friend Base;
@@ -78,7 +78,7 @@ namespace april::container::internal {
 
 					// dispatch if work exists
 					if (!self.batch.empty()) {
-						func(self.batch, NoBatchBCP{});
+						func(self.batch, batching::NoBatchBCP{});
 					}
 				});
 			});

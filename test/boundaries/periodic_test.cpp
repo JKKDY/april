@@ -43,8 +43,8 @@ auto make_source(RecordT& record) {
 
 // Direct Application Tests
 TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
-	const Periodic periodic;
-	constexpr ParticleField Mask = Periodic::fields;
+	const PeriodicBoundary periodic;
+	constexpr ParticleField Mask = PeriodicBoundary::fields;
 
 	const core::Box box({0,0,0}, {10,10,10});
 
@@ -53,7 +53,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 	auto src = make_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
 
-	periodic.apply(ref, box, Face::XPlus);
+	periodic.apply(ref, box, DomainFace::XPlus);
 
 	EXPECT_NEAR(p.position.x, 0.2, 1e-12);
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);
@@ -61,8 +61,8 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 }
 
 TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
-	const Periodic periodic;
-	constexpr ParticleField Mask = Periodic::fields;
+	const PeriodicBoundary periodic;
+	constexpr ParticleField Mask = PeriodicBoundary::fields;
 	const core::Box box({0,0,0}, {10,10,10});
 
 	// Particle just beyond -X boundary
@@ -70,7 +70,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 	auto src = make_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
 
-	periodic.apply(ref, box, Face::XMinus);
+	periodic.apply(ref, box, DomainFace::XMinus);
 
 	EXPECT_NEAR(p.position.x, 9.7, 1e-12);
 	EXPECT_NEAR(p.position.y, 5.0, 1e-12);
@@ -78,9 +78,9 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 }
 
 TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
-	const Periodic periodic;
+	const PeriodicBoundary periodic;
 	const core::Box box({0,0,0}, {10,10,10});
-	constexpr ParticleField Mask = Periodic::fields;
+	constexpr ParticleField Mask = PeriodicBoundary::fields;
 
 
 	const std::array start_positions = {
@@ -93,9 +93,9 @@ TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 	};
 
 	constexpr std::array faces = {
-		Face::XMinus, Face::XPlus,
-		Face::YMinus, Face::YPlus,
-		Face::ZMinus, Face::ZPlus
+		DomainFace::XMinus, DomainFace::XPlus,
+		DomainFace::YMinus, DomainFace::YPlus,
+		DomainFace::ZMinus, DomainFace::ZPlus
 	};
 
 	const std::array expected = {
@@ -117,7 +117,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 
 // Topology Sanity
 TEST(PeriodicBoundaryTest, Topology_IsOutsideCoupledAndWrapsForces) {
-	const Periodic periodic;
+	const PeriodicBoundary periodic;
 	const auto& topo = periodic.topology;
 
 	EXPECT_LT(topo.boundary_thickness, 0.0)
@@ -132,11 +132,11 @@ TEST(PeriodicBoundaryTest, Topology_IsOutsideCoupledAndWrapsForces) {
 
 // 3. Compiled Boundary Variant
 TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
-	std::variant<Periodic> variant = Periodic();
-	constexpr ParticleField Mask = Periodic::fields;
+	std::variant<PeriodicBoundary> variant = PeriodicBoundary();
+	constexpr ParticleField Mask = PeriodicBoundary::fields;
 	Domain domain({0,0,0}, {10,10,10});
 
-	auto compiled = boundary::internal::compile_boundary(variant, core::Box::from_domain(domain), Face::ZPlus);
+	auto compiled = boundary::internal::compile_boundary(variant, core::Box::from_domain(domain), DomainFace::ZPlus);
 
 	auto p = make_particle({5,5,10.2});
 	auto src = make_source<Mask>(p);
@@ -145,7 +145,7 @@ TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 	core::Box box({0,0,0}, {10,10,10});
 
 	compiled.dispatch([&](auto && bc) {
-		bc.apply(ref, box, Face::ZPlus);
+		bc.apply(ref, box, DomainFace::ZPlus);
 	});
 
 	EXPECT_NEAR(p.position.z, 0.2, 1e-12)
@@ -162,7 +162,7 @@ using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, LinkedCellsAoS
 TYPED_TEST_SUITE(PeriodicBoundarySystemTestT, ContainerTypes);
 
 TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
-	Environment env(forces<NoForce>, boundaries<Periodic>);
+	Environment env(forces<NoForce>, boundaries<PeriodicBoundary>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -176,7 +176,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 	env.add_particle(make_particle(0, {5,5,9.6}, {0,0,+1}, 1, ParticleState::ALIVE, 5)); // Z+
 
 	// Enable periodic boundaries on all faces
-	env.set_boundaries(Periodic(), all_faces);
+	env.set_boundaries(PeriodicBoundary(), all_faces);
 
 	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);
@@ -209,14 +209,14 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 
 
 TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinuity) {
-	Environment env(forces<NoForce>, boundaries<Periodic>);
+	Environment env(forces<NoForce>, boundaries<PeriodicBoundary>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
 
 	// Single particle heading out +X
 	env.add_particle(make_particle(0, {9.8,5,5}, {+1,0,0}, 1, ParticleState::ALIVE, 0));
-	env.set_boundaries(Periodic(), all_faces);
+	env.set_boundaries(PeriodicBoundary(), all_faces);
 
 	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);

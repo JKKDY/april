@@ -138,9 +138,9 @@ TEST(ThermostatBehaviorTest, HoldingTemperature) {
                             .type(0)
                             .mass(1);
 
-    const auto env = Environment (forces<NoForce>, boundaries<Reflective>, controllers<VelocityScalingThermostat>)
+    const auto env = Environment (forces<NoForce>, boundaries<ReflectiveBoundary>, controllers<VelocityScalingThermostat>)
         .with_particles(cuboid)
-        .with_boundaries(Reflective(), all_faces)
+        .with_boundaries(ReflectiveBoundary(), all_faces)
         .with_force(NoForce(), to_type(0))
         .with_extent(100, 100, 100)
         .with_controller(VelocityScalingThermostat(
@@ -168,9 +168,9 @@ TEST(ThermostatBehaviorTest, CoolingSystem) {
                           .type(0)
                           .mass(1);
 
-    const auto env = Environment (forces<NoForce>, boundaries<Reflective>, controllers<VelocityScalingThermostat>)
+    const auto env = Environment (forces<NoForce>, boundaries<ReflectiveBoundary>, controllers<VelocityScalingThermostat>)
         .with_particles(cuboid)
-        .with_boundaries(Reflective(), all_faces)
+        .with_boundaries(ReflectiveBoundary(), all_faces)
         .with_force(NoForce(), to_type(0))
         .with_extent(100, 100, 100)
         .with_controller(VelocityScalingThermostat(
@@ -197,9 +197,9 @@ TEST(ThermostatBehaviorTest, HeatingSystem) {
                           .type(0)
                           .mass(1);
 
-    const auto env = Environment (forces<NoForce>, boundaries<Reflective>, controllers<VelocityScalingThermostat>)
+    const auto env = Environment (forces<NoForce>, boundaries<ReflectiveBoundary>, controllers<VelocityScalingThermostat>)
         .with_particles(cuboid)
-        .with_boundaries(Reflective(), all_faces)
+        .with_boundaries(ReflectiveBoundary(), all_faces)
         .with_force(NoForce(), to_type(0))
         .with_extent(100, 100, 100)
         .with_controller(VelocityScalingThermostat(
@@ -231,9 +231,9 @@ TEST(ThermostatBehaviorTest, Apply_HeatsThenCoolsWithTriggers) {
                            .type(0)
                            .mass(1);
 
-    auto env = Environment (forces<NoForce>, boundaries<Reflective>, controllers<VelocityScalingThermostat>)
+    auto env = Environment (forces<NoForce>, boundaries<ReflectiveBoundary>, controllers<VelocityScalingThermostat>)
         .with_particles(cuboid)
-        .with_boundaries(Reflective(), all_faces)
+        .with_boundaries(ReflectiveBoundary(), all_faces)
         .with_force(NoForce(), to_type(0))
         .with_extent(100, 100, 100);
 

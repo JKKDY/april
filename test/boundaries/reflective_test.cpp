@@ -44,8 +44,8 @@ auto make_source(RecordT& record) {
 
 // Direct application should reflect the particles position
 TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
-	const Reflective reflective;
-	constexpr ParticleField Mask = Reflective::fields;
+	const ReflectiveBoundary reflective;
+	constexpr ParticleField Mask = ReflectiveBoundary::fields;
 
 	const core::Box box({0,0,0}, {10,10,10});
 
@@ -54,7 +54,7 @@ TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
 	auto src = make_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
 
-	reflective.apply(ref, box, Face::XPlus);
+	reflective.apply(ref, box, DomainFace::XPlus);
 
 	EXPECT_TRUE(box.contains(p.position));
 	EXPECT_EQ(p.position.x, 8.5);
@@ -68,7 +68,7 @@ TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
 
 // Topology sanity: outside region, not coupled, no force wrap, position change
 TEST(ReflectiveBoundaryTest, Topology_IsOutsideAndChangesPosition) {
-	const Reflective reflective;
+	const ReflectiveBoundary reflective;
 	const auto& topology = reflective.topology;
 
 	EXPECT_LT(topology.boundary_thickness, 0.0)
@@ -81,13 +81,13 @@ TEST(ReflectiveBoundaryTest, Topology_IsOutsideAndChangesPosition) {
 
 
 TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPosition) {
-	std::variant<Reflective> reflect = Reflective();
-	constexpr ParticleField Mask = Reflective::fields;
+	std::variant<ReflectiveBoundary> reflect = ReflectiveBoundary();
+	constexpr ParticleField Mask = ReflectiveBoundary::fields;
 
 	Domain domain({0,0,0}, {10,10,10});
 
 	// Compile boundary for X+ face
-	auto compiled = boundary::internal::compile_boundary(reflect, core::Box::from_domain(domain), Face::XPlus);
+	auto compiled = boundary::internal::compile_boundary(reflect, core::Box::from_domain(domain), DomainFace::XPlus);
 
 	auto p = make_particle({9.8,5,5}, {+1,0,0});
 	auto src = make_source<Mask>(p);
@@ -96,7 +96,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPositi
 	core::Box box{{0,0,0}, {10,10,10}};
 
 	compiled.dispatch([&](auto && bc) {
-		bc.apply(ref, box, Face::XPlus);
+		bc.apply(ref, box, DomainFace::XPlus);
 	});
 
 	EXPECT_TRUE(box.contains(p.position));
@@ -118,7 +118,7 @@ TYPED_TEST_SUITE(ReflectiveBoundarySystemTestT, ContainerTypes);
 
 
 TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
-    Environment env(forces<NoForce>, boundaries<Reflective>);
+    Environment env(forces<NoForce>, boundaries<ReflectiveBoundary>);
     env.set_origin({0,0,0});
     env.set_extent({10,10,10});
     env.add_force(NoForce{}, to_type(0));
@@ -131,7 +131,7 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
 	env.add_particle(make_particle(0, {5,5,0.4}, {0,0,-1}, 1, ParticleState::ALIVE, 4)); // Z−
 	env.add_particle(make_particle(0, {5,5,9.6}, {0,0,+1}, 1, ParticleState::ALIVE, 5)); // Z+
 
-	env.set_boundaries(Reflective(), all_faces);
+	env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 
     BuildInfo mappings;

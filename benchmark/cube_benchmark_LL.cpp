@@ -36,12 +36,12 @@ int main() {
 	const vec3 extent = 1.5 * box;
 	const vec3 origin = - 0.5 * extent;
 
-	Environment env (forces<LennardJones>, boundaries<Reflective>);
+	Environment env (forces<LennardJones>, boundaries<ReflectiveBoundary>);
 	env.add_particles(grid);
 	env.set_origin(origin);
 	env.set_extent(extent);
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
-	env.set_boundaries(Reflective(), all_faces);
+	env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 	const auto container = LinkedCellsAoSoA()
 		.with_cell_size(container::CellSize::Cutoff)

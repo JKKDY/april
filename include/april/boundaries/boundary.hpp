@@ -10,35 +10,36 @@
 
 
 namespace april {
-	struct Open;
+	struct OpenBoundary;
 
-	enum class Face : uint8_t {
+	// TODO apply bitmask enum
+	enum class DomainFace : uint8_t {
 		XMinus = 0, XPlus = 1,
 		YMinus = 2, YPlus = 3,
 		ZMinus = 4, ZPlus = 5,
 	};
 
 	const std::vector all_faces = {
-		Face::XMinus, Face::XPlus,
-		Face::YMinus, Face::YPlus,
-		Face::ZMinus, Face::ZPlus
+		DomainFace::XMinus, DomainFace::XPlus,
+		DomainFace::YMinus, DomainFace::YPlus,
+		DomainFace::ZMinus, DomainFace::ZPlus
 	};
 }
 
 namespace april::boundary {
-	inline int face_to_int(Face f) noexcept {
+	inline int face_to_int(DomainFace f) noexcept {
 		return static_cast<int>(f);
 	}
 
-	inline uint8_t axis_of_face(const Face f) {
+	inline uint8_t axis_of_face(const DomainFace f) {
 		return face_to_int(f) / 2;
 	}
 
-	inline bool face_sign_pos(const Face f) {
+	inline bool face_sign_pos(const DomainFace f) {
 		return (face_to_int(f) & 1) != 0;
 	}
 
-	inline std::pair<uint8_t, uint8_t> non_face_axis(const Face f) {
+	inline std::pair<uint8_t, uint8_t> non_face_axis(const DomainFace f) {
 		switch (axis_of_face(f)) {
 		case 0: return {1,2};
 		case 1: return {0,2};
@@ -86,7 +87,7 @@ namespace april::boundary {
 		{}
 
 		template<ParticleField IncomingMask, particle::IsParticleAttributes U>
-		void invoke_apply(this const auto & self,particle::internal::ScalarParticleRef<IncomingMask, U> & particle, const core::Box & domain_box, Face face) noexcept {
+		void invoke_apply(this const auto & self,particle::internal::ScalarParticleRef<IncomingMask, U> & particle, const core::Box & domain_box, DomainFace face) noexcept {
 			static_assert(
 			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },
 			   "BoundaryCondition subclass must implement: void dispatch_apply(particle)"
@@ -152,7 +153,7 @@ namespace april {
 			BoundarySentinel(): Boundary(-1, false, false, false) {}
 
 			template<ParticleField IncomingMask, particle::IsParticleAttributes U>
-			void apply(particle::internal::ScalarParticleRef<IncomingMask, U> &, const core::Box &, const Face) const noexcept {
+			void apply(particle::internal::ScalarParticleRef<IncomingMask, U> &, const core::Box &, const DomainFace) const noexcept {
 				AP_ASSERT(false, "apply called on null boundary! this should never happen");
 			}
 		};
@@ -169,11 +170,11 @@ namespace april {
 
 		template<class... BCs>
 		struct VariantType {
-			static constexpr bool has_absorb = same_as_any<Open, BCs...>;
+			static constexpr bool has_absorb = same_as_any<OpenBoundary, BCs...>;
 			using type = std::conditional_t<
 				has_absorb,
 				std::variant<BoundarySentinel, BCs...>,
-				std::variant<BoundarySentinel, Open, BCs...>
+				std::variant<BoundarySentinel, OpenBoundary, BCs...>
 			>;
 		};
 

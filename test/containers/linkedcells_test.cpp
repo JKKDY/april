@@ -341,7 +341,7 @@ struct DummyPeriodicBoundary final : boundary::Boundary {
 	: Boundary(0.0, false, true, false ) {}
 
 	template<ParticleField M, particle::IsParticleAttributes U>
-		void apply(particle::internal::ScalarParticleRef<M, U> &, const core::Box &, const Face) const noexcept{
+		void apply(particle::internal::ScalarParticleRef<M, U> &, const core::Box &, const DomainFace) const noexcept{
 	}
 };
 
@@ -360,7 +360,7 @@ TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 		e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));
 
 		// Enable periodic boundaries on both x faces
-		e.set_boundaries(DummyPeriodicBoundary(), {Face::XMinus, Face::XPlus});
+		e.set_boundaries(DummyPeriodicBoundary(), {DomainFace::XMinus, DomainFace::XPlus});
 
 		BuildInfo mapping;
 		auto sys = build_system(e, TypeParam::create(cell_size_hint), &mapping);
@@ -396,9 +396,9 @@ TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
 
 		// Enable full periodicity on all faces
 		e.set_boundaries(DummyPeriodicBoundary(), {
-			Face::XMinus, Face::XPlus,
-			Face::YMinus, Face::YPlus,
-			Face::ZMinus, Face::ZPlus
+			DomainFace::XMinus, DomainFace::XPlus,
+			DomainFace::YMinus, DomainFace::YPlus,
+			DomainFace::ZMinus, DomainFace::ZPlus
 		});
 
 		BuildInfo mapping;

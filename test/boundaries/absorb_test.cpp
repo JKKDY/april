@@ -46,8 +46,8 @@ auto make_source(RecordT& record) {
 
 // Direct application should mark particle DEAD
 TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
-	const Absorb absorb;
-	constexpr ParticleField Mask = Absorb::fields;
+	const AbsorbingBoundary absorb;
+	constexpr ParticleField Mask = AbsorbingBoundary::fields;
 
 	const core::Box box {{0,0,0}, {10,10,10}};
 
@@ -55,7 +55,7 @@ TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 	auto src = make_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
 
-	absorb.apply(ref, box, Face::XPlus);
+	absorb.apply(ref, box, DomainFace::XPlus);
 
 	EXPECT_EQ(p.state, ParticleState::DEAD)
 		<< "Absorb boundary should mark particle as DEAD";
@@ -63,7 +63,7 @@ TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 
 // Topology sanity: outside region, not coupled, no force wrap, no position change
 TEST(AbsorbBoundaryTest, Topology_IsOutsideAndPassive) {
-	const Absorb absorb;
+	const AbsorbingBoundary absorb;
 	const boundary::Topology& topo = absorb.topology;
 
 	EXPECT_LT(topo.boundary_thickness, 0.0)
@@ -75,13 +75,13 @@ TEST(AbsorbBoundaryTest, Topology_IsOutsideAndPassive) {
 
 
 TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
-	std::variant<Absorb> absorb = Absorb();
-	constexpr ParticleField Mask = Absorb::fields;
+	std::variant<AbsorbingBoundary> absorb = AbsorbingBoundary();
+	constexpr ParticleField Mask = AbsorbingBoundary::fields;
 
 	Domain domain{{0,0,0}, {10,10,10}};
 
 	// Compile boundary for X+ face
-	auto compiled = boundary::internal::compile_boundary(absorb, core::Box::from_domain(domain), Face::XPlus);
+	auto compiled = boundary::internal::compile_boundary(absorb, core::Box::from_domain(domain), DomainFace::XPlus);
 
 	auto p = make_alive_particle();
 	auto src = make_source<Mask>(p);
@@ -90,7 +90,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 	core::Box box{{0,0,0}, {10,10,10}};
 
 	compiled.dispatch([&](auto && bc) {
-		bc.apply(ref, box, Face::XPlus);
+		bc.apply(ref, box, DomainFace::XPlus);
 	});
 
 	EXPECT_EQ(p.state, ParticleState::DEAD);
@@ -107,7 +107,7 @@ TYPED_TEST_SUITE(AbsorbBoundarySystemTestT, ContainerTypes);
 
 // Particle inside the domain should remain alive
 TYPED_TEST(AbsorbBoundarySystemTestT, InsideDomain_RemainsAlive) {
-	Environment env(forces<NoForce>, boundaries<Absorb>);
+	Environment env(forces<NoForce>, boundaries<AbsorbingBoundary>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -116,7 +116,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, InsideDomain_RemainsAlive) {
 	env.add_particle(make_particle(0, {5,5,5}, {}, 1, ParticleState::ALIVE, 0));
 
 	// Set Absorb on all faces
-	env.set_boundaries(Absorb(), all_faces);
+	env.set_boundaries(AbsorbingBoundary(), all_faces);
 
 
 	BuildInfo mappings;
@@ -134,7 +134,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, InsideDomain_RemainsAlive) {
 
 // Absorb boundary full-pipeline test: one particle per face
 TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
-	Environment env(forces<NoForce>, boundaries<Absorb>);
+	Environment env(forces<NoForce>, boundaries<AbsorbingBoundary>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
 	env.add_force(NoForce{}, to_type(0));
@@ -148,7 +148,7 @@ TYPED_TEST(AbsorbBoundarySystemTestT, EachFace_ParticleMarkedDead) {
 	env.add_particle(make_particle(0, {5,5,9.6}, {0,0,+1}, 1, ParticleState::ALIVE, 5)); // Z+
 
 	// Set Absorb on all faces
-	env.set_boundaries(Absorb(), all_faces);
+	env.set_boundaries(AbsorbingBoundary(), all_faces);
 
 	BuildInfo mappings;
 	auto sys = build_system(env, TypeParam(), &mappings);

@@ -16,7 +16,7 @@ struct TouchSpy final : boundary::Boundary {
 	: Boundary(thickness, false, false, false), sink(sink) {}
 
 	template<ParticleField M, particle::IsParticleAttributes U>
-	void apply(particle::internal::ScalarParticleRef<M, U> & p, const core::Box &, Face) const noexcept {
+	void apply(particle::internal::ScalarParticleRef<M, U> & p, const core::Box &, DomainFace) const noexcept {
 		if (sink) sink->push_back(p.id);
 	}
 

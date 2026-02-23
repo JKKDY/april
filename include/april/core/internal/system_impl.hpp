@@ -170,7 +170,7 @@ namespace april {
 
 		const core::Box domain_box = this->box();
 
-		for (Face face : all_faces) {
+		for (DomainFace face : all_faces) {
 
 			const auto& compiled_boundary = boundary_table[face];
 

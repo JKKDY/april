@@ -183,7 +183,7 @@ struct DummyPeriodicBoundary final : boundary::Boundary {
 	: Boundary(0.0, false, true, false ) {}
 
 	template<ParticleField M, particle::IsParticleAttributes U>
-	void apply(particle::internal::ScalarParticleRef<M, U> &, const core::Box &, const Face) const noexcept {}
+	void apply(particle::internal::ScalarParticleRef<M, U> &, const core::Box &, const DomainFace) const noexcept {}
 };
 
 TYPED_TEST(DirectSumTest, PeriodicForceWrap_X) {
@@ -197,7 +197,7 @@ TYPED_TEST(DirectSumTest, PeriodicForceWrap_X) {
 	e.add_particle(make_particle(0, {9.5, 5, 5}, {}, 1, ParticleState::ALIVE, 1));
 
 	e.add_force(Harmonic(1, 0, 2), to_type(0)); // simple directional force
-	e.set_boundaries(DummyPeriodicBoundary(), {Face::XMinus, Face::XPlus});
+	e.set_boundaries(DummyPeriodicBoundary(), {DomainFace::XMinus, DomainFace::XPlus});
 
 	BuildInfo mapping;
 	auto sys = build_system(e, TypeParam(),&mapping); // DirectSum container
@@ -231,9 +231,9 @@ TYPED_TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 
 	// Activate periodic wrapping on all faces
 	e.set_boundaries(DummyPeriodicBoundary(), {
-		Face::XMinus, Face::XPlus,
-		Face::YMinus, Face::YPlus,
-		Face::ZMinus, Face::ZPlus
+		DomainFace::XMinus, DomainFace::XPlus,
+		DomainFace::YMinus, DomainFace::YPlus,
+		DomainFace::ZMinus, DomainFace::ZPlus
 	});
 
 	BuildInfo mapping;

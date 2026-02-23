@@ -25,7 +25,7 @@ namespace april::boundary::internal {
 
 	template<IsBoundaryVariant BVariant> class CompiledBoundary{
 	public:
-		CompiledBoundary(const BVariant & boundary, const core::Box & region, const Face face, const core::Box & domain):
+		CompiledBoundary(const BVariant & boundary, const core::Box & region, const DomainFace face, const core::Box & domain):
 			boundary_region(region),
 			simulation_domain(domain),
 			topology(get_topology(boundary)),
@@ -42,7 +42,7 @@ namespace april::boundary::internal {
 		const core::Box boundary_region;
 		const core::Box simulation_domain;
 		const Topology topology;
-		const Face face;
+		const DomainFace face;
 
 	private:
 		const BVariant boundary_v;
@@ -50,7 +50,7 @@ namespace april::boundary::internal {
 
 
 	template<IsBoundaryVariant BVariant>
-	CompiledBoundary<BVariant> compile_boundary(const BVariant & boundary, const core::Box & simulation_box, const Face face) {
+	CompiledBoundary<BVariant> compile_boundary(const BVariant & boundary, const core::Box & simulation_box, const DomainFace face) {
 		constexpr double NEG_INF = std::numeric_limits<double>::lowest() / 4; // divide by 4 to avoid overflow
 		constexpr double POS_INF = std::numeric_limits<double>::max() / 4;
 
@@ -97,16 +97,16 @@ namespace april::boundary::internal {
 
 		BoundaryTable(const std::array<BVariant, 6> & boundaries, const core::Box & simulation_box):
 			table({
-				compile_boundary<BVariant>(boundaries[face_to_int(Face::XMinus)], simulation_box, Face::XMinus),
-				compile_boundary<BVariant>(boundaries[face_to_int(Face::XPlus )], simulation_box, Face::XPlus ),
-				compile_boundary<BVariant>(boundaries[face_to_int(Face::YMinus)], simulation_box, Face::YMinus),
-				compile_boundary<BVariant>(boundaries[face_to_int(Face::YPlus )], simulation_box, Face::YPlus ),
-				compile_boundary<BVariant>(boundaries[face_to_int(Face::ZMinus)], simulation_box, Face::ZMinus),
-				compile_boundary<BVariant>(boundaries[face_to_int(Face::ZPlus )], simulation_box, Face::ZPlus ),
+				compile_boundary<BVariant>(boundaries[face_to_int(DomainFace::XMinus)], simulation_box, DomainFace::XMinus),
+				compile_boundary<BVariant>(boundaries[face_to_int(DomainFace::XPlus )], simulation_box, DomainFace::XPlus ),
+				compile_boundary<BVariant>(boundaries[face_to_int(DomainFace::YMinus)], simulation_box, DomainFace::YMinus),
+				compile_boundary<BVariant>(boundaries[face_to_int(DomainFace::YPlus )], simulation_box, DomainFace::YPlus ),
+				compile_boundary<BVariant>(boundaries[face_to_int(DomainFace::ZMinus)], simulation_box, DomainFace::ZMinus),
+				compile_boundary<BVariant>(boundaries[face_to_int(DomainFace::ZPlus )], simulation_box, DomainFace::ZPlus ),
 			})
 		{}
 
-		const CompiledBoundary<BVariant> &  operator[](const Face face) const {
+		const CompiledBoundary<BVariant> &  operator[](const DomainFace face) const {
 			return table[face_to_int(face)];
 		}
 

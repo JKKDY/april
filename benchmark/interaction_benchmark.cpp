@@ -56,12 +56,12 @@ int main() {
 
 	for (int i = 0; i < 10; i ++) {
 
-		Environment env (forces<LJNoCutoff>, boundaries<Reflective>);
+		Environment env (forces<LJNoCutoff>, boundaries<ReflectiveBoundary>);
 		env.add_particles(grid);
 		env.set_origin(origin);
 		env.set_extent(extent);
 		env.add_force(LJNoCutoff(epsilon, sigma, r_cut), to_type(0));
-		env.set_boundaries(Reflective(), all_faces);
+		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 		const auto container = container::LinkedCellsAoS()
 			// .with_cell_size(container::CellSize::Cutoff)

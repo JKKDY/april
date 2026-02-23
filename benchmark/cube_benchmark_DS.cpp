@@ -38,12 +38,12 @@ int main() {
 	const vec3 origin = - 0.5 * extent;
 
 	for (int i = 0; i < 1; i++) {
-		Environment env (forces<LennardJones>, boundaries<Reflective>);
+		Environment env (forces<LennardJones>, boundaries<ReflectiveBoundary>);
 		env.add_particles(grid);
 		env.set_origin(origin);
 		env.set_extent(extent);
 		env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
-		env.set_boundaries(Reflective(), all_faces);
+		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 		constexpr auto container = DirectSumAoSoA();
 		auto system = build_system(env, container);

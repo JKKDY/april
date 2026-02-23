@@ -10,7 +10,7 @@ namespace april::core::internal {
 	template<class BoundaryTable>
 		auto extract_topologies(const BoundaryTable  & boundaries) {
 		std::vector<boundary::Topology> topologies;
-		for (Face face : all_faces) {
+		for (DomainFace face : all_faces) {
 			topologies.push_back(boundaries[face].topology);
 		}
 		return topologies;
@@ -21,7 +21,7 @@ namespace april::core::internal {
 		auto set_default_boundaries(std::array<BV, 6>  & boundaries) {
 		for (auto & v : boundaries)
 			if (std::holds_alternative<boundary::internal::BoundarySentinel>(v))
-				v.template emplace<Open>(); // default-construct Open boundary
+				v.template emplace<OpenBoundary>(); // default-construct Open boundary
 	}
 
 
@@ -32,7 +32,7 @@ namespace april::core::internal {
 
 	inline container::internal::ContainerFlags set_container_flags(const std::vector<boundary::Topology>& topologies) {
 		container::internal::ContainerFlags container_flags = {};
-		for (const Face face : all_faces) {
+		for (const DomainFace face : all_faces) {
 			if (topologies[boundary::face_to_int(face)].force_wrap) {
 				switch (boundary::axis_of_face(face)) {
 				case 0: container_flags.periodic_x = true; break;

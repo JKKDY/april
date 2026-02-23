@@ -219,7 +219,7 @@ TEST(BenchmarkTest, Integration_CapturesStatistics) {
 	auto p1 = make_particle(0, {0,0,0}, {0,0,0}, 1.0);
 	auto p2 = make_particle(0, {1.5,0,0}, {0,0,0}, 1.0);
 
-	auto env = Environment(forces<LennardJones>, boundaries<Reflective>)
+	auto env = Environment(forces<LennardJones>, boundaries<ReflectiveBoundary>)
 	   .with_particles({p1, p2})
 	   .with_extent(10, 10, 10)
 	   .with_force(LennardJones(1, 1), to_type(0));
@@ -256,7 +256,7 @@ TEST(TerminalOutputTest, terminal_test) {
 	auto p1 = make_particle(0, {0,0,0}, {0,0,0}, 1.0);
 	auto p2 = make_particle(0, {1.5,0,0}, {0,0,0}, 1.0);
 
-	auto env = Environment(forces<LennardJones>, boundaries<Reflective>)
+	auto env = Environment(forces<LennardJones>, boundaries<ReflectiveBoundary>)
 	   .with_particles({p1, p2})
 	   .with_extent(10, 10, 10)
 	   .with_force(LennardJones(1, 1), to_type(0));

@@ -130,14 +130,14 @@ namespace april {
         //---------------
         // Single boundary on one face
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
-        void set_boundary(B boundary, const Face face) {
+        void set_boundary(B boundary, const DomainFace face) {
             data.boundaries[boundary::face_to_int(face)].template emplace<B>(std::move(boundary));
         }
 
         // Same boundary applied to multiple faces
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
-        void set_boundaries(B boundary, const std::vector<Face> & faces) {
-            for (const Face face : faces) {
+        void set_boundaries(B boundary, const std::vector<DomainFace> & faces) {
+            for (const DomainFace face : faces) {
                 data.boundaries[boundary::face_to_int(face)].template emplace<B>(boundary);
             }
         }
@@ -145,7 +145,7 @@ namespace april {
         // Boundaries provided as array (per-face)
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
         void set_boundaries(const std::array<B, 6> & boundaries) {
-            for (const Face face : all_faces) {
+            for (const DomainFace face : all_faces) {
                 data.boundaries[boundary::face_to_int(face)].template emplace<B>(boundaries[boundary::face_to_int(face)]);
             }
         }
@@ -260,13 +260,13 @@ namespace april {
         }
 
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
-        Environment& with_boundary(B&& boundary, Face face) {
+        Environment& with_boundary(B&& boundary, DomainFace face) {
             set_boundary(std::forward<B>(boundary), face);
             return *this;
         }
 
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
-        Environment& with_boundaries(B&& boundary, const std::vector<Face>& faces) {
+        Environment& with_boundaries(B&& boundary, const std::vector<DomainFace>& faces) {
             set_boundaries(std::forward<B>(boundary), faces);
             return *this;
         }

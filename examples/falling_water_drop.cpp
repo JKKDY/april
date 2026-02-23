@@ -32,7 +32,7 @@ int main() {
 	auto gravity = UniformField({0, -12.44, 0});
 
 	auto env = Environment(
-		boundaries<Reflective>,
+		boundaries<ReflectiveBoundary>,
 		forces<LennardJones>,
 		controllers<VelocityScalingThermostat>,
 		fields<UniformField>);
@@ -42,7 +42,7 @@ int main() {
 		.with_force(LennardJones(1, 1), to_type(1))
 		.with_particles(liquid)
 		.with_particles(drop)
-		.with_boundaries(Reflective(), all_faces)
+		.with_boundaries(ReflectiveBoundary(), all_faces)
 		.with_controller(thermostat)
 		.with_field(gravity);
 

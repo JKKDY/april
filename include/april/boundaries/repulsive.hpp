@@ -90,16 +90,16 @@ namespace april {
 
 
 	template <boundary::IsWallForce Force>
-	struct Repulsive : boundary::Boundary {
+	struct RepulsiveBoundary : boundary::Boundary {
 		static constexpr ParticleField fields = ParticleField::position | ParticleField::force | ParticleField::old_position;
 
-		explicit Repulsive(Force & force, const bool simulate_halo=false):
+		explicit RepulsiveBoundary(Force & force, const bool simulate_halo=false):
 			Boundary(force.cutoff(), false, false, false),
 			boundary_force(force), simulate_halo(simulate_halo)
 		{}
 
 		template<ParticleField M, particle::IsParticleAttributes U>
-		void apply(particle::internal::ScalarParticleRef<M, U> & particle, const core::Box & domain_box, const Face face) const noexcept{
+		void apply(particle::internal::ScalarParticleRef<M, U> & particle, const core::Box & domain_box, const DomainFace face) const noexcept{
 			const int is_plus = boundary::face_sign_pos(face);
 			const int ax = boundary::axis_of_face(face);
 

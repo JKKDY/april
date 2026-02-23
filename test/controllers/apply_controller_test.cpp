@@ -265,13 +265,13 @@ TEST_F(ControllerTest, MultipleSameTypeControllers) {
 
     Environment env(
         forces<NoForce>,
-        boundaries<Open>,
+        boundaries<OpenBoundary>,
         controllers<SpyController>, // Only one SpyController type
         fields<>
     );
     env.with_particle(Particle().at({}).as_type(0).with_mass(1))
        .with_force(NoForce(), to_type(0))
-       .with_boundaries(Open(), all_faces)
+       .with_boundaries(OpenBoundary(), all_faces)
        .with_extent(1,1,1);
 
     // Add two separate instances of SpyController
@@ -300,13 +300,13 @@ TEST_F(ControllerTest, MultipleDifferentControllers) {
 
     Environment env(
         forces<NoForce>,
-        boundaries<Open>,
+        boundaries<OpenBoundary>,
         controllers<SpyController, SpyController2>, // Two different types
         fields<>
     );
     env.with_particle(Particle().at({}).as_type(0).with_mass(1))
        .with_force(NoForce(), to_type(0))
-       .with_boundaries(Open(), all_faces)
+       .with_boundaries(OpenBoundary(), all_faces)
        .with_extent(1,1,1);
 
     // Add one instance of each controller
@@ -336,7 +336,7 @@ TEST_F(ControllerTest, ContextAccess_ModifiesParticles) {
 
     Environment env(
         forces<NoForce>,
-        boundaries<Open>,
+        boundaries<OpenBoundary>,
         controllers<ContextSpyController>, // Register our new controller
         fields<>
     );
@@ -345,7 +345,7 @@ TEST_F(ControllerTest, ContextAccess_ModifiesParticles) {
            Particle().at({}).as_type(0).with_mass(1).with_id(target_id)
        )
        .with_force(NoForce(), to_type(0))
-       .with_boundaries(Open(), all_faces)
+       .with_boundaries(OpenBoundary(), all_faces)
        .with_extent(1,1,1);
 
     // Add the controller, set to trigger at step 2

@@ -53,7 +53,7 @@ namespace april::container::layout {
 	};
 
 
-	template<typename Config, particle::IsParticleAttributes A, size_t ChunkSize=8>
+	template<typename Config, particle::IsParticleAttributes A, size_t ChunkSize>
 	class AoSoA : public Container<Config, A> {
 	public:
 		static constexpr size_t chunk_size = ChunkSize;

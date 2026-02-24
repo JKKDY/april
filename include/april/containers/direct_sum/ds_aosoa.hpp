@@ -6,10 +6,10 @@
 
 namespace april::container::internal {
 
-    template <class Config, class U>
-    class DirectSumAoSoAImpl : public DirectSumCore<layout::AoSoA<Config, U>> {
+    template <class Config, class U, size_t ChunkSize>
+    class DirectSumAoSoAImpl : public DirectSumCore<layout::AoSoA<Config, U, ChunkSize>> {
     public:
-        using Base = DirectSumCore<layout::AoSoA<Config, U>>;
+        using Base = DirectSumCore<layout::AoSoA<Config, U, ChunkSize>>;
         using Base::chunk_size;
         using SymmetricBatch = batching::SymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>;
         using AsymmetricBatch = batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>;
@@ -73,11 +73,13 @@ namespace april::container::internal {
 
 
 namespace april::container {
+
+    template<size_t ChunkSize = 8>
     struct DirectSumAoSoA {
         using ConfigT = DirectSumAoSoA;
 
         template <class U>
-        using impl = internal::DirectSumAoSoAImpl<ConfigT, U>;
+        using impl = internal::DirectSumAoSoAImpl<ConfigT, U, ChunkSize>;
     };
 }
 

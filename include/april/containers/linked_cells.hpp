@@ -20,8 +20,8 @@ namespace april {
     class LinkedCells<Layout::SoA> : public container::LinkedCellsSoA
     {};
 
-    template<>
-    class LinkedCells<Layout::AoSoA<>> : public container::LinkedCellsAoSoA
+    template<uint8_t ChunkSize>
+    class LinkedCells<Layout::AoSoA<ChunkSize>> : public container::LinkedCellsAoSoA<ChunkSize>
     {};
 
 }

@@ -21,7 +21,7 @@ namespace april {
     {};
 
     template<>
-    class DirectSum<Layout::AoSoA<>> : public container::DirectSumAoSoA
+    class DirectSum<Layout::AoSoA<>> : public container::DirectSumAoSoA<8>
     {};
 
 }

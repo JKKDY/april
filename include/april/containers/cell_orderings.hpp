@@ -8,7 +8,7 @@
 #include "april/base/types.hpp"
 #include "april/math/sfc.hpp"
 
-namespace april::container {
+namespace april {
 	// ----------------
 	// MORTON (Z-Curve)
 	// ----------------

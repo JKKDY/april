@@ -50,7 +50,6 @@
 
 
 namespace april {
-
 	// Environment
 	// using core::Environment;
 	// using ParticleCuboid;
@@ -99,8 +98,8 @@ namespace april {
 	// using container::LinkedCellsSoA;
 	// using container::LinkedCellsAoSoA;
 
-	using container::hilbert_order;
-	using container::morton_order;
+	// using container::hilbert_order;
+	// using container::morton_order;
 
 	// System
 	// using core::System;

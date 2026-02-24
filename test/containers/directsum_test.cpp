@@ -8,16 +8,14 @@ using testing::Eq;
 #include "constant_force.h"
 #include "utils.h"
 
-#include "april/containers/direct_sum/ds_aos.hpp"
-#include "april/containers/direct_sum/ds_soa.hpp"
-#include "april/containers/direct_sum/ds_aosoa.hpp"
+#include "april/containers/direct_sum.hpp"
 
 using namespace april;
 
 template <typename T>
 class DirectSumTest : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, DirectSumAoSoA>;
+using ContainerTypes = testing::Types<DirectSum<Layout::AoS>, DirectSum<Layout::SoA>, DirectSum<Layout::AoSoA<>>>;
 TYPED_TEST_SUITE(DirectSumTest, ContainerTypes);
 
 TYPED_TEST(DirectSumTest, SingleParticle_NoForce) {
@@ -26,7 +24,7 @@ TYPED_TEST(DirectSumTest, SingleParticle_NoForce) {
 	e.add_force(NoForce(), to_type(0));
 	e.set_extent(1,1,1);
 
-	auto sys = build_system(e, DirectSumAoS());
+	auto sys = build_system(e, TypeParam());
     sys.update_forces();
 
     auto const& out = export_particles(sys);

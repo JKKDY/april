@@ -8,6 +8,7 @@
 #include <gmock/gmock.h>
 
 #include "april/april.hpp"
+#include "april/containers/linked_cells.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;
@@ -225,7 +226,7 @@ TEST(BenchmarkTest, Integration_CapturesStatistics) {
 	   .with_force(LennardJones(1, 1), to_type(0));
 
 	// Using AoS for simplicity
-	auto container = LinkedCellsAoS();
+	auto container = LinkedCells();
 	auto system = build_system(env, container);
 
 	testing::internal::CaptureStdout();
@@ -262,7 +263,7 @@ TEST(TerminalOutputTest, terminal_test) {
 	   .with_force(LennardJones(1, 1), to_type(0));
 
 	// Using AoS for simplicity
-	auto container = LinkedCellsAoS();
+	auto container = LinkedCells();
 	auto system = build_system(env, container);
 
 	testing::internal::CaptureStdout();

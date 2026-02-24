@@ -6,9 +6,7 @@ using testing::AnyOf;
 using testing::Eq;
 
 
-#include "april/containers/linked_cells/lc_aos.hpp"
-#include "april/containers/linked_cells/lc_soa.hpp"
-#include "april/containers/linked_cells/lc_aosoa.hpp"
+#include "april/containers/linked_cells.hpp"
 
 
 #include "orbit_monitor.h"
@@ -59,19 +57,19 @@ struct TestConfig {
 
 using ContainerConfigurations = testing::Types<
 	// AoS Combinations
-	TestConfig<LinkedCellsAoS, OrderDefault>,
-	TestConfig<LinkedCellsAoS, OrderMorton>,
-	TestConfig<LinkedCellsAoS, OrderHilbert>,
+	TestConfig<LinkedCells<Layout::AoS>, OrderDefault>,
+	TestConfig<LinkedCells<Layout::AoS>, OrderMorton>,
+	TestConfig<LinkedCells<Layout::AoS>, OrderHilbert>,
 
 	// SoA Combinations
-	TestConfig<LinkedCellsSoA, OrderDefault>,
-	TestConfig<LinkedCellsSoA, OrderMorton>,
-	TestConfig<LinkedCellsSoA, OrderHilbert>,
+	TestConfig<LinkedCells<Layout::SoA>, OrderDefault>,
+	TestConfig<LinkedCells<Layout::SoA>, OrderMorton>,
+	TestConfig<LinkedCells<Layout::SoA>, OrderHilbert>,
 
 	// AoSoA Combinations
-	TestConfig<LinkedCellsAoSoA, OrderDefault>,
-	TestConfig<LinkedCellsAoSoA, OrderMorton>,
-	TestConfig<LinkedCellsAoSoA, OrderHilbert>
+	TestConfig<LinkedCells<Layout::AoSoA<>>, OrderDefault>,
+	TestConfig<LinkedCells<Layout::AoSoA<>>, OrderMorton>,
+	TestConfig<LinkedCells<Layout::AoSoA<>>, OrderHilbert>
 >;
 
 template <typename LinkedCellsT>

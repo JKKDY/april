@@ -2,6 +2,8 @@
 #include <april/april.hpp>
 #include <filesystem>
 
+#include "april/containers/linked_cells.hpp"
+
 using namespace april;
 namespace fs = std::filesystem;
 
@@ -34,7 +36,7 @@ int main() {
 	   .with_force(LennardJones(5, 1), to_type(0))
 	   .with_boundaries(ReflectiveBoundary(), all_faces);
 
-	auto container = LinkedCellsAoS();
+	auto container = LinkedCells<Layout::AoS>();
 	auto system = build_system(env, container);
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)

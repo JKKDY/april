@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 #include "utils.h"
+#include "april/containers/direct_sum.hpp"
+#include "april/containers/layout.hpp"
+#include "april/containers/linked_cells.hpp"
 
 using namespace april;
 
@@ -67,7 +70,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 
 	// Particle just beyond -X boundary
 	auto p = make_particle({-0.3, 5.0, 5.0});
-	auto src = make_source<Mask>(p);
+	const auto src = make_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
 
 	periodic.apply(ref, box, DomainFace::XMinus);
@@ -158,7 +161,10 @@ TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 template <class ContainerT>
 class PeriodicBoundarySystemTestT : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, LinkedCellsAoS, LinkedCellsSoA>;
+using ContainerTypes = testing::Types<
+    DirectSum<Layout::AoS>, DirectSum<Layout::SoA>, DirectSum<Layout::AoSoA<>>,
+    LinkedCells<Layout::AoS>, LinkedCells<Layout::SoA>, LinkedCells<Layout::AoSoA<>>
+>;
 TYPED_TEST_SUITE(PeriodicBoundarySystemTestT, ContainerTypes);
 
 TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
@@ -188,7 +194,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 	sys.apply_boundary_conditions();
 
 	// Expected positions after wrapping (10x10x10 domain)
-	std::array expected = {
+	const std::array expected = {
 		vec3{9.4, 5, 5},  // X− → reappears near +X side
 		vec3{0.6, 5, 5},  // X+ → reappears near −X side
 		vec3{5, 9.4, 5},  // Y− → reappears near +Y side

@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 
 #include "april/boundaries/boundary.hpp"
+#include "april/containers/direct_sum.hpp"
+#include "april/containers/linked_cells.hpp"
+
 
 #include "utils.h"
 
@@ -28,7 +31,10 @@ private:
 template <class ContainerT>
 class BoundaryTestT : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, LinkedCellsAoS, LinkedCellsSoA>;
+using ContainerTypes = testing::Types<
+    DirectSum<Layout::AoS>, DirectSum<Layout::SoA>, DirectSum<Layout::AoSoA<>>,
+    LinkedCells<Layout::SoA>, LinkedCells<Layout::SoA>, LinkedCells<Layout::AoSoA<>>
+>;
 TYPED_TEST_SUITE(BoundaryTestT, ContainerTypes);
 
 TYPED_TEST(BoundaryTestT, InsideSlab_XMinus_AppliesOnlyToSlabParticles) {

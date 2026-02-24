@@ -92,13 +92,12 @@ namespace april {
 	// using field::LocalForceField;
 
 	// Containers
-	using container::Container;
-	using container::DirectSumAoS;
-	using container::DirectSumSoA;
-	using container::DirectSumAoSoA;
-	using container::LinkedCellsAoS;
-	using container::LinkedCellsSoA;
-	using container::LinkedCellsAoSoA;
+	// using container::DirectSumAoS;
+	// using container::DirectSumSoA;
+	// using container::DirectSumAoSoA;
+	// using container::LinkedCellsAoS;
+	// using container::LinkedCellsSoA;
+	// using container::LinkedCellsAoSoA;
 
 	using container::hilbert_order;
 	using container::morton_order;

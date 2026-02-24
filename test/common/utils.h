@@ -67,7 +67,7 @@ void simulate_single_step(System& sys) {
 
 	for (size_t pid = sys.min_id(); pid < sys.max_id(); ++pid) {
 		if (!sys.contains_id(pid)) continue;
-		auto p = sys.template at<edit_fields>(pid);
+		auto p = sys.template at_id<edit_fields>(pid);
 		p.old_position = p.position;
 		p.position = p.old_position + p.velocity; // simulate one step
 	}

@@ -5,6 +5,10 @@
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/repulsive.hpp"
+#include "april/containers/direct_sum.hpp"
+#include "april/containers/layout.hpp"
+#include "april/containers/linked_cells.hpp"
+
 #include "utils.h"
 
 using namespace april;
@@ -134,7 +138,11 @@ TEST(RepulsiveBoundaryTest, CompiledBoundary_Apply_AddsInwardForce) {
 // System-level pipeline test
 template <class ContainerT>
 class RepulsiveBoundarySystemTestT : public testing::Test {};
-using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, LinkedCellsAoS, LinkedCellsSoA>;
+
+using ContainerTypes = testing::Types<
+    DirectSum<Layout::AoS>, DirectSum<Layout::SoA>, DirectSum<Layout::AoSoA<>>,
+    LinkedCells<Layout::SoA>, LinkedCells<Layout::SoA>, LinkedCells<Layout::AoSoA<>>
+>;
 TYPED_TEST_SUITE(RepulsiveBoundarySystemTestT, ContainerTypes);
 
 

@@ -4,6 +4,7 @@
 #include <utils.h>
 
 #include "april/april.hpp"
+#include "april/containers/direct_sum.hpp"
 
 using namespace april;
 
@@ -74,7 +75,7 @@ protected:
 
 TEST_F(FieldTest, InitIsCalledOnce) {
     const auto env = setup_environment(2);
-    auto system = build_system(env, DirectSumAoS());
+    auto system = build_system(env, DirectSum());
     VelocityVerlet(system).with_dt(0.01).for_steps(10).run();
 
     EXPECT_EQ(sinks.init_call_count, 1);
@@ -82,7 +83,7 @@ TEST_F(FieldTest, InitIsCalledOnce) {
 
 TEST_F(FieldTest, UpdateIsCalledEveryStep) {
     const auto env = setup_environment(2);
-    auto system = build_system(env, DirectSumAoS());
+    auto system = build_system(env, DirectSum());
     VelocityVerlet(system).with_dt(0.01).for_steps(5).run(); // Runs 0, 1, 2, 3, 4
 
     EXPECT_EQ(sinks.update_call_count, 5);
@@ -95,7 +96,7 @@ TEST_F(FieldTest, ApplyIsCalledPerParticlePerStep) {
     const int num_steps = 5;
 
     const auto env = setup_environment(num_particles);
-    auto system = build_system(env, DirectSumAoS());
+    auto system = build_system(env, DirectSum());
     VelocityVerlet(system).with_dt(0.01).for_steps(num_steps).run(); // Runs 0, 1, 2, 3, 4
 
     EXPECT_EQ(sinks.apply_call_count, num_particles * num_steps);
@@ -149,7 +150,7 @@ TEST_F(FieldTest, MultipleDifferentSpyFields) {
        .with_field(SpyField(&sinks1))
        .with_field(SpyField2(&sinks2));
 
-    auto system = build_system(env, DirectSumAoS());
+    auto system = build_system(env, DirectSum());
     VelocityVerlet(system).with_dt(0.01).for_steps(num_steps).run();
 
     // Check sinks for SpyField 1
@@ -179,7 +180,7 @@ TEST(FieldIntegrationTest, UniformFieldModifiesForce) {
        .with_extent(10,10,10)
        .with_field(UniformField(field_force));
 
-    auto system = build_system(env, DirectSumAoS());
+    auto system = build_system(env, DirectSum());
 
     VelocityVerlet(system).with_dt(0.01).for_steps(1).run();
 
@@ -218,7 +219,7 @@ TEST(FieldIntegrationTest, MultipleDifferentFieldsAreAdditive) {
        .with_field(LocalForceField(local_force, local_region, 0.0, 99.0));
 
     BuildInfo info;
-    auto system = build_system(env, DirectSumAoS(), &info);
+    auto system = build_system(env, DirectSum(), &info);
     VelocityVerlet(system).with_dt(0.01).for_steps(1).run(); // Runs step 0
 
     auto particles = export_particles(system);

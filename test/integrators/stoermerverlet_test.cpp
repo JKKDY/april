@@ -2,6 +2,7 @@
 #include <gmock/gmock.h>
 
 #include "april/integrators/velocity_verlet.hpp"
+#include "april/containers/direct_sum.hpp"
 #include "orbit_monitor.h"
 #include "utils.h"
 
@@ -17,7 +18,7 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
-	constexpr auto algo = DirectSumAoS();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	VelocityVerlet integrator(system);
@@ -38,7 +39,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
-	constexpr auto algo = DirectSumAoS();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	VelocityVerlet integrator(system);
@@ -70,7 +71,7 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
-	constexpr auto algo = DirectSumAoS();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	VelocityVerlet integrator(system);
@@ -117,7 +118,7 @@ TEST(StoermerVerletTest, OrbitTest) {
 	env.set_extent(vec3{R,R,R}*4);
 	env.set_origin(vec3{-R,-R,-R} * 2);
 
-	constexpr auto algo = DirectSumAoS();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	VelocityVerlet integrator(system, monitors<OrbitMonitor>);
@@ -164,7 +165,7 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	env.set_extent(vec3{R,R,R}*4);
 	env.set_origin(vec3{-R,-R,-R} * 2);
 
-	constexpr auto algo = DirectSumAoS();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	{

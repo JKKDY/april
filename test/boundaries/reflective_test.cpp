@@ -5,6 +5,10 @@
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/reflective.hpp"
+#include "april/containers/direct_sum.hpp"
+#include "april/containers/layout.hpp"
+#include "april/containers/linked_cells.hpp"
+
 #include "utils.h"
 
 using namespace april;
@@ -113,7 +117,10 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPositi
 template <class ContainerT>
 class ReflectiveBoundarySystemTestT : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, LinkedCellsAoS, LinkedCellsSoA>;
+using ContainerTypes = testing::Types<
+    DirectSum<Layout::AoS>, DirectSum<Layout::SoA>, DirectSum<Layout::AoSoA<>>,
+    LinkedCells<Layout::AoS>, LinkedCells<Layout::SoA>, LinkedCells<Layout::AoSoA<>>
+>;
 TYPED_TEST_SUITE(ReflectiveBoundarySystemTestT, ContainerTypes);
 
 
@@ -145,7 +152,7 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
     sys.apply_boundary_conditions();
 
 	// expected positions
-	std::array expected_pos = {
+	const std::array expected_pos = {
 		vec3{0.6, 5, 5},
 		vec3{9.4, 5, 5},
 		vec3{5, 0.6, 5},

@@ -74,7 +74,7 @@ namespace april::container::internal {
 
 namespace april::container {
 
-    template<size_t ChunkSize = 8>
+    template<size_t ChunkSize>
     struct DirectSumAoSoA {
         using ConfigT = DirectSumAoSoA;
 

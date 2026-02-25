@@ -19,7 +19,7 @@ namespace april::container::layout {
 		// Enforce alignment requirements (Size 8 * double 8 bytes = 64 bytes = 1 AVX-512 Register)
 		static_assert(std::has_single_bit(Size),
 			"Chunk Size must be a Power of 2 (e.g., 8, 16) for bitwise indexing optimizations.");
-		static_assert(Size >= 8,
+		static_assert(Size * sizeof(vec3::type) >= 64,
 			"Chunk Size must be at least 8 to fill a standard 64-byte Cache Line / AVX-512 register.");
 
 		static constexpr size_t size = Size;
@@ -285,6 +285,7 @@ namespace april::container::layout {
 				const auto [c_idx, l_idx] = locate(i);
 				data[c_idx].state[l_idx] = ParticleState::INVALID;
 				data[c_idx].id[l_idx] = std::numeric_limits<ParticleID>::max();
+				data[c_idx].type[l_idx] = std::numeric_limits<ParticleType>::max();
 			}
 		}
 

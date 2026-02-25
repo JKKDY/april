@@ -20,178 +20,10 @@ namespace april::container::batching {
 			// skip empty range
 		    if (range1_chunks.start == range1_chunks.stop || range2_chunks.start == range2_chunks.stop) return;
 
-		    constexpr size_t simd_width = Container::chunk_size;
-			constexpr bool vectorize = static_cast<bool>(E & exec::internal::ExecutionMode::Vector);
-
-			static_assert(packed::size() == Container::chunk_size);
-
-			// peel of last chunk (i.e. the tail)
-		    const size_t c1_body_end = range1_chunks.stop - 1;
-		    const size_t c2_body_end = range2_chunks.stop - 1;
-
-		    // if tail is 0, it means the chunk is actually full (stride)
-		    const size_t limit1_tail = (range1_tail == 0) ? simd_width : range1_tail;
-		    const size_t limit2_tail = (range2_tail == 0) ? simd_width : range2_tail;
-
-		    // body vs body with hardcoded stride x stride loop
-			if constexpr (vectorize) {
-				for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
-					AP_PREFETCH(chunks + c1 + 1);
-					auto packed1 = container.template at_packed<Mask>(c1, 0);
-					auto buffer1 = packed1.load_buffer();
-
-					for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
-						AP_PREFETCH(chunks + c2 + 1);
-						auto packed2 = container.template at_packed<Mask>(c2, 0);
-						auto buffer2 = packed2.load_buffer();
-
-						AP_UNROLL_LOOP_N(simd_width)
-						for (size_t k = 0; k < simd_width; k++) {
-							f(buffer1, buffer2);
-							buffer2.rotate_right();
-						}
-
-						packed2.force = buffer2.force;
-					}
-
-					packed1.force = buffer1.force;
-				}
-			} else {
-			    for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
-			        AP_PREFETCH(chunks + c1 + 1);
-
-			        for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
-			            AP_PREFETCH(chunks + c2 + 1);
-
-			            for (size_t i = 0; i < simd_width; ++i) {
-			                auto p1 = container.template at<Mask>(c1, i);
-			                for (size_t j = 0; j < simd_width; ++j) {
-			                    auto p2 = container.template at<Mask>(c2, j);
-			                    f(p1, p2);
-			                }
-			            }
-			        }
-			    }
-			}
-
-			// body 1 vs tail 2 (iterate full chunks of R1 against the single partial chunk of R2)
-			if constexpr (vectorize) {
-				for (size_t i = 0; i < limit2_tail; ++i) {
-					auto p2 = container.template at<Mask>(c2_body_end, i);
-					auto buffer2 = particle::internal::PackedParticleBuffer<Mask>::broadcast(p2);
-					buffer2.force = {0,0,0};
-
-					for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
-						AP_PREFETCH(chunks + c1 + 1);
-
-						auto packed1 = container.template at_packed<Mask>(c1, 0);
-						auto buffer1 = packed1.load_buffer();
-						buffer1.force = {0,0,0};
-
-						f(buffer1, buffer2);
-
-						packed1.force += buffer1.force;
-					}
-
-					p2.force.x += buffer2.force.x.reduce_add();
-					p2.force.y += buffer2.force.y.reduce_add();
-					p2.force.z += buffer2.force.z.reduce_add();
-				}
-			} else {
-				for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
-					AP_PREFETCH(chunks + c1 + 1);
-					for (size_t i = 0; i < simd_width; ++i) {
-						auto p1 = container.template at<Mask>(c1, i);
-						for (size_t j = 0; j < limit2_tail; ++j) {
-							auto p2 = container.template at<Mask>(c2_body_end, j);
-							f(p1, p2);
-						}
-					}
-				}
-			}
-
-			// body 2 vs tail 1 (iterate full chunks of R2 against the single partial chunk of R1
-			if constexpr (vectorize) {
-				for (size_t i = 0; i < limit1_tail; ++i) {
-					auto p1 = container.template at<Mask>(c1_body_end, i);
-					auto buffer1 = particle::internal::PackedParticleBuffer<Mask>::broadcast(p1);
-					buffer1.force = {0,0,0};
-
-					for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
-						AP_PREFETCH(chunks + c2 + 1);
-
-						auto packed2 = container.template at_packed<Mask>(c2, 0);
-						auto buffer2 = packed2.load_buffer();
-						buffer2.force = {0,0,0};
-
-						f(buffer1, buffer2);
-
-						packed2.force += buffer2.force;
-					}
-
-					p1.force.x += buffer1.force.x.reduce_add();
-					p1.force.y += buffer1.force.y.reduce_add();
-					p1.force.z += buffer1.force.z.reduce_add();
-				}
-			} else {
-				for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
-					AP_PREFETCH(chunks + c2 + 1);
-					for (size_t i = 0; i < limit1_tail; ++i) {
-						auto p1 = container.template at<Mask>(c1_body_end, i);
-						for (size_t j = 0; j < simd_width; ++j) {
-							auto p2 = container.template at<Mask>(c2, j);
-							f(p1, p2);
-						}
-					}
-				}
-			}
-
 			if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
-				// initialize mask
-				alignas(64) double idx_arr[simd_width];
-				for (size_t k = 0; k < simd_width; ++k) idx_arr[k] = static_cast<double>(k);
-				auto lane_indices = packed::load_aligned(idx_arr);
-				auto mask = lane_indices < static_cast<double>(limit1_tail);
-
-				const packed null = 0.0;
-
-				// load first chunk
-				auto packed1 = container.template at_packed<Mask>(c1_body_end, 0);
-				auto buffer1 = packed1.load_buffer();
-				buffer1.force = {0, 0, 0};
-
-				// loop over second chunk till cutoff
-				for (size_t i = 0; i < limit2_tail; ++i) {
-					auto p2 = container.template at<Mask>(c2_body_end, i);
-					auto buffer2 = particle::internal::PackedParticleBuffer<Mask>::broadcast(p2);
-					buffer2.force = {0, 0, 0};
-
-					// scalar p2 vs entire Chunk 1
-					f(buffer1, buffer2);
-
-					// update p2
-					p2.force += vec3 {
-						select(mask, buffer2.force.x, null).reduce_add(),
-						select(mask, buffer2.force.y, null).reduce_add(),
-						select(mask, buffer2.force.z, null).reduce_add()
-					 };
-				}
-
-				// update chunk 1
-				packed1.force +=pvec3 {
-					select(mask, buffer1.force.x, null),
-					select(mask, buffer1.force.y, null),
-					select(mask, buffer1.force.z, null)
-				};
+				for_each_pair_packed<Mask, P>(f);
 			} else {
-				// tail 1 vs tail 2 (Interaction between the two last chunks)
-				for (size_t i = 0; i < limit1_tail; ++i) {
-					auto p1 = container.template at<Mask>(c1_body_end, i);
-					for (size_t j = 0; j < limit2_tail; ++j) {
-						auto p2 = container.template at<Mask>(c2_body_end, j);
-						f(p1, p2);
-					}
-				}
+				for_each_pair_scalar<Mask, P>(f);
 			}
 		}
 
@@ -202,8 +34,276 @@ namespace april::container::batching {
 		math::Range range2_chunks;
 		size_t range2_tail{};
 	private:
-		Container & container;
-		ChunkPtr * AP_RESTRICT const chunks = container.ptr_chunks;
+   		Container & container;
+   		ChunkPtr * AP_RESTRICT const chunks = container.ptr_chunks;
+
+   		static constexpr size_t chunk_size = Container::chunk_size;
+   		static constexpr size_t packed_size = packed::size();
+
+   		template<ParticleField Mask, ParallelPolicy P>
+   		void for_each_pair_scalar (auto && f) const {
+   			// peel of last chunk (i.e. the tail)
+   			const size_t c1_body_end = range1_chunks.stop - 1;
+   			const size_t c2_body_end = range2_chunks.stop - 1;
+
+   			// if tail is 0, it means the chunk is actually full (stride)
+   			const size_t limit1_tail = (range1_tail == 0) ? chunk_size : range1_tail;
+   			const size_t limit2_tail = (range2_tail == 0) ? chunk_size : range2_tail;
+
+   			for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
+   				AP_PREFETCH(chunks + c1 + 1);
+
+   				for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
+   					AP_PREFETCH(chunks + c2 + 1);
+
+   					for (size_t i = 0; i < chunk_size; ++i) {
+   						auto p1 = container.template at<Mask>(c1, i);
+   						for (size_t j = 0; j < chunk_size; ++j) {
+   							auto p2 = container.template at<Mask>(c2, j);
+   							f(p1, p2);
+   						}
+   					}
+   				}
+   			}
+
+   			// body 1 vs tail 2 (iterate full chunks of R1 against the single partial chunk of R2)
+   			for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
+   				AP_PREFETCH(chunks + c1 + 1);
+   				for (size_t i = 0; i < chunk_size; ++i) {
+   					auto p1 = container.template at<Mask>(c1, i);
+   					for (size_t j = 0; j < limit2_tail; ++j) {
+   						auto p2 = container.template at<Mask>(c2_body_end, j);
+   						f(p1, p2);
+   					}
+   				}
+   			}
+
+   			// body 2 vs tail 1 (iterate full chunks of R2 against the single partial chunk of R1
+   			for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
+   				AP_PREFETCH(chunks + c2 + 1);
+   				for (size_t i = 0; i < limit1_tail; ++i) {
+   					auto p1 = container.template at<Mask>(c1_body_end, i);
+   					for (size_t j = 0; j < chunk_size; ++j) {
+   						auto p2 = container.template at<Mask>(c2, j);
+   						f(p1, p2);
+   					}
+   				}
+   			}
+
+
+   			// tail 1 vs tail 2 (Interaction between the two last chunks)
+   			for (size_t i = 0; i < limit1_tail; ++i) {
+   				auto p1 = container.template at<Mask>(c1_body_end, i);
+   				for (size_t j = 0; j < limit2_tail; ++j) {
+   					auto p2 = container.template at<Mask>(c2_body_end, j);
+   					f(p1, p2);
+   				}
+   			}
+   		}
+
+
+   		template<ParticleField Mask, ParallelPolicy P>
+   		void for_each_pair_packed (auto && f) const {
+   			// handle full chunks masquerading as 0-length tails
+   			const size_t tail1 = (range1_tail == 0) ? chunk_size : range1_tail;
+   			const size_t tail2 = (range2_tail == 0) ? chunk_size : range2_tail;
+
+   			// calculate exact index limits
+   			const size_t full_tail_end1 = (tail1 / packed_size) * packed_size;
+   			const size_t full_tail_end2 = (tail2 / packed_size) * packed_size;
+
+   			// Define the ranges
+   			// range of full chunks (tail chunks peeled off).Iterates over chunks
+   			const math::Range full_chunks1 = {range1_chunks.start, range1_chunks.stop - 1};
+   			const math::Range full_chunks2 = {range2_chunks.start, range2_chunks.stop - 1};
+
+   			// range of full simd widths inside tail chunks. Iterates in packed_size steps
+   			const math::Range full_tail1 = {0, full_tail_end1, packed_size};
+   			const math::Range full_tail2 = {0, full_tail_end2, packed_size};
+
+   			// number of particles at the end of each tail-tail. Iterates over individual particles
+   			const math::Range partial_tail1 = {full_tail_end1, tail1};
+   			const math::Range partial_tail2 = {full_tail_end2, tail2};
+
+
+   			// helper for full n x n kernel
+   			auto interact = [&](auto & buffer1, auto & buffer2) {
+   				AP_UNROLL_LOOP_N(packed_size)
+				for (size_t k = 0; k < packed_size; k++) {
+					f(buffer1, buffer2);
+					buffer2.rotate_right();
+				}
+   			};
+
+
+			// full chunks + full tails vs full chunks + full tails (body vs body)
+   			// iterate range1
+   			for (size_t c1 : full_chunks1) {
+   				AP_PREFETCH(chunks + c1 + 1);
+   				AP_UNROLL_LOOP()
+				for (size_t i = 0; i < chunk_size; i+= packed_size) {
+					auto packed1 = container.template at_packed<Mask>(c1, i);
+					auto buffer1 = packed1.load_buffer();
+
+					// iterate range2
+					for (size_t c2 : full_chunks2) {
+				   		AP_PREFETCH(chunks + c2 + 1);
+				   		AP_UNROLL_LOOP()
+						for (size_t j = 0; j < chunk_size; j+= packed_size) {
+							auto packed2 = container.template at_packed<Mask>(c2, j);
+							auto buffer2 = packed2.load_buffer();
+
+							interact(buffer1, buffer2);
+							packed2.force = buffer2.force;
+						}
+				   	}
+
+					// iterate over packed widths in tail 2
+					for (size_t t2 : full_tail2) {
+						auto packed2 = container.template at_packed<Mask>(full_chunks2.stop, t2);
+						auto buffer2 = packed2.load_buffer();
+
+						interact(buffer1, buffer2);
+						packed2.force = buffer2.force;
+					}
+
+				   	packed1.force = buffer1.force;
+				}
+   			}
+
+   			// iterate over packed widths in tail 1
+   			for (size_t t1 : full_tail1) {
+   				auto packed1 = container.template at_packed<Mask>(full_chunks1.stop, t1);
+   				auto buffer1 = packed1.load_buffer();
+
+   				// iterate range2
+   				for (size_t c2 : full_chunks2) {
+   					AP_PREFETCH(chunks + c2 + 1);
+   					AP_UNROLL_LOOP()
+					for (size_t j = 0; j < chunk_size; j+= packed_size) {
+						auto packed2 = container.template at_packed<Mask>(c2, j);
+						auto buffer2 = packed2.load_buffer();
+
+						interact(buffer1, buffer2);
+						packed2.force = buffer2.force;
+					}
+   				}
+
+   				// iterate over packed widths in tail 2
+   				for (size_t t2 : full_tail2) {
+   					auto packed2 = container.template at_packed<Mask>(full_chunks2.stop, t2);
+   					auto buffer2 = packed2.load_buffer();
+
+   					interact(buffer1, buffer2);
+   					packed2.force = buffer2.force;
+   				}
+
+   				packed1.force = buffer1.force;
+   			}
+
+
+   			// partial_tail2 vs (full_chunks1 + full_tail1 + partial_tail1)
+   			for (size_t i : partial_tail2) {
+   				auto p2 = container.template at<Mask>(full_chunks2.stop, i);
+   				auto buffer2 = particle::internal::PackedParticleBuffer<Mask>::broadcast(p2);
+   				buffer2.force = {0,0,0};
+
+   				// p2 vs full chunks 1
+   				for (size_t c1 : full_chunks1) {
+   					AP_PREFETCH(chunks + c1 + 1);
+   					for (size_t j = 0; j < chunk_size; j += packed_size) {
+   						auto packed1 = container.template at_packed<Mask>(c1, j);
+   						auto buffer1 = packed1.load_buffer();
+   						buffer1.force = {0,0,0};
+
+   						f(buffer1, buffer2);
+   						packed1.force += buffer1.force;
+   					}
+   				}
+
+   				// p2 vs full tail 1
+   				for (size_t t1 : full_tail1) {
+   					auto packed1 = container.template at_packed<Mask>(full_chunks1.stop, t1);
+   					auto buffer1 = packed1.load_buffer();
+   					buffer1.force = {0,0,0};
+
+   					f(buffer1, buffer2);
+   					packed1.force += buffer1.force;
+   				}
+
+   				p2.force.x += buffer2.force.x.reduce_add();
+   				p2.force.y += buffer2.force.y.reduce_add();
+   				p2.force.z += buffer2.force.z.reduce_add();
+
+   				// p2 vs partial tail 1 (Handles the partial vs partial interaction)
+   				if (partial_tail1.start != partial_tail1.stop) {
+   					buffer2.force = {};
+
+   					alignas(64) double idx_arr[packed_size];
+   					for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
+   					const auto lane_indices = packed::load_aligned(idx_arr);
+   					const auto mask = lane_indices < static_cast<double>(partial_tail1.size());
+
+   					const packed null = 0.0;
+
+   					auto packed1 = container.template at_packed<Mask>(full_chunks1.stop, full_tail1.stop);
+   					auto buffer1 = packed1.load_buffer();
+   					buffer1.force = {0,0,0};
+
+   					f(buffer1, buffer2);
+
+   					// update partial tail 1
+   					packed1.force += pvec3 {
+   						select(mask, buffer1.force.x, null),
+						   select(mask, buffer1.force.y, null),
+						   select(mask, buffer1.force.z, null)
+					   };
+
+   					p2.force += vec3 {
+   						select(mask, buffer2.force.x, null).reduce_add(),
+						select(mask, buffer2.force.y, null).reduce_add(),
+						select(mask, buffer2.force.z, null).reduce_add()
+					};
+   				}
+   			}
+
+
+   			// partial_tail1 vs (full_chunks2 + full_tail2)
+   			for (size_t i : partial_tail1) {
+   				auto p1 = container.template at<Mask>(full_chunks1.stop, i);
+   				auto buffer1 = particle::internal::PackedParticleBuffer<Mask>::broadcast(p1);
+   				buffer1.force = {0,0,0};
+
+   				// p1 vs full chunks 2
+   				for (size_t c2 : full_chunks2) {
+   					AP_PREFETCH(chunks + c2 + 1);
+
+   					for (size_t j = 0; j < chunk_size; j += packed_size) {
+   						auto packed2 = container.template at_packed<Mask>(c2, j);
+   						auto buffer2 = packed2.load_buffer();
+   						buffer2.force = {0,0,0};
+
+   						f(buffer1, buffer2);
+   						packed2.force += buffer2.force;
+   					}
+   				}
+
+   				// p1 vs full tail 2
+   				for (size_t t2 : full_tail2) {
+   					auto packed2 = container.template at_packed<Mask>(full_chunks2.stop, t2);
+   					auto buffer2 = packed2.load_buffer();
+   					buffer2.force = {0,0,0};
+
+   					f(buffer1, buffer2);
+   					packed2.force += buffer2.force;
+   				}
+
+   				// Accumulate p1 forces (partial-vs-partial is omitted because Block 1 handled it).
+   				p1.force.x += buffer1.force.x.reduce_add();
+   				p1.force.y += buffer1.force.y.reduce_add();
+   				p1.force.z += buffer1.force.z.reduce_add();
+   			}
+   		}
 	};
 
 
@@ -218,12 +318,12 @@ namespace april::container::batching {
 		void for_each_pair (Func && f) const {
 	        if (range_chunks.start == range_chunks.stop) return;
 
-	        constexpr size_t simd_width = Container::chunk_size;
-			constexpr bool vectorize = static_cast<bool>(E & exec::internal::ExecutionMode::Vector);
+			// constexpr bool vectorize = static_cast<bool>(E & exec::internal::ExecutionMode::Vector);
+			constexpr bool vectorize = false;//static_cast<bool>(E & exec::internal::ExecutionMode::Vector);
 
 			// peel of last chunk (i.e. the tail)
 	        const size_t c_body_end = range_chunks.stop - 1;
-	        const size_t limit_tail = (range_tail == 0) ? simd_width : range_tail;
+	        const size_t limit_tail = (range_tail == 0) ? packed_size : range_tail;
 
 	        // body (iterate c1 up to the last full chunk)
 			if constexpr (vectorize) {
@@ -239,14 +339,14 @@ namespace april::container::batching {
 						buffer2.force = {0,0,0};
 
 						AP_UNROLL_LOOP()
-						for (size_t i = 0; i < simd_width/2 - 1; i++) {
+						for (size_t i = 0; i < packed_size/2 - 1; i++) {
 							buffer2.rotate_right();
 							f(buffer1, buffer2);
 						}
 
-						packed1.force.x += buffer2.force.x.template rotate_left<simd_width/2 - 1>();
-						packed1.force.y += buffer2.force.y.template rotate_left<simd_width/2 - 1>();
-						packed1.force.z += buffer2.force.z.template rotate_left<simd_width/2 - 1>();
+						packed1.force.x += buffer2.force.x.template rotate_left<packed_size/2 - 1>();
+						packed1.force.y += buffer2.force.y.template rotate_left<packed_size/2 - 1>();
+						packed1.force.z += buffer2.force.z.template rotate_left<packed_size/2 - 1>();
 
 						buffer2.rotate_right();
 						f(buffer1, buffer2);
@@ -260,8 +360,8 @@ namespace april::container::batching {
 						auto packed2 = container.template at_packed<Mask>(c2, 0);
 						auto buffer2 = packed2.load_buffer();
 
-						AP_UNROLL_LOOP_N(simd_width)
-						for (size_t k = 0; k < simd_width; k++) {
+						AP_UNROLL_LOOP_N(packed_size)
+						for (size_t k = 0; k < packed_size; k++) {
 							f(buffer1, buffer2);
 							buffer2.template rotate_right<1>();
 						}
@@ -275,9 +375,9 @@ namespace april::container::batching {
 		            AP_PREFETCH(chunks + c1 + 1);
 
 		            // chunk self interaction
-		            for (size_t i = 0; i < simd_width; ++i) {
+		            for (size_t i = 0; i < chunk_size; ++i) {
 		                auto p1 = container.template at<Mask>(c1, i);
-		                for (size_t j = i + 1; j < simd_width; ++j) {
+		                for (size_t j = i + 1; j < chunk_size; ++j) {
 		                     auto p2 = container.template at<Mask>(c1, j);
 		                     f(p1, p2);
 		                }
@@ -286,9 +386,9 @@ namespace april::container::batching {
 	        		// interaction with all other chunks
 		            for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
 		                AP_PREFETCH(chunks + c2 + 1);
-		                for (size_t i = 0; i < simd_width; ++i) {
+		                for (size_t i = 0; i < chunk_size; ++i) {
 		                    auto p1 = container.template at<Mask>(c1, i);
-		                    for (size_t j = 0; j < simd_width; ++j) {
+		                    for (size_t j = 0; j < chunk_size; ++j) {
 		                        auto p2 = container.template at<Mask>(c2, j);
 		                        f(p1, p2);
 		                    }
@@ -323,7 +423,7 @@ namespace april::container::batching {
 				// body vs tail (every body chunk with tail chunk)
 				for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
 				    AP_PREFETCH(chunks + c1 + 1);
-				    for (size_t i = 0; i < simd_width; ++i) {
+				    for (size_t i = 0; i < chunk_size; ++i) {
 				        auto p1 = container.template at<Mask>(c1, i);
 				        for (size_t j = 0; j < limit_tail; ++j) {
 				             auto p2 = container.template at<Mask>(c_body_end, j);
@@ -398,20 +498,20 @@ namespace april::container::batching {
 	private:
 		Container & container;
 		ChunkPtr * AP_RESTRICT const chunks = container.ptr_chunks;
+
+		static constexpr size_t chunk_size = Container::chunk_size;
+		static constexpr size_t packed_size = packed::size();
+
+		template<ParticleField Mask, ParallelPolicy P>
+		void for_each_pair_scalar (auto && ) const {
+
+		}
+
+		template<ParticleField Mask, ParallelPolicy P>
+		void for_each_pair_packed (auto && ) const {
+
+		}
 	};
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 

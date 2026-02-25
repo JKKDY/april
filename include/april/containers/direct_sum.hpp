@@ -20,8 +20,8 @@ namespace april {
     class DirectSum<Layout::SoA> : public container::DirectSumSoA
     {};
 
-    template<>
-    class DirectSum<Layout::AoSoA<>> : public container::DirectSumAoSoA<8>
+    template<uint8_t ChunkSize>
+    class DirectSum<Layout::AoSoA<ChunkSize>> : public container::DirectSumAoSoA<ChunkSize>
     {};
 
 }

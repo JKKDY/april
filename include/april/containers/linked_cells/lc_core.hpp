@@ -8,7 +8,7 @@
 
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
-#include "../../core/domain.hpp"
+#include "april/core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
 
 namespace april::container::internal {

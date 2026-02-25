@@ -236,7 +236,6 @@ namespace april::simd::internal::xsimd {
 
     static_assert(IsSimdType<Packed<double>>);
     static_assert(IsSimdMask<Mask<double>>);
-
     static_assert(IsSimdType<Packed<float>>);
 
 }

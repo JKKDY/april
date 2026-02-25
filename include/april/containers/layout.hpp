@@ -10,7 +10,8 @@ namespace april {
             constexpr size_t simd_width = packed::size();
 
             // # elements to fill a standard cache line
-            constexpr size_t cache_line_elements = 64 / sizeof(packed::native_type);
+            constexpr size_t cache_line_elements = 64 / sizeof(packed::value_type);
+            // static_assert(sizeof(packed::scalar_type) == 4);
 
             // chunk size must be at least a cache line
             return std::max(simd_width, cache_line_elements);

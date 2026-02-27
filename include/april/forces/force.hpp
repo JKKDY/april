@@ -21,6 +21,7 @@ namespace april::force {
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
         // template<ParticleField IncomingMask, env::IsUserData U>
+        AP_FORCE_INLINE
         auto operator()(this const auto& self,
                 const auto & p1,
                 const auto & p2,

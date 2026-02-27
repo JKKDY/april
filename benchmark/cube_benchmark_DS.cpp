@@ -21,6 +21,8 @@ static constexpr double Lz = (NZ - 1) * a;
 
 int main() {
 	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/bench";
+	remove_all(dir_path);   // delete the directory and all contents
+	create_directory(dir_path); // recreate the empty directory
 	const vec3 box = {Lx, Ly, Lz};
 
 	ParticleCuboid grid = ParticleCuboid{}
@@ -49,9 +51,10 @@ int main() {
 		constexpr double dt = 0.0002;
 		constexpr int steps  = 1000;
 
-		VelocityVerlet integrator(system, monitors<Benchmark>);
+		VelocityVerlet integrator(system, monitors<Benchmark, BinaryOutput>);
 		integrator.add_monitor(Benchmark());
 		// integrator.add_monitor(ProgressBar(Trigger::every(200)));
+		integrator.add_monitor(BinaryOutput(Trigger::every(10), dir_path.c_str()));
 		integrator.run_for_steps(dt, steps);
 
 	}

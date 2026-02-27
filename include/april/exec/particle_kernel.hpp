@@ -6,7 +6,7 @@
 
 namespace april {
     namespace exec::internal {
-        // check that we can call Func with he provided args with or without a template bool
+        // check that we can call Func with the provided args with or without a template bool
         template<typename Func, typename... Args>
         concept IsKernelInvocable =
         requires(const Func& f, Args&&... args) {
@@ -42,9 +42,9 @@ namespace april {
 
 
         // specialization aliases
-        template<typename F> using ScalarKernel    = KernelWrapper< ExecutionMode::Scalar, std::remove_cvref_t<F>>;
-        template<typename F> using VectorKernel    = KernelWrapper< ExecutionMode::Vector, std::remove_cvref_t<F>>;
-        template<typename F> using UniversalKernel = KernelWrapper< ExecutionMode::Scalar| ExecutionMode::Vector, std::remove_cvref_t<F>>;
+        template<typename F> using ScalarKernel    = KernelWrapper<ExecutionMode::Scalar, std::remove_cvref_t<F>>;
+        template<typename F> using VectorKernel    = KernelWrapper<ExecutionMode::Vector, std::remove_cvref_t<F>>;
+        template<typename F> using UniversalKernel = KernelWrapper<ExecutionMode::Hybrid, std::remove_cvref_t<F>>;
 
 
         // Trait to identify if a type is one of our specific wrappers

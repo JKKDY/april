@@ -89,7 +89,7 @@ namespace april::simd {
 
         // Copy from Proxy (Value Copy, with self-assignment check)
         PackedRef& operator=(const PackedRef& other) {
-            if (*this != other) {
+            if (this->ptr != other.ptr) {
                 PackedT::load(other.ptr).store(ptr);
             }
             return *this;

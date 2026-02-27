@@ -80,6 +80,7 @@ namespace april::simd::internal::xsimd {
         >;
 
         static constexpr size_t size() { return native_type::size; }
+        static constexpr size_t alignment() noexcept { return ::xsimd::default_arch::alignment(); }
 
         Packed() = default;
         Packed(T scalar) : data(scalar) {}

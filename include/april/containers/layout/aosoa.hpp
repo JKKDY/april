@@ -96,7 +96,7 @@ namespace april::container::layout {
 			}
 		}
 
-		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
+		template<ParticleField M, ParallelPolicy P, exec::internal::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
 		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
 			const auto [start_chunk, start_idx] = self.locate(start);
 			const auto [end_chunk, end_idx] = self.locate(end);

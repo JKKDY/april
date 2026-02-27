@@ -17,8 +17,6 @@
 
 
 
-
-
 namespace april::container {
 
 	namespace internal {
@@ -307,43 +305,52 @@ namespace april::container {
 		const force::internal::InteractionSchema force_schema;
 		const core::Box domain; // Note: in the future this may be adjustable during run time
 
-		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
-		void invoke_iterate_range(this auto&& self, Kernel && func, size_t start, size_t end) {
+		template<exec::IsKernel Kernel>
+		static auto wrap_iter_kernel(Kernel && kernel) {
 			auto bridge = [&](size_t i, auto && p) {
-				if constexpr (requires { func(i, p); }) {
-					return func(i, p); // user wants index
+				if constexpr (requires { kernel(i, p); }) {
+					return kernel(i, p); // user wants index
 				} else {
-					return func(p); // user only wants particle
+					return kernel(p); // user only wants particle
 				}
 			};
+			return exec::internal::KernelWrapper<std::remove_cvref_t<Kernel>::Mode, decltype(bridge)>{bridge};
+		}
 
-			// auto kernel = exec::internal::KernelWrapper<Kernel::Mode, decltype(bridge)>{bridge};
-			auto kernel = exec::internal::KernelWrapper<std::remove_cvref_t<Kernel>::Mode, decltype(bridge)>{bridge};
-			self.template iterate_range<M, P, V, is_const>(kernel, start, end);
+		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
+		void invoke_iterate_range(this auto&& self, Kernel && func, size_t start, size_t end) {
+			constexpr auto mode = exec::internal::resolve_execution_mode<V, std::remove_cvref_t<Kernel>::Mode>();
+			auto kernel = wrap_iter_kernel(func);
+			self.template iterate_range<M, P, mode, is_const>(kernel, start, end);
 		}
 
 		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
 		void invoke_iterate_state(this auto&& self, Kernel && func, const ParticleState state) {
-			auto kernel = universal_kernel([&](size_t i, auto && p) {
-				if constexpr (requires { func(i, p); }) {
-					func(i, p); // user wants index
-				} else {
-					func(p); // user only wants particle
-				}
-			});
+			auto kernel = wrap_iter_kernel(func);
+			constexpr auto mode = exec::internal::resolve_execution_mode<V, std::remove_cvref_t<Kernel>::Mode>();
 
-			// try optimized implementation. Else fallback to default. Default assumes valid data for the entire iteration range
+			// try optimized implementation else fallback to default. Default assumes valid data for the entire iteration range
 			if constexpr (requires {self.template iterate<M, P, V, is_const>(kernel, state);}) {
-				self.template iterate<M, P, V, is_const>(kernel, state);
+				self.template iterate<M, P, mode, is_const>(kernel, state);
 			} else {
 				// note: iterate_range makes no checks so if it encounters memory that cannot be interpreted as
-				// particle data or memory it is not allowed to access it can crash.
-				self.template iterate_range<M | ParticleField::state, P, V, is_const>(universal_kernel(
-					[&](size_t i, auto && p) {
-					if (self.index_is_valid(i) && static_cast<int>(p.state & state)) {
-						kernel(i, p);
+				// particle data or memory it is not allowed to access it can crash
+				// meaning the following default implementation is only safe if the container can guarantee that
+				// only valid memory will be accessed (AoS, SoA, AoSoA support this)
+				// the user may still need to implement extra functionality to guard against sentinel data
+
+				auto state_filter = [&](size_t i, auto && p) {
+					if constexpr (particle::IsPackedParticleAccessor<decltype(p)>) {
+						kernel(i, p); // TODO add state checking for vectorized kernels (add a mask member to packed accessors?)
+					} else {
+						if (self.index_is_valid(i) && static_cast<int>(p.state & state)) {
+							kernel(i, p);
+						}
 					}
-				}), 0, self.capacity());
+				};
+
+				self.template iterate_range<M | ParticleField::state, P, mode, is_const>(
+					exec::internal::KernelWrapper<mode,decltype(state_filter)>(state_filter), 0, self.capacity());
 			}
 		}
 

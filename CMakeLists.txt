@@ -106,7 +106,6 @@ function(set_target_build_flags target_name)
                 -O3                      # Maximum optimization level
                 -march=native            # Use all CPU instructions available on host
 #            -march=haswell        # AVX2 + FMA, no AVX-512
-#            -mno-avx512f          # Hard-disable AVX-512
                 -ffast-math              # Allow unsafe floating-point optimizations for speed
 #                 -flto                  # Link-time optimization
                 -fomit-frame-pointer     # Omit frame pointer for slightly faster calls

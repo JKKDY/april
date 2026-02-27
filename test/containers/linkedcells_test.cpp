@@ -67,9 +67,13 @@ using ContainerConfigurations = testing::Types<
 	TestConfig<LinkedCells<Layout::SoA>, OrderHilbert>,
 
 	// AoSoA Combinations
-	TestConfig<LinkedCells<Layout::AoSoA<>>, OrderDefault>,
-	TestConfig<LinkedCells<Layout::AoSoA<>>, OrderMorton>,
-	TestConfig<LinkedCells<Layout::AoSoA<>>, OrderHilbert>
+	TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderDefault>,
+	TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderMorton>,
+	TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderHilbert>,
+
+	TestConfig<LinkedCells<Layout::AoSoA<16>>, OrderDefault>,
+	TestConfig<LinkedCells<Layout::AoSoA<16>>, OrderMorton>,
+	TestConfig<LinkedCells<Layout::AoSoA<16>>, OrderHilbert>
 >;
 
 template <typename LinkedCellsT>

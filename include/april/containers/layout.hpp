@@ -21,7 +21,7 @@ namespace april {
     struct Layout {
         struct AoS {};
         struct SoA {};
-        template<uint8_t ChunkSize = 16> struct AoSoA {
+        template<uint8_t ChunkSize = internal::default_chunk_size()> struct AoSoA {
             static constexpr uint8_t chunk_size = ChunkSize;
         };
     };

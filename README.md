@@ -34,7 +34,7 @@ int main() {
         .with_boundaries(Open(), all_faces); 
 
     // 2) Choose a container (force calculation strategy)
-    auto container = DirectSumAoS();
+    auto container = DirectSum();
     auto system = build_system(env, container); // "compilation step"
 
     // 3)  Integrate and write output
@@ -161,7 +161,7 @@ int main() {
 		.with_boundaries(Reflective(), all_faces);
 
 	// 3) Build the system (using Linked Cells for O(N) scaling)
-	auto container = LinkedCellsAoS();
+	auto container = LinkedCells();
 	auto system = build_system(env, container);
 
 	// 4) Run the simulation

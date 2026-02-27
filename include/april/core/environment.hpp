@@ -22,7 +22,6 @@ namespace april {
     struct between_types { ParticleType t1, t2; };
     struct between_ids { ParticleID id1, id2; };
 
-
     template<
         force::internal::IsForcePack FPack,
         boundary::internal::IsBoundaryPack BPack,

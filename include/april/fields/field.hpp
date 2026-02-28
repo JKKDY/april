@@ -22,36 +22,12 @@ namespace april::field {
 			}
 		}
 
-		template<particle::IsParticleAttributes U, particle::internal::HasFields Self>
-		void dispatch_apply(this const Self& self, const particle::internal::ScalarRestrictedParticleRef<particle::internal::FieldOf<Self>, U> & particle) {
+		template<particle::internal::HasFields Self>
+		void dispatch_apply(this const Self& self, const auto & particle) {
 			static_assert(
 				requires { self.apply(particle); },
 				"Field must implement: void apply(env::RestrictedParticleRef<M, U> particle) const"
 			);
-			self.apply(particle);
-		}
-
-		template<ParticleField M, particle::IsParticleAttributes U>
-		void invoke_apply(this const auto& self, particle::internal::ScalarRestrictedParticleRef<M, U> & particle) {
-			static_assert(
-				requires { self.apply(particle); },
-				"Field must implement: void apply(env::RestrictedParticleRef<M, U> & particle) const"
-			);
-
-			using Derived = std::remove_cvref_t<decltype(self)>;
-
-			static_assert(
-				requires { Derived::fields; },
-				"Field subclass must define 'static constexpr env::Field fields'"
-			);
-
-			constexpr ParticleField Required = Derived::fields;
-
-			static_assert(
-				(M & Required) == Required,
-				"ParticleView is missing required fields for this Field."
-			);
-
 			self.apply(particle);
 		}
 	};

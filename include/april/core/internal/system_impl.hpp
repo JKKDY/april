@@ -254,13 +254,20 @@ namespace april {
 	//-------------
 	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::apply_force_fields() {
-		fields.for_each_item([this]<typename F>(F & field) {
-			for (size_t i = 0; i < size(); ++i) {
-				constexpr ParticleField M = F::fields;
-				auto restricted = particle_container.template restricted_at<M>(i);
-				field.dispatch_apply(restricted);
-			}
+		fields.for_each_item([&]<typename F>(F & field) {
+			for_each_particle<F::fields>(scalar_kernel(
+				[&](auto && p) {
+					field.dispatch_apply(p);
+				})
+			);
 		});
+
+			// for (size_t i = 0; i < size(); ++i) {
+			// 	constexpr ParticleField M = F::fields;
+			// 	auto restricted = particle_container.template restricted_at<M>(i);
+			// 	field.dispatch_apply(restricted);
+			// }
+		// });
 	}
 
 

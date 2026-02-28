@@ -54,12 +54,12 @@ int main() {
 		.with_controller(thermostat)
 		.with_field(gravity);
 
-	auto container = LinkedCells<Layout::AoSoA<>>();
+	auto container = LinkedCells<Layout::AoS>();
 	auto system = build_system(env, container);
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
 		.with_monitor(Benchmark())
-		.with_monitor(BinaryOutput(Trigger::every(500), dir_path.string()))
+		.with_monitor(BinaryOutput(Trigger::every(100), dir_path.string()))
 		.with_monitor(ProgressBar(Trigger::every(100)))
 		.with_dt(0.0002)
 		.for_duration(50)

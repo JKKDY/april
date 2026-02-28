@@ -10,8 +10,7 @@ namespace april {
 
 		explicit UniformField(const vec3 & force_dir): force(force_dir) {}
 
-		template<particle::IsParticleAttributes U>
-		void apply(const particle::internal::ScalarRestrictedParticleRef<fields, U> & particle) const {
+		void apply(const auto & particle) const {
 			particle.force += force;
 		}
 

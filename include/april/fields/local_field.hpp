@@ -13,8 +13,7 @@ namespace april {
 		force(force_dir), region(core::Box::from_domain(domain)), start(start_time), stop(stop_time), active(start_time == 0) {}
 
 
-		template<particle::IsParticleAttributes U>
-		void apply(const particle::internal::ScalarRestrictedParticleRef<fields, U> & particle) const {
+		void apply(const auto & particle) const {
 			if (active && region.contains(particle.position))
 				particle.force += force;
 		}

@@ -201,6 +201,7 @@ namespace april {
 					// with the equation y = t * diff + p where:
 					// diff is the path traveled, p is the particles starting position and y is the face
 
+					// TODO Review for numerical robustness
 					const int ax = boundary::axis_of_face(face);
 					const vec3 diff = particle.position - particle.old_position;
 					const double y = diff[ax] < 0 ? domain_box.min[ax] : domain_box.max[ax];
@@ -218,7 +219,7 @@ namespace april {
 						if (compiled_boundary.topology.may_change_particle_position) {
 							particles_to_update_buffer.push_back(p_idx);
 						}
-						}
+					}
 				}
 			};
 

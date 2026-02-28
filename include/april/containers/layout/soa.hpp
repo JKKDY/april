@@ -3,7 +3,7 @@
 #include "april/containers/container.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/particle/particle.hpp"
-#include "../../exec/policy.hpp"
+#include "april/exec/policy.hpp"
 
 
 namespace april::container::layout {
@@ -137,68 +137,6 @@ namespace april::container::layout {
             }
         }
 
-        template<ParticleField M, ParallelPolicy P, exec::internal::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
-        void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
-
-            if constexpr (E == exec::internal::ExecutionMode::Scalar) {
-                for (size_t i = start; i < end; i++) {
-                    if constexpr (is_const) {
-                        kernel(i, self.template view<M>(i));
-                    } else {
-                        kernel(i, self.template at<M>(i));
-                    }
-                }
-            }
-
-            else if constexpr (E == exec::internal::ExecutionMode::Vector) {
-                for (size_t i = start; i < end; i+=packed::size()) {
-                    AP_ASSERT(i % packed::alignment() == 0, "In vectorized execution start must be aligned to the packed type");
-                    if constexpr (is_const) {
-                        kernel(i, self.template view_packed<M>(i));
-                    } else {
-                        kernel(i, self.template at_packed<M>(i));
-                    }
-                }
-            }
-
-            else if constexpr (E == exec::internal::ExecutionMode::Hybrid) {
-                // head
-                constexpr size_t alignment = packed::alignment();
-                const size_t head_end = (start % alignment == 0) ? start : std::min(end, start + (alignment - (start % alignment)));
-
-                for (size_t i = start; i < head_end; ++i) {
-                    if constexpr (is_const) {
-                        kernel(i, self.template view<M>(i));
-                    } else {
-                        kernel(i, self.template at<M>(i));
-                    }
-                }
-
-                // body
-                constexpr size_t vector_size = packed::size();
-                const size_t body_start = head_end;
-                const size_t body_end = body_start + ((end - body_start) / vector_size) * vector_size;
-
-                for (size_t i = body_start; i < body_end; i += vector_size) {
-                    // i is now guaranteed to be aligned
-                    AP_ASSERT(i % alignment == 0, "In vectorized execution, index must be aligned");
-                    if constexpr (is_const) {
-                        kernel(i, self.template view_packed<M>(i));
-                    } else {
-                        kernel(i, self.template at_packed<M>(i));
-                    }
-                }
-
-                // tail
-                for (size_t i = body_end; i < end; ++i) {
-                    if constexpr (is_const) {
-                        kernel(i, self.template view<M>(i));
-                    } else {
-                        kernel(i, self.template at<M>(i));
-                    }
-                }
-            }
-        }
 
 
         // INDEXING
@@ -325,20 +263,73 @@ namespace april::container::layout {
             else if constexpr (F == ParticleField::attributes) return self.data.ptr_attributes + i;
         }
 
+
+        template<ParticleField M, ParallelPolicy P, exec::internal::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
+        void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+
+            if constexpr (E == exec::internal::ExecutionMode::Scalar) {
+                for (size_t i = start; i < end; i++) {
+                    if constexpr (is_const) {
+                        kernel(i, self.template view<M>(i));
+                    } else {
+                        kernel(i, self.template at<M>(i));
+                    }
+                }
+            }
+
+            else if constexpr (E == exec::internal::ExecutionMode::Vector) {
+                for (size_t i = start; i < end; i+=packed::size()) {
+                    AP_ASSERT(start % packed::alignment() == 0, "In vectorized execution start must be aligned to the packed type");
+                    if constexpr (is_const) {
+                        kernel(i, self.template view_packed<M>(i));
+                    } else {
+                        kernel(i, self.template at_packed<M>(i));
+                    }
+                }
+            }
+
+            else if constexpr (E == exec::internal::ExecutionMode::Hybrid) {
+                // head
+                constexpr size_t vector_size = packed::size();
+                const size_t remainder = start % vector_size;
+                const size_t head_end = (remainder == 0) ? start : std::min(end, start + (vector_size - remainder));
+
+                for (size_t i = start; i < head_end; ++i) {
+                    if constexpr (is_const) {
+                        kernel(i, self.template view<M>(i));
+                    } else {
+                        kernel(i, self.template at<M>(i));
+                    }
+                }
+
+                // body
+                const size_t body_start = head_end;
+                const size_t body_end = body_start + ((end - body_start) / vector_size) * vector_size;
+
+                for (size_t i = body_start; i < body_end; i += vector_size) {
+                    // i is now guaranteed to be aligned
+                    AP_ASSERT(i % alignment == 0, "In vectorized execution, index must be aligned");
+                    if constexpr (is_const) {
+                        kernel(i, self.template view_packed<M>(i));
+                    } else {
+                        kernel(i, self.template at_packed<M>(i));
+                    }
+                }
+
+                // tail
+                for (size_t i = body_end; i < end; ++i) {
+                    if constexpr (is_const) {
+                        kernel(i, self.template view<M>(i));
+                    } else {
+                        kernel(i, self.template at<M>(i));
+                    }
+                }
+            }
+        }
+
     private:
         std::vector<batching::TopologyBatch> topology_batches;
     };
 }
-
-
-
-
-
-
-
-
-
-
-
 
 

@@ -44,17 +44,6 @@ namespace april::container::layout {
 			}
 		}
 
-		template<ParticleField M, ParallelPolicy P, exec::internal::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
-		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
-			static_assert(V != exec::internal::ExecutionMode::Vector, "AoS cannot be vectorized. Change the vector policy to scalar or auto.");
-			for (size_t i = start; i < end; i++) {
-				if constexpr (is_const) {
-					kernel(i, self.template view<M>(i));
-				} else {
-					kernel(i, self.template at<M>(i));
-				}
-			}
-		}
 
 		// INDEXING
 		[[nodiscard]] size_t id_to_index(const ParticleID id) const {
@@ -166,19 +155,21 @@ namespace april::container::layout {
 			else if constexpr (F == ParticleField::attributes)		return &self.particles[i].attributes;
 		}
 
+		template<ParticleField M, ParallelPolicy P, exec::internal::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
+		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+			static_assert(V != exec::internal::ExecutionMode::Vector, "AoS cannot be vectorized. Change the vector policy to scalar or auto.");
+			for (size_t i = start; i < end; i++) {
+				if constexpr (is_const) {
+					kernel(i, self.template view<M>(i));
+				} else {
+					kernel(i, self.template at<M>(i));
+				}
+			}
+		}
+
 	private:
 		std::vector<batching::TopologyBatch> topology_batches;
 	};
 }
-
-
-
-
-
-
-
-
-
-
 
 

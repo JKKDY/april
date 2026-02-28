@@ -37,7 +37,6 @@ int main() {
 	const vec3 extent = 1.5 * box;
 	const vec3 origin = - 0.5 * extent;
 
-	std::cout << packed::size() << std::endl;
 	for (int i = 0; i < 1; i++) {
 		Environment env (forces<LennardJones>, boundaries<ReflectiveBoundary>);
 		env.add_particles(grid);

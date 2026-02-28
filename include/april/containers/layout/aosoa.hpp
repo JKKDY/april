@@ -53,13 +53,13 @@ namespace april::container::layout {
 	};
 
 
-	template<typename Config, particle::IsParticleAttributes A, size_t ChunkSize>
-	class AoSoA : public Container<Config, A> {
+	template<typename Config, particle::IsParticleAttributes Attributes, size_t ChunkSize>
+	class AoSoA : public Container<Config, Attributes> {
 	public:
 		static constexpr size_t chunk_size = ChunkSize;
-		using ChunkT = ParticleChunk<A, chunk_size>;
+		using ChunkT = ParticleChunk<Attributes, chunk_size>;
 
-		using Base = Container<Config, A>;
+		using Base = Container<Config, Attributes>;
 		using Base::force_schema;
 		using Base::Base; // Inherit constructors
 		friend Base;
@@ -88,7 +88,6 @@ namespace april::container::layout {
 			}
 		}
 
-
 		template<typename Func>
 		void for_each_topology_batch(Func && func) {
 			for (const auto & batch : topology_batches) {
@@ -96,88 +95,32 @@ namespace april::container::layout {
 			}
 		}
 
-		template<ParticleField M, ParallelPolicy P, exec::internal::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
-		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
-			const auto [start_chunk, start_idx] = self.locate(start);
-			const auto [end_chunk, end_idx] = self.locate(end);
-
-			size_t curr_idx = start;
-			auto * AP_RESTRICT chunks = self.ptr_chunks;
-
-			auto exec = [&](size_t c, size_t i) {
-				if constexpr (is_const) {
-					kernel(curr_idx++, self.template view<M>(c, i)); // read only
-				} else {
-					kernel(curr_idx++, self.template at<M>(c, i)); // read-write
-				}
-			};
-
-			// if start and end in the same chunk
-			if (start_chunk == end_chunk) {
-				AP_PREFETCH(chunks + start_chunk);
-				for (size_t i = start_idx; i < end_idx; ++i) {
-					exec(start_chunk, i);
-				}
-			}
-
-			// if multi chunk iteration (Head -> Body -> Tail)
-			else {
-				AP_PREFETCH(chunks + start_chunk);
-
-				// prime the pipeline for the body/tail immediately
-				if (start_chunk + 1 < end_chunk || end_idx > 0) {
-					AP_PREFETCH(chunks + start_chunk + 1);
-				}
-
-				// head
-				for (size_t i = start_idx; i < self.chunk_size; ++i) {
-					exec(start_chunk, i);
-				}
-
-				// body
-				for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
-					AP_PREFETCH(chunks + c + 1);
-
-					for (size_t i = 0; i < self.chunk_size; i++) {
-						exec(c, i);
-					}
-				}
-
-				// tail
-				if (end_idx > 0) {
-					for (size_t i = 0; i < end_idx; ++i) {
-						exec(end_chunk, i);
-					}
-				}
-			}
-		}
-
 
 		// ACCESSORS (chunk based)
 		template<ParticleField M>
 		[[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::ScalarParticleRef<M, A>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::ScalarParticleRef<M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::ScalarParticleView<M, A>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::ScalarParticleView<M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::ScalarRestrictedParticleRef<M, A>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::ScalarRestrictedParticleRef<M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::PackedParticleRef<M, A>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::PackedParticleRef<M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::PackedParticleView<M, A>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::PackedParticleView<M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::PackedRestrictedParticleRef<M, A>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::PackedRestrictedParticleRef<M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 
 
@@ -231,7 +174,7 @@ namespace april::container::layout {
 			ptr_chunks = data.data();
 		}
 
-		void build_storage(const std::vector<particle::ParticleRecord<A>>& particles) {
+		void build_storage(const std::vector<particle::ParticleRecord<Attributes>>& particles) {
 			n_particles = particles.size();
 
 			const size_t n_chunks = (n_particles + chunk_size - 1) / chunk_size;
@@ -433,7 +376,7 @@ namespace april::container::layout {
 		[[nodiscard]] auto access_particle(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-			particle::internal::ParticleSource<M, A, IsConst> src;
+			particle::internal::ParticleSource<M, Attributes, IsConst> src;
 
 			auto& chunk = self.ptr_chunks[chunk_idx];
 
@@ -458,18 +401,190 @@ namespace april::container::layout {
 
 			return src;
 		}
+
+		template<ParticleField M, ParallelPolicy P, exec::internal::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
+		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+			if constexpr (V == exec::internal::ExecutionMode::Scalar) {
+				self.template iterate_range_scalar<M, P, is_const>(std::forward<Kernel>(kernel), start, end);
+			} else if constexpr (V == exec::internal::ExecutionMode::Vector) {
+				self.template iterate_range_vector<M, P, is_const>(std::forward<Kernel>(kernel), start, end);
+			} else if constexpr (V == exec::internal::ExecutionMode::Hybrid) {
+				self.template iterate_range_hybrid<M, P, is_const>(std::forward<Kernel>(kernel), start, end);
+			}
+		}
+
+		template<ParticleField M, ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
+		AP_FORCE_INLINE void iterate_range_scalar(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+		    if (start >= end) return;
+
+		    const auto [start_chunk, start_idx] = self.locate(start);
+		    const auto [end_chunk, end_idx] = self.locate(end);
+
+		    size_t curr_idx = start;
+		    auto * AP_RESTRICT chunks = self.ptr_chunks;
+		    // constexpr size_t simd_width = packed::size();
+
+		    auto exec_scalar = [&](size_t c, size_t i) {
+		        if constexpr (is_const) kernel(curr_idx++, self.template view<M>(c, i));
+		        else kernel(curr_idx++, self.template at<M>(c, i));
+		    };
+
+		    if (start_chunk == end_chunk) {
+		        AP_PREFETCH(chunks + start_chunk);
+		        for (size_t i = start_idx; i < end_idx; ++i) {
+		            exec_scalar(start_chunk, i);
+		        }
+		    } else {
+		        AP_PREFETCH(chunks + start_chunk);
+		        if (start_chunk + 1 < end_chunk || end_idx > 0) AP_PREFETCH(chunks + start_chunk + 1);
+
+		        for (size_t i = start_idx; i < self.chunk_size; ++i) {
+		            exec_scalar(start_chunk, i);
+		        }
+
+		        for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
+		            AP_PREFETCH(chunks + c + 1);
+		            for (size_t i = 0; i < self.chunk_size; ++i) exec_scalar(c, i);
+		        }
+
+		        if (end_idx > 0) {
+		            for (size_t i = 0; i < end_idx; ++i) {
+		                exec_scalar(end_chunk, i);
+		            }
+		        }
+		    }
+		}
+
+		template<ParticleField M, ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
+		AP_FORCE_INLINE void iterate_range_vector(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+		    if (start >= end) return;
+
+		    const auto [start_chunk, start_idx] = self.locate(start);
+		    const auto [end_chunk, end_idx] = self.locate(end);
+
+		    size_t curr_idx = start;
+		    auto * AP_RESTRICT chunks = self.ptr_chunks;
+		    constexpr size_t simd_width = packed::size();
+
+		    auto exec_vector = [&](size_t c, size_t i) {
+		        if constexpr (is_const) kernel(curr_idx, self.template view_packed<M>(c, i));
+		        else kernel(curr_idx, self.template at_packed<M>(c, i));
+		        curr_idx += simd_width;
+		    };
+
+		    AP_ASSERT(start_idx % simd_width == 0, "Vector execution requires an aligned start index");
+
+		    if (start_chunk == end_chunk) {
+		        AP_PREFETCH(chunks + start_chunk);
+		        for (size_t i = start_idx; i < end_idx; i += simd_width) {
+		            exec_vector(start_chunk, i);
+		        }
+		    } else {
+		        AP_PREFETCH(chunks + start_chunk);
+		        if (start_chunk + 1 < end_chunk || end_idx > 0) AP_PREFETCH(chunks + start_chunk + 1);
+
+		        for (size_t i = start_idx; i < self.chunk_size; i += simd_width) {
+		            exec_vector(start_chunk, i);
+		        }
+
+		        for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
+		            AP_PREFETCH(chunks + c + 1);
+		            for (size_t i = 0; i < self.chunk_size; i += simd_width) {
+		                exec_vector(c, i);
+		            }
+		        }
+
+		        if (end_idx > 0) {
+		            for (size_t i = 0; i < end_idx; i += simd_width) {
+		                exec_vector(end_chunk, i);
+		            }
+		        }
+		    }
+		}
+
+		template<ParticleField M, ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
+		AP_FORCE_INLINE void iterate_range_hybrid(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+		    if (start >= end) return;
+
+		    const auto [start_chunk, start_idx] = self.locate(start);
+		    const auto [end_chunk, end_idx] = self.locate(end);
+
+		    size_t curr_idx = start;
+		    auto * AP_RESTRICT chunks = self.ptr_chunks;
+		    constexpr size_t simd_width = packed::size();
+
+		    auto exec_scalar = [&](size_t c, size_t i) {
+		        if constexpr (is_const) kernel(curr_idx++, self.template view<M>(c, i));
+		        else kernel(curr_idx++, self.template at<M>(c, i));
+		    };
+
+		    auto exec_vector = [&](size_t c, size_t i) {
+		        if constexpr (is_const) kernel(curr_idx, self.template view_packed<M>(c, i));
+		        else kernel(curr_idx, self.template at_packed<M>(c, i));
+		        curr_idx += simd_width;
+		    };
+
+		    // iterate a single chunk
+		    if (start_chunk == end_chunk) {
+		        AP_PREFETCH(chunks + start_chunk);
+
+		        const size_t head_end = (start_idx % simd_width == 0) ?
+		           start_idx : std::min(end_idx, start_idx + (simd_width - (start_idx % simd_width)));
+		        for (size_t i = start_idx; i < head_end; ++i) exec_scalar(start_chunk, i);
+
+		        const size_t body_start = head_end;
+		        const size_t body_end = body_start + ((end_idx - body_start) / simd_width) * simd_width;
+		        for (size_t i = body_start; i < body_end; i += simd_width) exec_vector(start_chunk, i);
+
+		        for (size_t i = body_end; i < end_idx; ++i) exec_scalar(start_chunk, i);
+		    } // iterate multiple chunks
+		    else {
+		        AP_PREFETCH(chunks + start_chunk);
+		        if (start_chunk + 1 < end_chunk || end_idx > 0) AP_PREFETCH(chunks + start_chunk + 1);
+
+		        // handle head chunk
+		        const size_t head_end = (start_idx % simd_width == 0) ?
+		           start_idx : (start_idx + (simd_width - (start_idx % simd_width)));
+
+		        for (size_t i = start_idx; i < head_end; ++i) {
+		            exec_scalar(start_chunk, i);
+		        }
+		        for (size_t i = head_end; i < self.chunk_size; i += simd_width) {
+		            // exec_vector(start_chunk, i);
+		        	if constexpr (is_const) kernel(curr_idx, self.template view_packed<M>(start_chunk, i));
+		        	else kernel(curr_idx, self.template at_packed<M>(start_chunk, i));
+		        	curr_idx += simd_width;
+		        }
+
+		        // body
+		        for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
+		            AP_PREFETCH(chunks + c + 1);
+		            // Guaranteed aligned inside full body chunks
+		            for (size_t i = 0; i < self.chunk_size; i += simd_width) {
+			            // exec_vector(c, i);
+		            	if constexpr (is_const) kernel(curr_idx, self.template view_packed<M>(c, i));
+		            	else kernel(curr_idx, self.template at_packed<M>(c, i));
+		            	curr_idx += simd_width;
+		            }
+		        }
+
+		        // handle tail
+		        if (end_idx > 0) {
+		            const size_t tail_body_end = (end_idx / simd_width) * simd_width;
+
+		            for (size_t i = 0; i < tail_body_end; i += simd_width) {
+		                // exec_vector(end_chunk, i);
+		            	if constexpr (is_const) kernel(curr_idx, self.template view_packed<M>(end_chunk, i));
+		            	else kernel(curr_idx, self.template at_packed<M>(end_chunk, i));
+		            	curr_idx += simd_width;
+		            }
+		            for (size_t i = tail_body_end; i < end_idx; ++i) {
+		                exec_scalar(end_chunk, i);
+		            }
+		        }
+		    }
+		}
 	};
 }
-
-
-
-
-
-
-
-
-
-
-
 
 

@@ -205,7 +205,7 @@ namespace april {
 				};
 
 				auto kernel = exec::internal::KernelWrapper<std::remove_cvref_t<Kernel>::Mode, decltype(bridge)>{bridge};
-				execute_batch_kernel<M, ParallelPolicy::Serial, VectorPolicy::Scalar>(batch,kernel);
+				execute_batch_kernel<M, ParallelPolicy::Serial, VectorPolicy::Scalar>(batch, kernel);
 			};
 
 			for_each_interaction_batch(update_batch);

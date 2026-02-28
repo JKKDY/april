@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../exec/policy.hpp"
+#include "april/exec/policy.hpp"
 
 #include "april/containers/batching/common.hpp"
 
@@ -8,7 +8,8 @@
 namespace april::container::internal {
 
 	template<typename AsymmetricBatch, typename SymmetricBatch>
-	struct LinkedCellsBatch : batching::BatchBase<exec::internal::ParallelTrait::None, exec::internal::VectorTrait::Mixed> {
+	struct LinkedCellsBatch : batching::BatchBase<exec::internal::ParallelTrait::None,
+		exec::internal::VectorTrait::ScalarOnly | exec::internal::VectorTrait::VectorOnly> {
 
 		template<ParticleField Mask, ParallelPolicy P, exec::internal::ExecutionMode E, typename Func>
 		void for_each_pair (Func && f) const {

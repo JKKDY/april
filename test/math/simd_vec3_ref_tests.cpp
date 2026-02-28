@@ -9,7 +9,7 @@ using namespace april;
 
 
 
-#if __has_include(<experimental/simd>)
+#if __has_include(<experimental/simd>) || __has_include(<simd>)
 #include "april/simd/backend_std_simd.hpp"
 using SimdTypes = testing::Types<simd::internal::xsimd::Packed<double>, simd::internal::std_simd::Packed<double>>;
 #else

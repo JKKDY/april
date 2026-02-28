@@ -8,7 +8,7 @@
 #include "april/simd/backend_xsimd.hpp"
 #include "april/simd/simd_traits.hpp"
 
-#if __has_include(<experimental/simd>)
+#if __has_include(<experimental/simd>) || __has_include(<simd>)
     #include "april/simd/backend_std_simd.hpp"
     #define AP_HAS_STD_SIMD 1
 #else

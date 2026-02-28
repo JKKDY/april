@@ -5,7 +5,7 @@
 
 using namespace april;
 
-#if __has_include(<experimental/simd>)
+#if __has_include(<experimental/simd>) || __has_include(<simd>)
 #include "april/simd/backend_std_simd.hpp"
 #define AP_HAS_STD_SIMD 1
 #else

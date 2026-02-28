@@ -2,7 +2,7 @@
 #include <vector>
 #include <cmath>
 
-#if __has_include(<experimental/simd>)
+#if __has_include(<experimental/simd>) || __has_include(<simd>)
 #include "april/simd/backend_std_simd.hpp"
 #endif
 
@@ -10,7 +10,7 @@
 #include "april/simd/packed_ref.hpp"
 
 // Define the Wide types to test
-#if __has_include(<experimental/simd>)
+#if __has_include(<experimental/simd>) || __has_include(<simd>)
 #include "april/simd/backend_std_simd.hpp"
 using BackendTypes =  testing::Types<
     april::simd::internal::xsimd::Packed<double>,

@@ -77,18 +77,18 @@ int main() {
 		constexpr double dt = 0.000001;
 		constexpr int steps  = 25;
 
-		monitor::BenchmarkResult bench;
+		Benchmark::BenchmarkResult bench;
 		VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 		integrator.add_monitor(Benchmark(&bench));
 		integrator.run_for_steps(dt, steps);
 
 
 		n_interactions = 0;
-		system.for_each_interaction_pair<+core::ParticleField::position>(
+		system.for_each_interaction_pair<ParticleField::position>(scalar_kernel(
 			[&](auto, auto, auto) {
 				n_interactions++;
 			}
-		);
+		));
 		std::cout << "#interactions: " << n_interactions * steps << std::endl;
 		std::cout << "ns / interaction: " << bench.integration_time_s / (n_interactions * steps) * 1e9 << std::endl;
 	}

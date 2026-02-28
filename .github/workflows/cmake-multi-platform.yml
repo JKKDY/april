@@ -5,9 +5,9 @@ name: C++ CI
 # Also allows for manual triggering from the GitHub UI.
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   workflow_dispatch:
 
 jobs:

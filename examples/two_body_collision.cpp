@@ -2,9 +2,7 @@
 #include <april/april.hpp>
 #include <filesystem>
 
-#include "april/containers/direct_sum.hpp"
 #include "april/containers/linked_cells.hpp"
-#include "april/containers/direct_sum.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;

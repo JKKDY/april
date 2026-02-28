@@ -100,10 +100,10 @@ int main() {
 			env.add_particle(p);
 		}
 
-		constexpr auto container = DirectSumAoS();
+		constexpr auto container = DirectSum<Layout::AoS>();
 		auto system = build_system(env, container);
 
-		monitor::BenchmarkResult bench_results{};
+		Benchmark::BenchmarkResult bench_results{};
 		VelocityVerlet integrator(system, monitors<Benchmark>);
 		integrator.add_monitor(Benchmark(&bench_results));
 		integrator.run_for_steps(dt, steps);
@@ -126,7 +126,7 @@ int main() {
 			env.add_particle(p);
 		}
 
-		constexpr auto container = DirectSumAoS();
+		constexpr auto container = DirectSum<Layout::AoS>();
 		auto system = build_system(env, container);
 
 		double total_f_time = 0.0;

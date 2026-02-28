@@ -24,10 +24,10 @@ namespace april::field {
 
 		template<particle::internal::HasFields Self>
 		void dispatch_apply(this const Self& self, const auto & particle) {
-			static_assert(
-				requires { self.apply(particle); },
-				"Field must implement: void apply(env::RestrictedParticleRef<M, U> particle) const"
-			);
+			// static_assert(
+			// 	requires { self.apply(particle); },
+			// 	"Field must implement: void apply(auto particle) const"
+			// );
 			self.apply(particle);
 		}
 	};

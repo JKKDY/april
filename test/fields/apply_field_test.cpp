@@ -38,8 +38,7 @@ public:
         }
     }
 
-    template<particle::IsParticleAttributes U>
-    void apply(const particle::internal::ScalarRestrictedParticleRef<fields, U>& /*particle*/) const {
+    void apply(auto /*particle*/) const {
         if (sinks) {
             sinks->apply_call_count++;
         }
@@ -120,8 +119,7 @@ public:
     void update(const core::SystemContext<S>&) {
         if (sinks) sinks->update_call_count++;
     }
-    template<particle::IsParticleAttributes U>
-    void apply(const particle::internal::ScalarRestrictedParticleRef<fields, U>&) const {
+    void apply(const auto&) const {
         if (sinks) sinks->apply_call_count++;
     }
 };

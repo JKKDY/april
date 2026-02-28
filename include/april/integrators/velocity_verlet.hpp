@@ -25,7 +25,7 @@ namespace april {
 		void integration_step() const {
 			sys.update_all_components();
 
-			sys.template for_each_particle<pos_upd_fields>(april::universal_kernel(
+			sys.template for_each_particle<pos_upd_fields>(universal_kernel(
 				[&](auto p) {
 					p.old_position = p.position;
 					p.velocity += (dt / 2.0) * (p.force / p.mass);
@@ -38,7 +38,7 @@ namespace april {
 			sys.update_forces();
 			sys.apply_force_fields();
 
-			sys.template for_each_particle<vel_upd_fields>(april::universal_kernel(
+			sys.template for_each_particle<vel_upd_fields>(universal_kernel(
 				[&](auto p) {
 					p.velocity += (dt / 2.0) * (p.force / p.mass);
 				}
@@ -48,7 +48,7 @@ namespace april {
 		}
 	};
 
-	// Deduction guide so user can write StoermerVerlet(sys, MonitorPack<M1, M2, M3>)
+	// Deduction guide so user can write VelocityVerlet(sys, MonitorPack<M1, M2, M3>)
 	template<core::IsSystem Sys, monitor::IsMonitor... Ms>
 	VelocityVerlet(Sys&, monitor::internal::MonitorPack<Ms...>)
 		-> VelocityVerlet<Sys, monitor::internal::MonitorPack<Ms...>>;

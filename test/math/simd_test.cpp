@@ -4,15 +4,25 @@
 #include <cmath>
 #include <algorithm>
 
-#include "april/simd/backend_std_simd.hpp"
+
 #include "april/simd/backend_xsimd.hpp"
 #include "april/simd/simd_traits.hpp"
 
+#if __has_include(<experimental/simd>)
+    #include "april/simd/backend_std_simd.hpp"
+    #define AP_HAS_STD_SIMD 1
+#else
+    #define AP_HAS_STD_SIMD 0
+#endif
+
+// Define types based on header availability
 using BackendTypes = testing::Types<
     april::simd::internal::xsimd::Packed<double>,
-    april::simd::internal::std_simd::Packed<double>,
-    april::simd::internal::xsimd::Packed<float>,
-    april::simd::internal::std_simd::Packed<float>
+    april::simd::internal::xsimd::Packed<float>
+    #if AP_HAS_STD_SIMD
+    , april::simd::internal::std_simd::Packed<double>
+    , april::simd::internal::std_simd::Packed<float>
+    #endif
 >;
 
 
@@ -48,7 +58,7 @@ TYPED_TEST(SimdWideTest, LoadStoreBroadcast) {
     }
 
     // Load
-    std::iota(buffer.begin(), buffer.end(), 0.0); // 0, 1, 2...
+    std::iota(buffer.begin(), buffer.end(), static_cast<Scalar>(0)); // 0, 1, 2...
     Wide w_load = Wide::load(buffer.data());
 
     std::vector<Scalar> out(N);
@@ -244,7 +254,7 @@ TYPED_TEST(SimdWideTest, Rotation) {
 
     // Setup: [0, 1, 2, 3 ...]
     std::vector<Scalar> data(N);
-    std::iota(data.begin(), data.end(), 0.0);
+    std::iota(data.begin(), data.end(), Scalar(0.0));
 
     Wide w = Wide::load(data.data());
 
@@ -268,7 +278,7 @@ TYPED_TEST(SimdWideTest, Gather) {
 
     // Source memory: [100, 101, 102, ... 120]
     std::vector<Scalar> memory(100);
-    std::iota(memory.begin(), memory.end(), 100.0);
+    std::iota(memory.begin(), memory.end(), Scalar(100.0));
 
     // Create pointer array: Pick indices 0, 2, 4, 6...
     std::vector<const Scalar*> ptrs(N);

@@ -115,14 +115,16 @@ function(set_target_build_flags target_name)
 
             # MSVC
             $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:
-                /Ox                 # optimize for speed
-                /GL                 # whole program optimization (LTCG)
-                /fp:fast            # fast-math (matches -ffast-math spirit)
-                /arch:AVX2          # enable AVX2 on x64
-                /favor:INTEL64
-                /Oi                 # intrinsic functions
-                /Ot                 # favor fast code
-                /Ob3                # aggressive inlining
+                /O2                 # Maximize speed (replaces /Ox)
+                /GL                 # Whole program optimization (LTCG)
+                /Gw                 # Optimize global data
+                /fp:fast            # Fast-math floating point
+                /arch:AVX512        # Enable AVX2 instructions
+                # /favor:INTEL64    # ONLY uncomment if host is definitely Intel
+                # /favor:AMD64      # ONLY uncomment if host is definitely AMD
+                /Ob3                # Aggressive inlining (better than /Ob2)
+                /Zc:inline          # Remove unreferenced COMDATs (shrinks binary/link time)
+                /cgthreads8         # Use 8 threads for compilation/codegen
             >
 
             #---------------------------
@@ -150,7 +152,7 @@ function(set_target_build_flags target_name)
             #------------
             $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-O0 -g -march=native >
             $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang>>:-O0 -g -march=native >
-            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od /Zi /bigobj>
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od /Zi /bigobj /arch:AVX2 >
 
 
             #--------------

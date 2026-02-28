@@ -140,7 +140,6 @@ namespace april::simd {
         typename T::value_type;
         requires (std::floating_point<typename T::value_type>);
         { T::size() } -> std::convertible_to<std::size_t>;
-        { T::alignment() } -> std::convertible_to<std::size_t>;
         { ct.to_string() } -> std::convertible_to<std::string>;
 
         T();

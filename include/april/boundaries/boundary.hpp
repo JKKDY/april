@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <concepts>
 #include <vector>
+#include <variant>
 
 #include "april/base/traits.hpp"
 #include "april/particle/particle_types.hpp"

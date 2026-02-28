@@ -43,21 +43,15 @@
 #endif
 
 
-// Loop unrolling
-#if defined(__clang__) || defined(__GNUC__)
-    #define AP_PRAGMA(x) _Pragma(#x)
-	#define AP_UNROLL_LOOP() AP_PRAGMA(GCC unroll)
-	#define AP_UNROLL_LOOP_N(N) AP_PRAGMA(GCC unroll N)
-
-#elif defined(_MSC_VER)
-    #define AP_UNROLL_LOOP() __pragma(loop(unroll))
-    #define AP_UNROLL_LOOP_N(N) __pragma(loop(unroll, N))
+#if defined(__clang__)
+	#define AP_PRAGMA(x) _Pragma(#x)
+	#define AP_UNROLL_LOOP() AP_PRAGMA(unroll)
+	#define AP_UNROLL_LOOP_N(N) AP_PRAGMA(unroll N)
 #else
-    // Unknown compiler: no-op
-    #define AP_UNROLL_LOOP()
-    #define AP_UNROLL_LOOP_N(N)
+	// not clang: no-op
+	#define AP_UNROLL_LOOP()
+	#define AP_UNROLL_LOOP_N(N)
 #endif
-
 
 
 

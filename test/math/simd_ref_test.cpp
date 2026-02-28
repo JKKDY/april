@@ -2,15 +2,22 @@
 #include <vector>
 #include <cmath>
 
+#if __has_include(<experimental/simd>)
 #include "april/simd/backend_std_simd.hpp"
+#endif
+
 #include "april/simd/backend_xsimd.hpp"
 #include "april/simd/packed_ref.hpp"
 
 // Define the Wide types to test
-using BackendTypes = testing::Types<
+#if __has_include(<experimental/simd>)
+#include "april/simd/backend_std_simd.hpp"
+using BackendTypes =  testing::Types<
     april::simd::internal::xsimd::Packed<double>,
-    april::simd::internal::std_simd::Packed<double>
->;
+    april::simd::internal::std_simd::Packed<double>>;
+#else
+using BackendTypes = april::simd::internal::xsimd::Packed<double>;
+#endif
 
 template <typename T>
 class SimdRefTest : public testing::Test {

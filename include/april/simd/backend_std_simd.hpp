@@ -99,7 +99,6 @@ namespace april::simd::internal::std_simd {
         >;
 
         static constexpr size_t size() { return native_type::size(); }
-        static constexpr size_t alignment() noexcept { return stdx::memory_alignment_v<native_type>; }
 
         Packed() = default;
         Packed(T scalar) : data(scalar) {}

@@ -37,6 +37,8 @@ int main() {
 	const vec3 extent = 1.5 * box;
 	const vec3 origin = - 0.5 * extent;
 
+	std::cout << packed::size() << std::endl;
+
 	for (int i = 0; i < 1; i++) {
 		Environment env (forces<LennardJones>, boundaries<ReflectiveBoundary>);
 		env.add_particles(grid);
@@ -45,7 +47,7 @@ int main() {
 		env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
-		constexpr auto container = DirectSum();
+		constexpr auto container = DirectSum<Layout::AoSoA<>>();
 		auto system = build_system(env, container);
 
 		constexpr double dt = 0.0002;
@@ -54,7 +56,7 @@ int main() {
 		VelocityVerlet integrator(system, monitors<Benchmark, BinaryOutput>);
 		integrator.add_monitor(Benchmark());
 		// integrator.add_monitor(ProgressBar(Trigger::every(200)));
-		integrator.add_monitor(BinaryOutput(Trigger::every(10), dir_path.c_str()));
+		integrator.add_monitor(BinaryOutput(Trigger::every(10), dir_path.string()));
 		integrator.run_for_steps(dt, steps);
 
 	}

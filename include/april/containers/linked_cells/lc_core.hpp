@@ -74,7 +74,7 @@ namespace april::container::internal {
 		}
 
 		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const core::Box & region) {
-			std::vector<cell_index_t> cells = self.get_cells_in_region(region);
+			const std::vector<cell_index_t> cells = self.get_cells_in_region(region);
 			std::vector<size_t> ret;
 
 			// heuristic: reserve space for the expected average number of particles per cell
@@ -414,7 +414,7 @@ namespace april::container::internal {
 		//----------
 		// UTILITIES
 		//----------
-		[[nodiscard]] AP_FORCE_INLINE size_t get_neighbor_idx(size_t x, size_t y, size_t z, int3 offset) const {
+		[[nodiscard]] AP_FORCE_INLINE size_t get_neighbor_idx(const size_t x, const size_t y, const size_t z, const int3 offset) const {
 			const int nx = static_cast<int>(x) + offset.x;
 			const int ny = static_cast<int>(y) + offset.y;
 			const int nz = static_cast<int>(z) + offset.z;

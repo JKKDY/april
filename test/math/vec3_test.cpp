@@ -1,19 +1,27 @@
 #include <gtest/gtest.h>
-#include <cmath>
 
 #include "april/base/types.hpp"
 #include "april/simd/backend_xsimd.hpp" 
-#include "april/simd/backend_std_simd.hpp"
 
 using namespace april;
 
+#if __has_include(<experimental/simd>)
+#include "april/simd/backend_std_simd.hpp"
+#define AP_HAS_STD_SIMD 1
+#else
+#define AP_HAS_STD_SIMD 0
+#endif
+
 // We test:
 // - double
-// - Packed<double> (SIMD physics)
+// - Packed<double> (xsimd)
+// - Packed<double> (std_simd - conditionally)
 using Vec3Types = testing::Types<
-    double, 
-    simd::internal::xsimd::Packed<double>,
-    simd::internal::std_simd::Packed<double>
+    double,
+    simd::internal::xsimd::Packed<double>
+    #if AP_HAS_STD_SIMD
+    , simd::internal::std_simd::Packed<double>
+    #endif
 >;
 
 template <typename T>

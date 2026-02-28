@@ -279,7 +279,7 @@ namespace april::container::layout {
 
             else if constexpr (E == exec::internal::ExecutionMode::Vector) {
                 for (size_t i = start; i < end; i+=packed::size()) {
-                    AP_ASSERT(start % packed::alignment() == 0, "In vectorized execution start must be aligned to the packed type");
+                    AP_ASSERT(start % packed::size() == 0, "In vectorized execution start must be aligned to the packed type");
                     if constexpr (is_const) {
                         kernel(i, self.template view_packed<M>(i));
                     } else {
@@ -308,7 +308,7 @@ namespace april::container::layout {
 
                 for (size_t i = body_start; i < body_end; i += vector_size) {
                     // i is now guaranteed to be aligned
-                    AP_ASSERT(i % alignment == 0, "In vectorized execution, index must be aligned");
+                    AP_ASSERT(i % packed::size() == 0, "In vectorized execution, index must be aligned");
                     if constexpr (is_const) {
                         kernel(i, self.template view_packed<M>(i));
                     } else {

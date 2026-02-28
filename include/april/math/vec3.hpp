@@ -359,7 +359,7 @@ namespace april::math {
     // VEC3 PROXY
     // ----------
     template <typename T>
-    struct Vec3Proxy : Vec3Ops<T, double> {
+    struct Vec3Proxy : Vec3Ops<std::remove_cv_t<T>, double> {
         T& AP_RESTRICT x;
         T& AP_RESTRICT y;
         T& AP_RESTRICT z;
@@ -390,12 +390,14 @@ namespace april::math {
         }
 
         // implicit conversion to Value
-        operator Vec3<T>() const { return Vec3<T>(x, y, z); }
+        operator Vec3<std::remove_cv_t<T>>() const noexcept {
+            return Vec3<std::remove_cv_t<T>>(x, y, z);
+        }
     };
 
     // specialization for packed types
     template <simd::IsSimdType T>
-    struct Vec3Proxy<T> : Vec3Ops<T, T> {
+    struct Vec3Proxy<T> : Vec3Ops<std::remove_cv_t<T>, std::remove_cv_t<T>> {
         using Ref = simd::PackedRef<typename T::value_type, T>;
         using Scalar = T::value_type;
 

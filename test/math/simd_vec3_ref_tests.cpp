@@ -1,20 +1,20 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <algorithm>
-#include <cmath>
 
 #include "april/base/types.hpp"
 #include "april/simd/backend_xsimd.hpp"
-#include "april/simd/backend_std_simd.hpp"
-#include "april/forces/lennard_jones.hpp"
 
 using namespace april;
 
-// The SIMD Types to test
-using SimdTypes = testing::Types<
-    simd::internal::xsimd::Packed<double>,
-    simd::internal::std_simd::Packed<double>
->;
+
+
+#if __has_include(<experimental/simd>)
+#include "april/simd/backend_std_simd.hpp"
+using SimdTypes = testing::Types<simd::internal::xsimd::Packed<double>, simd::internal::std_simd::Packed<double>>;
+#else
+using SimdTypes = simd::internal::xsimd::Packed<double>;
+#endif
 
 template <typename T>
 class SimdProxyTest : public testing::Test {

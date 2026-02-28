@@ -15,14 +15,22 @@ int main() {
 		.count({250, 50, 1})
 		.mass(1.0)
 		.spacing(1.2)
-		.type(0);
+		.type(0)
+		.thermal([](vec3 /*pos*/) {
+				constexpr double avg_vel = 1.0;
+				return math::maxwell_boltzmann_velocity(avg_vel);
+			});
 
 	auto drop = ParticleSphere()
 		.at({150,150,0})
 		.radius_xyz({10, 10, 0})
 		.mass(1.0)
 		.spacing(1)
-		.type(1);
+		.type(1)
+		.thermal([](vec3 /*pos*/) {
+				constexpr double avg_vel = 1.0;
+				return math::maxwell_boltzmann_velocity(avg_vel);
+			});
 
 	auto thermostat = VelocityScalingThermostat(0.5,
 		controller::temperature_not_set,
@@ -46,7 +54,7 @@ int main() {
 		.with_controller(thermostat)
 		.with_field(gravity);
 
-	auto container = LinkedCellsAoS().with_abs_cell_size(3);
+	auto container = LinkedCells().with_abs_cell_size(3);
 	auto system = build_system(env, container);
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)

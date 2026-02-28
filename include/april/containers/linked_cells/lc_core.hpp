@@ -134,7 +134,7 @@ namespace april::container::internal {
 
 			// handle edge cases (no interactions or cutoff > domain)
 			// ensure at least a 2x2x2 grid (before applying cell size factor (CSF))
-			const size_t min_dim = vec3 {
+			const vec3::type min_dim = vec3 {
 				self.domain.extent.x == 0 ? std::numeric_limits<double>::max() : self.domain.extent.x,
 				self.domain.extent.y == 0 ? std::numeric_limits<double>::max() : self.domain.extent.y,
 				self.domain.extent.z == 0 ? std::numeric_limits<double>::max() : self.domain.extent.z

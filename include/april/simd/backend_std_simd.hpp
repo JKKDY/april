@@ -1,7 +1,17 @@
 #pragma once
 
-#include <experimental/simd>
+#if __has_include(<simd>)
+    #include <simd>
+    namespace stdx = std;
+#elif __has_include(<experimental/simd>)
+    #include <experimental/simd>
+    namespace stdx = std::experimental;
+#else
+    #error "No std::simd support found in the standard library
+#endif
 #include <array>
+
+
 #include <string>
 
 #include "april/simd/simd_traits.hpp"
@@ -9,7 +19,13 @@
 namespace april::simd::internal::std_simd {
 
     // Alias for brevity
-    namespace stdx = std::experimental;
+    #if __has_include(<simd>)
+        namespace stdx = std;
+    #elif __has_include(<experimental/simd>)
+        namespace stdx = std::experimental;
+    #else
+        #error "No std::simd support found in the standard library
+    #endif
 
     template<typename T>
     struct Mask {

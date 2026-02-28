@@ -7,7 +7,7 @@
     #include <experimental/simd>
     namespace stdx = std::experimental;
 #else
-    #error "No std::simd support found in the standard library
+    #error "No std::simd support found in the standard library"
 #endif
 #include <array>
 
@@ -24,7 +24,7 @@ namespace april::simd::internal::std_simd {
     #elif __has_include(<experimental/simd>)
         namespace stdx = std::experimental;
     #else
-        #error "No std::simd support found in the standard library
+        #error "No std::simd support found in the standard library"
     #endif
 
     template<typename T>

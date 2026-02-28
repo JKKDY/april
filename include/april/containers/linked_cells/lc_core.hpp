@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <utility>
 #include <functional>
+#include <limits>
 
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
@@ -133,9 +134,14 @@ namespace april::container::internal {
 
 			// handle edge cases (no interactions or cutoff > domain)
 			// ensure at least a 2x2x2 grid (before applying cell size factor (CSF))
-			if (max_cutoff <= 0 || max_cutoff > self.domain.extent.min()) {
+			const size_t min_dim = vec3 {
+				self.domain.extent.x == 0 ? std::numeric_limits<double>::max() : self.domain.extent.x,
+				self.domain.extent.y == 0 ? std::numeric_limits<double>::max() : self.domain.extent.y,
+				self.domain.extent.z == 0 ? std::numeric_limits<double>::max() : self.domain.extent.z
+			}.min();
+			if (max_cutoff <= 0 || max_cutoff > min_dim) {
 				// TODO log warning
-				max_cutoff = self.domain.extent.min() / 2.0;
+				max_cutoff = min_dim / 2.0;
 			}
 
 			double target_cell_size = self.config.get_width(max_cutoff);

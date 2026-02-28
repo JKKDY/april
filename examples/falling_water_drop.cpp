@@ -46,20 +46,20 @@ int main() {
 		fields<UniformField>);
 
 	env.with_extent(303,180, 0)
-		.with_force(LennardJones(1, 1.2), to_type(0))
-		.with_force(LennardJones(1, 1), to_type(1))
+		.with_force(LennardJones(3, 1.2), to_type(0))
+		.with_force(LennardJones(3, 1), to_type(1))
 		.with_particles(liquid)
 		.with_particles(drop)
 		.with_boundaries(ReflectiveBoundary(), all_faces)
 		.with_controller(thermostat)
 		.with_field(gravity);
 
-	auto container = LinkedCells().with_abs_cell_size(3);
+	auto container = LinkedCells<Layout::AoSoA<>>();
 	auto system = build_system(env, container);
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
 		.with_monitor(Benchmark())
-		.with_monitor(BinaryOutput(Trigger::every(100), dir_path.string()))
+		.with_monitor(BinaryOutput(Trigger::every(500), dir_path.string()))
 		.with_monitor(ProgressBar(Trigger::every(100)))
 		.with_dt(0.0002)
 		.for_duration(50)

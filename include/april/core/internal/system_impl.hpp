@@ -11,11 +11,11 @@ namespace april {
 	//--------------
 	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<
 		ContainerDecl, Traits>
-	template <ParticleField M, ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
+	template <ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
 	void System<ContainerDecl, Traits>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
 			using namespace april::exec::internal;
 			constexpr VectorTrait batch_capabilities = std::remove_cvref_t<Batch>::vector_trait;
-			constexpr ExecutionMode kernel_capabilities = std::remove_cvref_t<Kernel>::Mode;
+			constexpr ExecutionMode kernel_capabilities =std::remove_cvref_t<Kernel>::mode;
 
 			// map VectorPolicy -> VectorTrait (execution mode)
 			constexpr ExecutionMode exec_mode = [] {
@@ -65,11 +65,11 @@ namespace april {
 
 			// Execute
 			if constexpr (container::batching::IsBatchAtom<Batch>) {
-				batch.template for_each_pair<M, P, exec_mode>(kernel);
+				batch.template for_each_pair<P, exec_mode>(kernel);
 			}
 			else if constexpr (container::batching::IsBatchAtomRange<Batch>) {
 				for (const auto& atom : batch) {
-					atom.template for_each_pair<M, P, exec_mode>(kernel);
+					atom.template for_each_pair<P, exec_mode>(kernel);
 				}
 			}
 		}
@@ -152,16 +152,19 @@ namespace april {
 					}
 				};
 
-				execute_batch_kernel<M, ParallelPolicy::Serial, VectorPolicy::Auto>(batch, april::universal_kernel(kernel));
+				execute_batch_kernel<ParallelPolicy::Serial, VectorPolicy::Auto>(batch,
+					april::universal_kernel<M, ParticleField::force>(kernel));
 			};
 
 			auto [t1, t2] = batch.types;
 			force_table.dispatch(t1, t2, apply_batch_update);
 		};
 
-		particle_container.template for_each_particle<ParticleField::force>(april::universal_kernel(
-			[](auto && p) { p.force = {}; } // reset forces
-		));
+		particle_container.for_each_particle(
+			april::universal_kernel<ParticleField::force, ParticleField::force>(
+				[](auto && p) { p.force = {}; } // reset forces
+			)
+		);
 		particle_container.invoke_for_each_interaction_batch(update_batch);
 
 
@@ -296,7 +299,7 @@ namespace april {
 	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::apply_force_fields() {
 		fields.for_each_item([&]<typename F>(F & field) {
-			for_each_particle<F::fields>(scalar_kernel(
+			for_each_particle(scalar_kernel<F::fields, ParticleField::force>(
 				[&](auto && p) {
 					field.dispatch_apply(p);
 				})

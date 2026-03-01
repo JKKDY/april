@@ -43,7 +43,7 @@ namespace april {
 			write_binary(out, format_flags);            // 4 bytes
 
 
-			sys.template for_each_particle_view<fields>(april::scalar_kernel(
+			sys.for_each_particle_view(april::scalar_kernel<fields>(
 				[&](const auto & p) {
 					write_binary(out, static_cast<float>(p.position.x));
 					write_binary(out, static_cast<float>(p.position.y));

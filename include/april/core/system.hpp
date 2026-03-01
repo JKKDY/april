@@ -155,21 +155,19 @@ namespace april {
 		// FUNCTIONAL OPS
 		// --------------
 		template<
-			ParticleField M,
 			ParallelPolicy P=ParallelPolicy::Serial,
 			VectorPolicy V=VectorPolicy::Auto,
 			exec::IsKernel Kernel>
 		void for_each_particle(Kernel && func, ParticleState state = ParticleState::ALL) {
-			particle_container.template for_each_particle<M, P, V, Kernel>(std::forward<Kernel>(func), state);
+			particle_container.template for_each_particle<P, V, Kernel>(std::forward<Kernel>(func), state);
 		}
 
 		template<
-			ParticleField M,
 			ParallelPolicy P=ParallelPolicy::Serial,
 			VectorPolicy V=VectorPolicy::Auto,
 			exec::IsKernel Kernel>
 		void for_each_particle_view(Kernel && func, ParticleState state = ParticleState::ALL) const {
-			particle_container.template for_each_particle_view<M, P, V, Kernel>(std::forward<Kernel>(func), state);
+			particle_container.template for_each_particle_view<P, V, Kernel>(std::forward<Kernel>(func), state);
 		}
 
 		template<ParticleField M, typename Mapper, typename T, typename Reducer = std::plus<T>>
@@ -189,12 +187,12 @@ namespace april {
 			particle_container.invoke_for_each_interaction_batch(std::forward<Func>(func));
 		}
 
-		template<ParticleField M, exec::IsKernel Kernel>
+		template<exec::IsKernel Kernel>
 		void for_each_interaction_pair(Kernel && func) { // func(particle, particle, dist)
 			auto update_batch = [&]<container::batching::IsBatch Batch, /*TODO container::IsBCP*/ typename BCP>(const Batch& batch, BCP && apply_bcp) {
 				auto bridge = [&](auto && p1, auto && p2) {
 					vec3 r = {};
-					if constexpr (particle::internal::has_field_v<M, ParticleField::position> &&
+					if constexpr (particle::internal::has_field_v<Kernel::access_fields, ParticleField::position> &&
 						std::is_same_v<std::decay_t<BCP>, container::batching::NoBatchBCP>) {
 						r = p2.position - p1.position;
 						} else {
@@ -204,8 +202,9 @@ namespace april {
 					func(p1, p2, r);
 				};
 
-				auto kernel = exec::internal::KernelWrapper<std::remove_cvref_t<Kernel>::Mode, decltype(bridge)>{bridge};
-				execute_batch_kernel<M, ParallelPolicy::Serial, VectorPolicy::Scalar>(batch, kernel);
+				using K = std::remove_cvref_t<Kernel>; // TODO add a make kernel wrapper function
+				auto kernel = exec::internal::KernelWrapper<K::access, K::update, K::mode, decltype(bridge)>{bridge};
+				execute_batch_kernel<ParallelPolicy::Serial, VectorPolicy::Scalar>(batch, kernel);
 			};
 
 			for_each_interaction_batch(update_batch);
@@ -318,7 +317,7 @@ namespace april {
 			 BuildInfo * build_info
 		);
 
-		template<ParticleField M, ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
+		template<ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel);
 	};
 

@@ -264,15 +264,16 @@ namespace april::container::layout {
         }
 
 
-        template<ParticleField M, ParallelPolicy P, exec::internal::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
+        template<ParallelPolicy P, exec::internal::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
 
             if constexpr (E == exec::internal::ExecutionMode::Scalar) {
                 for (size_t i = start; i < end; i++) {
+                    using K = std::remove_cvref_t<Kernel>;
                     if constexpr (is_const) {
-                        kernel(i, self.template view<M>(i));
+                        kernel(i, self.template view<K::access>(i));
                     } else {
-                        kernel(i, self.template at<M>(i));
+                        kernel(i, self.template at<K::access>(i));
                     }
                 }
             }
@@ -280,10 +281,11 @@ namespace april::container::layout {
             else if constexpr (E == exec::internal::ExecutionMode::Vector) {
                 for (size_t i = start; i < end; i+=packed::size()) {
                     AP_ASSERT(start % packed::size() == 0, "In vectorized execution start must be aligned to the packed type");
+                    using K = std::remove_cvref_t<Kernel>;
                     if constexpr (is_const) {
-                        kernel(i, self.template view_packed<M>(i));
+                        kernel(i, self.template view_packed<K::access>(i));
                     } else {
-                        kernel(i, self.template at_packed<M>(i));
+                        kernel(i, self.template at_packed<K::access>(i));
                     }
                 }
             }
@@ -296,9 +298,9 @@ namespace april::container::layout {
 
                 for (size_t i = start; i < head_end; ++i) {
                     if constexpr (is_const) {
-                        kernel(i, self.template view<M>(i));
+                        kernel(i, self.template view<Kernel::access>(i));
                     } else {
-                        kernel(i, self.template at<M>(i));
+                        kernel(i, self.template at<Kernel::access>(i));
                     }
                 }
 
@@ -310,18 +312,18 @@ namespace april::container::layout {
                     // i is now guaranteed to be aligned
                     AP_ASSERT(i % packed::size() == 0, "In vectorized execution, index must be aligned");
                     if constexpr (is_const) {
-                        kernel(i, self.template view_packed<M>(i));
+                        kernel(i, self.template view_packed<Kernel::access>(i));
                     } else {
-                        kernel(i, self.template at_packed<M>(i));
+                        kernel(i, self.template at_packed<Kernel::access>(i));
                     }
                 }
 
                 // tail
                 for (size_t i = body_end; i < end; ++i) {
                     if constexpr (is_const) {
-                        kernel(i, self.template view<M>(i));
+                        kernel(i, self.template view<Kernel::access>(i));
                     } else {
-                        kernel(i, self.template at<M>(i));
+                        kernel(i, self.template at<Kernel::access>(i));
                     }
                 }
             }

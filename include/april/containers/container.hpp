@@ -45,11 +45,11 @@ namespace april::container {
 
 
 
-	template<class C, particle::IsParticleAttributes A>
+	template<class C, particle::IsParticleAttributes Attributes>
 	class Container {
 	public:
-		using ParticleRecord = particle::ParticleRecord<A>;
-		using ParticleAttributes = A;
+		using ParticleRecord = particle::ParticleRecord<Attributes>;
+		using ParticleAttributes = Attributes;
 		using Config = C;
 
 		Container(const Config & config, const internal::ContainerCreateInfo & info):
@@ -65,51 +65,52 @@ namespace april::container {
 		// PARTICLE ACCESSORS
 		// ------------------
 		// INDEX ACCESSORS
+		// TODO: remove view, restricted accessors
 		template<ParticleField M>
 		[[nodiscard]] auto at(this auto&& self, size_t index) {
-			return particle::internal::ScalarParticleRef<M, A>{ self.template access_particle<M>(index) };
+			return particle::internal::ScalarParticleRef<M, Attributes>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto view(this const auto& self, size_t index) {
-			return particle::internal::ScalarParticleView<M, A>{ self.template access_particle<M>(index) };
+			return particle::internal::ScalarParticleView<M, Attributes>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t index) {
-			return particle::internal::ScalarRestrictedParticleRef<M, A>{ self.template access_particle<M>(index) };
+			return particle::internal::ScalarRestrictedParticleRef<M, Attributes>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t index) {
-			return particle::internal::PackedParticleRef<M, A>{ self.template access_particle<M>(index) };
+			return particle::internal::PackedParticleRef<M, Attributes>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t index) {
-			return particle::internal::PackedParticleView<M, A>{ self.template access_particle<M>(index) };
+			return particle::internal::PackedParticleView<M, Attributes>{ self.template access_particle<M>(index) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at_packed(this auto&& self, size_t index) {
-			return particle::internal::PackedRestrictedParticleRef<M, A>{ self.template access_particle<M>(index) };
+			return particle::internal::PackedRestrictedParticleRef<M, Attributes>{ self.template access_particle<M>(index) };
 		}
 
 
 		// ID ACCESSORS
 		template<ParticleField M>
 		[[nodiscard]] auto at_id(this auto&& self, ParticleID id) {
-			return particle::internal::ScalarParticleRef<M, A>{ self.template access_particle_id<M>(id) };
+			return particle::internal::ScalarParticleRef<M, Attributes>{ self.template access_particle_id<M>(id) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto view_id(this const auto & self, ParticleID id) {
-			return particle::internal::ScalarParticleView<M, A>{ self.template access_particle_id<M>(id) };
+			return particle::internal::ScalarParticleView<M, Attributes>{ self.template access_particle_id<M>(id) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at_id(this auto&& self, ParticleID id) {
-			return particle::internal::ScalarRestrictedParticleRef<M, A>{ self.template access_particle_id<M>(id) };
+			return particle::internal::ScalarRestrictedParticleRef<M, Attributes>{ self.template access_particle_id<M>(id) };
 		}
 
 
@@ -119,27 +120,25 @@ namespace april::container {
 		// ------------------
 		// filter by state (safe, performs checks to skip garbage data)
 		template<
-			ParticleField M,
 			ParallelPolicy P = ParallelPolicy::Serial,
 			VectorPolicy V = VectorPolicy::Auto,
 			exec::IsKernel Kernel>
 		void for_each_particle(this auto&& self, Kernel && func, ParticleState state = ParticleState::ALL) {
-			self.template invoke_iterate_state<M, P, V, false>(func, state);
+			self.template invoke_iterate_state<P, V, false>(func, state);
 		}
 
 		// view variant (const)
+		// TODO: remove for_each_particle_view
 		template<
-			ParticleField M,
 			ParallelPolicy P = ParallelPolicy::Serial,
 			VectorPolicy V = VectorPolicy::Auto,
 			exec::IsKernel Kernel>
 		void for_each_particle_view(this const auto& self, Kernel && func, ParticleState state = ParticleState::ALL) {
-			self.template invoke_iterate_state<M, P, V, true>(func, state);
+			self.template invoke_iterate_state<P, V, true>(func, state);
 		}
 
 		// direct range based access (fast & branchless but unsafe; will not perform any checks)
 		template<
-			ParticleField M,
 			ParallelPolicy P = ParallelPolicy::Serial,
 			VectorPolicy V = VectorPolicy::Auto,
 			exec::IsKernel Kernel>
@@ -148,12 +147,12 @@ namespace april::container {
 			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
 			AP_ASSERT(start <= stop, "Invalid range: start > stop");
 
-			self.template invoke_iterate_range<M,  P, V, false>(func, start, stop);
+			self.template invoke_iterate_range<P, V, false>(func, start, stop);
 		}
 
 		// view variant (const)
+		// TODO: remove for_each_particle_view
 		template<
-			ParticleField M,
 			ParallelPolicy P = ParallelPolicy::Serial,
 			VectorPolicy V = VectorPolicy::Auto,
 			exec::IsKernel Kernel>
@@ -162,7 +161,7 @@ namespace april::container {
 			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
 			AP_ASSERT(start <= stop, "Invalid range");
 
-			self.template invoke_iterate_range<M,  P, V, true>(func, start, stop);
+			self.template invoke_iterate_range<P, V, true>(func, start, stop);
 		}
 
 
@@ -314,24 +313,26 @@ namespace april::container {
 					return kernel(p); // user only wants particle
 				}
 			};
-			return exec::internal::KernelWrapper<std::remove_cvref_t<Kernel>::Mode, decltype(bridge)>{bridge};
+			using K = std::remove_cvref_t<Kernel>; // TODO add a make kernel wrapper function
+			return exec::internal::KernelWrapper<K::access, K::update, K::mode, decltype(bridge)>{bridge};
 		}
 
-		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
+		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
 		void invoke_iterate_range(this auto&& self, Kernel && func, size_t start, size_t end) {
-			constexpr auto mode = exec::internal::resolve_execution_mode<V, std::remove_cvref_t<Kernel>::Mode>();
+			constexpr auto mode = exec::internal::resolve_execution_mode<V, std::remove_cvref_t<Kernel>::mode>();
 			auto kernel = wrap_iter_kernel(func);
-			self.template iterate_range<M, P, mode, is_const>(kernel, start, end);
+			self.template iterate_range<P, mode, is_const>(kernel, start, end);
 		}
 
-		template<ParticleField M, ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
+		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
 		void invoke_iterate_state(this auto&& self, Kernel && func, const ParticleState state) {
+			using K = std::remove_cvref_t<Kernel>;
 			auto kernel = wrap_iter_kernel(func);
-			constexpr auto mode = exec::internal::resolve_execution_mode<V, std::remove_cvref_t<Kernel>::Mode>();
+			constexpr auto mode = exec::internal::resolve_execution_mode<V, K::mode>();
 
 			// try optimized implementation else fallback to default. Default assumes valid data for the entire iteration range
-			if constexpr (requires {self.template iterate<M, P, V, is_const>(kernel, state);}) {
-				self.template iterate<M, P, mode, is_const>(kernel, state);
+			if constexpr (requires {self.template iterate<P, V, is_const>(kernel, state);}) {
+				self.template iterate<P, mode, is_const>(kernel, state);
 			} else {
 				// note: iterate_range makes no checks so if it encounters memory that cannot be interpreted as
 				// particle data or memory it is not allowed to access it can crash
@@ -349,8 +350,10 @@ namespace april::container {
 					}
 				};
 
-				self.template iterate_range<M | ParticleField::state, P, mode, is_const>(
-					exec::internal::KernelWrapper<mode,decltype(state_filter)>(state_filter), 0, self.capacity());
+
+				self.template iterate_range<P, mode, is_const>( // TODO add a make kernel wrapper function
+					exec::internal::KernelWrapper<K::access | ParticleField::state, K::update, mode, decltype(state_filter)>(state_filter),
+					0, self.capacity());
 			}
 		}
 
@@ -373,7 +376,7 @@ namespace april::container {
 		[[nodiscard]] auto access_particle(this auto&& self, const size_t i) {
 
 			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-			particle::internal::ParticleSource<M, A, IsConst> src;
+			particle::internal::ParticleSource<M, Attributes, IsConst> src;
 
 			if constexpr (particle::internal::has_field_v<M, ParticleField::force>)
 				src.force = self.template invoke_get_field_ptr<ParticleField::force>(i);
@@ -410,7 +413,7 @@ namespace april::container {
 
 		        // specialized path (direct ID access)
 		        constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-		        particle::internal::ParticleSource<M, A, IsConst> src;
+		        particle::internal::ParticleSource<M, Attributes, IsConst> src;
 
 		        if constexpr (particle::internal::has_field_v<M, ParticleField::force>)
         			src.force = self.template invoke_get_field_ptr_id<ParticleField::force>(id);

@@ -402,19 +402,20 @@ namespace april::container::layout {
 			return src;
 		}
 
-		template<ParticleField M, ParallelPolicy P, exec::internal::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
+		template<ParallelPolicy P, exec::internal::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
 		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
 			if constexpr (V == exec::internal::ExecutionMode::Scalar) {
-				self.template iterate_range_scalar<M, P, is_const>(std::forward<Kernel>(kernel), start, end);
+				self.template iterate_range_scalar<P, is_const>(std::forward<Kernel>(kernel), start, end);
 			} else if constexpr (V == exec::internal::ExecutionMode::Vector) {
-				self.template iterate_range_vector<M, P, is_const>(std::forward<Kernel>(kernel), start, end);
+				self.template iterate_range_vector<P, is_const>(std::forward<Kernel>(kernel), start, end);
 			} else if constexpr (V == exec::internal::ExecutionMode::Hybrid) {
-				self.template iterate_range_hybrid<M, P, is_const>(std::forward<Kernel>(kernel), start, end);
+				self.template iterate_range_hybrid<P, is_const>(std::forward<Kernel>(kernel), start, end);
 			}
 		}
 
-		template<ParticleField M, ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
+		template< ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
 		AP_FORCE_INLINE void iterate_range_scalar(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+			using K = std::remove_cvref_t<Kernel>;
 		    if (start >= end) return;
 
 		    const auto [start_chunk, start_idx] = self.locate(start);
@@ -425,8 +426,8 @@ namespace april::container::layout {
 		    // constexpr size_t simd_width = packed::size();
 
 		    auto exec_scalar = [&](size_t c, size_t i) {
-		        if constexpr (is_const) kernel(curr_idx++, self.template view<M>(c, i));
-		        else kernel(curr_idx++, self.template at<M>(c, i));
+		        if constexpr (is_const) kernel(curr_idx++, self.template view<K::access>(c, i));
+		        else kernel(curr_idx++, self.template at<K::access>(c, i));
 		    };
 
 		    if (start_chunk == end_chunk) {
@@ -455,8 +456,9 @@ namespace april::container::layout {
 		    }
 		}
 
-		template<ParticleField M, ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
+		template<ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
 		AP_FORCE_INLINE void iterate_range_vector(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+			using K = std::remove_cvref_t<Kernel>;
 		    if (start >= end) return;
 
 		    const auto [start_chunk, start_idx] = self.locate(start);
@@ -467,8 +469,8 @@ namespace april::container::layout {
 		    constexpr size_t simd_width = packed::size();
 
 		    auto exec_vector = [&](size_t c, size_t i) {
-		        if constexpr (is_const) kernel(curr_idx, self.template view_packed<M>(c, i));
-		        else kernel(curr_idx, self.template at_packed<M>(c, i));
+		        if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::access>(c, i));
+		        else kernel(curr_idx, self.template at_packed<K::access>(c, i));
 		        curr_idx += simd_width;
 		    };
 
@@ -502,8 +504,9 @@ namespace april::container::layout {
 		    }
 		}
 
-		template<ParticleField M, ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
+		template<ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
 		AP_FORCE_INLINE void iterate_range_hybrid(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+			using K = std::remove_cvref_t<Kernel>;
 		    if (start >= end) return;
 
 		    const auto [start_chunk, start_idx] = self.locate(start);
@@ -514,13 +517,13 @@ namespace april::container::layout {
 		    constexpr size_t simd_width = packed::size();
 
 		    auto exec_scalar = [&](size_t c, size_t i) {
-		        if constexpr (is_const) kernel(curr_idx++, self.template view<M>(c, i));
-		        else kernel(curr_idx++, self.template at<M>(c, i));
+		        if constexpr (is_const) kernel(curr_idx++, self.template view<K::access>(c, i));
+		        else kernel(curr_idx++, self.template at<K::access>(c, i));
 		    };
 
 		    auto exec_vector = [&](size_t c, size_t i) {
-		        if constexpr (is_const) kernel(curr_idx, self.template view_packed<M>(c, i));
-		        else kernel(curr_idx, self.template at_packed<M>(c, i));
+		        if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::access>(c, i));
+		        else kernel(curr_idx, self.template at_packed<K::access>(c, i));
 		        curr_idx += simd_width;
 		    };
 
@@ -551,8 +554,8 @@ namespace april::container::layout {
 		        }
 		        for (size_t i = head_end; i < self.chunk_size; i += simd_width) {
 		            // exec_vector(start_chunk, i);
-		        	if constexpr (is_const) kernel(curr_idx, self.template view_packed<M>(start_chunk, i));
-		        	else kernel(curr_idx, self.template at_packed<M>(start_chunk, i));
+		        	if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::access>(start_chunk, i));
+		        	else kernel(curr_idx, self.template at_packed<K::access>(start_chunk, i));
 		        	curr_idx += simd_width;
 		        }
 
@@ -562,8 +565,8 @@ namespace april::container::layout {
 		            // Guaranteed aligned inside full body chunks
 		            for (size_t i = 0; i < self.chunk_size; i += simd_width) {
 			            // exec_vector(c, i);
-		            	if constexpr (is_const) kernel(curr_idx, self.template view_packed<M>(c, i));
-		            	else kernel(curr_idx, self.template at_packed<M>(c, i));
+		            	if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::access>(c, i));
+		            	else kernel(curr_idx, self.template at_packed<K::access>(c, i));
 		            	curr_idx += simd_width;
 		            }
 		        }
@@ -574,8 +577,8 @@ namespace april::container::layout {
 
 		            for (size_t i = 0; i < tail_body_end; i += simd_width) {
 		                // exec_vector(end_chunk, i);
-		            	if constexpr (is_const) kernel(curr_idx, self.template view_packed<M>(end_chunk, i));
-		            	else kernel(curr_idx, self.template at_packed<M>(end_chunk, i));
+		            	if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::access>(end_chunk, i));
+		            	else kernel(curr_idx, self.template at_packed<K::access>(end_chunk, i));
 		            	curr_idx += simd_width;
 		            }
 		            for (size_t i = tail_body_end; i < end_idx; ++i) {

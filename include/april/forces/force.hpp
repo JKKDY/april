@@ -60,11 +60,6 @@ namespace april::force {
         }
 
         auto mix_forces(this const auto& self, const auto & other) {
-            static_assert(
-                requires { self.mix(other); },
-                "mix() not implemented"
-            );
-
             using SelfT  = std::remove_cvref_t<decltype(self)>;
             using OtherT = std::remove_cvref_t<decltype(other)>;
 

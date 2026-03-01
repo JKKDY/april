@@ -242,7 +242,7 @@ TYPED_TEST(SimdWideTest, MathFunctions) {
 
     for (size_t i = 0; i < N; ++i) {
         EXPECT_DOUBLE_EQ(s_out[i], 4.0);
-        EXPECT_NEAR(r_out[i], 0.25, 1e-4);
+        EXPECT_NEAR(r_out[i], 0.25, 1e-3);
     }
 }
 

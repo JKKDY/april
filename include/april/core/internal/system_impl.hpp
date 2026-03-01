@@ -100,23 +100,55 @@ namespace april {
 					}();
 
 					if constexpr (is_packed) {
-						auto mask = r.norm_squared() > force.cutoff2();
-						if (all(mask)) return;
-						auto f = force(p1, p2, r);
-						auto f_masked = pvec3 {
-							select(mask, packed(0), f.x),
-							select(mask, packed(0), f.y),
-							select(mask, packed(0), f.z)
-						};
-						p1.force += f_masked;
-						p2.force -= f_masked;
+						auto outside  = r.norm_squared() > force.cutoff2();
+						if (all(outside )) return;
+
+						if constexpr (ForceT::symmetry == force::ForceSymmetry::Nonsymmetric) {
+							auto f1 = force(p1, p2, r);
+							auto f2 = force(p2, p1, -r);
+
+							p1.force += pvec3 {
+								select(outside , packed(0), f1.x),
+								select(outside , packed(0), f1.y),
+								select(outside , packed(0), f1.z)
+							};
+
+							p2.force += pvec3 {
+								select(outside , packed(0), f2.x),
+								select(outside , packed(0), f2.y),
+								select(outside , packed(0), f2.z)
+							};
+						} else {
+							auto f = force(p1, p2, r);
+							auto f_masked = pvec3 {
+								select(outside , packed(0), f.x),
+								select(outside , packed(0), f.y),
+								select(outside , packed(0), f.z)
+							};
+							if constexpr (ForceT::symmetry == force::ForceSymmetry::Antisymmetric) {
+								p1.force += f_masked;
+								p2.force -= f_masked;
+							} else if constexpr (ForceT::symmetry == force::ForceSymmetry::Symmetric) {
+								p1.force += f_masked;
+								p2.force += f_masked;
+							}
+						}
 					} else {
 						if (r.norm_squared() > force.cutoff2()) {
 							return;
 						}
-						vec3 f = force(p1.to_view(), p2.to_view(), r);
-						p1.force += f;
-						p2.force -= f;
+						if constexpr (ForceT::symmetry == force::ForceSymmetry::Antisymmetric) {
+							vec3 f = force(p1.to_view(), p2.to_view(), r);
+							p1.force += f;
+							p2.force -= f;
+						}  else if constexpr (ForceT::symmetry == force::ForceSymmetry::Symmetric) {
+							vec3 f = force(p1.to_view(), p2.to_view(), r);
+							p1.force += f;
+							p2.force += f;
+						}  else if constexpr (ForceT::symmetry == force::ForceSymmetry::Nonsymmetric) {
+							p1.force += force(p1.to_view(), p2.to_view(), r);
+							p2.force += force(p2.to_view(), p1.to_view(), -r);
+						}
 					}
 				};
 
@@ -146,10 +178,19 @@ namespace april {
 					auto && p2 = particle_container.template restricted_at_id<M>(id2);
 
 					vec3 r = p2.position - p1.position;
-					const vec3 f = force(p1.to_view(), p2.to_view(), r);
 
-					p1.force += f;
-					p2.force -= f;
+					if constexpr (ForceT::symmetry == force::ForceSymmetry::Antisymmetric) {
+						vec3 f = force(p1.to_view(), p2.to_view(), r);
+						p1.force += f;
+						p2.force -= f;
+					}  else if constexpr (ForceT::symmetry == force::ForceSymmetry::Symmetric) {
+						vec3 f = force(p1.to_view(), p2.to_view(), r);
+						p1.force += f;
+						p2.force += f;
+					}  else if constexpr (ForceT::symmetry == force::ForceSymmetry::Nonsymmetric) {
+						p1.force += force(p1.to_view(), p2.to_view(), r);
+						p2.force += force(p2.to_view(), p1.to_view(), -r);
+					}
 				}
 			};
 
@@ -261,13 +302,6 @@ namespace april {
 				})
 			);
 		});
-
-			// for (size_t i = 0; i < size(); ++i) {
-			// 	constexpr ParticleField M = F::fields;
-			// 	auto restricted = particle_container.template restricted_at<M>(i);
-			// 	field.dispatch_apply(restricted);
-			// }
-		// });
 	}
 
 

@@ -6,7 +6,8 @@ using namespace april;
 
 // A tiny force that returns a constant vector and mixes by summing
 struct ConstantForce final : force::Force {
-	static constexpr ParticleField fields = ParticleField::none;
+	static constexpr auto symmetry = force::ForceSymmetry::Symmetric;
+	static constexpr auto fields = ParticleField::none;
 
 	vec3 v;
 

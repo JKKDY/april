@@ -139,7 +139,7 @@ namespace april::container::internal {
 				self.domain.extent.y == 0 ? std::numeric_limits<double>::max() : self.domain.extent.y,
 				self.domain.extent.z == 0 ? std::numeric_limits<double>::max() : self.domain.extent.z
 			}.min();
-			if (max_cutoff <= 0 || max_cutoff > min_dim) {
+			if (max_cutoff <= 0 || max_cutoff > min_dim / 2.0) {
 				// TODO log warning
 				max_cutoff = min_dim / 2.0;
 			}
@@ -149,9 +149,9 @@ namespace april::container::internal {
 
 			// compute number of cells along each axis
 			// std::floor ensures that the resulting cells are larger than or equal to target_cell_size
-			const auto num_x = static_cast<cell_index_t>(std::max(1.0, std::floor(self.domain.extent.x / target_cell_size)));
-			const auto num_y = static_cast<cell_index_t>(std::max(1.0, std::floor(self.domain.extent.y / target_cell_size)));
-			const auto num_z = static_cast<cell_index_t>(std::max(1.0, std::floor(self.domain.extent.z / target_cell_size)));
+			const auto num_x = static_cast<cell_index_t>(std::max(2.0, std::floor(self.domain.extent.x / target_cell_size)));
+			const auto num_y = static_cast<cell_index_t>(std::max(2.0, std::floor(self.domain.extent.y / target_cell_size)));
+			const auto num_z = static_cast<cell_index_t>(std::max(2.0, std::floor(self.domain.extent.z / target_cell_size)));
 
 			// calculate cell size along (stretches to fit domain exactly)
 			self.cell_size = {

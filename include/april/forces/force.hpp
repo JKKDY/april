@@ -17,7 +17,14 @@ namespace april::force {
 
     constexpr double no_cutoff = 1.0e150; // 1.0e150 squared is 1.0e300 <  max of double = 1.79e308
 
+    enum class ForceSymmetry : uint8_t {
+        Antisymmetric, // f(p1, p2) = - f(p2, p1) -> N3 applicable
+        Symmetric, // f(p1, p2) = f(p2, p1) -> maybe in some esoteric active matter or graph sym
+        Nonsymmetric // no relation
+    };
+
     struct Force {
+        static constexpr auto symmetry = ForceSymmetry::Antisymmetric;
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
         // template<ParticleField IncomingMask, env::IsUserData U>

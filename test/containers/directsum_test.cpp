@@ -48,8 +48,6 @@ TYPED_TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
     auto const& out = export_particles(sys);
 
     ASSERT_EQ(out.size(), 2u);
-    // both should see the same force vector
-    EXPECT_EQ(out[0].force, -out[1].force);
 
 	EXPECT_THAT(
 		out[0].force,
@@ -72,7 +70,7 @@ TYPED_TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
     auto const& out = export_particles(sys);
     ASSERT_EQ(out.size(), 2u);
 
-	EXPECT_EQ(out[0].force, -out[1].force);
+	EXPECT_EQ(out[0].force, out[1].force);
 
 	EXPECT_THAT(
 		out[0].force,

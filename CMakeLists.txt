@@ -119,12 +119,13 @@ function(set_target_build_flags target_name)
                 /GL                 # Whole program optimization (LTCG)
                 /Gw                 # Optimize global data
                 /fp:fast            # Fast-math floating point
-                /arch:AVX512        # Enable AVX2 instructions
+                /arch:AVX2          # Enable AVX2 instructions
                 # /favor:INTEL64    # ONLY uncomment if host is definitely Intel
                 # /favor:AMD64      # ONLY uncomment if host is definitely AMD
                 /Ob3                # Aggressive inlining (better than /Ob2)
                 /Zc:inline          # Remove unreferenced COMDATs (shrinks binary/link time)
                 /cgthreads8         # Use 8 threads for compilation/codegen
+                /LTCG
             >
 
             #---------------------------
@@ -150,9 +151,9 @@ function(set_target_build_flags target_name)
             #------------
             # DEBUG BUILD
             #------------
-            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-O0 -g -march=native >
-            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang>>:-O0 -g -march=native >
-            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od /Zi /bigobj /arch:AVX2 >
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-O0 -g >
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang>>:-O0 -g >
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od /Zi /bigobj>
 
 
             #--------------
@@ -207,11 +208,17 @@ function(enable_sanitizer_if_dbg target_name)
         return()
     endif()
 
+    # Disable for GCC on macOS (Homebrew GCC lacks proper ASan linker integration)
+    if (CMAKE_SYSTEM_NAME MATCHES "Darwin" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        message(STATUS "Skipping sanitizers for target ${target_name} (Homebrew GCC on macOS does not ship with ASan).")
+        return()
+    endif()
+
     # enable sanitizers for different compilers
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
             # AppleClang does not support LeakSanitizer
-            message(STATUS "Enabling AddressSanitizer + UBSan for target ${target_name} (AppleClang, Debug build)")
+            message(STATUS "Enabling AddressSanitizer + UBSan for target ${target_name} (Clang on macOS, Debug build)")
             target_compile_options(${target_name}
                     PRIVATE
                     -fsanitize=address,undefined -fno-omit-frame-pointer
@@ -236,7 +243,6 @@ function(enable_sanitizer_if_dbg target_name)
         message(WARNING "Skipping AddressSanitizer on MSVC for target ${target_name} to avoid LNK2038 mismatches. Enable full sanitized build instead if desired.")
     endif()
 endfunction()
-
 
 
 

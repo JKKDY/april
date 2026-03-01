@@ -59,18 +59,14 @@ jobs:
             os: windows-latest
             build_type: Release
 
-          # --- macOS (Homebrew GCC) ---
-          - name: macOS (GCC 14, Debug)
+          # --- macOS (AppleClang) ---
+          - name: macOS (Clang, Debug)
             os: macos-latest
             build_type: Debug
-            cxx: g++-14
-            cc: gcc-14
 
-          - name: macOS (GCC 14, Release)
+          - name: macOS (Clang, Release)
             os: macos-latest
             build_type: Release
-            cxx: g++-14
-            cc: gcc-14
 
     steps:
       - name: Check out code
@@ -93,16 +89,9 @@ jobs:
           chmod +x llvm.sh
           sudo ./llvm.sh 18
 
-      - name: Install GCC 14 (macOS)
-        # This step only runs on macOS to bypass Apple Clang's missing std::simd
-        if: runner.os == 'macOS'
-        shell: bash
-        run: brew install gcc@14
-
       - name: Set C/C++ Compilers
-        # This step sets the specific compilers for Linux and macOS.
-        # Skips Windows since MSVC doesn't use CC/CXX matrix vars here.
-        if: matrix.cc != '' && matrix.cxx != ''
+        # This step only runs on Linux to set the specific compilers
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
@@ -203,3 +192,4 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./build-coverage/coverage.lcov
           fail_ci_if_error: true # Fails the CI check if upload fails
+

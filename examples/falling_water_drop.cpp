@@ -9,6 +9,12 @@ int main() {
 	remove_all(dir_path);   // delete the directory and all contents
 	create_directory(dir_path); // recreate the empty directory
 
+	auto thermal_maxwell_boltzmann =  [](vec3 /*pos*/) {
+		constexpr double avg_vel = 2.0;
+		constexpr unsigned dim = 2;
+		return math::maxwell_boltzmann_velocity(avg_vel, dim);
+	};
+
 	auto liquid = ParticleCuboid()
 		.at({1.5, 2, 0})
 		.velocity({0, 0, 0})
@@ -16,21 +22,15 @@ int main() {
 		.mass(1.0)
 		.spacing(1.2)
 		.type(0)
-		.thermal([](vec3 /*pos*/) {
-				constexpr double avg_vel = 1.0;
-				return math::maxwell_boltzmann_velocity(avg_vel);
-			});
+		.thermal(thermal_maxwell_boltzmann);
 
 	auto drop = ParticleSphere()
 		.at({150,150,0})
-		.radius_xyz({10, 10, 0})
-		.mass(1.0)
+		.radius_xyz({20, 20, 0})
+		.mass(2.0)
 		.spacing(1)
 		.type(1)
-		.thermal([](vec3 /*pos*/) {
-				constexpr double avg_vel = 1.0;
-				return math::maxwell_boltzmann_velocity(avg_vel);
-			});
+		.thermal(thermal_maxwell_boltzmann);
 
 	auto thermostat = VelocityScalingThermostat(0.5,
 		temperature_not_set,
@@ -47,14 +47,14 @@ int main() {
 
 	env.with_extent(303,180, 0)
 		.with_force(LennardJones(3, 1.2), to_type(0))
-		.with_force(LennardJones(3, 1), to_type(1))
+		.with_force(LennardJones(1, 1), to_type(1))
 		.with_particles(liquid)
 		.with_particles(drop)
 		.with_boundaries(ReflectiveBoundary(), all_faces)
 		.with_controller(thermostat)
 		.with_field(gravity);
 
-	auto container = LinkedCells<Layout::AoS>();
+	auto container = LinkedCells<Layout::AoSoA<>>();
 	auto system = build_system(env, container);
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)

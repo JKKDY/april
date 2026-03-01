@@ -12,6 +12,10 @@ using namespace april;
 #endif
 
 
+// We test:
+// - double
+// - Packed<double> (xsimd)
+// - Packed<double> (std_simd - conditionally)
 #if APRIL_HAS_STD_SIMD
 #include "april/simd/backend_std_simd.hpp"
 using Vec3Types = testing::Types<
@@ -26,17 +30,7 @@ using Vec3Types = testing::Types<
 >;
 #endif
 
-// We test:
-// - double
-// - Packed<double> (xsimd)
-// - Packed<double> (std_simd - conditionally)
-using Vec3Types = testing::Types<
-    double,
-    simd::internal::xsimd::Packed<double>
-    #if AP_HAS_STD_SIMD
-    , simd::internal::std_simd::Packed<double>
-    #endif
->;
+
 
 template <typename T>
 class Vec3Test : public testing::Test {

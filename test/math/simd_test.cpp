@@ -8,22 +8,28 @@
 #include "april/simd/backend_xsimd.hpp"
 #include "april/simd/simd_traits.hpp"
 
+
+#if (defined(__clang__) && !defined(__apple_build_version__)) || defined(__GNUC__)
 #if __has_include(<experimental/simd>) || __has_include(<simd>)
-    #include "april/simd/backend_std_simd.hpp"
-    #define AP_HAS_STD_SIMD 1
-#else
-    #define AP_HAS_STD_SIMD 0
+#define APRIL_HAS_STD_SIMD 1
+#endif
 #endif
 
-// Define types based on header availability
+
+#if APRIL_HAS_STD_SIMD
+#include "april/simd/backend_std_simd.hpp"
+using BackendTypes = testing::Types<
+    april::simd::internal::xsimd::Packed<double>,
+    april::simd::internal::xsimd::Packed<float>,
+    april::simd::internal::std_simd::Packed<double>,
+    april::simd::internal::std_simd::Packed<float>
+>;
+#else
 using BackendTypes = testing::Types<
     april::simd::internal::xsimd::Packed<double>,
     april::simd::internal::xsimd::Packed<float>
-    #if AP_HAS_STD_SIMD
-    , april::simd::internal::std_simd::Packed<double>
-    , april::simd::internal::std_simd::Packed<float>
-    #endif
->;
+    >;
+#endif
 
 
 template <typename T>

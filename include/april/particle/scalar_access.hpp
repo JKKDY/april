@@ -6,13 +6,12 @@
 #include "april/particle/source.hpp"
 
 namespace april::particle::internal {
-	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT> struct ScalarParticleView;
 	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT> struct ScalarParticleRef;
 
 
-	template<ParticleField M, ParticleField F, typename Source>
+	template<ParticleField ReadMask, ParticleField WriteMask, ParticleField F, typename Source>
 	constexpr decltype(auto) init_scalar_field(const Source& src) {
-		if constexpr (particle::internal::has_field_v<M, F>) {
+		if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, F>) {
 			return *src.template get<F>();
 		} else {
 			return internal::AccessForbidden<F>();

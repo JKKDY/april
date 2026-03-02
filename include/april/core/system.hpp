@@ -45,15 +45,6 @@ namespace april {
 		using Container = ContainerDecl::template impl<typename Traits::particle_attributes_t>;
 		using ParticleRec = Traits::particle_record_t;
 
-		template<ParticleField M>
-		using ParticleRef = Traits::template particle_ref_t<M>;
-
-		template<ParticleField M>
-		using ParticleView = Traits::template particle_view_t<M>;
-
-		template<ParticleField M>
-		using RestrictedParticleRef = Traits::template restricted_particle_ref_t<M>;
-
 
 		// -----------------
 		// LIFECYCLE & STATE
@@ -71,38 +62,32 @@ namespace april {
 		// ------------------
 		// PARTICLE ACCESSORS
 		// ------------------
-		// "at" implies mutable access, "view" implies read-only, "restricted_at" implies only force mutable
+		// "at" implies mutable access, "view" implies read-only,
 
 		// INDEX ACCESSORS (fast)
-		template<ParticleField M>
-		[[nodiscard]] particle::internal::ScalarParticleRef<M, M, ParticleData> at(const size_t index) {
-			return particle_container.template at<M>(index);
+		template<ParticleField Read, ParticleField Write = Read>
+		[[nodiscard]] auto at(const size_t index) {
+			// type: particle::internal::ScalarParticleRef<Read, Write, ParticleData>
+			return particle_container.template at<Read, Write>(index);
 		}
 
-		template<ParticleField M>
-		[[nodiscard]] particle::internal::ScalarParticleView<M, M, ParticleData> view(const size_t index) const {
-			return particle_container.template view<M>(index);
-		}
-
-		template<ParticleField M>
-		[[nodiscard]] particle::internal::ScalarRestrictedParticleRef<M, M, ParticleData> restricted_at(const size_t index) {
-			return particle_container.template restricted_at<M>(index);
+		template<ParticleField Read>
+		[[nodiscard]] auto view(const size_t index) const {
+			// type: particle::internal::ScalarParticleRef<Read, ParticleField::none, ParticleData>
+			return particle_container.template view<Read>(index);
 		}
 
 		// ID ACCESSORS (stable)
-		template<ParticleField M>
-		[[nodiscard]] particle::internal::ScalarParticleRef<M, M, ParticleData> at_id(const ParticleID id) {
-			return particle_container.template at_id<M>(id);
+		template<ParticleField Read, ParticleField Write = Read>
+		[[nodiscard]] auto at_id(const ParticleID id) {
+			// type: particle::internal::ScalarParticleRef<Read, Write, ParticleData>
+			return particle_container.template at_id<Read, Write>(id);
 		}
 
-		template<ParticleField M>
-		[[nodiscard]] particle::internal::ScalarParticleView<M, M, ParticleData> view_id(const ParticleID id) const {
-			return particle_container.template view_id<M>(id);
-		}
-
-		template<ParticleField M>
-		[[nodiscard]] particle::internal::ScalarRestrictedParticleRef<M, M, ParticleData> restricted_at_id(const ParticleID id) {
-			return particle_container.template restricted_at_id<M>(id);
+		template<ParticleField Read>
+		[[nodiscard]]auto view_id(const ParticleID id) const {
+			// type: particle::internal::ScalarParticleRef<Read, ParticleField::none, ParticleData>
+			return particle_container.template view_id<Read>(id);
 		}
 
 
@@ -170,6 +155,7 @@ namespace april {
 			particle_container.template for_each_particle_view<P, V, Kernel>(std::forward<Kernel>(func), state);
 		}
 
+		// TODO implement and fix
 		template<ParticleField M, typename Mapper, typename T, typename Reducer = std::plus<T>>
 		[[nodiscard]] T reduce(
 			T initial_value,
@@ -177,7 +163,7 @@ namespace april {
 			Reducer&& reduce_func = {},
 			ParticleState state = ParticleState::ALIVE
 		) const {
-			return particle_container.template invoke_reduce<M>(initial_value, map_func, reduce_func, state);
+			return particle_container.invoke_iterate_state(initial_value, map_func, reduce_func, state);
 		}
 
 
@@ -191,19 +177,19 @@ namespace april {
 		void for_each_interaction_pair(Kernel && func) { // func(particle, particle, dist)
 			auto update_batch = [&]<container::batching::IsBatch Batch, /*TODO container::IsBCP*/ typename BCP>(const Batch& batch, BCP && apply_bcp) {
 				auto bridge = [&](auto && p1, auto && p2) {
-					vec3 r = {};
-					if constexpr (particle::internal::has_field_v<Kernel::access_fields, ParticleField::position> &&
+					auto r = p2.position - p1.position;
+					if constexpr (particle::internal::has_field_v<Kernel::Read, ParticleField::position> &&
 						std::is_same_v<std::decay_t<BCP>, container::batching::NoBatchBCP>) {
 						r = p2.position - p1.position;
-						} else {
-							r = apply_bcp(p2.position - p1.position);
-						}
+					} else {
+						r = apply_bcp(p2.position - p1.position);
+					}
 
 					func(p1, p2, r);
 				};
 
 				using K = std::remove_cvref_t<Kernel>; // TODO add a make kernel wrapper function
-				auto kernel = exec::internal::KernelWrapper<K::access, K::update, K::mode, decltype(bridge)>{bridge};
+				auto kernel = exec::internal::KernelWrapper<K::Read, K::Write, K::mode, decltype(bridge)>{bridge};
 				execute_batch_kernel<ParallelPolicy::Serial, VectorPolicy::Scalar>(batch, kernel);
 			};
 

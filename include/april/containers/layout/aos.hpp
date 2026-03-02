@@ -73,20 +73,16 @@ namespace april::container::layout {
 
 
 		// DISABLE PACKED ACCESS
-		template<ParticleField M>
+		template<ParticleField R, ParticleField W>
 		[[nodiscard]] auto at_packed(this auto&&, size_t) {
 			static_assert(false, "AoS does not support packed access");
 		}
 
-		template<ParticleField M>
+		template<ParticleField R>
 		[[nodiscard]] auto view_packed(this const auto&, size_t) {
 			static_assert(false, "AoS does not support packed access");
 		}
 
-		template<ParticleField M>
-		[[nodiscard]] auto restricted_at_packed(this auto&&, size_t) {
-			static_assert(false, "AoS does not support packed access");
-		}
 
 	protected:
 		std::vector<Particle> tmp = {};
@@ -161,9 +157,9 @@ namespace april::container::layout {
 			for (size_t i = start; i < end; i++) {
 				using K = std::remove_cvref_t<Kernel>;
 				if constexpr (is_const) {
-					kernel(i, self.template view<K::access>(i));
+					kernel(i, self.template view<K::Read>(i));
 				} else {
-					kernel(i, self.template at<K::access>(i));
+					kernel(i, self.template at<K::Read>(i));
 				}
 			}
 		}

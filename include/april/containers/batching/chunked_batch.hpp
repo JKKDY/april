@@ -8,6 +8,9 @@
 #include "april/exec/particle_kernel.hpp"
 
 
+#define get_scalar(chunk, index)     container.template at<K::Read, K::Write>(chunk, index)
+#define get_packed(chunk, index) container.template at_packed<K::Read, K::Write>(chunk, index)
+
 namespace april::container::batching {
     //-----------------
     // ASYMMETRIC BATCH
@@ -71,9 +74,9 @@ namespace april::container::batching {
                     AP_PREFETCH(chunks + c2 + 1);
 
                     for (size_t i = 0; i < chunk_size; ++i) {
-                        auto p1 = container.template at<K::access>(c1, i);
+                        auto p1 = get_scalar(c1, i);
                         for (size_t j = 0; j < chunk_size; ++j) {
-                            auto p2 = container.template at<K::access>(c2, j);
+                            auto p2 = get_scalar(c2, j);
                             f(p1, p2);
                         }
                     }
@@ -84,9 +87,9 @@ namespace april::container::batching {
             for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
                 AP_PREFETCH(chunks + c1 + 1);
                 for (size_t i = 0; i < chunk_size; ++i) {
-                    auto p1 = container.template at<K::access>(c1, i);
+                    auto p1 = get_scalar(c1, i);
                     for (size_t j = 0; j < limit2_tail; ++j) {
-                        auto p2 = container.template at<K::access>(c2_body_end, j);
+                        auto p2 = get_scalar(c2_body_end, j);
                         f(p1, p2);
                     }
                 }
@@ -96,9 +99,9 @@ namespace april::container::batching {
             for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
                 AP_PREFETCH(chunks + c2 + 1);
                 for (size_t i = 0; i < limit1_tail; ++i) {
-                    auto p1 = container.template at<K::access>(c1_body_end, i);
+                    auto p1 = get_scalar(c1_body_end, i);
                     for (size_t j = 0; j < chunk_size; ++j) {
-                        auto p2 = container.template at<K::access>(c2, j);
+                        auto p2 = get_scalar(c2, j);
                         f(p1, p2);
                     }
                 }
@@ -106,9 +109,9 @@ namespace april::container::batching {
 
             // tail 1 vs tail 2 (Interaction between the two last chunks)
             for (size_t i = 0; i < limit1_tail; ++i) {
-                auto p1 = container.template at<K::access>(c1_body_end, i);
+                auto p1 = get_scalar(c1_body_end, i);
                 for (size_t j = 0; j < limit2_tail; ++j) {
-                    auto p2 = container.template at<K::access>(c2_body_end, j);
+                    auto p2 = get_scalar(c2_body_end, j);
                     f(p1, p2);
                 }
             }
@@ -161,7 +164,7 @@ namespace april::container::batching {
             Kernel && f) const {
 
             using K = std::remove_cvref_t<Kernel>;
-            constexpr ParticleField access_fields = K::access;
+            constexpr ParticleField access_fields = K::Read;
 
             // 1. full SIMD blocks in range 1 (Chunks) vs full SIMD blocks in range 2 (Chunks + Tail)
             for (size_t c1 : full_chunks1) {
@@ -256,12 +259,12 @@ namespace april::container::batching {
             Kernel && f) const {
 
             using K = std::remove_cvref_t<Kernel>;
-            constexpr ParticleField access_fields = K::access;
+
 
             // 3. Range 2 Partial Tail [P2] vs Range 1 SIMD blocks [C1 + F1]
             for (size_t i : partial_tail2) {
-                auto p2 = container.template at<access_fields>(full_chunks2.stop, i);
-                auto buffer2 = particle::internal::PackedParticleBuffer<access_fields>::broadcast(p2);
+                auto p2 = get_scalar(full_chunks2.stop, i);
+                auto buffer2 = particle::internal::PackedParticleBuffer<K::Read, K::Write>::broadcast(p2);
                 buffer2.force = {0, 0, 0};
 
                 // a. Interaction with full chunks in Range 1 body
@@ -269,7 +272,7 @@ namespace april::container::batching {
                     AP_PREFETCH(chunks + c1 + 1);
                     AP_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
-                        auto packed1 = container.template at_packed<access_fields>(c1, j);
+                        auto packed1 = get_packed(c1, j);
                         auto buffer1 = packed1.load_buffer();
 
                         f(buffer1, buffer2);
@@ -280,7 +283,7 @@ namespace april::container::batching {
 
                 // b. Interaction with SIMD-aligned blocks in Range 1 tail chunk
                 for (size_t t1 : full_tail1) {
-                    auto packed1 = container.template at_packed<access_fields>(full_chunks1.stop, t1);
+                    auto packed1 = get_packed(full_chunks1.stop, t1);
                     auto buffer1 = packed1.load_buffer();
 
                     f(buffer1, buffer2);
@@ -295,8 +298,8 @@ namespace april::container::batching {
 
             // Partial Tail 1 vs Full Range 2 (chunks + full tail)
             for (size_t i : partial_tail1) {
-                auto p1 = container.template at<access_fields>(full_chunks1.stop, i);
-                auto buffer1 = particle::internal::PackedParticleBuffer<access_fields>::broadcast(p1);
+                auto p1 = get_scalar(full_chunks1.stop, i);
+                auto buffer1 = particle::internal::PackedParticleBuffer<K::Read, K::Write>::broadcast(p1);
                 buffer1.force = {0, 0, 0};
 
                 // a. Interaction with full chunks in Range 2 body
@@ -304,7 +307,7 @@ namespace april::container::batching {
                     AP_PREFETCH(chunks + c2 + 1);
                     AP_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
-                        auto packed2 = container.template at_packed<access_fields>(c2, j);
+                        auto packed2 = get_packed(c2, j);
                         auto buffer2 = packed2.load_buffer();
                         buffer2.force = {0, 0, 0};
 
@@ -316,7 +319,7 @@ namespace april::container::batching {
 
                 // b. Interaction with SIMD-aligned blocks in Range 2 tail chunk
                 for (size_t t2 : full_tail2) {
-                    auto packed2 = container.template at_packed<access_fields>(full_chunks2.stop, t2);
+                    auto packed2 = get_packed(full_chunks2.stop, t2);
                     auto buffer2 = packed2.load_buffer();
                     buffer2.force = {0, 0, 0};
 
@@ -337,7 +340,6 @@ namespace april::container::batching {
             const math::Range& partial_tail1, const math::Range& partial_tail2,
             Kernel && f) const {
             using K = std::remove_cvref_t<Kernel>;
-            constexpr ParticleField access_fields = K::access;
 
             // 5. partial tail vs partial tail
             if (partial_tail1.start != partial_tail1.stop && partial_tail2.start != partial_tail2.stop) {
@@ -349,14 +351,14 @@ namespace april::container::batching {
                 const packed null = 0.0;
 
                 // load the single SIMD block containing partial_tail1
-                auto packed1 = container.template at_packed<access_fields>(full_chunks1.stop, partial_tail1.start);
+                auto packed1 = get_packed(full_chunks1.stop, partial_tail1.start);
                 auto buffer1 = packed1.load_buffer();
                 buffer1.force = {0, 0, 0};
 
                 // loop over the individual particles in partial_tail2
                 for (size_t i = partial_tail2.start; i < partial_tail2.stop; ++i) {
-                    auto p2 = container.template at<access_fields>(full_chunks2.stop, i);
-                    auto buffer2 = particle::internal::PackedParticleBuffer<access_fields>::broadcast(p2);
+                    auto p2 = get_scalar(full_chunks2.stop, i);
+                    auto buffer2 = particle::internal::PackedParticleBuffer<K::Read, K::Write>::broadcast(p2);
                     buffer2.force = {0, 0, 0};
 
                     f(buffer1, buffer2);
@@ -424,19 +426,19 @@ namespace april::container::batching {
         template <ParallelPolicy P, typename Kernel>
         void for_each_pair_scalar(Kernel && f) const {
             using K = std::remove_cvref_t<Kernel>;
-            constexpr ParticleField access_fields = K::access;
 
             const size_t c_body_end = range_chunks.stop - 1;
-            const size_t limit_tail = (range_tail == 0) ? packed_size : range_tail;
+            // Note: Use chunk_size here for full chunks, not packed_size
+            const size_t limit_tail = (range_tail == 0) ? chunk_size : range_tail;
 
             for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
                 AP_PREFETCH(chunks + c1 + 1);
 
                 // chunk self interaction
                 for (size_t i = 0; i < chunk_size; ++i) {
-                    auto p1 = container.template at<access_fields>(c1, i);
+                    auto p1 = get_scalar(c1, i);
                     for (size_t j = i + 1; j < chunk_size; ++j) {
-                        auto p2 = container.template at<access_fields>(c1, j);
+                        auto p2 = get_scalar(c1, j);
                         f(p1, p2);
                     }
                 }
@@ -445,9 +447,9 @@ namespace april::container::batching {
                 for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
                     AP_PREFETCH(chunks + c2 + 1);
                     for (size_t i = 0; i < chunk_size; ++i) {
-                        auto p1 = container.template at<access_fields>(c1, i);
+                        auto p1 = get_scalar(c1, i);
                         for (size_t j = 0; j < chunk_size; ++j) {
-                            auto p2 = container.template at<access_fields>(c2, j);
+                            auto p2 = get_scalar(c2, j);
                             f(p1, p2);
                         }
                     }
@@ -458,9 +460,9 @@ namespace april::container::batching {
             for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
                 AP_PREFETCH(chunks + c1 + 1);
                 for (size_t i = 0; i < chunk_size; ++i) {
-                    auto p1 = container.template at<access_fields>(c1, i);
+                    auto p1 = get_scalar(c1, i);
                     for (size_t j = 0; j < limit_tail; ++j) {
-                        auto p2 = container.template at<access_fields>(c_body_end, j);
+                        auto p2 = get_scalar(c_body_end, j);
                         f(p1, p2);
                     }
                 }
@@ -468,9 +470,9 @@ namespace april::container::batching {
 
             // tail (interact tail chunk with itself)
             for (size_t i = 0; i < limit_tail; ++i) {
-                auto p1 = container.template at<access_fields>(c_body_end, i);
+                auto p1 = get_scalar(c_body_end, i);
                 for (size_t j = i + 1; j < limit_tail; ++j) {
-                    auto p2 = container.template at<access_fields>(c_body_end, j);
+                    auto p2 = get_scalar(c_body_end, j);
                     f(p1, p2);
                 }
             }
@@ -513,7 +515,6 @@ namespace april::container::batching {
             const math::Range& partial_tail,
             Kernel&& f) const {
             using K = std::remove_cvref_t<Kernel>;
-            constexpr ParticleField access_fields = K::access;
 
             // 1. all simd in full chunks vs all simd in full chunks + full tail + partial particles
             for (size_t c1 : full_chunks) {
@@ -521,7 +522,7 @@ namespace april::container::batching {
 
                 AP_UNROLL_LOOP_N(iter_chunks)
                 for (size_t i = 0; i < chunk_size; i += packed_size) {
-                    auto packed1 = container.template at_packed<access_fields>(c1, i);
+                    auto packed1 = get_scalar(c1, i);
                     auto buffer1 = packed1.load_buffer();
 
                     // a. simd register self interaction
@@ -547,7 +548,7 @@ namespace april::container::batching {
 
                     // b. intra-chunk interactions (Block i vs Blocks j where j > i inside c1)
                     for (size_t j = i + packed_size; j < chunk_size; j += packed_size) {
-                        auto packed2 = container.template at_packed<access_fields>(c1, j);
+                        auto packed2 = get_packed(c1, j);
                         auto buffer2 = packed2.load_buffer();
 
                         AP_UNROLL_LOOP_N(packed_size)
@@ -563,7 +564,7 @@ namespace april::container::batching {
                         AP_PREFETCH(chunks + c2 + 1);
                         AP_UNROLL_LOOP_N(iter_chunks)
                         for (size_t j = 0; j < chunk_size; j += packed_size) {
-                            auto packed2 = container.template at_packed<access_fields>(c2, j);
+                            auto packed2 = get_packed(c2, j);
                             auto buffer2 = packed2.load_buffer();
 
                             AP_UNROLL_LOOP_N(packed_size)
@@ -577,7 +578,7 @@ namespace april::container::batching {
 
                     // d. interaction with SIMD-aligned blocks in the tail chunk [F]
                     for (size_t j : full_tail) {
-                        auto packed2 = container.template at_packed<access_fields>(full_chunks.stop, j);
+                        auto packed2 = get_packed(full_chunks.stop, j);
                         auto buffer2 = packed2.load_buffer();
 
                         AP_UNROLL_LOOP_N(packed_size)
@@ -591,8 +592,8 @@ namespace april::container::batching {
 
                     // e. interaction with partial particles in the tail chunk [P]
                     for (size_t j : partial_tail) {
-                        auto p2 = container.template at<access_fields>(full_chunks.stop, j);
-                        auto buffer2 = particle::internal::PackedParticleBuffer<access_fields>::broadcast(p2);
+                        auto p2 = get_scalar(full_chunks.stop, j);
+                        auto buffer2 = particle::internal::PackedParticleBuffer<K::Read, K::Write>::broadcast(p2);
                         buffer2.force = {0, 0, 0};
 
                         f(buffer1, buffer2);
@@ -617,12 +618,11 @@ namespace april::container::batching {
             Kernel&& f) const {
 
             using K = std::remove_cvref_t<Kernel>;
-            constexpr ParticleField access_fields = K::access;
 
             // 2. all full blocks i in tail chunk [F] vs remainder [a) Self, b) F_intra, c) P]
             for (size_t i : full_tail) {
                 // a. self interaction
-                auto packed1 = container.template at_packed<access_fields>(full_chunks.stop, i);
+                auto packed1 = get_packed(full_chunks.stop, i);
                 auto buffer1 = packed1.load_buffer();
                 {
                     auto buffer2 = packed1.load_buffer();
@@ -644,7 +644,7 @@ namespace april::container::batching {
 
                 // b. intra-chunk interactions (Block i vs Blocks j where j > i inside full tail)
                 for (size_t j = i + packed_size; j < full_tail_end; j += packed_size) {
-                    auto packed2 = container.template at_packed<access_fields>(full_chunks.stop, j);
+                    auto packed2 = get_packed(full_chunks.stop, j);
                     auto buffer2 = packed2.load_buffer();
 
                     AP_UNROLL_LOOP_N(packed_size)
@@ -657,8 +657,8 @@ namespace april::container::batching {
 
                 // c interaction with partial particles in the tail chunk [P]
                 for (size_t j : partial_tail) {
-                    auto p2 = container.template at<access_fields>(full_chunks.stop, j);
-                    auto buffer2 = particle::internal::PackedParticleBuffer<access_fields>::broadcast(p2);
+                    auto p2 = get_scalar(full_chunks.stop, j);
+                    auto buffer2 = particle::internal::PackedParticleBuffer<K::Read, K::Write>::broadcast(p2);
                     buffer2.force = {0, 0, 0};
 
                     f(buffer1, buffer2);
@@ -680,7 +680,6 @@ namespace april::container::batching {
             Kernel && f) const {
 
             using K = std::remove_cvref_t<Kernel>;
-            constexpr ParticleField access_fields = K::access;
 
             // 3. partial vs partial
             if (partial_tail.start != partial_tail.stop) {
@@ -693,7 +692,7 @@ namespace april::container::batching {
                 const packed null = 0.0;
 
                 // load the entire tail chunk
-                auto packed_chunk = container.template at_packed<access_fields>(full_chunks.stop, partial_tail.start);
+                auto packed_chunk = get_packed(full_chunks.stop, partial_tail.start);
                 auto chunk_data = packed_chunk.load_buffer();
 
                 // Accumulator for forces exerted by the p1 scalars onto the rest of the chunk
@@ -701,8 +700,8 @@ namespace april::container::batching {
 
                 // loop over valid particles in the tail
                 for (size_t i : partial_tail) {
-                    auto p1 = container.template at<access_fields>(full_chunks.stop, i);
-                    auto buffer1 = particle::internal::PackedParticleBuffer<access_fields>::broadcast(p1);
+                    auto p1 = get_scalar(full_chunks.stop, i);
+                    auto buffer1 = particle::internal::PackedParticleBuffer<K::Read, K::Write>::broadcast(p1);
                     buffer1.force = {0, 0, 0};
 
                     // Fresh buffer to capture forces exerted on the chunk from just this p1
@@ -733,3 +732,7 @@ namespace april::container::batching {
         }
     };
 }
+
+
+#undef get_scalar
+#undef get_packed

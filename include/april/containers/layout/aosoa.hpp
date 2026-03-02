@@ -97,30 +97,30 @@ namespace april::container::layout {
 
 
 		// ACCESSORS (chunk based)
-		template<ParticleField M>
+		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::ScalarParticleRef<M, M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::ScalarParticleRef<Read, Write, Attributes> {
+				self.template access_particle<Read, Write>(chunk_idx, lane_idx)
+			};
 		}
-		template<ParticleField M>
+		template<ParticleField Read>
 		[[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::ScalarParticleView<M, M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
-		}
-		template<ParticleField M>
-		[[nodiscard]] auto restricted_at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::ScalarRestrictedParticleRef<M, M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::ScalarParticleRef<Read, ParticleField::none, Attributes> {
+				self.template access_particle<Read, ParticleField::none>(chunk_idx, lane_idx)
+			};
 		}
 
-		template<ParticleField M>
+		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::PackedParticleRef<M, M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::PackedParticleRef<Read, Write, Attributes> {
+				self.template access_particle<Read, Write>(chunk_idx, lane_idx)
+			};
 		}
-		template<ParticleField M>
+		template<ParticleField Read>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::PackedParticleView<M, M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
-		}
-		template<ParticleField M>
-		[[nodiscard]] auto restricted_at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::PackedRestrictedParticleRef<M, M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::PackedParticleRef<Read, ParticleField::none, Attributes> {
+				self.template access_particle<Read, ParticleField::none>(chunk_idx, lane_idx)
+			};
 		}
 
 
@@ -372,31 +372,37 @@ namespace april::container::layout {
 	private:
 		std::vector<batching::TopologyBatch> topology_batches;
 
-		template<ParticleField M>
+		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto access_particle(this auto&& self, size_t chunk_idx, size_t lane_idx) {
 
-			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-			particle::internal::ParticleSource<M, Attributes, IsConst> src;
+			constexpr bool is_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;
+
+			static_assert(!(is_const && Write != ParticleField::none),
+				"APRIL ERROR: Cannot request write permissions (WriteMask != none) on a const Container. "
+				"Either drop the write mask or ensure the container is mutable.");
+
+			particle::internal::ParticleSource<Read, Write, Attributes> src;
+			constexpr auto Mask = Read | Write;
 
 			auto& chunk = self.ptr_chunks[chunk_idx];
 
-			if constexpr (particle::internal::has_field_v<M, ParticleField::force>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
 				src.force = math::Vec3Ptr { &chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx] };
-			if constexpr (particle::internal::has_field_v<M, ParticleField::position>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
 				src.position = math::Vec3Ptr { &chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx] };
-			if constexpr (particle::internal::has_field_v<M, ParticleField::velocity>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
 				src.velocity = math::Vec3Ptr { &chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx] };
-			if constexpr (particle::internal::has_field_v<M, ParticleField::old_position>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
 				src.old_position = math::Vec3Ptr { &chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx] };
-			if constexpr (particle::internal::has_field_v<M, ParticleField::mass>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
 				src.mass = &chunk.mass[lane_idx];
-			if constexpr (particle::internal::has_field_v<M, ParticleField::state>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
 				src.state = &chunk.state[lane_idx];
-			if constexpr (particle::internal::has_field_v<M, ParticleField::type>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
 				src.type = &chunk.type[lane_idx];
-			if constexpr (particle::internal::has_field_v<M, ParticleField::id>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
 				src.id = &chunk.id[lane_idx];
-			if constexpr (particle::internal::has_field_v<M, ParticleField::attributes>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
 				src.attributes = &chunk.attributes[lane_idx];
 
 			return src;
@@ -426,8 +432,8 @@ namespace april::container::layout {
 		    // constexpr size_t simd_width = packed::size();
 
 		    auto exec_scalar = [&](size_t c, size_t i) {
-		        if constexpr (is_const) kernel(curr_idx++, self.template view<K::access>(c, i));
-		        else kernel(curr_idx++, self.template at<K::access>(c, i));
+		        if constexpr (is_const) kernel(curr_idx++, self.template view<K::Read>(c, i));
+		        else kernel(curr_idx++, self.template at<K::Read, K::Write>(c, i));
 		    };
 
 		    if (start_chunk == end_chunk) {
@@ -469,8 +475,8 @@ namespace april::container::layout {
 		    constexpr size_t simd_width = packed::size();
 
 		    auto exec_vector = [&](size_t c, size_t i) {
-		        if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::access>(c, i));
-		        else kernel(curr_idx, self.template at_packed<K::access>(c, i));
+		        if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::Read>(c, i));
+		        else kernel(curr_idx, self.template at_packed<K::Read, K::Write>(c, i));
 		        curr_idx += simd_width;
 		    };
 
@@ -517,13 +523,13 @@ namespace april::container::layout {
 		    constexpr size_t simd_width = packed::size();
 
 		    auto exec_scalar = [&](size_t c, size_t i) {
-		        if constexpr (is_const) kernel(curr_idx++, self.template view<K::access>(c, i));
-		        else kernel(curr_idx++, self.template at<K::access>(c, i));
+		        if constexpr (is_const) kernel(curr_idx++, self.template view<K::Read>(c, i));
+		        else kernel(curr_idx++, self.template at<K::Read, K::Write>(c, i));
 		    };
 
 		    auto exec_vector = [&](size_t c, size_t i) {
-		        if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::access>(c, i));
-		        else kernel(curr_idx, self.template at_packed<K::access>(c, i));
+		        if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::Read>(c, i));
+		        else kernel(curr_idx, self.template at_packed<K::Read, K::Write>(c, i));
 		        curr_idx += simd_width;
 		    };
 
@@ -554,8 +560,8 @@ namespace april::container::layout {
 		        }
 		        for (size_t i = head_end; i < self.chunk_size; i += simd_width) {
 		            // exec_vector(start_chunk, i);
-		        	if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::access>(start_chunk, i));
-		        	else kernel(curr_idx, self.template at_packed<K::access>(start_chunk, i));
+		        	if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::Read>(start_chunk, i));
+		        	else kernel(curr_idx, self.template at_packed<K::Read>(start_chunk, i));
 		        	curr_idx += simd_width;
 		        }
 
@@ -565,8 +571,8 @@ namespace april::container::layout {
 		            // Guaranteed aligned inside full body chunks
 		            for (size_t i = 0; i < self.chunk_size; i += simd_width) {
 			            // exec_vector(c, i);
-		            	if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::access>(c, i));
-		            	else kernel(curr_idx, self.template at_packed<K::access>(c, i));
+		            	if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::Read>(c, i));
+		            	else kernel(curr_idx, self.template at_packed<K::Read>(c, i));
 		            	curr_idx += simd_width;
 		            }
 		        }
@@ -577,8 +583,8 @@ namespace april::container::layout {
 
 		            for (size_t i = 0; i < tail_body_end; i += simd_width) {
 		                // exec_vector(end_chunk, i);
-		            	if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::access>(end_chunk, i));
-		            	else kernel(curr_idx, self.template at_packed<K::access>(end_chunk, i));
+		            	if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::Read>(end_chunk, i));
+		            	else kernel(curr_idx, self.template at_packed<K::Read>(end_chunk, i));
 		            	curr_idx += simd_width;
 		            }
 		            for (size_t i = tail_body_end; i < end_idx; ++i) {

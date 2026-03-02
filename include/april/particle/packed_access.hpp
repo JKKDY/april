@@ -236,9 +236,9 @@ namespace april::particle::internal {
     // PACKED PARTICLE REF
     //--------------------
     // helper for switching between data pointers and poison
-    template <ParticleField M, ParticleField F, typename Source>
+    template <ParticleField ReadMask, ParticleField WriteMask, ParticleField F, typename Source>
     constexpr auto init_packed(const Source& src) {
-        if constexpr (particle::internal::has_field_v<M, F>) {
+        if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, F>) {
             // no de-reference here because pointers are needed to initialize packed references
             return src.template get<F>();
         }

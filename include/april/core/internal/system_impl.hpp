@@ -174,11 +174,11 @@ namespace april {
 		auto update_global_batch = [&](const auto & batch) {
 
 			auto apply_batch_update = [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr ParticleField M = ForceT::fields | ParticleField::force | ParticleField::position;
+				constexpr ParticleField Read = ForceT::fields | ParticleField::force | ParticleField::position;
 
 				for (const auto & [id1, id2] : batch.pairs) {
-					auto && p1 = particle_container.template restricted_at_id<M>(id1);
-					auto && p2 = particle_container.template restricted_at_id<M>(id2);
+					auto && p1 = at_id<Read, ForceT::fields>(id1);
+					auto && p2 = at_id<Read, ForceT::fields>(id2);
 
 					vec3 r = p2.position - p1.position;
 
@@ -224,7 +224,7 @@ namespace april {
 				constexpr ParticleField M = std::decay_t<B>::fields;
 
 				for (auto p_idx : particle_ids) {
-					auto p = particle_container.template at<M>(p_idx);
+					auto p = at<M>(p_idx);
 					bc.apply(p, domain_box, face);
 
 					if (compiled_boundary.topology.may_change_particle_position) {
@@ -238,7 +238,7 @@ namespace april {
 				constexpr ParticleField M = std::decay_t<B>::fields | detect_mask;
 
 				for (auto p_idx : particle_ids) {
-					auto particle = particle_container.template at<M>(p_idx);
+					auto particle = at<M>(p_idx);
 
 					// make sure the particle exited through the current boundary face
 					// solve for intersection of the particles path with the boundary face

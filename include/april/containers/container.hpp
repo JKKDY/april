@@ -65,52 +65,48 @@ namespace april::container {
 		// PARTICLE ACCESSORS
 		// ------------------
 		// INDEX ACCESSORS
-		// TODO: remove view, restricted accessors
-		template<ParticleField M>
+		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at(this auto&& self, size_t index) {
-			return particle::internal::ScalarParticleRef<M, M, Attributes>{ self.template access_particle<M>(index) };
+			return particle::internal::ScalarParticleRef<Read, Write, Attributes> {
+				self.template access_particle<Read, Write>(index)
+			};
 		}
 
-		template<ParticleField M>
+		template<ParticleField Read>
 		[[nodiscard]] auto view(this const auto& self, size_t index) {
-			return particle::internal::ScalarParticleView<M, M,Attributes>{ self.template access_particle<M>(index) };
+			return particle::internal::ScalarParticleRef<Read, ParticleField::none, Attributes> {
+				self.template access_particle<Read, ParticleField::none>(index)
+			};
 		}
 
-		template<ParticleField M>
-		[[nodiscard]] auto restricted_at(this auto&& self, size_t index) {
-			return particle::internal::ScalarRestrictedParticleRef<M, M,Attributes>{ self.template access_particle<M>(index) };
-		}
-
-		template<ParticleField M>
+		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t index) {
-			return particle::internal::PackedParticleRef<M, M, Attributes>{ self.template access_particle<M>(index) };
+			return particle::internal::PackedParticleRef<Read, Write, Attributes> {
+				self.template access_particle<Read, Write>(index)
+			};
 		}
 
-		template<ParticleField M>
+		template<ParticleField Read>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t index) {
-			return particle::internal::PackedParticleView<M, M, Attributes>{ self.template access_particle<M>(index) };
-		}
-
-		template<ParticleField M>
-		[[nodiscard]] auto restricted_at_packed(this auto&& self, size_t index) {
-			return particle::internal::PackedRestrictedParticleRef<M, M, Attributes>{ self.template access_particle<M>(index) };
+			return particle::internal::PackedParticleRef<Read, ParticleField::none, Attributes> { // Assuming you kept the View alias
+				self.template access_particle<Read, ParticleField::none>(index)
+			};
 		}
 
 
 		// ID ACCESSORS
-		template<ParticleField M>
+		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at_id(this auto&& self, ParticleID id) {
-			return particle::internal::ScalarParticleRef<M, M, Attributes>{ self.template access_particle_id<M>(id) };
+			return particle::internal::ScalarParticleRef<Read, Write, Attributes> {
+				self.template access_particle_id<Read, Write>(id)
+			};
 		}
 
-		template<ParticleField M>
+		template<ParticleField Read>
 		[[nodiscard]] auto view_id(this const auto & self, ParticleID id) {
-			return particle::internal::ScalarParticleView<M, M, Attributes>{ self.template access_particle_id<M>(id) };
-		}
-
-		template<ParticleField M>
-		[[nodiscard]] auto restricted_at_id(this auto&& self, ParticleID id) {
-			return particle::internal::ScalarRestrictedParticleRef<M, M, Attributes>{ self.template access_particle_id<M>(id) };
+			return particle::internal::ScalarParticleRef<Read, ParticleField::none, Attributes> {
+				self.template access_particle_id<Read, ParticleField::none>(id)
+			};
 		}
 
 
@@ -209,9 +205,6 @@ namespace april::container {
 		}
 
 
-
-
-
 		// ---------------
 		// BATCH ITERATION
 		// ---------------
@@ -224,8 +217,6 @@ namespace april::container {
 		void invoke_for_each_topology_batch(this auto&& self, Func&& func) {
 			self.for_each_topology_batch(std::forward<Func>(func));
 		}
-
-
 
 
 		// -----------------
@@ -263,7 +254,6 @@ namespace april::container {
 			AP_ASSERT(false, "resize_domain not supported yet");
 			self.resize_domain(new_domain);
 		}
-
 
 
 		// -------
@@ -314,7 +304,7 @@ namespace april::container {
 				}
 			};
 			using K = std::remove_cvref_t<Kernel>; // TODO add a make kernel wrapper function
-			return exec::internal::KernelWrapper<K::access, K::update, K::mode, decltype(bridge)>{bridge};
+			return exec::internal::KernelWrapper<K::Read, K::Write, K::mode, decltype(bridge)>{bridge};
 		}
 
 		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
@@ -352,7 +342,7 @@ namespace april::container {
 
 
 				self.template iterate_range<P, mode, is_const>( // TODO add a make kernel wrapper function
-					exec::internal::KernelWrapper<K::access | ParticleField::state, K::update, mode, decltype(state_filter)>(state_filter),
+					exec::internal::KernelWrapper<K::Read | ParticleField::state, K::Write, mode, decltype(state_filter)>(state_filter),
 					0, self.capacity());
 			}
 		}
@@ -372,66 +362,82 @@ namespace april::container {
 		//------------------------
 		// PARTICLE DATA ACCESSORS
 		//------------------------
-		template<ParticleField M>
+		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto access_particle(this auto&& self, const size_t i) {
 
-			constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-			particle::internal::ParticleSource<M, Attributes, IsConst> src;
+			constexpr bool is_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 
-			if constexpr (particle::internal::has_field_v<M, ParticleField::force>)
+			static_assert(!(is_const && Write != ParticleField::none),
+				"APRIL ERROR: Cannot request write permissions (WriteMask != none) on a const Container. "
+				"Either drop the write mask or ensure the container is mutable.");
+
+			particle::internal::ParticleSource<Read, Write, Attributes> src;
+			constexpr auto Mask = Read | Write;
+
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
 				src.force = self.template invoke_get_field_ptr<ParticleField::force>(i);
-			if constexpr (particle::internal::has_field_v<M, ParticleField::position>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
 				src.position = self.template invoke_get_field_ptr<ParticleField::position>(i);
-			if constexpr (particle::internal::has_field_v<M, ParticleField::velocity>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
 				src.velocity = self.template invoke_get_field_ptr<ParticleField::velocity>(i);
-			if constexpr (particle::internal::has_field_v<M, ParticleField::old_position>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
 				src.old_position = self.template invoke_get_field_ptr<ParticleField::old_position>(i);
-			if constexpr (particle::internal::has_field_v<M, ParticleField::mass>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
 				src.mass = self.template invoke_get_field_ptr<ParticleField::mass>(i);
-			if constexpr (particle::internal::has_field_v<M, ParticleField::state>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
 				src.state = self.template invoke_get_field_ptr<ParticleField::state>(i);
-			if constexpr (particle::internal::has_field_v<M, ParticleField::type>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
 				src.type = self.template invoke_get_field_ptr<ParticleField::type>(i);
-			if constexpr (particle::internal::has_field_v<M, ParticleField::id>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
 				src.id = self.template invoke_get_field_ptr<ParticleField::id>(i);
-			if constexpr (particle::internal::has_field_v<M, ParticleField::attributes>)
+			if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
 				src.attributes = self.template invoke_get_field_ptr<ParticleField::attributes>(i);
 
 			return src;
 		}
 
-		template<ParticleField M>
+		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto access_particle_id(this auto&& self, const ParticleID id) {
 			// it's optional to implement get_field_ptr_id. The fallback is to use id -> index and access_particle
 
+			constexpr auto Mask = Read | Write;
+			if constexpr (Mask == ParticleField::none) { // guard against none because 1 << std::countr_zero would produce UB
+				return particle::internal::ParticleSource<Read, Write, Attributes>{};
+			}
+
 			// We pick the first active field in the Mask to test if 'get_field_ptr_id' exists.
 			// We cannot check the function "in general" because it is a template.
-			[[maybe_unused]] constexpr auto TestF = static_cast<ParticleField>(1 << std::countr_zero(+M));
+			[[maybe_unused]] constexpr auto TestMask = static_cast<ParticleField>(1 << std::countr_zero(+(Read|Write)));
 
-		    // does 'get_field_ptr_id<TestF>(id)' compile?
-		    if constexpr (requires { self.template get_field_ptr_id<TestF>(id); }) {
+		    // does get_field_ptr_id<TestF>(id) compile?
+		    if constexpr (requires { self.template get_field_ptr_id<TestMask>(id); }) {
 
 		        // specialized path (direct ID access)
-		        constexpr bool IsConst = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-		        particle::internal::ParticleSource<M, Attributes, IsConst> src;
+				constexpr bool is_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 
-		        if constexpr (particle::internal::has_field_v<M, ParticleField::force>)
+		    	static_assert(!(is_const && Write != ParticleField::none),
+		    		"APRIL ERROR: Cannot request write permissions (WriteMask != none) on a const Container. "
+					"Either drop the write mask or ensure the container is mutable.");
+
+		    	particle::internal::ParticleSource<Read, Write, Attributes> src;
+
+		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
         			src.force = self.template invoke_get_field_ptr_id<ParticleField::force>(id);
-		        if constexpr (particle::internal::has_field_v<M, ParticleField::position>)
+		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
         			src.position = self.template invoke_get_field_ptr_id<ParticleField::position>(id);
-		        if constexpr (particle::internal::has_field_v<M, ParticleField::velocity>)
+		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
         			src.velocity = self.template invoke_get_field_ptr_id<ParticleField::velocity>(id);
-		        if constexpr (particle::internal::has_field_v<M, ParticleField::old_position>)
+		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
         			src.old_position = self.template invoke_get_field_ptr_id<ParticleField::old_position>(id);
-		        if constexpr (particle::internal::has_field_v<M, ParticleField::mass>)
+		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
         			src.mass = self.template invoke_get_field_ptr_id<ParticleField::mass>(id);
-		        if constexpr (particle::internal::has_field_v<M, ParticleField::state>)
+		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
         			src.state = self.template invoke_get_field_ptr_id<ParticleField::state>(id);
-		        if constexpr (particle::internal::has_field_v<M, ParticleField::type>)
+		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
         			src.type = self.template invoke_get_field_ptr_id<ParticleField::type>(id);
-		        if constexpr (particle::internal::has_field_v<M, ParticleField::id>)
+		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
         			src.id = self.template invoke_get_field_ptr_id<ParticleField::id>(id);
-		        if constexpr (particle::internal::has_field_v<M, ParticleField::attributes>)
+		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
         			src.attributes = self.template invoke_get_field_ptr_id<ParticleField::attributes>(id);
 
 		        return src;
@@ -439,7 +445,7 @@ namespace april::container {
 		    } else {
 
 		        // fallback path (ID -> Index -> Access)
-		        return self.template access_particle<M>(self.invoke_id_to_index(id));
+		        return self.template access_particle<Read, Write>(self.invoke_id_to_index(id));
 		    }
 		}
 	};

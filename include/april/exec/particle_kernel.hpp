@@ -20,8 +20,8 @@ namespace april {
         struct KernelWrapper {
             const Func func;
             static constexpr auto mode = exec_mode;
-            static constexpr auto access = access_fields;
-            static constexpr auto update = update_fields;
+            static constexpr auto Read = access_fields;
+            static constexpr auto Write = update_fields;
 
             template<typename... Args>
             requires IsKernelInvocable<Func, Args...>
@@ -45,12 +45,12 @@ namespace april {
 
 
         // specialization aliases
-        template<ParticleField access, ParticleField update, typename F> using ScalarKernel =
-            KernelWrapper<access, update, ExecutionMode::Scalar, std::remove_cvref_t<F>>;
-        template<ParticleField access, ParticleField update, typename F> using VectorKernel =
-            KernelWrapper<access, update, ExecutionMode::Vector, std::remove_cvref_t<F>>;
-        template<ParticleField access, ParticleField update, typename F> using UniversalKernel =
-            KernelWrapper<access, update, ExecutionMode::Hybrid, std::remove_cvref_t<F>>;
+        template<ParticleField Read, ParticleField Write, typename F> using ScalarKernel =
+            KernelWrapper<Read, Write, ExecutionMode::Scalar, std::remove_cvref_t<F>>;
+        template<ParticleField Read, ParticleField Write, typename F> using VectorKernel =
+            KernelWrapper<Read, Write, ExecutionMode::Vector, std::remove_cvref_t<F>>;
+        template<ParticleField Read, ParticleField Write, typename F> using UniversalKernel =
+            KernelWrapper<Read, Write, ExecutionMode::Hybrid, std::remove_cvref_t<F>>;
 
 
         // Trait to identify if a type is one of our specific wrappers
@@ -69,14 +69,14 @@ namespace april {
 
 
 
-    template<ParticleField access, ParticleField update=ParticleField::none, typename F> auto scalar_kernel(F&& f) {
-        return exec::internal::ScalarKernel<access, update, F>{std::forward<F>(f)};
+    template<ParticleField Read, ParticleField Write=ParticleField::none, typename F> auto scalar_kernel(F&& f) {
+        return exec::internal::ScalarKernel<Read, Write, F>{std::forward<F>(f)};
     }
-    template<ParticleField access, ParticleField update=ParticleField::none, typename F> auto vector_kernel(F&& f) {
-        return exec::internal::VectorKernel<access, update, F>{std::forward<F>(f)};
+    template<ParticleField Read, ParticleField Write=ParticleField::none, typename F> auto vector_kernel(F&& f) {
+        return exec::internal::VectorKernel<Read, Write, F>{std::forward<F>(f)};
     }
-    template<ParticleField access, ParticleField update=ParticleField::none, typename F> auto universal_kernel(F&& f) {
-        return exec::internal::UniversalKernel<access, update, F>{std::forward<F>(f)};
+    template<ParticleField Read, ParticleField Write=ParticleField::none, typename F> auto universal_kernel(F&& f) {
+        return exec::internal::UniversalKernel<Read, Write, F>{std::forward<F>(f)};
     }
 } //namespace april
 

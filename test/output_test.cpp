@@ -68,7 +68,7 @@ public:
 		void for_each_particle_view(Kernel && func, ParticleState = ParticleState::ALL) const {
 		using K = std::remove_cvref_t<Kernel>;
 		for (size_t i = 0; i < size(); i++) {
-			const auto & p = view<K::access>(i);
+			const auto & p = view<K::Read>(i);
 			func(p);
 		}
 	}

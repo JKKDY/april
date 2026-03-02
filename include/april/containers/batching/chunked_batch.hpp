@@ -8,7 +8,7 @@
 #include "april/exec/particle_kernel.hpp"
 
 
-#define get_scalar(chunk, index)     container.template at<K::Read, K::Write>(chunk, index)
+#define get_scalar(chunk, index) container.template at<K::Read, K::Write>(chunk, index)
 #define get_packed(chunk, index) container.template at_packed<K::Read, K::Write>(chunk, index)
 
 namespace april::container::batching {
@@ -164,14 +164,13 @@ namespace april::container::batching {
             Kernel && f) const {
 
             using K = std::remove_cvref_t<Kernel>;
-            constexpr ParticleField access_fields = K::Read;
 
             // 1. full SIMD blocks in range 1 (Chunks) vs full SIMD blocks in range 2 (Chunks + Tail)
             for (size_t c1 : full_chunks1) {
                 AP_PREFETCH(chunks + c1 + 1);
                 AP_UNROLL_LOOP_N(iter_chunks)
                 for (size_t i = 0; i < chunk_size; i += packed_size) {
-                    auto packed1 = container.template at_packed<access_fields>(c1, i);
+                    auto packed1 = get_packed(c1, i);
                     auto buffer1 = packed1.load_buffer(); // load simd block in range 1
 
                     // a. sweep buffer1 across all full SIMD blocks in Range 2 body chunks [C2]
@@ -179,7 +178,7 @@ namespace april::container::batching {
                         AP_PREFETCH(chunks + c2 + 1);
                         AP_UNROLL_LOOP_N(iter_chunks)
                         for (size_t j = 0; j < chunk_size; j += packed_size) {
-                            auto packed2 = container.template at_packed<access_fields>(c2, j);
+                            auto packed2 = get_packed(c2, j);
                             auto buffer2 = packed2.load_buffer();
 
                             AP_UNROLL_LOOP_N(packed_size)
@@ -194,7 +193,7 @@ namespace april::container::batching {
 
                     // b. sweep buffer1 across SIMD-aligned blocks within the Range 2 tail chunk [F2]
                     for (size_t t2 : full_tail2) {
-                        auto packed2 = container.template at_packed<access_fields>(full_chunks2.stop, t2);
+                        auto packed2 = get_packed(full_chunks2.stop, t2);
                         auto buffer2 = packed2.load_buffer();
 
                         AP_UNROLL_LOOP_N(packed_size)
@@ -212,7 +211,7 @@ namespace april::container::batching {
 
             // 2. SIMD-aligned blocks in the Range 1 tail chunk vs Full Range 2 (Body + Tail)
             for (size_t t1 : full_tail1) {
-                auto packed1 = container.template at_packed<access_fields>(full_chunks1.stop, t1);
+                auto packed1 = get_packed(full_chunks1.stop, t1);
                 auto buffer1 = packed1.load_buffer();
 
                 // a. Interaction with all full chunks in the Range 2 body [C2]
@@ -220,7 +219,7 @@ namespace april::container::batching {
                     AP_PREFETCH(chunks + c2 + 1);
                     AP_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
-                        auto packed2 = container.template at_packed<access_fields>(c2, j);
+                        auto packed2 = get_packed(c2, j);
                         auto buffer2 = packed2.load_buffer();
 
                         AP_UNROLL_LOOP_N(packed_size)
@@ -235,7 +234,7 @@ namespace april::container::batching {
 
                 // b. Interaction with SIMD-aligned blocks within the Range 2 tail chunk [F2]
                 for (size_t t2 : full_tail2) {
-                    auto packed2 = container.template at_packed<access_fields>(full_chunks2.stop, t2);
+                    auto packed2 =get_packed(full_chunks2.stop, t2);
                     auto buffer2 = packed2.load_buffer();
 
                     AP_UNROLL_LOOP_N(packed_size)
@@ -259,7 +258,6 @@ namespace april::container::batching {
             Kernel && f) const {
 
             using K = std::remove_cvref_t<Kernel>;
-
 
             // 3. Range 2 Partial Tail [P2] vs Range 1 SIMD blocks [C1 + F1]
             for (size_t i : partial_tail2) {
@@ -522,7 +520,7 @@ namespace april::container::batching {
 
                 AP_UNROLL_LOOP_N(iter_chunks)
                 for (size_t i = 0; i < chunk_size; i += packed_size) {
-                    auto packed1 = get_scalar(c1, i);
+                    auto packed1 = get_packed(c1, i);
                     auto buffer1 = packed1.load_buffer();
 
                     // a. simd register self interaction

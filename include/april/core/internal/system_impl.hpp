@@ -177,8 +177,8 @@ namespace april {
 				constexpr ParticleField Read = ForceT::fields | ParticleField::force | ParticleField::position;
 
 				for (const auto & [id1, id2] : batch.pairs) {
-					auto && p1 = at_id<Read, ForceT::fields>(id1);
-					auto && p2 = at_id<Read, ForceT::fields>(id2);
+					auto && p1 = at_id<Read, ForceT::fields | ParticleField::force>(id1);
+					auto && p2 = at_id<Read, ForceT::fields | ParticleField::force>(id2);
 
 					vec3 r = p2.position - p1.position;
 

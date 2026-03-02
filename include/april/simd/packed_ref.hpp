@@ -57,15 +57,22 @@ namespace april::simd {
         using value_type = T;
         using mask_type  = decltype(PackedT() == PackedT());
 
-        value_type* ptr = nullptr;
+        using value_ptr = std::conditional_t<std::is_const_v<PackedT>, const value_type*, value_type*>;
+
+        value_ptr ptr = nullptr;
 
         PackedRef() = default;
         PackedRef(const PackedRef &) = default;
 
-        explicit PackedRef(value_type* p) : ptr(p) {}
+        explicit PackedRef(value_ptr p) : ptr(p) {}
 
         template <typename U> requires std::convertible_to<U, T>
         PackedRef(const PackedRef<U>& other): ptr(other.ptr) {};
+
+        template <typename U>
+          PackedRef(const PackedRef<value_type, U>& other)
+          requires (std::is_const_v<PackedT> && !std::is_const_v<U>)
+          : ptr(other.ptr) {}
 
         // CONVERSIONS & ASSIGNMENT
 

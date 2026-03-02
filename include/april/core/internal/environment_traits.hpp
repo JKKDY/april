@@ -56,8 +56,8 @@ namespace april::core::internal {
 		using particle_attributes_t = Attributes;
 		using particle_record_t = particle::ParticleRecord<particle_attributes_t>;
 		template<ParticleField M> using particle_ref_t = particle::internal::ScalarParticleRef<M, M, particle_attributes_t>;
-		template<ParticleField M> using restricted_particle_ref_t = particle::internal::ScalarRestrictedParticleRef<M, M, particle_attributes_t>;
-		template<ParticleField M> using particle_view_t = particle::internal::ScalarParticleView<M, M, particle_attributes_t>;
+		// template<ParticleField M> using restricted_particle_ref_t = particle::internal::ScalarRestrictedParticleRef<M, M, particle_attributes_t>;
+		// template<ParticleField M> using particle_view_t = particle::internal::ScalarParticleView<M, M, particle_attributes_t>;
 
 		// Environment Data type
 		using environment_data_t = EnvironmentData<

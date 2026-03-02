@@ -342,7 +342,7 @@ struct DummyPeriodicBoundary final : boundary::Boundary {
 	: Boundary(0.0, false, true, false ) {}
 
 	template<ParticleField M, particle::IsParticleAttributes U>
-		void apply(particle::internal::ScalarParticleRef<M, U> &, const core::Box &, const DomainFace) const noexcept{
+		void apply(auto, const core::Box &, const DomainFace) const noexcept{
 	}
 };
 

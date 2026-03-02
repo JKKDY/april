@@ -41,9 +41,9 @@ using namespace april::core;
 class DummySystem {
 public:
 	using user_data_t = NoParticleAttributes;
-	template<ParticleField M> using ParticleRef         = particle::internal::ScalarParticleRef<M, user_data_t>;
-	template<ParticleField M> using ParticleView        = particle::internal::ScalarParticleView<M, user_data_t>;
-	template<ParticleField M> using RestrictedParticleRef = particle::internal::ScalarRestrictedParticleRef<M, user_data_t>;
+	template<ParticleField M> using ParticleRef         = particle::internal::ScalarParticleRef<M, M, user_data_t>;
+	template<ParticleField M> using ParticleView        = particle::internal::ScalarParticleView<M, M, user_data_t>;
+	template<ParticleField M> using RestrictedParticleRef = particle::internal::ScalarRestrictedParticleRef<M, M, user_data_t>;
 
 	explicit DummySystem(
 		const size_t step,

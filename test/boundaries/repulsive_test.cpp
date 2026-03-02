@@ -79,7 +79,7 @@ TEST(RepulsiveBoundaryTest, Apply_AddsInwardForce) {
 
 	auto p = make_particle({9.5,5,5});
 	auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	const core::Box box({0,0,0}, {10,10,10});
 
@@ -120,7 +120,7 @@ TEST(RepulsiveBoundaryTest, CompiledBoundary_Apply_AddsInwardForce) {
 
 	auto p = make_particle({5,0.3,5});
 	auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	const core::Box box({0,0,0}, {10,10,10});
 
@@ -201,7 +201,7 @@ TEST(RepulsiveBoundaryTest, ExponentialForce_CalculatesCorrectly) {
     // Particle 1.0 unit away from 0.0 (XMinus wall)
     auto p = make_particle({1.0, 5, 5});
     auto src = make_source<Mask>(p);
-    particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+    particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
     const core::Box box({0,0,0}, {10,10,10});
 
     rep.apply(ref, box, DomainFace::XMinus);
@@ -223,7 +223,7 @@ TEST(RepulsiveBoundaryTest, PowerLawForce_CalculatesCorrectly) {
     // Particle 2.0 units away from 0.0
     auto p = make_particle({2.0, 5, 5});
     const auto src = make_source<Mask>(p);
-    particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+    particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
     const core::Box box({0,0,0}, {10,10,10});
 
     rep.apply(ref, box, DomainFace::XMinus);
@@ -243,7 +243,7 @@ TEST(RepulsiveBoundaryTest, LennardJones93Force_CalculatesCorrectly) {
     // At r=s: 4 * (3 - 9) = -24
     auto p = make_particle({1.0, 5, 5});
     const auto src = make_source<Mask>(p);
-    particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+    particle::internal::ScalarParticleRef<Mask,Mask, NoParticleAttributes> ref(src);
     const core::Box box({0,0,0}, {10,10,10});
 
     rep.apply(ref, box, DomainFace::XMinus);
@@ -264,7 +264,7 @@ TEST(RepulsiveBoundaryTest, AdhesiveLJForce_IsAlwaysRepulsive) {
     // At sigma (1.0), standard LJ Force is 24 * eps * (2 - 1) = 24.
     auto p = make_particle({1.0, 5, 5});
     auto src = make_source<Mask>(p);
-    particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+    particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
     const core::Box box({0,0,0}, {10,10,10});
 
     rep.apply(ref, box, DomainFace::XMinus);
@@ -290,7 +290,7 @@ TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
         // Particle at distance 2.0 from X- wall (pos=2.0)
         auto p = make_particle({2.0, 5, 5});
         auto src = make_source<Mask>(p);
-        particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+        particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
         rep_no_halo.apply(ref, box, DomainFace::XMinus);
 
@@ -306,7 +306,7 @@ TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
         // Particle at distance 2.0 from X- wall (pos=2.0)
         auto p = make_particle({2.0, 5, 5});
         auto src = make_source<Mask>(p);
-        particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+        particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
         rep_halo.apply(ref, box, DomainFace::XMinus);
 

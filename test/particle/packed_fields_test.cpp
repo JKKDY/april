@@ -13,6 +13,8 @@ using namespace april::particle::internal;
 // Define a test mask (Standard Physics Fields)
 static constexpr auto TestMask = ParticleField::position | ParticleField::velocity | ParticleField::force | ParticleField::mass;
 
+using PackedParticle = PackedParticleRef<TestMask, TestMask, NoParticleAttributes>;
+
 class PackedParticleViewsTest : public testing::Test {
 protected:
     static constexpr size_t Count = 16;
@@ -79,7 +81,7 @@ TEST_F(PackedParticleViewsTest, ReadValues) {
     const auto src = get_source();
 
     // Create the Packed Ref
-    const PackedParticleRef<TestMask, NoParticleAttributes> p(src);
+    const PackedParticle p(src);
 
     // Read Position (Load)
     const pvec3 pos = p.position; // Implicit load of N particles
@@ -95,7 +97,7 @@ TEST_F(PackedParticleViewsTest, ReadValues) {
 // Write Check (Broadcast)
 TEST_F(PackedParticleViewsTest, WriteBroadcast) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, NoParticleAttributes> p(src);
+    PackedParticle p(src);
 
     // Write constant force to all particles in the SIMD chunk
     p.force = pvec3(10.0, 20.0, 30.0);
@@ -115,7 +117,7 @@ TEST_F(PackedParticleViewsTest, WriteBroadcast) {
 // Physics Kernel Logic (Read-Modify-Write)
 TEST_F(PackedParticleViewsTest, PhysicsUpdate) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, NoParticleAttributes> p(src);
+   PackedParticle p(src);
 
     constexpr double dt = 0.1;
 
@@ -138,7 +140,7 @@ TEST_F(PackedParticleViewsTest, PhysicsUpdate) {
 // Force Kernel Logic (Interaction)
 TEST_F(PackedParticleViewsTest, ForceKernel) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, NoParticleAttributes> p(src);
+    PackedParticle p(src);
 
     // Simple drag force: F = -v * mass
     p.force = -p.velocity * p.mass;

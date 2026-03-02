@@ -56,7 +56,7 @@ TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 
 	auto p = make_alive_particle();
 	auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	absorb.apply(ref, box, DomainFace::XPlus);
 
@@ -88,7 +88,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 
 	auto p = make_alive_particle();
 	auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	core::Box box{{0,0,0}, {10,10,10}};
 

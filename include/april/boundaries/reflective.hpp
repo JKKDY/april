@@ -9,8 +9,7 @@ namespace april {
 
 		ReflectiveBoundary(): Boundary(-1, false, false, true) {}
 
-		template<ParticleField M, particle::IsParticleAttributes U>
-		void apply(particle::internal::ScalarParticleRef<M, U> & particle, const core::Box & domain_box, const DomainFace face) const noexcept{
+		void apply(auto && particle, const core::Box & domain_box, const DomainFace face) const noexcept{
 			const int is_plus = boundary::face_sign_pos(face);
 			const int ax = boundary::axis_of_face(face);
 

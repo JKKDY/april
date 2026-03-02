@@ -75,33 +75,33 @@ namespace april {
 
 		// INDEX ACCESSORS (fast)
 		template<ParticleField M>
-		[[nodiscard]] particle::internal::ScalarParticleRef<M, ParticleData> at(const size_t index) {
+		[[nodiscard]] particle::internal::ScalarParticleRef<M, M, ParticleData> at(const size_t index) {
 			return particle_container.template at<M>(index);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] particle::internal::ScalarParticleView<M, ParticleData> view(const size_t index) const {
+		[[nodiscard]] particle::internal::ScalarParticleView<M, M, ParticleData> view(const size_t index) const {
 			return particle_container.template view<M>(index);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] particle::internal::ScalarRestrictedParticleRef<M, ParticleData> restricted_at(const size_t index) {
+		[[nodiscard]] particle::internal::ScalarRestrictedParticleRef<M, M, ParticleData> restricted_at(const size_t index) {
 			return particle_container.template restricted_at<M>(index);
 		}
 
 		// ID ACCESSORS (stable)
 		template<ParticleField M>
-		[[nodiscard]] particle::internal::ScalarParticleRef<M, ParticleData> at_id(const ParticleID id) {
+		[[nodiscard]] particle::internal::ScalarParticleRef<M, M, ParticleData> at_id(const ParticleID id) {
 			return particle_container.template at_id<M>(id);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] particle::internal::ScalarParticleView<M, ParticleData> view_id(const ParticleID id) const {
+		[[nodiscard]] particle::internal::ScalarParticleView<M, M, ParticleData> view_id(const ParticleID id) const {
 			return particle_container.template view_id<M>(id);
 		}
 
 		template<ParticleField M>
-		[[nodiscard]] particle::internal::ScalarRestrictedParticleRef<M, ParticleData> restricted_at_id(const ParticleID id) {
+		[[nodiscard]] particle::internal::ScalarRestrictedParticleRef<M, M, ParticleData> restricted_at_id(const ParticleID id) {
 			return particle_container.template restricted_at_id<M>(id);
 		}
 

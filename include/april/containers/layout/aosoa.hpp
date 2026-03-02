@@ -99,28 +99,28 @@ namespace april::container::layout {
 		// ACCESSORS (chunk based)
 		template<ParticleField M>
 		[[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::ScalarParticleRef<M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::ScalarParticleRef<M, M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::ScalarParticleView<M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::ScalarParticleView<M, M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::ScalarRestrictedParticleRef<M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::ScalarRestrictedParticleRef<M, M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 
 		template<ParticleField M>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::PackedParticleRef<M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::PackedParticleRef<M, M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::PackedParticleView<M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::PackedParticleView<M, M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 		template<ParticleField M>
 		[[nodiscard]] auto restricted_at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-			return particle::internal::PackedRestrictedParticleRef<M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
+			return particle::internal::PackedRestrictedParticleRef<M, M, Attributes>{ self.template access_particle<M>(chunk_idx, lane_idx) };
 		}
 
 

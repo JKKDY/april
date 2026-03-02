@@ -35,7 +35,7 @@ TEST(UniformFieldTest, ApplyIsAdditive) {
 	particle::internal::ParticleSource<Mask, NoParticleAttributes, false> src;
 	src.force    = &p_rec.force;
 
-	particle::internal::ScalarRestrictedParticleRef<Mask, NoParticleAttributes> p_ref(src);
+	particle::internal::ScalarRestrictedParticleRef<Mask, Mask, NoParticleAttributes> p_ref(src);
 
 	// 4. Call apply()
 	field.apply(p_ref);

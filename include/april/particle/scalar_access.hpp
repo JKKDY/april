@@ -6,8 +6,8 @@
 #include "april/particle/source.hpp"
 
 namespace april::particle::internal {
-	template<ParticleField M, IsParticleAttributes UserDataT> struct ScalarParticleView;
-	template<ParticleField M, IsParticleAttributes UserDataT> struct ScalarParticleRef;
+	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT> struct ScalarParticleView;
+	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT> struct ScalarParticleRef;
 
 
 	template<ParticleField M, ParticleField F, typename Source>
@@ -20,12 +20,11 @@ namespace april::particle::internal {
 	}
 
 
-
 	//-------------------
 	// PARTICLE REFERENCE
 	//-------------------
 	// Reference to particle data passed to controllers and boundaries that can mutate particle data.
-	template<ParticleField M, IsParticleAttributes UserDataT>
+	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT>
 	struct ScalarParticleRef {
 	private:
 		template <typename T, ParticleField F> using field_type_t = field_type_t<T, F, M>;
@@ -45,8 +44,8 @@ namespace april::particle::internal {
 			, attributes   (init_scalar_field<M, ParticleField::attributes>		(source))
 		{}
 
-		ScalarParticleView<M, UserDataT> to_view() noexcept {
-			return ScalarParticleView<M, UserDataT>(*this);
+		ScalarParticleView<M, N, UserDataT> to_view() noexcept {
+			return ScalarParticleView<M, N, UserDataT>(*this);
 		}
 
 		AP_NO_UNIQUE_ADDRESS field_type_t<vec3ref, ParticleField::force> force;
@@ -65,7 +64,7 @@ namespace april::particle::internal {
 	// RESTRICTED PARTICLE REF
 	//------------------------
 	// Restricted reference allowing only the force field to be modified, used for fields.
-	template<ParticleField M, IsParticleAttributes UserDataT>
+	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT>
 	struct ScalarRestrictedParticleRef {
 	private:
 	    template <typename T, ParticleField F> using field_type_t = field_type_t<T, F, M>;
@@ -85,8 +84,8 @@ namespace april::particle::internal {
 	       , attributes   (init_scalar_field<M, ParticleField::attributes>     (source))
 	    {}
 
-	    ScalarParticleView<M, UserDataT> to_view() noexcept {
-	       return ScalarParticleView<M, UserDataT>(*this);
+	    ScalarParticleView<M, N, UserDataT> to_view() noexcept {
+	       return ScalarParticleView<M, N, UserDataT>(*this);
 	    }
 
 	    AP_NO_UNIQUE_ADDRESS field_type_t<Vec3Ref, ParticleField::force> force;
@@ -106,7 +105,7 @@ namespace april::particle::internal {
 	// PARTICLE VIEW
 	//--------------
 	// Immutable reference to particle data, intended for read-only access (e.g., monitors).
-	template<ParticleField M, IsParticleAttributes UserDataT>
+	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT>
 	struct ScalarParticleView {
 	private:
 	    template <typename T, ParticleField F> using field_type_t = field_type_t<T, F, M>;
@@ -127,8 +126,8 @@ namespace april::particle::internal {
 
 	    template<typename RefT>
 	    requires (
-	       std::is_same_v<std::remove_cvref_t<RefT>, ScalarParticleRef<M, UserDataT>> ||
-	       std::is_same_v<std::remove_cvref_t<RefT>, ScalarRestrictedParticleRef<M, UserDataT>>
+	       std::is_same_v<std::remove_cvref_t<RefT>, ScalarParticleRef<M, N, UserDataT>> ||
+	       std::is_same_v<std::remove_cvref_t<RefT>, ScalarRestrictedParticleRef<M, N, UserDataT>>
 	    )
 	    explicit ScalarParticleView(const RefT& r) noexcept
 	       : force        (r.force)
@@ -163,9 +162,9 @@ namespace april::particle::internal {
 	template<typename T> struct is_particle_view_impl  : std::false_type {};
 
 	// Specialization for Accessors
-	template<auto M, typename U> struct is_restricted_ref_impl<ScalarRestrictedParticleRef<M, U>> : std::true_type {};
-	template<auto M, typename U> struct is_particle_ref_impl<ScalarParticleRef<M, U>> : std::true_type {};
-	template<auto M, typename U> struct is_particle_view_impl<ScalarParticleView<M, U>> : std::true_type {};
+	template<auto M, auto N, typename U> struct is_restricted_ref_impl<ScalarRestrictedParticleRef<M, N, U>> : std::true_type {};
+	template<auto M, auto N, typename U> struct is_particle_ref_impl<ScalarParticleRef<M, N, U>> : std::true_type {};
+	template<auto M, auto N, typename U> struct is_particle_view_impl<ScalarParticleView<M, N, U>> : std::true_type {};
 }
 
 

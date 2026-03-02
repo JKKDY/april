@@ -54,7 +54,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 	// Particle just beyond +X boundary
 	auto p = make_particle({10.2, 5.0, 5.0});
 	auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	periodic.apply(ref, box, DomainFace::XPlus);
 
@@ -71,7 +71,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 	// Particle just beyond -X boundary
 	auto p = make_particle({-0.3, 5.0, 5.0});
 	const auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	periodic.apply(ref, box, DomainFace::XMinus);
 
@@ -110,7 +110,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 	for (size_t i = 0; i < faces.size(); ++i) {
 		auto p = make_particle(start_positions[i]);
 		auto src = make_source<Mask>(p);
-		particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+		particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 		periodic.apply(ref, box, faces[i]);
 		EXPECT_NEAR(p.position.x, expected[i].x, 1e-12);
 		EXPECT_NEAR(p.position.y, expected[i].y, 1e-12);
@@ -143,7 +143,7 @@ TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 
 	auto p = make_particle({5,5,10.2});
 	auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	core::Box box({0,0,0}, {10,10,10});
 

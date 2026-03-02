@@ -271,11 +271,10 @@ namespace april::container::batching {
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
                         auto packed1 = container.template at_packed<access_fields>(c1, j);
                         auto buffer1 = packed1.load_buffer();
-                        buffer1.force = {0, 0, 0};
 
                         f(buffer1, buffer2);
 
-                        packed1.force += buffer1.force;
+                        packed1.force = buffer1.force;
                     }
                 }
 
@@ -283,11 +282,10 @@ namespace april::container::batching {
                 for (size_t t1 : full_tail1) {
                     auto packed1 = container.template at_packed<access_fields>(full_chunks1.stop, t1);
                     auto buffer1 = packed1.load_buffer();
-                    buffer1.force = {0, 0, 0};
 
                     f(buffer1, buffer2);
 
-                    packed1.force += buffer1.force;
+                    packed1.force = buffer1.force;
                 }
 
                 p2.force.x += buffer2.force.x.reduce_add();

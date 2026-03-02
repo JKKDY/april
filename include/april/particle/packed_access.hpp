@@ -8,7 +8,7 @@
 #include "april/particle/scalar_access.hpp"
 
 namespace april::particle::internal {
-    template<ParticleField M, IsParticleAttributes U> struct PackedParticleView;
+    template<ParticleField M, ParticleField N, IsParticleAttributes U> struct PackedParticleView;
 
 
     template<ParticleField M, ParticleField F, typename Source>
@@ -136,7 +136,7 @@ namespace april::particle::internal {
     //-------------------
     // PARTICLE REFERENCE
     //-------------------
-    template<ParticleField M, IsParticleAttributes U>
+    template<ParticleField M, ParticleField N, IsParticleAttributes U>
     struct PackedParticleRef {
     private:
         template <typename T, ParticleField F> using field_type_t = field_type_t<T, F, M>;
@@ -151,8 +151,8 @@ namespace april::particle::internal {
             , mass        (init_packed<M, ParticleField::mass>(source))
         {}
 
-        PackedParticleView<M, U> to_view() const noexcept {
-            return PackedParticleView<M, U>(*this);
+        PackedParticleView<M, N, U> to_view() const noexcept {
+            return PackedParticleView<M, N, U>(*this);
         }
 
         PackedParticleBuffer<M> load_buffer() const noexcept {
@@ -171,7 +171,7 @@ namespace april::particle::internal {
     //------------------------
     // RESTRICTED PARTICLE REF
     //------------------------
-    template<ParticleField M, IsParticleAttributes U>
+    template<ParticleField M, ParticleField N, IsParticleAttributes U>
     struct PackedRestrictedParticleRef {
     private:
         template <typename T, ParticleField F> using field_type_t = field_type_t<T, F, M>;
@@ -188,8 +188,8 @@ namespace april::particle::internal {
             , mass        (init_packed<M, ParticleField::mass>(source))
         {}
 
-        PackedParticleView<M, U> to_view() const noexcept {
-            return PackedParticleView<M, U>(*this);
+        PackedParticleView<M, N, U> to_view() const noexcept {
+            return PackedParticleView<M, N, U>(*this);
         }
 
         PackedParticleBuffer<M> load_buffer() const noexcept {
@@ -211,7 +211,7 @@ namespace april::particle::internal {
     //--------------
     // PARTICLE VIEW
     //--------------
-    template<ParticleField M, IsParticleAttributes U>
+    template<ParticleField M, ParticleField N, IsParticleAttributes U>
     struct PackedParticleView {
     private:
         template <typename T, ParticleField F> using field_type_t = field_type_t<T, F, M>;
@@ -230,8 +230,8 @@ namespace april::particle::internal {
         // Copy from Mutable Ref
         template<typename RefT>
         requires (
-           std::is_same_v<std::remove_cvref_t<RefT>, PackedParticleRef<M, U>> ||
-           std::is_same_v<std::remove_cvref_t<RefT>, PackedRestrictedParticleRef<M, U>>
+           std::is_same_v<std::remove_cvref_t<RefT>, PackedParticleRef<M, N, U>> ||
+           std::is_same_v<std::remove_cvref_t<RefT>, PackedRestrictedParticleRef<M, N, U>>
         )
         explicit PackedParticleView(const RefT& r) noexcept
            : force        (r.force)
@@ -263,9 +263,9 @@ namespace april::particle::internal {
 
     // Specialization for Accessors
     template<auto M>             struct is_packed_buffer_impl<PackedParticleBuffer<M>> : std::true_type {};
-    template<auto M, typename U> struct is_packed_ref_impl<PackedParticleRef<M, U>> : std::true_type {};
-    template<auto M, typename U> struct is_packed_restricted_ref_impl<PackedRestrictedParticleRef<M, U>> : std::true_type {};
-    template<auto M, typename U> struct is_packed_view_impl<PackedParticleView<M, U>> : std::true_type {};
+    template<auto M, auto N, typename U> struct is_packed_ref_impl<PackedParticleRef<M, N, U>> : std::true_type {};
+    template<auto M, auto N, typename U> struct is_packed_restricted_ref_impl<PackedRestrictedParticleRef<M, N, U>> : std::true_type {};
+    template<auto M, auto N, typename U> struct is_packed_view_impl<PackedParticleView<M, N, U>> : std::true_type {};
 
 }
 

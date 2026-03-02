@@ -8,8 +8,7 @@ namespace april {
 
 		AbsorbingBoundary(): Boundary(-1, false, false, false) {}
 
-		template<ParticleField M, particle::IsParticleAttributes U>
-		void apply(particle::internal::ScalarParticleRef<M, U> & p, const core::Box &, const DomainFace) const noexcept{
+		void apply(auto && p, const core::Box &, const DomainFace) const noexcept{
 			p.state = ParticleState::DEAD;
 		}
 	};

@@ -56,7 +56,7 @@ TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
 	// heading out X+. Intersection at {10, 5, 5}
 	auto p = make_particle({9.5,4.5,4.5}, {2,2,2});
 	auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	reflective.apply(ref, box, DomainFace::XPlus);
 
@@ -95,7 +95,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPositi
 
 	auto p = make_particle({9.8,5,5}, {+1,0,0});
 	auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	core::Box box{{0,0,0}, {10,10,10}};
 

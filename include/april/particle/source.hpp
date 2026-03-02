@@ -12,18 +12,18 @@ namespace april::particle::internal {
 	template<ParticleField F>
     struct AccessForbidden {
         // Assignment & Compound Assignment
-        template<typename T> auto operator= (T&&) { trigger(); return *this; }
-        template<typename T> auto operator+=(T&&) { trigger(); return *this; }
-        template<typename T> auto operator-=(T&&) { trigger(); return *this; }
-        template<typename T> auto operator*=(T&&) { trigger(); return *this; }
-        template<typename T> auto operator/=(T&&) { trigger(); return *this; }
-        template<typename T> auto operator%=(T&&) { trigger(); return *this; }
+        template<typename T> auto operator= (T&&) const { trigger(); return *this; }
+        template<typename T> auto operator+=(T&&) const { trigger(); return *this; }
+        template<typename T> auto operator-=(T&&) const { trigger(); return *this; }
+        template<typename T> auto operator*=(T&&) const { trigger(); return *this; }
+        template<typename T> auto operator/=(T&&) const { trigger(); return *this; }
+        template<typename T> auto operator%=(T&&) const { trigger(); return *this; }
 
         // Increment & Decrement
-        auto operator++()    { trigger(); return *this; }
-        auto operator++(int) { trigger(); return *this; }
-        auto operator--()    { trigger(); return *this; }
-        auto operator--(int) { trigger(); return *this; }
+        auto operator++()    const { trigger(); return *this; }
+        auto operator++(int) const { trigger(); return *this; }
+        auto operator--()    const { trigger(); return *this; }
+        auto operator--(int) const { trigger(); return *this; }
 
         // Binary Arithmetic
         template<typename T> friend auto operator+(AccessForbidden, T&&) { trigger(); return AccessForbidden{}; }
@@ -72,37 +72,47 @@ namespace april::particle::internal {
     };
 
 
+	// selects Mutable, Const, or Poison based on the masks and container constness
+	template<typename MutableT, typename ConstT, ParticleField F, ParticleField ReadMask, ParticleField WriteMask>
+	using field_access_t = std::conditional_t<
+		has_field_v<ReadMask | WriteMask, F>, // is it accessible at all?
+		std::conditional_t<
+			has_field_v<WriteMask, F>,  // is it mutable?
+			MutableT,
+			ConstT
+		>,
+		AccessForbidden<F> // if not accessible return Poison
+	>;
 
-	// conditional switch between type and a void struct that will throw on access during compile time
-	template<typename T, ParticleField F, ParticleField M>
-	using field_type_t = std::conditional_t<has_field_v<M, F>, T, AccessForbidden<F>>;
 
-
-
-	template<ParticleField M, IsParticleAttributes U, bool IsConst>
+	template<ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes U>
 	struct ParticleSource {
-		// selects T* or const T*
-		template<typename T>
-		using Ptr = std::conditional_t<IsConst, const T* AP_RESTRICT, T* AP_RESTRICT>;
 
-		using Vec3PtrT = math::Vec3Ptr<std::conditional_t<IsConst, const vec3::type, vec3::type>>;
+		// type generator for standard scalar pointers
+		template<typename T, ParticleField F>
+		using Ptr = field_access_t<T* AP_RESTRICT, const T* AP_RESTRICT, F, ReadMask, WriteMask>;
 
-		// data pointers (optimized away if not in M)
-		AP_NO_UNIQUE_ADDRESS field_type_t<Vec3PtrT, ParticleField::force, M> force;
-		AP_NO_UNIQUE_ADDRESS field_type_t<Vec3PtrT, ParticleField::position, M> position;
-		AP_NO_UNIQUE_ADDRESS field_type_t<Vec3PtrT, ParticleField::velocity, M> velocity;
-		AP_NO_UNIQUE_ADDRESS field_type_t<Vec3PtrT, ParticleField::old_position, M> old_position;
+		// type generator for Vec3 pointers
+		template<ParticleField F>
+		using Vec3PtrT = field_access_t<math::Vec3Ptr<vec3::type>, math::Vec3Ptr<const vec3::type>, F, ReadMask, WriteMask>;
 
-		AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<double>, ParticleField::mass, M> mass;
-		AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<ParticleState>, ParticleField::state, M> state;
-		AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<ParticleType>, ParticleField::type, M> type;
-		AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<ParticleID>, ParticleField::id, M> id;
-		AP_NO_UNIQUE_ADDRESS field_type_t<Ptr<U>, ParticleField::attributes, M> attributes;
+		// data pointers (optimized away to empty poison structs if not accessible)
+		AP_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::force>        force;
+		AP_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::position>     position;
+		AP_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::velocity>     velocity;
+		AP_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::old_position> old_position;
 
-		// getter (Used by ParticleRef/View)
+		// scalar pointers (optimized away to empty poison structs if not accessible)
+		AP_NO_UNIQUE_ADDRESS Ptr<double,        ParticleField::mass>       mass;
+		AP_NO_UNIQUE_ADDRESS Ptr<ParticleState, ParticleField::state>      state;
+		AP_NO_UNIQUE_ADDRESS Ptr<ParticleType,  ParticleField::type>       type;
+		AP_NO_UNIQUE_ADDRESS Ptr<ParticleID,    ParticleField::id>         id;
+		AP_NO_UNIQUE_ADDRESS Ptr<U,             ParticleField::attributes> attributes;
+
+		// ParticleField based getter
 		template<ParticleField F>
 		constexpr auto get() const noexcept {
-			if constexpr (particle::internal::has_field_v<M, F>) {
+			if constexpr (has_field_v<ReadMask | WriteMask, F>) {
 				if constexpr (F == ParticleField::force) return force;
 				else if constexpr (F == ParticleField::position) return position;
 				else if constexpr (F == ParticleField::velocity) return velocity;
@@ -113,7 +123,7 @@ namespace april::particle::internal {
 				else if constexpr (F == ParticleField::id) return id;
 				else if constexpr (F == ParticleField::attributes) return attributes;
 			} else {
-				return static_cast<Ptr<void>>(nullptr);
+				return AccessForbidden<F>{};
 			}
 		}
 	};

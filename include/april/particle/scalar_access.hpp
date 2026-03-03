@@ -49,9 +49,10 @@ namespace april::particle::internal {
        {}
 
        // construct from a more permissive reference (e.g., converting a mutable ref to a view)
-       template<ParticleField OtherWriteMask>
-       requires ((WriteMask & OtherWriteMask) == WriteMask) // Compile-time check: Can only narrow write permissions, not expand
-       explicit ScalarParticleRef(const ScalarParticleRef<ReadMask, OtherWriteMask, UserDataT>& r) noexcept
+       template<ParticleField OtherReadMask, ParticleField OtherWriteMask>
+       requires ((WriteMask & OtherWriteMask) == WriteMask) // Can only narrow write permissions, not expand
+		&& ((OtherWriteMask | OtherReadMask) == (ReadMask | WriteMask))// must have the exact same fields
+       explicit ScalarParticleRef(const ScalarParticleRef<OtherReadMask, OtherWriteMask, UserDataT>& r) noexcept
           : force       (r.force)
           , position    (r.position)
           , velocity    (r.velocity)

@@ -28,9 +28,8 @@ namespace april::container::batching {
             if (range1_chunks.start == range1_chunks.stop || range2_chunks.start == range2_chunks.stop) return;
 
             if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
-                for_each_pair_scalar<P>(f);
-            }
-            else {
+                for_each_pair_packed<P>(f);
+            } else {
                 for_each_pair_scalar<P>(f);
             }
         }
@@ -389,9 +388,8 @@ namespace april::container::batching {
             if (range_chunks.start == range_chunks.stop) return;
 
             if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
-                for_each_pair_packed<P>(f);
-            }
-            else {
+                for_each_pair_scalar<P>(f);
+            } else {
                 for_each_pair_scalar<P>(f);
             }
         }

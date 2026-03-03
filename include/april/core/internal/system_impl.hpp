@@ -86,7 +86,7 @@ namespace april {
 		auto update_batch = [&]<container::batching::IsBatch Batch, container::batching::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
 
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr ParticleField M = ForceT::fields | ParticleField::force | ParticleField::position;
+				constexpr ParticleField M = ForceT::fields | ParticleField::position;
 
 				auto kernel = [&]<bool is_packed>(auto & p1, auto & p2) {
 					auto diff = p2.position - p1.position;

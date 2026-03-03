@@ -7,7 +7,7 @@
 
 namespace april::particle::internal {
 	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT> struct ScalarParticleRef;
-
+	template <ParticleField ReadMask, ParticleField WriteMask> struct PackedParticleBuffer;
 
 	template<ParticleField ReadMask, ParticleField WriteMask, ParticleField F, typename Source>
 	constexpr decltype(auto) init_scalar_field(const Source& src) {
@@ -65,7 +65,11 @@ namespace april::particle::internal {
 
        // convenience method to drop all write permissions
        auto to_view() const noexcept {
-          return ScalarParticleRef<ReadMask, ParticleField::none, UserDataT>(*this);
+          return ScalarParticleRef<ReadMask | WriteMask, ParticleField::none, UserDataT>(*this);
+       }
+
+		auto broadcast() const noexcept {
+	       return PackedParticleBuffer<ReadMask, WriteMask>(*this);
        }
 
        // Data Fields: Mutable Type, Const Type, Field Enum

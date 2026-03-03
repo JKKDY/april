@@ -10,6 +10,8 @@
 #define get_scalar(chunk, index) container.template at<K::Read, K::Write>(chunk, index)
 #define get_packed(chunk, index) container.template at_packed<K::Read, K::Write>(chunk, index)
 
+#include <iostream>
+
 namespace april::container::batching {
     //-----------------
     // ASYMMETRIC BATCH
@@ -163,8 +165,7 @@ namespace april::container::batching {
             Kernel && f) const {
 
             using K = std::remove_cvref_t<Kernel>;
-            constexpr ParticleField RW_Mask = K::Read & K::Write;
-            using Accumulator = particle::internal::DeltaAccumulator<RW_Mask>;
+            using Accumulator = particle::internal::PackedAccumulator<K::Read, K::Write>;
 
             // 1. full SIMD blocks in range 1 (Chunks) vs full SIMD blocks in range 2 (Chunks + Tail)
             for (size_t c1 : full_chunks1) {
@@ -172,8 +173,7 @@ namespace april::container::batching {
                 AP_UNROLL_LOOP_N(iter_chunks)
                 for (size_t i = 0; i < chunk_size; i += packed_size) {
                     auto packed1 = get_packed(c1, i);
-                    auto buffer1 = packed1.load_buffer(); // load simd block in range 1
-                    Accumulator acc1;
+                    Accumulator acc1(packed1); // load simd block in range 1
 
                     // a. sweep buffer1 across all full SIMD blocks in Range 2 body chunks [C2]
                     for (size_t c2 : full_chunks2) {
@@ -181,67 +181,52 @@ namespace april::container::batching {
                         AP_UNROLL_LOOP_N(iter_chunks)
                         for (size_t j = 0; j < chunk_size; j += packed_size) {
                             auto packed2 = get_packed(c2, j);
-                            auto buffer2 = packed2.load_buffer();
-                            Accumulator acc2;
+                            Accumulator acc2(packed2);
 
                             AP_UNROLL_LOOP_N(packed_size)
                             for (size_t k = 0; k < packed_size; k++) {
-                                acc1.save_pristine(buffer1);
-                                acc2.save_pristine(buffer2);
-
-                                auto view1 = buffer1.to_view();
-                                auto view2 = buffer2.to_view();
+                                auto view1 = acc1.to_view();
+                                auto view2 = acc2.to_view();
 
                                 f(view1, view2);
 
-                                acc1.extract_and_restore(buffer1);
-                                acc2.extract_and_restore(buffer2);
+                                acc1.extract_and_restore();
+                                acc2.extract_and_restore();
 
-                                buffer2.rotate_right();
                                 acc2.rotate_right();
                             }
-                            acc2.apply_to(buffer2);
-                            packed2.update(buffer2);
+                            acc2.update_into(packed2);
                         }
                     }
 
                     // b. sweep buffer1 across SIMD-aligned blocks within the Range 2 tail chunk [F2]
                     for (size_t t2 : full_tail2) {
                         auto packed2 = get_packed(full_chunks2.stop, t2);
-                        auto buffer2 = packed2.load_buffer();
-                        Accumulator acc2;
+                        Accumulator acc2(packed2);
 
                         AP_UNROLL_LOOP_N(packed_size)
                         for (size_t k = 0; k < packed_size; k++) {
-                            acc1.save_pristine(buffer1);
-                            acc2.save_pristine(buffer2);
-
-                            auto view1 = buffer1.to_view();
-                            auto view2 = buffer2.to_view();
+                            auto view1 = acc1.to_view();
+                            auto view2 = acc2.to_view();
 
                             f(view1, view2);
 
-                            acc1.extract_and_restore(buffer1);
-                            acc2.extract_and_restore(buffer2);
+                            acc1.extract_and_restore();
+                            acc2.extract_and_restore();
 
-                            buffer2.rotate_right();
                             acc2.rotate_right();
                         }
-
-                        acc2.apply_to(buffer2);
-                        packed2.update(buffer2);
+                        acc2.update_into(packed2);
                     }
 
-                    acc1.apply_to(buffer1);
-                    packed1.update(buffer1); // final register flush for buffer1
+                   acc1.update_into(packed1); // final register flush for buffer1
                 }
             }
 
             // 2. SIMD-aligned blocks in the Range 1 tail chunk vs Full Range 2 (Body + Tail)
             for (size_t t1 : full_tail1) {
                 auto packed1 = get_packed(full_chunks1.stop, t1);
-                auto buffer1 = packed1.load_buffer();
-                Accumulator acc1;
+                Accumulator acc1(packed1);
 
                 // a. Interaction with all full chunks in the Range 2 body [C2]
                 for (size_t c2 : full_chunks2) {
@@ -249,59 +234,47 @@ namespace april::container::batching {
                     AP_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
                         auto packed2 = get_packed(c2, j);
-                        auto buffer2 = packed2.load_buffer();
-                        Accumulator acc2;
+                        Accumulator acc2(packed2);
 
                         AP_UNROLL_LOOP_N(packed_size)
                         for (size_t k = 0; k < packed_size; k++) {
-                            acc1.save_pristine(buffer1);
-                            acc2.save_pristine(buffer2);
-
-                            auto view1 = buffer1.to_view();
-                            auto view2 = buffer2.to_view();
+                            auto view1 = acc1.to_view();
+                            auto view2 = acc2.to_view();
 
                             f(view1, view2);
 
-                            acc1.extract_and_restore(buffer1);
-                            acc2.extract_and_restore(buffer2);
+                            acc1.extract_and_restore();
+                            acc2.extract_and_restore();
 
-                            buffer2.rotate_right();
                             acc2.rotate_right();
                         }
 
-                        acc2.apply_to(buffer2);
-                        packed2.update(buffer2);
+                        acc2.update_into(packed2);
                     }
                 }
 
                 // b. Interaction with SIMD-aligned blocks within the Range 2 tail chunk [F2]
                 for (size_t t2 : full_tail2) {
-                    auto packed2 =get_packed(full_chunks2.stop, t2);
-                    auto buffer2 = packed2.load_buffer();
-                    Accumulator acc2;
+                    auto packed2 = get_packed(full_chunks2.stop, t2);
+                    Accumulator acc2(packed2);
 
                     AP_UNROLL_LOOP_N(packed_size)
                     for (size_t k = 0; k < packed_size; k++) {
-                        acc1.save_pristine(buffer1);
-                        acc2.save_pristine(buffer2);
-
-                        auto view1 = buffer1.to_view();
-                        auto view2 = buffer2.to_view();
+                        auto view1 = acc1.to_view();
+                        auto view2 = acc2.to_view();
 
                         f(view1, view2);
 
-                        acc1.extract_and_restore(buffer1);
-                        acc2.extract_and_restore(buffer2);
+                        acc1.extract_and_restore();
+                        acc2.extract_and_restore();
 
-                        buffer2.rotate_right();
                         acc2.rotate_right();
                     }
 
-                    acc2.apply_to(buffer2);
-                    packed2.update(buffer2);
+                    acc2.update_into(packed2);
                 }
-                acc1.apply_to(buffer1);
-                packed1.update(buffer1); // final register flush for buffer1
+
+                acc1.update_into(packed1); // final register flush for buffer1
             }
         }
 
@@ -314,12 +287,13 @@ namespace april::container::batching {
             Kernel && f) const {
 
             using K = std::remove_cvref_t<Kernel>;
-            using Reducer = particle::internal::BroadcastReducer<K::Read, K::Write>;
+            using Accumulator = particle::internal::PackedAccumulator<K::Read, K::Write>;
+
 
             // 3. Range 2 Partial Tail [P2] vs Range 1 SIMD blocks [C1 + F1]
             for (size_t i : partial_tail2) {
                 auto p2 = get_scalar(full_chunks2.stop, i);
-                Reducer reducer2(p2);
+                Accumulator reducer2(p2);
 
                 // a. Interaction with full chunks in Range 1 body
                 for (size_t c1 : full_chunks1) {
@@ -334,6 +308,7 @@ namespace april::container::batching {
 
                         f(view1, view2);
 
+                        reducer2.extract_and_restore();
                         packed1.update(buffer1);
                     }
                 }
@@ -348,16 +323,16 @@ namespace april::container::batching {
 
                     f(view1, view2);
 
+                    reducer2.extract_and_restore();
                     packed1.update(buffer1);
                 }
-
                 reducer2.reduce_into(p2);
             }
 
             // 4. Partial Tail 1 vs Full Range 2 (chunks + full tail)
             for (size_t i : partial_tail1) {
                 auto p1 = get_scalar(full_chunks1.stop, i);
-                Reducer reducer1(p1);
+                Accumulator reducer1(p1);
 
 
                 // a. Interaction with full chunks in Range 2 body
@@ -373,6 +348,7 @@ namespace april::container::batching {
 
                         f(view1, view2);
 
+                        reducer1.extract_and_restore();
                         packed2.update(buffer2);
                     }
                 }
@@ -387,6 +363,7 @@ namespace april::container::batching {
 
                     f(view1, view2);
 
+                    reducer1.extract_and_restore();
                     packed2.update(buffer2);
                 }
 
@@ -399,43 +376,36 @@ namespace april::container::batching {
             const math::Range& full_chunks1, const math::Range& full_chunks2,
             const math::Range& partial_tail1, const math::Range& partial_tail2,
             Kernel && f) const {
+
             using K = std::remove_cvref_t<Kernel>;
+            using Accumulator = particle::internal::PackedAccumulator<K::Read, K::Write>;
 
             // 5. partial tail vs partial tail
             if (partial_tail1.start != partial_tail1.stop && partial_tail2.start != partial_tail2.stop) {
                 // initialize mask for the valid lanes in partial_tail1
                 const auto lane_indices = packed::load_aligned(idx_arr);
-
                 const double valid_lanes = static_cast<double>(partial_tail1.stop - partial_tail1.start);
                 const auto mask = lane_indices < valid_lanes;
-                const packed null = 0.0;
 
                 // load the single SIMD block containing partial_tail1
                 auto packed1 = get_packed(full_chunks1.stop, partial_tail1.start);
-                auto buffer1 = packed1.load_buffer();
-                buffer1.force = {0, 0, 0};
+                Accumulator acc1(packed1);
 
                 // loop over the individual particles in partial_tail2
                 for (size_t i = partial_tail2.start; i < partial_tail2.stop; ++i) {
                     auto p2 = get_scalar(full_chunks2.stop, i);
-                    auto buffer2 = particle::internal::PackedParticleBuffer<K::Read, K::Write>::broadcast(p2);
-                    buffer2.force = {0, 0, 0};
+                    Accumulator acc2(p2);
 
-                    f(buffer1, buffer2);
+                    auto view1 = acc1.to_view();
+                    auto view2 = acc2.to_view();
+                    f(view1, view2);
 
-                    p2.force += vec3{
-                        select(mask, buffer2.force.x, null).reduce_add(),
-                        select(mask, buffer2.force.y, null).reduce_add(),
-                        select(mask, buffer2.force.z, null).reduce_add()
-                    };
+                    // Masked reduction back to the scalar p2
+                    acc2.reduce_into(p2, mask);
                 }
 
                 // write back valid lanes to memory for packed1
-                packed1.force += pvec3{
-                    select(mask, buffer1.force.x, null),
-                    select(mask, buffer1.force.y, null),
-                    select(mask, buffer1.force.z, null)
-                };
+                acc1.update_into(packed1, mask);
             }
         }
     };

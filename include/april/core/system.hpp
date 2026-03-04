@@ -204,7 +204,7 @@ namespace april {
 					}
 				};
 
-				auto kernel = exec::internal::KernelWrapper<K::Read, K::Write, K::mode, decltype(bridge)>{bridge};
+				auto kernel = exec::internal::KernelWrapper<K::Read, K::Write, K::Mode, decltype(bridge)>{bridge};
 				execute_batch_kernel<ParallelPolicy::Serial, VectorPolicy::Scalar>(batch, kernel);
 			};
 

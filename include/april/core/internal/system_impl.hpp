@@ -15,7 +15,7 @@ namespace april {
 	void System<ContainerDecl, Traits>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
 			using namespace april::exec::internal;
 			constexpr VectorTrait batch_capabilities = std::remove_cvref_t<Batch>::vector_trait;
-			constexpr ExecutionMode kernel_capabilities =std::remove_cvref_t<Kernel>::mode;
+			constexpr ExecutionMode kernel_capabilities =std::remove_cvref_t<Kernel>::Mode;
 
 			// map VectorPolicy -> VectorTrait (execution mode)
 			constexpr ExecutionMode exec_mode = [] {

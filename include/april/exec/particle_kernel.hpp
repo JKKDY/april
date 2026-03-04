@@ -19,7 +19,7 @@ namespace april {
         template<ParticleField access_fields, ParticleField update_fields, ExecutionMode exec_mode, typename Func>
         struct KernelWrapper {
             const Func func;
-            static constexpr auto mode = exec_mode;
+            static constexpr auto Mode = exec_mode;
             static constexpr auto Read = access_fields;
             static constexpr auto Write = update_fields;
 
@@ -29,9 +29,9 @@ namespace april {
                 constexpr bool packed = (particle::IsPackedParticleAccessor<std::remove_cvref_t<Args>> || ...);
 
                 // Mode checks
-                if constexpr (mode == ExecutionMode::Scalar)
+                if constexpr (Mode == ExecutionMode::Scalar)
                     static_assert(!packed, "Error: ScalarKernel invoked with SIMD data!");
-                if constexpr (mode == ExecutionMode::Vector)
+                if constexpr (Mode == ExecutionMode::Vector)
                     static_assert(packed, "Error: VectorKernel invoked with Scalar data!");
 
                 // Dispatch

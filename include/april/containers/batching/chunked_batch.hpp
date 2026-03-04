@@ -345,7 +345,7 @@ namespace april::container::batching {
     //----------------
     //================
     template <typename Container, typename ChunkPtr>
-    struct SymmetricChunkedBatch : BatchBase<exec::internal::ParallelTrait::None, +
+    struct SymmetricChunkedBatch : BatchBase<exec::internal::ParallelTrait::None,
         exec::internal::VectorTrait::ScalarOnly | exec::internal::VectorTrait::VectorOnly> {
         explicit SymmetricChunkedBatch(Container& container, ChunkPtr* chunks) : container(container), chunks(chunks) {
             for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);

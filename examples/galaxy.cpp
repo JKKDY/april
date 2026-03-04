@@ -72,7 +72,7 @@ int main() {
 
         // Spiral arm math
         int arm = i % NUM_ARMS;
-        double offset = (2.0 * M_PI / NUM_ARMS) * arm;
+        double offset = (2.0 * 3.1415 / NUM_ARMS) * arm;
         double theta = offset + (r / MAX_RADIUS) * WINDING + dist_scatter(gen);
 
         // Position (pinched at the edges)

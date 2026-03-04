@@ -19,7 +19,8 @@ using ContainerTypes = testing::Types<
 	DirectSum<Layout::AoS>,
 	DirectSum<Layout::SoA>,
 	DirectSum<Layout::AoSoA<>>,
-	DirectSum<Layout::AoSoA<16>>>;
+	DirectSum<Layout::AoSoA<16>>
+>;
 TYPED_TEST_SUITE(DirectSumTest, ContainerTypes);
 
 TYPED_TEST(DirectSumTest, SingleParticle_NoForce) {
@@ -429,7 +430,7 @@ TYPED_TEST(DirectSumTest, IdBasedAccess_ReadWrite) {
         const auto val = static_cast<double>(i);
 
         // Verify the write persisted and can be read back via restricted interface
-        auto res_view = sys.template restricted_at_id<ParticleField::velocity | ParticleField::force>(sys_id);
+        auto res_view = sys.template at_id<ParticleField::velocity | ParticleField::force>(sys_id);
 
         EXPECT_EQ(res_view.velocity.x, val);
         EXPECT_EQ(res_view.velocity.y, val * 2);

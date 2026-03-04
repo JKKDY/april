@@ -159,7 +159,7 @@ namespace april::container::layout {
 				if constexpr (is_const) {
 					kernel(i, self.template view<K::Read>(i));
 				} else {
-					kernel(i, self.template at<K::Read>(i));
+					kernel(i, self.template at<K::Read, K::Write>(i));
 				}
 			}
 		}

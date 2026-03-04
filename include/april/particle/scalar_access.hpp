@@ -31,7 +31,7 @@ namespace april::particle::internal {
        using field_t = field_access_t<MutT, ConstT, F, ReadMask, WriteMask>;
 
        using MutVec3Ref   = math::Vec3Proxy<vec3::type>;
-       using ConstVec3Ref = math::Vec3Proxy<const vec3::type>;
+       using ConstVec3Ref = const math::Vec3Proxy<const vec3::type>;
 
     public:
        // construct from ParticleSource

@@ -19,7 +19,7 @@ namespace april {
 		// 	{ U::charge } -> std::convertible_to<double>;
 		// }
 		// auto eval(const particle::internal::ScalarParticleRef<M, N, U> & p1, const particle::internal::ScalarParticleRef<M, N, U> & p2, const vec3& r) const noexcept {
-		auto eval(auto && p1, auto && p2, const vec3 & r) {
+		auto eval(auto && p1, auto && p2, const vec3 & r) const {
 			const double inv_r = r.inv_norm();
 			const double mag = coulomb_constant * p1.attributes.charge * p2.attributes.charge * inv_r * inv_r;
 

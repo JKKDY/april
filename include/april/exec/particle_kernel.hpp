@@ -11,7 +11,7 @@ namespace april {
         template<typename Func, typename... Args>
         concept IsKernelInvocable =
         requires(const Func& f, Args&&... args) {
-            f.template operator()<(particle::IsPackedParticleAccessor<std::remove_cvref_t<Args>> || ...)>(std::forward<Args>(args)...);
+            f.template operator()<(particle::IsPackedParticleView<std::remove_cvref_t<Args>> || ...)>(std::forward<Args>(args)...);
         } ||
         std::invocable<const Func&, Args...>;
 

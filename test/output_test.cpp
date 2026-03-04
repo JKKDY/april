@@ -42,8 +42,7 @@ class DummySystem {
 public:
 	using user_data_t = NoParticleAttributes;
 	template<ParticleField M> using ParticleRef         = particle::internal::ScalarParticleRef<M, M, user_data_t>;
-	template<ParticleField M> using ParticleView        = particle::internal::ScalarParticleView<M, M, user_data_t>;
-	template<ParticleField M> using RestrictedParticleRef = particle::internal::ScalarRestrictedParticleRef<M, M, user_data_t>;
+	template<ParticleField M> using ParticleView         = particle::internal::ScalarParticleRef<M, ParticleField::none, user_data_t>;
 
 	explicit DummySystem(
 		const size_t step,
@@ -74,13 +73,13 @@ public:
 	}
 
 	template<ParticleField M>
-	[[nodiscard]] ParticleView<M> view(const size_t index) const noexcept {
+	[[nodiscard]] auto view(const size_t index) const noexcept {
 		// 1. Get reference to storage
 		const ParticleRec& record = particles.at(index);
 
 		// 2. Create Source (IsConst = true)
 		// We map the requested fields M to the record's members
-		particle::internal::ParticleSource<M, user_data_t, true> src;
+		particle::internal::ParticleSource<M, ParticleField::none, user_data_t> src;
 
 		if constexpr (particle::internal::has_field_v<M, ParticleField::position>)     src.position     = &record.position;
 		if constexpr (particle::internal::has_field_v<M, ParticleField::velocity>)     src.velocity     = &record.velocity;

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <concepts>
-#include "april/particle/scalar_access.hpp"
 
 namespace april::field {
 	class Field {
@@ -17,8 +16,8 @@ namespace april::field {
 
 		template<class S>
 		void dispatch_update(this auto&& self, const core::SystemContext<S> & sys) {
-			if constexpr ( requires { self.Write(sys); }) {
-				self.Write(sys);
+			if constexpr ( requires { self.update(sys); }) {
+				self.update(sys);
 			}
 		}
 

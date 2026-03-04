@@ -25,10 +25,9 @@ inline particle::ParticleRecord<NoParticleAttributes> make_particle(const vec3& 
 template<ParticleField Mask, typename RecordT>
 auto make_source(RecordT& record) {
 	// Determine constness based on RecordT (allows making const sources from const records)
-	constexpr bool IsConst = std::is_const_v<RecordT>;
 	using UserDataT = RecordT::particle_attributes_t;
 
-	particle::internal::ParticleSource<Mask, UserDataT, IsConst> src;
+	particle::internal::ParticleSource<Mask, Mask, UserDataT> src;
 
 	if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
 	if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;

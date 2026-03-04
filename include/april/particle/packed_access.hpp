@@ -174,6 +174,54 @@ namespace april::particle::internal {
             }
         }
 
+        // Accumulate reciprocal deltas from another buffer (Write-Only fields strictly)
+        AP_FORCE_INLINE void accumulate(const PackedParticleBuffer& other) {
+            if constexpr (has_field_v<WOMask, ParticleField::position>) {
+                position += other.position;
+            }
+            if constexpr (has_field_v<WOMask, ParticleField::old_position>) {
+                old_position += other.old_position;
+            }
+            if constexpr (has_field_v<WOMask, ParticleField::velocity>) {
+                velocity += other.velocity;
+            }
+            if constexpr (has_field_v<WOMask, ParticleField::force>) {
+                force += other.force;
+            }
+            if constexpr (has_field_v<WOMask, ParticleField::mass>) {
+                mass += other.mass;
+            }
+        }
+
+        // Masked accumulation
+        template <typename MaskT>
+        AP_FORCE_INLINE void accumulate(const PackedParticleBuffer& other, const MaskT& mask) {
+            const packed null = 0.0;
+            if constexpr (has_field_v<WOMask, ParticleField::position>) {
+                position.x += select(mask, other.position.x, null);
+                position.y += select(mask, other.position.y, null);
+                position.z += select(mask, other.position.z, null);
+            }
+            if constexpr (has_field_v<WOMask, ParticleField::old_position>) {
+                old_position.x += select(mask, other.old_position.x, null);
+                old_position.y += select(mask, other.old_position.y, null);
+                old_position.z += select(mask, other.old_position.z, null);
+            }
+            if constexpr (has_field_v<WOMask, ParticleField::velocity>) {
+                velocity.x += select(mask, other.velocity.x, null);
+                velocity.y += select(mask, other.velocity.y, null);
+                velocity.z += select(mask, other.velocity.z, null);
+            }
+            if constexpr (has_field_v<WOMask, ParticleField::force>) {
+                force.x += select(mask, other.force.x, null);
+                force.y += select(mask, other.force.y, null);
+                force.z += select(mask, other.force.z, null);
+            }
+            if constexpr (has_field_v<WOMask, ParticleField::mass>) {
+                mass += select(mask, other.mass, null);
+            }
+        }
+
 
         // Unmasked SIMD Write-Back (For full chunks)
         template <typename Attr>

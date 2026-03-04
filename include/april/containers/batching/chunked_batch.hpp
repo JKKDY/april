@@ -182,7 +182,9 @@ namespace april::container::batching {
 
                             AP_UNROLL_LOOP_N(packed_size)
                             for (size_t k = 0; k < packed_size; k++) {
-                                f(buffer1, buffer2);
+                                auto view1 = buffer1.to_view();
+                                auto view2 = buffer2.to_view();
+                                f(view1, view2);
                                 buffer2.rotate_right();
                             }
 
@@ -197,7 +199,9 @@ namespace april::container::batching {
 
                         AP_UNROLL_LOOP_N(packed_size)
                         for (size_t k = 0; k < packed_size; k++) {
-                            f(buffer1, buffer2);
+                            auto view1 = buffer1.to_view();
+                            auto view2 = buffer2.to_view();
+                            f(view1, view2);
                             buffer2.rotate_right();
                         }
 
@@ -223,7 +227,9 @@ namespace april::container::batching {
 
                         AP_UNROLL_LOOP_N(packed_size)
                         for (size_t k = 0; k < packed_size; k++) {
-                            f(buffer1, buffer2);
+                            auto view1 = buffer1.to_view();
+                            auto view2 = buffer2.to_view();
+                            f(view1, view2);
                             buffer2.rotate_right();
                         }
 
@@ -238,7 +244,9 @@ namespace april::container::batching {
 
                     AP_UNROLL_LOOP_N(packed_size)
                     for (size_t k = 0; k < packed_size; k++) {
-                        f(buffer1, buffer2);
+                        auto view1 = buffer1.to_view();
+                        auto view2 = buffer2.to_view();
+                        f(view1, view2);
                         buffer2.rotate_right();
                     }
 
@@ -271,7 +279,9 @@ namespace april::container::batching {
                         auto packed1 = get_packed(c1, j);
                         auto buffer1 = packed1.load_buffer();
 
-                        f(buffer1, buffer2);
+                        auto view1 = buffer1.to_view();
+                        auto view2 = buffer2.to_view();
+                        f(view1, view2);
 
                         buffer1.update_into(packed1);
                     }
@@ -282,7 +292,9 @@ namespace april::container::batching {
                     auto packed1 = get_packed(full_chunks1.stop, t1);
                     auto buffer1 = packed1.load_buffer();
 
-                    f(buffer1, buffer2);
+                    auto view1 = buffer1.to_view();
+                    auto view2 = buffer2.to_view();
+                    f(view1, view2);
 
                     buffer1.update_into(packed1);
                 }
@@ -303,7 +315,9 @@ namespace april::container::batching {
                         auto packed2 = get_packed(c2, j);
                         auto buffer2 = packed2.load_buffer();
 
-                        f(buffer1, buffer2);
+                        auto view1 = buffer1.to_view();
+                        auto view2 = buffer2.to_view();
+                        f(view1, view2);
 
                         buffer2.update_into(packed2);
                     }
@@ -314,7 +328,9 @@ namespace april::container::batching {
                     auto packed2 = get_packed(full_chunks2.stop, t2);
                     auto buffer2 = packed2.load_buffer();
 
-                    f(buffer1, buffer2);
+                    auto view1 = buffer1.to_view();
+                    auto view2 = buffer2.to_view();
+                    f(view1, view2);
 
                     buffer2.update_into(packed2);
                 }
@@ -334,40 +350,31 @@ namespace april::container::batching {
             if (partial_tail1.start != partial_tail1.stop && partial_tail2.start != partial_tail2.stop) {
                 // initialize mask for the valid lanes in partial_tail1
                 const auto lane_indices = packed::load_aligned(idx_arr);
-
                 const double valid_lanes = static_cast<double>(partial_tail1.stop - partial_tail1.start);
                 const auto mask = lane_indices < valid_lanes;
-                const packed null = 0.0;
 
                 // load the single SIMD block containing partial_tail1
                 auto packed1 = get_packed(full_chunks1.stop, partial_tail1.start);
                 auto buffer1 = packed1.load_buffer();
-                buffer1.force = {0, 0, 0};
 
                 // loop over the individual particles in partial_tail2
                 for (size_t i = partial_tail2.start; i < partial_tail2.stop; ++i) {
                     auto p2 = get_scalar(full_chunks2.stop, i);
                     auto buffer2 = p2.broadcast();
-                    buffer2.force = {0, 0, 0};
 
-                    f(buffer1, buffer2);
+                    auto view1 = buffer1.to_view();
+                    auto view2 = buffer2.to_view();
+                    f(view1, view2);
 
-                    p2.force += vec3{
-                        select(mask, buffer2.force.x, null).reduce_add(),
-                        select(mask, buffer2.force.y, null).reduce_add(),
-                        select(mask, buffer2.force.z, null).reduce_add()
-                    };
+                    buffer2.reduce_into(p2, mask);
                 }
 
                 // write back valid lanes to memory for packed1
-                packed1.force += pvec3{
-                    select(mask, buffer1.force.x, null),
-                    select(mask, buffer1.force.y, null),
-                    select(mask, buffer1.force.z, null)
-                };
+                buffer1.update_into(packed1, mask);
             }
         }
     };
+
 
 
 
@@ -388,7 +395,7 @@ namespace april::container::batching {
             if (range_chunks.start == range_chunks.stop) return;
 
             if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
-                for_each_pair_scalar<P>(f);
+                for_each_pair_packed<P>(f);
             } else {
                 for_each_pair_scalar<P>(f);
             }
@@ -496,7 +503,7 @@ namespace april::container::batching {
         }
 
 
-            template <typename Kernel>
+        template <typename Kernel>
         AP_FORCE_INLINE void interact_body_vs_everything(
             const math::Range& full_chunks,
             const math::Range& full_tail,
@@ -516,22 +523,22 @@ namespace april::container::batching {
                     // a. simd register self interaction
                     {
                         auto buffer2 = packed1.load_buffer();
-                        buffer2.force = {0, 0, 0};
 
                         AP_UNROLL_LOOP()
                         for (size_t k = 0; k < packed_size / 2 - 1; k++) {
                             buffer2.rotate_right();
-                            f(buffer1, buffer2);
+                            auto view1 = buffer1.to_view();
+                            auto view2 = buffer2.to_view();
+                            f(view1, view2);
                         }
 
-                        buffer1.force.x += buffer2.force.x.template rotate_left<packed_size / 2 - 1>();
-                        buffer1.force.y += buffer2.force.y.template rotate_left<packed_size / 2 - 1>();
-                        buffer1.force.z += buffer2.force.z.template rotate_left<packed_size / 2 - 1>();
+                        buffer2.template rotate_left<packed_size / 2 - 1>(); // Realign buffer2 back to its origin lanes
+                        buffer1.accumulate(buffer2); // merge deltas from buffer 2 into buffer 1
+                        buffer2.template rotate_right<packed_size / 2>(); // rotate 180 for last half step
 
-                        packed1.force = buffer1.force;
-
-                        buffer2.rotate_right();
-                        f(buffer1, buffer2);
+                        auto view1 = buffer1.to_view();
+                        auto view2 = buffer2.to_view();
+                        f(view1, view2);
                     }
 
                     // b. intra-chunk interactions (Block i vs Blocks j where j > i inside c1)
@@ -541,10 +548,12 @@ namespace april::container::batching {
 
                         AP_UNROLL_LOOP_N(packed_size)
                         for (size_t k = 0; k < packed_size; k++) {
-                            f(buffer1, buffer2);
-                            buffer2.template rotate_right<1>();
+                            auto view1 = buffer1.to_view();
+                            auto view2 = buffer2.to_view();
+                            f(view1, view2);
+                            buffer2.rotate_right();
                         }
-                        packed2.force = buffer2.force;
+                        buffer2.update_into(packed2);
                     }
 
                     // c. inter-chunk interactions (Block i vs all Blocks in c2 where c2 > c1)
@@ -557,10 +566,12 @@ namespace april::container::batching {
 
                             AP_UNROLL_LOOP_N(packed_size)
                             for (size_t k = 0; k < packed_size; k++) {
-                                f(buffer1, buffer2);
-                                buffer2.template rotate_right<1>();
+                                auto view1 = buffer1.to_view();
+                                auto view2 = buffer2.to_view();
+                                f(view1, view2);
+                                buffer2.rotate_right();
                             }
-                            packed2.force = buffer2.force;
+                            buffer2.update_into(packed2);
                         }
                     }
 
@@ -571,27 +582,27 @@ namespace april::container::batching {
 
                         AP_UNROLL_LOOP_N(packed_size)
                         for (size_t k = 0; k < packed_size; k++) {
-                            f(buffer1, buffer2);
-                            buffer2.template rotate_right<1>();
+                            auto view1 = buffer1.to_view();
+                            auto view2 = buffer2.to_view();
+                            f(view1, view2);
+                            buffer2.rotate_right();
                         }
-
-                        packed2.force = buffer2.force;
+                        buffer2.update_into(packed2);
                     }
 
                     // e. interaction with partial particles in the tail chunk [P]
                     for (size_t j : partial_tail) {
                         auto p2 = get_scalar(full_chunks.stop, j);
                         auto buffer2 = p2.broadcast();
-                        buffer2.force = {0, 0, 0};
 
-                        f(buffer1, buffer2);
+                        auto view1 = buffer1.to_view();
+                        auto view2 = buffer2.to_view();
+                        f(view1, view2);
 
-                        p2.force.x += buffer2.force.x.reduce_add();
-                        p2.force.y += buffer2.force.y.reduce_add();
-                        p2.force.z += buffer2.force.z.reduce_add();
+                        buffer2.reduce_into(p2);
                     }
 
-                    packed1.force = buffer1.force;
+                    buffer1.update_into(packed1);
                 }
             }
         }
@@ -614,20 +625,22 @@ namespace april::container::batching {
                 auto buffer1 = packed1.load_buffer();
                 {
                     auto buffer2 = packed1.load_buffer();
-                    buffer2.force = {0, 0, 0};
 
                     AP_UNROLL_LOOP()
                     for (size_t k = 0; k < packed_size / 2 - 1; k++) {
                         buffer2.rotate_right();
-                        f(buffer1, buffer2);
+                        auto view1 = buffer1.to_view();
+                        auto view2 = buffer2.to_view();
+                        f(view1, view2);
                     }
 
-                    buffer1.force.x += buffer2.force.x.template rotate_left<packed_size / 2 - 1>();
-                    buffer1.force.y += buffer2.force.y.template rotate_left<packed_size / 2 - 1>();
-                    buffer1.force.z += buffer2.force.z.template rotate_left<packed_size / 2 - 1>();
+                    buffer2.template rotate_left<packed_size / 2 - 1>(); // Realign buffer2 back to its origin lanes
+                    buffer1.accumulate(buffer2); // merge deltas from buffer 2 into buffer 1
+                    buffer2.template rotate_right<packed_size / 2>(); // rotate 180 for last half step
 
-                    buffer2.rotate_right();
-                    f(buffer1, buffer2);
+                    auto view1 = buffer1.to_view();
+                    auto view2 = buffer2.to_view();
+                    f(view1, view2);
                 }
 
                 // b. intra-chunk interactions (Block i vs Blocks j where j > i inside full tail)
@@ -637,26 +650,27 @@ namespace april::container::batching {
 
                     AP_UNROLL_LOOP_N(packed_size)
                     for (size_t k = 0; k < packed_size; k++) {
-                        f(buffer1, buffer2);
+                        auto view1 = buffer1.to_view();
+                        auto view2 = buffer2.to_view();
+                        f(view1, view2);
                         buffer2.rotate_right();
                     }
-                    packed2.force = buffer2.force;
+                    buffer2.update_into(packed2);
                 }
 
                 // c interaction with partial particles in the tail chunk [P]
                 for (size_t j : partial_tail) {
                     auto p2 = get_scalar(full_chunks.stop, j);
                     auto buffer2 =  p2.broadcast();
-                    buffer2.force = {0, 0, 0};
 
-                    f(buffer1, buffer2);
+                    auto view1 = buffer1.to_view();
+                    auto view2 = buffer2.to_view();
+                    f(view1, view2);
 
-                    p2.force.x += buffer2.force.x.reduce_add();
-                    p2.force.y += buffer2.force.y.reduce_add();
-                    p2.force.z += buffer2.force.z.reduce_add();
+                    buffer2.reduce_into(p2);
                 }
 
-                packed1.force = buffer1.force;
+                buffer1.update_into(packed1);
             }
         }
 
@@ -672,50 +686,37 @@ namespace april::container::batching {
             // 3. partial vs partial
             if (partial_tail.start != partial_tail.stop) {
                 // shift lane indices to absolute indices (relative to tail chunk start)
-                const auto absolute_lane_indices = packed::load_aligned(idx_arr) + static_cast<double>(partial_tail.
-                    start);
+                const auto absolute_lane_indices = packed::load_aligned(idx_arr) + static_cast<double>(partial_tail.start);
 
                 // mask out dead sentinels
                 const auto valid_tail_mask = absolute_lane_indices < static_cast<double>(tail_len);
-                const packed null = 0.0;
 
                 // load the entire tail chunk
                 auto packed_chunk = get_packed(full_chunks.stop, partial_tail.start);
                 auto chunk_data = packed_chunk.load_buffer();
 
-                // Accumulator for forces exerted by the p1 scalars onto the rest of the chunk
-                pvec3 accum_force = {0, 0, 0};
-
                 // loop over valid particles in the tail
                 for (size_t i : partial_tail) {
                     auto p1 = get_scalar(full_chunks.stop, i);
                     auto buffer1 =  p1.broadcast();
-                    buffer1.force = {0, 0, 0};
 
                     // Fresh buffer to capture forces exerted on the chunk from just this p1
-                    auto temp_chunk = chunk_data;
-                    temp_chunk.force = {0, 0, 0};
+                    auto temp_chunk = packed_chunk.load_buffer(); // Natively zeroes WOMask
 
                     // scalar p1 vs entire chunk
                     f(buffer1, temp_chunk);
 
-                    // FIX: Compare against absolute_lane_indices
+                    // upper triangle mask (j > i) to prevent double counting and self-interaction
                     auto current_mask = valid_tail_mask && (absolute_lane_indices > static_cast<double>(i));
 
                     // update p1 (scalar reduction for forces ON p1 from j > i)
-                    p1.force += vec3{
-                        select(current_mask, buffer1.force.x, null).reduce_add(),
-                        select(current_mask, buffer1.force.y, null).reduce_add(),
-                        select(current_mask, buffer1.force.z, null).reduce_add()
-                    };
+                    buffer1.reduce_into(p1, current_mask);
 
                     // Accumulate forces ON the rest of the chunk (from p1)
-                    accum_force.x += select(current_mask, temp_chunk.force.x, null);
-                    accum_force.y += select(current_mask, temp_chunk.force.y, null);
-                    accum_force.z += select(current_mask, temp_chunk.force.z, null);
+                    chunk_data.accumulate(temp_chunk, current_mask);
                 }
-
-                packed_chunk.force += accum_force;
+                // Safely flush the master accumulator back to memory
+                chunk_data.update_into(packed_chunk);
             }
         }
     };

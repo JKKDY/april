@@ -342,7 +342,7 @@ struct DummyPeriodicBoundary final : boundary::Boundary {
 	: Boundary(0.0, false, true, false ) {}
 
 	template<ParticleField M, particle::IsParticleAttributes U>
-		void apply(particle::internal::ScalarParticleRef<M, U> &, const core::Box &, const DomainFace) const noexcept{
+		void apply(auto, const core::Box &, const DomainFace) const noexcept{
 	}
 };
 
@@ -585,7 +585,7 @@ TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
 		const auto val = static_cast<double>(i);
 
 		// Verify the write persisted and can be read back via restricted interface
-		auto res_view = sys.template restricted_at_id<ParticleField::velocity | ParticleField::force>(sys_id);
+		auto res_view = sys.template at_id<ParticleField::velocity | ParticleField::force>(sys_id);
 
 		EXPECT_EQ(res_view.velocity.x, val);
 		EXPECT_EQ(res_view.velocity.y, val * 2);

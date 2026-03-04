@@ -34,7 +34,7 @@ protected:
 
     // B. The Source (The struct of pointers)
     // IsConst = false allows us to point to our mutable member variables
-    using SourceT = particle::internal::ParticleSource<TestMask, ForceTestUserData, false>;
+    using SourceT = particle::internal::ParticleSource<TestMask, TestMask, ForceTestUserData>;
     SourceT source1;
     SourceT source2;
 
@@ -64,10 +64,10 @@ protected:
 
     // Helper to generate the View expected by the Force operator
     [[nodiscard]] auto get_view1() const {
-        return ScalarParticleView<TestMask, ForceTestUserData>(source1);
+        return ScalarParticleRef<TestMask, TestMask, ForceTestUserData>(source1);
     }
     [[nodiscard]] auto get_view2() const {
-        return ScalarParticleView<TestMask, ForceTestUserData>(source2);
+        return ScalarParticleRef<TestMask, TestMask, ForceTestUserData>(source2);
     }
 };
 

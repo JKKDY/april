@@ -7,7 +7,7 @@
 
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
-#include "../../core/domain.hpp"
+#include "april/core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
 
 
@@ -77,8 +77,8 @@ namespace april::container::internal {
 			}
 
 			// gather particles
-			self.template for_each_particle_view<ParticleField::position>(
-				scalar_kernel(
+			self.for_each_particle_view(
+				april::scalar_kernel<ParticleField::position>(
 					[&](const size_t i, const auto & particle) {
 						if (region.contains(particle.position)) {
 							ret.push_back(i);
@@ -98,7 +98,7 @@ namespace april::container::internal {
 			// outer vector holds buckets, inner vectors hold physical indexes to particles belonging to that bucket
 			std::vector<std::vector<size_t>> buckets;
 
-			self.template for_each_particle_view<ParticleField::type>(april::scalar_kernel(
+			self.for_each_particle_view(april::scalar_kernel<ParticleField::type>(
 				[&](const size_t i, const auto& p) {
 					const auto type_idx = static_cast<size_t>(p.type);
 					if (type_idx >= buckets.size()) {

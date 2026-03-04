@@ -43,7 +43,7 @@ protected:
 
     // Helper: Create a Mutable Source pointing to the Record's fields
     auto get_source() {
-        particle::internal::ParticleSource<ParticleField::all, TestUserDataT, false> src;
+        particle::internal::ParticleSource<ParticleField::all, ParticleField::all, TestUserDataT> src;
         src.position     = &particle_data.position;
         src.velocity     = &particle_data.velocity;
         src.force        = &particle_data.force;
@@ -58,7 +58,7 @@ protected:
 
     // Helper: Create a Const Source pointing to the Record's fields
     auto get_const_source() {
-        particle::internal::ParticleSource<ParticleField::all, TestUserDataT, true> src;
+        particle::internal::ParticleSource<ParticleField::all, ParticleField::none, TestUserDataT> src;
         src.position     = &particle_data.position;
         src.velocity     = &particle_data.velocity;
         src.force        = &particle_data.force;
@@ -95,7 +95,7 @@ TEST(ParticleViewsHelpersTest, BitmaskOperators) {
 // --- Test ParticleRef ---
 TEST_F(ParticleViewsTest, ParticleRefAllFieldsRead) {
     auto src = get_source();
-    const ScalarParticleRef<ParticleField::all, TestUserDataT> ref(src);
+    const ScalarParticleRef<ParticleField::all, ParticleField::all, TestUserDataT> ref(src);
 
     EXPECT_EQ(ref.position, particle_data.position);
     EXPECT_EQ(ref.velocity, particle_data.velocity);
@@ -110,7 +110,7 @@ TEST_F(ParticleViewsTest, ParticleRefAllFieldsRead) {
 
 TEST_F(ParticleViewsTest, ParticleRefAllFieldsWrite) {
     const auto src = get_source();
-    ScalarParticleRef<ParticleField::all, TestUserDataT> ref(src);
+    ScalarParticleRef<ParticleField::all, ParticleField::all, TestUserDataT> ref(src);
 
     constexpr MyTestUserData updated_data{99, -1.0};
 
@@ -129,7 +129,7 @@ TEST_F(ParticleViewsTest, ParticleRefPartialMask) {
     constexpr auto mask = ParticleField::position | ParticleField::mass | ParticleField::attributes;
 
     auto src = get_source(); // Source has ALL fields populated
-    ScalarParticleRef<mask, TestUserDataT> ref(src); // Ref only maps subset
+    ScalarParticleRef<mask, mask, TestUserDataT> ref(src); // Ref only maps subset
 
     // check present fields are correct
     EXPECT_EQ(ref.position, particle_data.position);
@@ -147,8 +147,8 @@ TEST_F(ParticleViewsTest, ParticleRefPartialMask) {
 
 // --- Test ParticleView ---
 TEST_F(ParticleViewsTest, ParticleViewIsConst) {
-    auto src = get_const_source(); // Source is const
-    ScalarParticleView<ParticleField::all, TestUserDataT> view(src);
+    const auto src = get_const_source(); // Source is const
+    ScalarParticleRef<ParticleField::all, ParticleField::none, TestUserDataT> view(src);
 
     // check values
     EXPECT_EQ(view.position, particle_data.position);
@@ -163,18 +163,20 @@ TEST_F(ParticleViewsTest, ParticleViewIsConst) {
 
 
 // --- Test RestrictedParticleRef ---
-TEST_F(ParticleViewsTest, RestrictedParticleRefAccess) {
-    constexpr auto mask = ParticleField::position | ParticleField::force | ParticleField::id | ParticleField::attributes;
-    auto src = get_source(); // Mutable source
+TEST_F(ParticleViewsTest, MixedAccessParticleRefAccess) {
+    constexpr auto read = ParticleField::position | ParticleField::force | ParticleField::id | ParticleField::attributes;
+    constexpr auto write =ParticleField::force;
 
-    ScalarRestrictedParticleRef<mask, TestUserDataT> restricted_ref(src);
+    const auto src = get_source(); // Mutable source
+
+    ScalarParticleRef<read, write, TestUserDataT> restricted_ref(src);
 
     // check that 'force' is mutable
     EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.force), math::Vec3Proxy<vec3::type>>));
 
     // check that other fields are const or copies
     EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.position), const math::Vec3Proxy<const vec3::type>>));
-    EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.id), const ParticleID>)); // copy
+    EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.id), const ParticleID&>));
     EXPECT_TRUE((std::is_same_v<decltype(restricted_ref.attributes), const TestUserDataT&>));
 
     // check that absent fields are monostate

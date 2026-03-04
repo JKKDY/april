@@ -73,20 +73,16 @@ namespace april::container::layout {
 
 
 		// DISABLE PACKED ACCESS
-		template<ParticleField M>
+		template<ParticleField R, ParticleField W>
 		[[nodiscard]] auto at_packed(this auto&&, size_t) {
 			static_assert(false, "AoS does not support packed access");
 		}
 
-		template<ParticleField M>
+		template<ParticleField R>
 		[[nodiscard]] auto view_packed(this const auto&, size_t) {
 			static_assert(false, "AoS does not support packed access");
 		}
 
-		template<ParticleField M>
-		[[nodiscard]] auto restricted_at_packed(this auto&&, size_t) {
-			static_assert(false, "AoS does not support packed access");
-		}
 
 	protected:
 		std::vector<Particle> tmp = {};
@@ -155,14 +151,15 @@ namespace april::container::layout {
 			else if constexpr (F == ParticleField::attributes)		return &self.particles[i].attributes;
 		}
 
-		template<ParticleField M, ParallelPolicy P, exec::internal::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
+		template<ParallelPolicy P, exec::internal::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
 		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
 			static_assert(V != exec::internal::ExecutionMode::Vector, "AoS cannot be vectorized. Change the vector policy to scalar or auto.");
 			for (size_t i = start; i < end; i++) {
+				using K = std::remove_cvref_t<Kernel>;
 				if constexpr (is_const) {
-					kernel(i, self.template view<M>(i));
+					kernel(i, self.template view<K::Read>(i));
 				} else {
-					kernel(i, self.template at<M>(i));
+					kernel(i, self.template at<K::Read, K::Write>(i));
 				}
 			}
 		}

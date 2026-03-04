@@ -34,7 +34,7 @@ namespace april {
 		void record(const core::SystemContext<S> & sys) {
 			std::cout << "\n ##########  step: " << sys.step() <<  "  ########## \n";
 
-			sys.template for_each_particle_view<fields>(scalar_kernel(
+			sys.for_each_particle_view(scalar_kernel<fields>(
 				[&](const auto & p) {
 				std::cout << particle_to_string(p) << "\n";
 			}));

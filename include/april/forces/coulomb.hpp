@@ -14,11 +14,12 @@ namespace april {
 		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = force::no_cutoff)
 			: Force(cutoff), coulomb_constant(coulomb_const) {}
 
-		template<ParticleField M, particle::IsParticleAttributes U>
-		requires requires {
-			{ U::charge } -> std::convertible_to<double>;
-		}
-		auto eval(const particle::internal::ScalarParticleView<M, U> & p1, const particle::internal::ScalarParticleView<M, U> & p2, const vec3& r) const noexcept {
+		// template<ParticleField M, ParticleField N, particle::IsParticleAttributes U>
+		// requires requires { // TODO replace with concept that checks if particle has U::charge
+		// 	{ U::charge } -> std::convertible_to<double>;
+		// }
+		// auto eval(const particle::internal::ScalarParticleRef<M, N, U> & p1, const particle::internal::ScalarParticleRef<M, N, U> & p2, const vec3& r) const noexcept {
+		auto eval(auto && p1, auto && p2, const vec3 & r) const {
 			const double inv_r = r.inv_norm();
 			const double mag = coulomb_constant * p1.attributes.charge * p2.attributes.charge * inv_r * inv_r;
 

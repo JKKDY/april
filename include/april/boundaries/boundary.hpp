@@ -88,8 +88,9 @@ namespace april::boundary {
 			topology(thickness, couples_axis, force_wrap, may_change_particle_pos)
 		{}
 
-		template<ParticleField IncomingMask, particle::IsParticleAttributes U>
-		void invoke_apply(this const auto & self,particle::internal::ScalarParticleRef<IncomingMask, U> & particle, const core::Box & domain_box, DomainFace face) noexcept {
+		// TODO: replace ScalarParticle ref with auto
+		template<ParticleField IncomingMask, ParticleField M, particle::IsParticleAttributes U>
+		void invoke_apply(this const auto & self,particle::internal::ScalarParticleRef<IncomingMask, M, U> & particle, const core::Box & domain_box, DomainFace face) noexcept {
 			static_assert(
 			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },
 			   "BoundaryCondition subclass must implement: void dispatch_apply(particle)"
@@ -154,8 +155,7 @@ namespace april {
 
 			BoundarySentinel(): Boundary(-1, false, false, false) {}
 
-			template<ParticleField IncomingMask, particle::IsParticleAttributes U>
-			void apply(particle::internal::ScalarParticleRef<IncomingMask, U> &, const core::Box &, const DomainFace) const noexcept {
+			void apply(auto, const core::Box &, const DomainFace) const noexcept {
 				AP_ASSERT(false, "apply called on null boundary! this should never happen");
 			}
 		};

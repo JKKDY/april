@@ -95,31 +95,29 @@ namespace april::core {
 		// FUNCTIONAL OPS
 		// --------------
 		template<
-			ParticleField M,
 			ParallelPolicy P = ParallelPolicy::Serial,
 			VectorPolicy V = VectorPolicy::Auto,
 			exec::IsKernel Kernel>
 		void for_each_particle(Kernel && func, ParticleState state = ParticleState::ALL) {
-			system.template for_each_particle<M, P, V, Kernel>(std::forward<Kernel>(func), state);
+			system.template for_each_particle<P, V, Kernel>(std::forward<Kernel>(func), state);
 		}
 
 		template<
-			ParticleField M,
 			ParallelPolicy P = ParallelPolicy::Serial,
 			VectorPolicy V = VectorPolicy::Auto,
 			exec::IsKernel Kernel>
 		void for_each_particle_view(Kernel && func, ParticleState state = ParticleState::ALL) const {
-			system.template for_each_particle_view<M, P, V, Kernel>(std::forward<Kernel>(func), state);
+			system.template for_each_particle_view<P, V, Kernel>(std::forward<Kernel>(func), state);
 		}
 
-		template<typename Func>
+		template<exec::IsKernel Func>
 		void for_each_interaction_batch(Func && func) {
 			system.for_each_interaction_batch(std::forward<Func>(func));
 		}
 
-		template<ParticleField M, typename Func>
+		template<exec::IsKernel Func>
 		void for_each_interaction_pair(Func && func) {
-			system.template for_each_interaction_pair<M>(func);
+			system.for_each_interaction_pair(func);
 		}
 
 

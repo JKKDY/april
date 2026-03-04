@@ -11,11 +11,11 @@ namespace april {
 	//--------------
 	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<
 		ContainerDecl, Traits>
-	template <ParticleField M, ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
+	template <ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
 	void System<ContainerDecl, Traits>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
 			using namespace april::exec::internal;
 			constexpr VectorTrait batch_capabilities = std::remove_cvref_t<Batch>::vector_trait;
-			constexpr ExecutionMode kernel_capabilities = std::remove_cvref_t<Kernel>::Mode;
+			constexpr ExecutionMode kernel_capabilities =std::remove_cvref_t<Kernel>::mode;
 
 			// map VectorPolicy -> VectorTrait (execution mode)
 			constexpr ExecutionMode exec_mode = [] {
@@ -65,11 +65,11 @@ namespace april {
 
 			// Execute
 			if constexpr (container::batching::IsBatchAtom<Batch>) {
-				batch.template for_each_pair<M, P, exec_mode>(kernel);
+				batch.template for_each_pair<P, exec_mode>(kernel);
 			}
 			else if constexpr (container::batching::IsBatchAtomRange<Batch>) {
 				for (const auto& atom : batch) {
-					atom.template for_each_pair<M, P, exec_mode>(kernel);
+					atom.template for_each_pair<P, exec_mode>(kernel);
 				}
 			}
 		}
@@ -86,7 +86,7 @@ namespace april {
 		auto update_batch = [&]<container::batching::IsBatch Batch, container::batching::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
 
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr ParticleField M = ForceT::fields | ParticleField::force | ParticleField::position;
+				constexpr ParticleField M = ForceT::fields | ParticleField::position;
 
 				auto kernel = [&]<bool is_packed>(auto & p1, auto & p2) {
 					auto diff = p2.position - p1.position;
@@ -152,16 +152,19 @@ namespace april {
 					}
 				};
 
-				execute_batch_kernel<M, ParallelPolicy::Serial, VectorPolicy::Auto>(batch, april::universal_kernel(kernel));
+				execute_batch_kernel<ParallelPolicy::Serial, VectorPolicy::Auto>(batch,
+					april::universal_kernel<M, ParticleField::force>(kernel));
 			};
 
 			auto [t1, t2] = batch.types;
 			force_table.dispatch(t1, t2, apply_batch_update);
 		};
 
-		particle_container.template for_each_particle<ParticleField::force>(april::universal_kernel(
-			[](auto && p) { p.force = {}; } // reset forces
-		));
+		particle_container.for_each_particle(
+			april::universal_kernel<ParticleField::force, ParticleField::force>(
+				[](auto && p) { p.force = {}; } // reset forces
+			)
+		);
 		particle_container.invoke_for_each_interaction_batch(update_batch);
 
 
@@ -171,11 +174,11 @@ namespace april {
 		auto update_global_batch = [&](const auto & batch) {
 
 			auto apply_batch_update = [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr ParticleField M = ForceT::fields | ParticleField::force | ParticleField::position;
+				constexpr ParticleField Read = ForceT::fields | ParticleField::force | ParticleField::position;
 
 				for (const auto & [id1, id2] : batch.pairs) {
-					auto && p1 = particle_container.template restricted_at_id<M>(id1);
-					auto && p2 = particle_container.template restricted_at_id<M>(id2);
+					auto && p1 = at_id<Read, ForceT::fields | ParticleField::force>(id1);
+					auto && p2 = at_id<Read, ForceT::fields | ParticleField::force>(id2);
 
 					vec3 r = p2.position - p1.position;
 
@@ -221,7 +224,7 @@ namespace april {
 				constexpr ParticleField M = std::decay_t<B>::fields;
 
 				for (auto p_idx : particle_ids) {
-					auto p = particle_container.template at<M>(p_idx);
+					auto p = at<M>(p_idx);
 					bc.apply(p, domain_box, face);
 
 					if (compiled_boundary.topology.may_change_particle_position) {
@@ -235,7 +238,7 @@ namespace april {
 				constexpr ParticleField M = std::decay_t<B>::fields | detect_mask;
 
 				for (auto p_idx : particle_ids) {
-					auto particle = particle_container.template at<M>(p_idx);
+					auto particle = at<M>(p_idx);
 
 					// make sure the particle exited through the current boundary face
 					// solve for intersection of the particles path with the boundary face
@@ -296,7 +299,7 @@ namespace april {
 	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::apply_force_fields() {
 		fields.for_each_item([&]<typename F>(F & field) {
-			for_each_particle<F::fields>(scalar_kernel(
+			for_each_particle(scalar_kernel<F::fields, ParticleField::force>(
 				[&](auto && p) {
 					field.dispatch_apply(p);
 				})

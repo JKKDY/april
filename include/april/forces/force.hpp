@@ -60,11 +60,6 @@ namespace april::force {
         }
 
         auto mix_forces(this const auto& self, const auto & other) {
-            static_assert(
-                requires { self.mix(other); },
-                "mix() not implemented"
-            );
-
             using SelfT  = std::remove_cvref_t<decltype(self)>;
             using OtherT = std::remove_cvref_t<decltype(other)>;
 
@@ -180,8 +175,7 @@ namespace april::force {
 
             ForceSentinel() : Force(-1.0) {}
 
-            template<ParticleField M, particle::IsParticleAttributes U>
-            vec3 eval(const particle::internal::ScalarParticleView<M, U> &, const particle::internal::ScalarParticleView<M, U> &, const vec3&) const noexcept {
+            vec3 eval(auto, auto, const vec3&) const noexcept {
                 AP_ASSERT(false, "NullForce should never be executed");
                 std::unreachable();
             }

@@ -29,10 +29,9 @@ static particle::ParticleRecord<NoParticleAttributes> make_alive_particle() {
 template<ParticleField Mask, typename RecordT>
 auto make_source(RecordT& record) {
 	// Determine constness based on RecordT (allows making const sources from const records)
-	constexpr bool IsConst = std::is_const_v<RecordT>;
 	using UserDataT = RecordT::particle_attributes_t;
 
-	particle::internal::ParticleSource<Mask, UserDataT, IsConst> src;
+	particle::internal::ParticleSource<Mask, Mask, UserDataT> src;
 
 	if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
 	if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
@@ -56,7 +55,7 @@ TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 
 	auto p = make_alive_particle();
 	auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	absorb.apply(ref, box, DomainFace::XPlus);
 
@@ -88,7 +87,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 
 	auto p = make_alive_particle();
 	auto src = make_source<Mask>(p);
-	particle::internal::ScalarParticleRef<Mask, NoParticleAttributes> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	core::Box box{{0,0,0}, {10,10,10}};
 

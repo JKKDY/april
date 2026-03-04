@@ -41,9 +41,8 @@ using namespace april::core;
 class DummySystem {
 public:
 	using user_data_t = NoParticleAttributes;
-	template<ParticleField M> using ParticleRef         = particle::internal::ScalarParticleRef<M, user_data_t>;
-	template<ParticleField M> using ParticleView        = particle::internal::ScalarParticleView<M, user_data_t>;
-	template<ParticleField M> using RestrictedParticleRef = particle::internal::ScalarRestrictedParticleRef<M, user_data_t>;
+	template<ParticleField M> using ParticleRef         = particle::internal::ScalarParticleRef<M, M, user_data_t>;
+	template<ParticleField M> using ParticleView         = particle::internal::ScalarParticleRef<M, ParticleField::none, user_data_t>;
 
 	explicit DummySystem(
 		const size_t step,
@@ -64,22 +63,23 @@ public:
 	[[nodiscard]] double time() const noexcept { return time_; }
 	[[nodiscard]] Box box() const noexcept { return sim_box; }
 
-	template<ParticleField M, ParallelPolicy P = ParallelPolicy::Serial, VectorPolicy V = VectorPolicy::Auto, typename Func>
-		void for_each_particle_view(Func && func, ParticleState = ParticleState::ALL) const {
+	template<ParallelPolicy P = ParallelPolicy::Serial, VectorPolicy V = VectorPolicy::Auto, typename Kernel>
+		void for_each_particle_view(Kernel && func, ParticleState = ParticleState::ALL) const {
+		using K = std::remove_cvref_t<Kernel>;
 		for (size_t i = 0; i < size(); i++) {
-			const auto & p = view<M>(i);
+			const auto & p = view<K::Read>(i);
 			func(p);
 		}
 	}
 
 	template<ParticleField M>
-	[[nodiscard]] ParticleView<M> view(const size_t index) const noexcept {
+	[[nodiscard]] auto view(const size_t index) const noexcept {
 		// 1. Get reference to storage
 		const ParticleRec& record = particles.at(index);
 
 		// 2. Create Source (IsConst = true)
 		// We map the requested fields M to the record's members
-		particle::internal::ParticleSource<M, user_data_t, true> src;
+		particle::internal::ParticleSource<M, ParticleField::none, user_data_t> src;
 
 		if constexpr (particle::internal::has_field_v<M, ParticleField::position>)     src.position     = &record.position;
 		if constexpr (particle::internal::has_field_v<M, ParticleField::velocity>)     src.velocity     = &record.velocity;

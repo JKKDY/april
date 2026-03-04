@@ -16,7 +16,8 @@ namespace april::container::batching {
     // ASYMMETRIC BATCH
     //-----------------
     template <typename Container, typename ChunkPtr>
-    struct AsymmetricChunkedBatch : BatchBase<exec::internal::ParallelTrait::None, exec::internal::VectorTrait::Mixed> {
+    struct AsymmetricChunkedBatch : BatchBase<exec::internal::ParallelTrait::None,
+        exec::internal::VectorTrait::ScalarOnly | exec::internal::VectorTrait::VectorOnly> {
         explicit
         AsymmetricChunkedBatch(Container& container, ChunkPtr* chunks) : container(container), chunks(chunks) {
             for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
@@ -48,7 +49,7 @@ namespace april::container::batching {
         static constexpr size_t packed_size = packed::size();
         static constexpr size_t iter_chunks = chunk_size / packed_size;
 
-        alignas(64) double idx_arr[packed_size];
+        alignas(64) packed::value_type idx_arr[packed_size];
 
 
         //----------------
@@ -116,6 +117,36 @@ namespace april::container::batching {
             }
         }
 
+        // -----------------
+        // HELPERS (ROUTING)
+        // -----------------
+        // helper for 360-degree SIMD rotation sweep for distinct blocks
+        template <typename BufferT, typename PackedAccessor, typename Kernel>
+        AP_FORCE_INLINE void interact_block_vs_block(BufferT& buffer1, PackedAccessor&& packed2, Kernel& f) const {
+            auto buffer2 = packed2.load_buffer(); // Natively zeroes WOMask fields
+
+            AP_UNROLL_LOOP_N(packed_size)
+            for (size_t k = 0; k < packed_size; k++) {
+                auto view1 = buffer1.to_view();
+                auto view2 = buffer2.to_view();
+                f(view1, view2);
+                buffer2.rotate_right();
+            }
+
+            buffer2.update_into(packed2); // Native WOMask accumulation
+        }
+
+        // helper for packed vs broadcast scalar block (no rotations needed)
+        template <typename BufferT, typename PackedAccessor, typename Kernel>
+        AP_FORCE_INLINE void interact_scalar_vs_block(BufferT& buffer_scalar, PackedAccessor && packed_block, Kernel& f) const {
+            auto buffer_block = packed_block.load_buffer();
+
+            auto view1 = buffer_scalar.to_view();
+            auto view2 = buffer_block.to_view();
+            f(view1, view2);
+
+            buffer_block.update_into(packed_block);
+        }
 
         //----------------
         // PACKED ITERATOR
@@ -156,34 +187,6 @@ namespace april::container::batching {
             interact_tails_vs_tails(full_chunks1, full_chunks2, partial_tail1, partial_tail2, f);
         }
 
-
-        // helper for 360-degree SIMD rotation sweep for distinct blocks
-        template <typename BufferT, typename PackedAccessor, typename Kernel>
-        AP_FORCE_INLINE void interact_block_vs_block(BufferT& buffer1, PackedAccessor&& packed2, Kernel& f) const {
-            auto buffer2 = packed2.load_buffer(); // Natively zeroes WOMask fields
-
-            AP_UNROLL_LOOP_N(packed_size)
-            for (size_t k = 0; k < packed_size; k++) {
-                auto view1 = buffer1.to_view();
-                auto view2 = buffer2.to_view();
-                f(view1, view2);
-                buffer2.rotate_right();
-            }
-
-            buffer2.update_into(packed2); // Native WOMask accumulation
-        }
-
-        // helper for packed vs broadcast scalar block (no rotations needed)
-        template <typename BufferT, typename PackedAccessor, typename Kernel>
-        AP_FORCE_INLINE void interact_scalar_vs_block(BufferT& buffer_scalar, PackedAccessor && packed_block, Kernel& f) const {
-            auto buffer_block = packed_block.load_buffer();
-
-            auto view1 = buffer_scalar.to_view();
-            auto view2 = buffer_block.to_view();
-            f(view1, view2);
-
-            buffer_block.update_into(packed_block);
-        }
 
         template <typename Kernel>
         AP_FORCE_INLINE void interact_body_vs_body(
@@ -342,7 +345,8 @@ namespace april::container::batching {
     //----------------
     //================
     template <typename Container, typename ChunkPtr>
-    struct SymmetricChunkedBatch : BatchBase<exec::internal::ParallelTrait::None, exec::internal::VectorTrait::Mixed> {
+    struct SymmetricChunkedBatch : BatchBase<exec::internal::ParallelTrait::None, +
+        exec::internal::VectorTrait::ScalarOnly | exec::internal::VectorTrait::VectorOnly> {
         explicit SymmetricChunkedBatch(Container& container, ChunkPtr* chunks) : container(container), chunks(chunks) {
             for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
         }
@@ -369,7 +373,7 @@ namespace april::container::batching {
         static constexpr size_t packed_size = packed::size();
         static constexpr size_t iter_chunks = chunk_size / packed_size;
 
-        alignas(64) double idx_arr[packed_size];
+        alignas(64) packed::value_type idx_arr[packed_size];
 
 
         //----------------
@@ -431,35 +435,9 @@ namespace april::container::batching {
         }
 
 
-        //----------------
-        // PACKED ITERATOR
-        //----------------
-        template <ParallelPolicy P>
-        void for_each_pair_packed(auto&& f) const {
-            const size_t tail_len = (range_tail == 0) ? chunk_size : range_tail; // length of entire tail
-            const size_t full_tail_end = (tail_len / packed_size) * packed_size;
-            // largest index that is a multiple of packed_size
-
-            // Partitioning the chunked container into 3 distinct sets:
-            // 1. C: Full chunks (excluding the final tail chunk)
-            // 2. F: Full SIMD blocks within the tail chunk (SIMD-aligned)
-            // 3. P: Partial remainder particles at the very end (Scalar)
-            const math::Range full_chunks = {range_chunks.start, range_chunks.stop - 1};
-            const math::Range full_tail = {0, full_tail_end, packed_size};
-            const math::Range partial_tail = {full_tail_end, tail_len};
-
-            // Iteration Scheme for Symmetric Interaction (Upper Triangle: index of X_inta > index of X):
-            // 1. [C] vs [a) Self, b) C_intra, c) C_inter, d) F, e) P]
-            interact_body_vs_everything(full_chunks, full_tail, partial_tail, f);
-
-            // 2. [F] vs [a) Self, b) F_intra, c) P]
-            interact_tail_simd_vs_remainder(full_chunks, full_tail, partial_tail, full_tail_end, f);
-
-            // 3. [P] vs [P_intra]
-            interact_partial_vs_partial(full_chunks, partial_tail, tail_len, f);
-        }
-
-
+        // -----------------
+        // HELPERS (ROUTING)
+        // -----------------
         // helper for 360-degree SIMD rotation sweep for distinct blocks
         template <typename BufferT, typename PackedAccessor, typename Kernel>
         AP_FORCE_INLINE void interact_block_vs_block(BufferT& buffer1, PackedAccessor&& packed2, Kernel& f) const {
@@ -509,6 +487,35 @@ namespace april::container::batching {
             auto view2 = buffer2.to_view();
             f(view1, view2);
         }
+
+        //----------------
+        // PACKED ITERATOR
+        //----------------
+        template <ParallelPolicy P>
+        void for_each_pair_packed(auto&& f) const {
+            const size_t tail_len = (range_tail == 0) ? chunk_size : range_tail; // length of entire tail
+            const size_t full_tail_end = (tail_len / packed_size) * packed_size;
+            // largest index that is a multiple of packed_size
+
+            // Partitioning the chunked container into 3 distinct sets:
+            // 1. C: Full chunks (excluding the final tail chunk)
+            // 2. F: Full SIMD blocks within the tail chunk (SIMD-aligned)
+            // 3. P: Partial remainder particles at the very end (Scalar)
+            const math::Range full_chunks = {range_chunks.start, range_chunks.stop - 1};
+            const math::Range full_tail = {0, full_tail_end, packed_size};
+            const math::Range partial_tail = {full_tail_end, tail_len};
+
+            // Iteration Scheme for Symmetric Interaction (Upper Triangle: index of X_inta > index of X):
+            // 1. [C] vs [a) Self, b) C_intra, c) C_inter, d) F, e) P]
+            interact_body_vs_everything(full_chunks, full_tail, partial_tail, f);
+
+            // 2. [F] vs [a) Self, b) F_intra, c) P]
+            interact_tail_simd_vs_remainder(full_chunks, full_tail, partial_tail, full_tail_end, f);
+
+            // 3. [P] vs [P_intra]
+            interact_partial_vs_partial(full_chunks, partial_tail, tail_len, f);
+        }
+
 
 
         template <typename Kernel>

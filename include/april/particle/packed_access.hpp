@@ -15,16 +15,77 @@ namespace april::particle::internal {
     struct PackedParticleRef;
 
 
+    //--------------------
+    // PACKED PARTICLE REF
+    //--------------------
+    // holds packed references which act like packed types but will touch memory on loads/writebacks.
+    // for better perf use buffers for a single load at the beginning and single write back at the end
+    template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes U>
+    struct PackedParticleRef {
+    private:
+        // helper for switching between data pointers and poison
+        template <ParticleField F, typename Source>
+        constexpr auto init_packed(const Source& src) {
+            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, F>) {
+                // no de-reference here because pointers are needed to initialize packed references
+                return src.template get<F>();
+            }
+            else {
+                return AccessForbidden<F>();
+            }
+        }
+
+        template <typename MutT, typename ConstT, ParticleField F>
+        using field_t = field_access_t<MutT, ConstT, F, ReadMask, WriteMask>;
+
+        using MutVec3Ref = math::Vec3Proxy<pvec3::type>;
+        using ConstVec3Ref = math::Vec3Proxy<const pvec3::type>;
+
+    public:
+        explicit PackedParticleRef(const auto& source) noexcept
+           : force(init_packed<ParticleField::force>(source))
+           , position(init_packed<ParticleField::position>(source))
+           , velocity(init_packed<ParticleField::velocity>(source))
+           , old_position(init_packed<ParticleField::old_position>(source))
+           , mass(init_packed<ParticleField::mass>(source))
+            {}
+
+        // Cross-constructor for narrowing write permissions (e.g. creating a view)
+        template <ParticleField OtherWriteMask>
+            requires ((WriteMask & OtherWriteMask) == WriteMask)
+        explicit PackedParticleRef(const PackedParticleRef<ReadMask, OtherWriteMask, U>& r) noexcept
+            : force(r.force)
+              , position(r.position)
+              , velocity(r.velocity)
+              , old_position(r.old_position)
+              , mass(r.mass) {}
+
+        // a view is just a PackedParticleRef with no write permissions
+        auto to_view() const noexcept {
+            return PackedParticleRef<ReadMask | WriteMask, ParticleField::none, U>(*this);
+        }
+
+        PackedParticleBuffer<ReadMask, WriteMask> load_buffer() const noexcept {
+            return PackedParticleBuffer<ReadMask, WriteMask>(*this);
+        }
+
+        // Data members with strict const-correctness
+        AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref, ConstVec3Ref, ParticleField::force> force;
+        AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref, ConstVec3Ref, ParticleField::position> position;
+        AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref, ConstVec3Ref, ParticleField::velocity> velocity;
+        AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref, ConstVec3Ref, ParticleField::old_position> old_position;
+        AP_NO_UNIQUE_ADDRESS field_t<simd::PackedRef<double>, simd::PackedRef<const double>, ParticleField::mass> mass;
+    };
+
+
     //-----------------------
     // PACKED PARTICLE BUFFER
     //-----------------------
-    // if in ReadMask or WriteMask return type T else return Poison
-
-
     // shadow object with actual SIMD registers. Allows for manipulations without direct write backs
     template <ParticleField ReadMask, ParticleField WriteMask>
     struct PackedParticleBuffer {
     private:
+        // if in ReadMask or WriteMask return type T else return Poison
         template <typename T, ParticleField F>
           using buffer_field_t = std::conditional_t<
               has_field_v<ReadMask | WriteMask, F>,
@@ -264,170 +325,91 @@ namespace april::particle::internal {
             }
         }
 
-        // Masked SIMD Write-Back (For Tail Chunks)
+      // Masked SIMD Write-Back (For Tail Chunks)
         template <typename Attr, typename MaskT>
         AP_FORCE_INLINE void update_into(PackedParticleRef<ReadMask, WriteMask, Attr>& packed_ref, const MaskT & mask) const {
-            const packed null = 0.0;
+            update_vec_masked<ParticleField::position>(packed_ref.position, position, mask);
+            update_vec_masked<ParticleField::old_position>(packed_ref.old_position, old_position, mask);
+            update_vec_masked<ParticleField::velocity>(packed_ref.velocity, velocity, mask);
+            update_vec_masked<ParticleField::force>(packed_ref.force, force, mask);
 
-            // POSITION
-            if constexpr (has_field_v<WOMask, ParticleField::position>) {
-                packed_ref.position.x += select(mask, position.x, null);
-                packed_ref.position.y += select(mask, position.y, null);
-                packed_ref.position.z += select(mask, position.z, null);
-            } else if constexpr (has_field_v<RWMask, ParticleField::position>) {
-                packed_ref.position.x = select(mask, position.x, packed_ref.position.x);
-                packed_ref.position.y = select(mask, position.y, packed_ref.position.y);
-                packed_ref.position.z = select(mask, position.z, packed_ref.position.z);
-            }
-
-            // OLD POSITION
-            if constexpr (has_field_v<WOMask, ParticleField::old_position>) {
-                packed_ref.old_position.x += select(mask, old_position.x, null);
-                packed_ref.old_position.y += select(mask, old_position.y, null);
-                packed_ref.old_position.z += select(mask, old_position.z, null);
-            } else if constexpr (has_field_v<RWMask, ParticleField::old_position>) {
-                packed_ref.old_position.x = select(mask, old_position.x, packed_ref.old_position.x);
-                packed_ref.old_position.y = select(mask, old_position.y, packed_ref.old_position.y);
-                packed_ref.old_position.z = select(mask, old_position.z, packed_ref.old_position.z);
-            }
-
-            // VELOCITY
-            if constexpr (has_field_v<WOMask, ParticleField::velocity>) {
-                packed_ref.velocity.x += select(mask, velocity.x, null);
-                packed_ref.velocity.y += select(mask, velocity.y, null);
-                packed_ref.velocity.z += select(mask, velocity.z, null);
-            } else if constexpr (has_field_v<RWMask, ParticleField::velocity>) {
-                packed_ref.velocity.x = select(mask, velocity.x, packed_ref.velocity.x);
-                packed_ref.velocity.y = select(mask, velocity.y, packed_ref.velocity.y);
-                packed_ref.velocity.z = select(mask, velocity.z, packed_ref.velocity.z);
-            }
-
-            // FORCE
-            if constexpr (has_field_v<WOMask, ParticleField::force>) {
-                packed_ref.force.x += select(mask, force.x, null);
-                packed_ref.force.y += select(mask, force.y, null);
-                packed_ref.force.z += select(mask, force.z, null);
-            } else if constexpr (has_field_v<RWMask, ParticleField::force>) {
-                packed_ref.force.x = select(mask, force.x, packed_ref.force.x);
-                packed_ref.force.y = select(mask, force.y, packed_ref.force.y);
-                packed_ref.force.z = select(mask, force.z, packed_ref.force.z);
-            }
-
-            // MASS
-            if constexpr (has_field_v<WOMask, ParticleField::mass>) {
-                packed_ref.mass += select(mask, mass, null);
-            } else if constexpr (has_field_v<RWMask, ParticleField::mass>) {
+            // MASS (Scalar inline)
+            if constexpr (has_field_v<WOMask, ParticleField::mass>)
+                packed_ref.mass += select(mask, mass, 0.0);
+            else if constexpr (has_field_v<RWMask, ParticleField::mass>)
                 packed_ref.mass = select(mask, mass, packed_ref.mass);
-            }
         }
 
         // Unmasked Scalar Reduction (For Broadcast Buffers)
         template <typename ScalarAccessor>
         requires april::particle::IsScalarParticleAccessor<ScalarAccessor>
         AP_FORCE_INLINE void reduce_into(ScalarAccessor& p) const {
+            reduce_vec_unmasked<ParticleField::position>(p.position, position);
+            reduce_vec_unmasked<ParticleField::old_position>(p.old_position, old_position);
+            reduce_vec_unmasked<ParticleField::velocity>(p.velocity, velocity);
+            reduce_vec_unmasked<ParticleField::force>(p.force, force);
 
-            // POSITION
-            if constexpr (has_field_v<WOMask, ParticleField::position>) {
-                p.position.x += position.x.reduce_add();
-                p.position.y += position.y.reduce_add();
-                p.position.z += position.z.reduce_add();
-            } else if constexpr (has_field_v<RWMask, ParticleField::position>) {
-                static_assert(false,
-                    "FATAL: Cannot reduce a Read-Write 'position' field from a SIMD register to a scalar. "
-                    "This implies divergent state updates across lanes, which is mathematically invalid.");
-            }
-
-            // OLD POSITION
-            if constexpr (has_field_v<WOMask, ParticleField::old_position>) {
-                p.old_position.x += old_position.x.reduce_add();
-                p.old_position.y += old_position.y.reduce_add();
-                p.old_position.z += old_position.z.reduce_add();
-            } else if constexpr (has_field_v<RWMask, ParticleField::old_position>) {
-                static_assert(false,
-                    "FATAL: Cannot reduce a Read-Write 'old_position' field from a SIMD register to a scalar.");
-            }
-
-            // VELOCITY
-            if constexpr (has_field_v<WOMask, ParticleField::velocity>) {
-                p.velocity.x += velocity.x.reduce_add();
-                p.velocity.y += velocity.y.reduce_add();
-                p.velocity.z += velocity.z.reduce_add();
-            } else if constexpr (has_field_v<RWMask, ParticleField::velocity>) {
-                static_assert(false,
-                    "FATAL: Cannot reduce a Read-Write 'velocity' field from a SIMD register to a scalar.");
-            }
-
-            // FORCE
-            if constexpr (has_field_v<WOMask, ParticleField::force>) {
-                p.force.x += force.x.reduce_add();
-                p.force.y += force.y.reduce_add();
-                p.force.z += force.z.reduce_add();
-            } else if constexpr (has_field_v<RWMask, ParticleField::force>) {
-                static_assert(false,
-                    "FATAL: Cannot reduce a Read-Write 'force' field from a SIMD register to a scalar.");
-            }
-
-            // MASS
-            if constexpr (has_field_v<WOMask, ParticleField::mass>) {
+            // MASS (Scalar inline)
+            if constexpr (has_field_v<WOMask, ParticleField::mass>)
                 p.mass += mass.reduce_add();
-            } else if constexpr (has_field_v<RWMask, ParticleField::mass>) {
-                static_assert(false,
-                    "FATAL: Cannot reduce a Read-Write 'mass' field from a SIMD register to a scalar.");
-            }
+            else if constexpr (has_field_v<RWMask, ParticleField::mass>)
+                static_assert(sizeof(ScalarAccessor) == 0, "FATAL: Cannot reduce RW mass.");
         }
 
         // Masked Scalar Reduction (For partial tail logic vs broadcasted scalars)
         template <typename ScalarAccessor, typename MaskT>
         requires april::particle::IsScalarParticleAccessor<ScalarAccessor>
         AP_FORCE_INLINE void reduce_into(ScalarAccessor& p, const MaskT& mask) const {
-            const packed null = 0.0;
+            reduce_vec_masked<ParticleField::position>(p.position, position, mask);
+            reduce_vec_masked<ParticleField::old_position>(p.old_position, old_position, mask);
+            reduce_vec_masked<ParticleField::velocity>(p.velocity, velocity, mask);
+            reduce_vec_masked<ParticleField::force>(p.force, force, mask);
 
-            // POSITION
-            if constexpr (has_field_v<WOMask, ParticleField::position>) {
-                p.position.x += select(mask, position.x, null).reduce_add();
-                p.position.y += select(mask, position.y, null).reduce_add();
-                p.position.z += select(mask, position.z, null).reduce_add();
-            } else if constexpr (has_field_v<RWMask, ParticleField::position>) {
-                static_assert(false,
-                    "FATAL: Cannot perform masked reduction on a Read-Write 'position' field.");
+            // MASS (Scalar inline)
+            if constexpr (has_field_v<WOMask, ParticleField::mass>)
+                p.mass += select(mask, mass, 0.0).reduce_add();
+            else if constexpr (has_field_v<RWMask, ParticleField::mass>)
+                static_assert(sizeof(ScalarAccessor) == 0, "FATAL: Cannot masked reduce RW mass.");
+        }
+
+    private:
+        // Unified Vector Write-Back (Masked)
+        template <ParticleField F, typename DestT, typename SrcT, typename MaskT>
+        AP_FORCE_INLINE static void update_vec_masked(DestT& dest, const SrcT& src, const MaskT& mask) {
+            if constexpr (has_field_v<WOMask, F>) {
+                const packed null = 0.0;
+                dest.x += select(mask, src.x, null);
+                dest.y += select(mask, src.y, null);
+                dest.z += select(mask, src.z, null);
+            } else if constexpr (has_field_v<RWMask, F>) {
+                dest.x = select(mask, src.x, dest.x);
+                dest.y = select(mask, src.y, dest.y);
+                dest.z = select(mask, src.z, dest.z);
             }
+        }
 
-            // OLD POSITION
-            if constexpr (has_field_v<WOMask, ParticleField::old_position>) {
-                p.old_position.x += select(mask, old_position.x, null).reduce_add();
-                p.old_position.y += select(mask, old_position.y, null).reduce_add();
-                p.old_position.z += select(mask, old_position.z, null).reduce_add();
-            } else if constexpr (has_field_v<RWMask, ParticleField::old_position>) {
-                static_assert(false,
-                    "FATAL: Cannot perform masked reduction on a Read-Write 'old_position' field.");
+        // Unified Vector Reduce (Unmasked)
+        template <ParticleField F, typename ScalarT, typename SimdT>
+        AP_FORCE_INLINE static void reduce_vec_unmasked(ScalarT& dest, const SimdT& src) {
+            if constexpr (has_field_v<WOMask, F>) {
+                dest.x += src.x.reduce_add();
+                dest.y += src.y.reduce_add();
+                dest.z += src.z.reduce_add();
+            } else if constexpr (has_field_v<RWMask, F>) {
+                static_assert(sizeof(ScalarT) == 0, "FATAL: Cannot reduce a Read-Write vector field from a SIMD register to a scalar.");
             }
+        }
 
-            // VELOCITY
-            if constexpr (has_field_v<WOMask, ParticleField::velocity>) {
-                p.velocity.x += select(mask, velocity.x, null).reduce_add();
-                p.velocity.y += select(mask, velocity.y, null).reduce_add();
-                p.velocity.z += select(mask, velocity.z, null).reduce_add();
-            } else if constexpr (has_field_v<RWMask, ParticleField::velocity>) {
-                static_assert(false,
-                    "FATAL: Cannot perform masked reduction on a Read-Write 'velocity' field.");
-            }
-
-            // FORCE
-            if constexpr (has_field_v<WOMask, ParticleField::force>) {
-                p.force.x += select(mask, force.x, null).reduce_add();
-                p.force.y += select(mask, force.y, null).reduce_add();
-                p.force.z += select(mask, force.z, null).reduce_add();
-            } else if constexpr (has_field_v<RWMask, ParticleField::force>) {
-                static_assert(false,
-                    "FATAL: Cannot perform masked reduction on a Read-Write 'force' field.");
-            }
-
-            // MASS
-            if constexpr (has_field_v<WOMask, ParticleField::mass>) {
-                p.mass += select(mask, mass, null).reduce_add();
-            } else if constexpr (has_field_v<RWMask, ParticleField::mass>) {
-                static_assert(false,
-                    "FATAL: Cannot perform masked reduction on a Read-Write 'mass' field.");
+        // Unified Vector Reduce (Masked)
+        template <ParticleField F, typename ScalarT, typename SimdT, typename MaskT>
+        AP_FORCE_INLINE static void reduce_vec_masked(ScalarT& dest, const SimdT& src, const MaskT& mask) {
+            if constexpr (has_field_v<WOMask, F>) {
+                const packed null = 0.0;
+                dest.x += select(mask, src.x, null).reduce_add();
+                dest.y += select(mask, src.y, null).reduce_add();
+                dest.z += select(mask, src.z, null).reduce_add();
+            } else if constexpr (has_field_v<RWMask, F>) {
+                static_assert(sizeof(ScalarT) == 0, "FATAL: Cannot perform masked reduction on a Read-Write vector field.");
             }
         }
     };
@@ -436,22 +418,22 @@ namespace april::particle::internal {
     //------------
     // BUFFER VIEW
     //------------
-    template <ParticleField F, ParticleField WriteMask, typename T>
-    using view_ref_t = std::conditional_t<
-        std::is_same_v<T, AccessForbidden<F>>, // if it's poison, keep it as poison (by value)
-        T,
-        std::conditional_t<has_field_v<WriteMask, F>, T&, const T&>
-        // if it's valid and in WriteMask, make it a mutable ref else a const ref
-    >;
-
-
+    // Views enforce the read-write rules on buffers
     template <ParticleField ReadMask, ParticleField WriteMask>
     struct PackedBufferView {
-        using Buffer = PackedParticleBuffer<ReadMask, WriteMask>;
-
     private:
         template <ParticleField F, typename T>
-        using ref_t = view_ref_t<F, WriteMask, T>;
+          using view_ref_t = std::conditional_t<
+              std::is_same_v<T, AccessForbidden<F>>, // if it's poison, keep it as poison (by value)
+              T,
+              std::conditional_t<has_field_v<WriteMask, F>, T&, const T&>
+              // if it's valid and in WriteMask, make it a mutable ref else a const ref
+          >;
+
+        template <ParticleField F, typename T>
+        using ref_t = view_ref_t<F, T>;
+
+        using Buffer = PackedParticleBuffer<ReadMask, WriteMask>;
 
     public:
         AP_NO_UNIQUE_ADDRESS ref_t<ParticleField::position, decltype(Buffer::position)> position;
@@ -469,86 +451,6 @@ namespace april::particle::internal {
               mass(buf.mass) {}
     };
 
-
-
-    //--------------------
-    // PACKED PARTICLE REF
-    //--------------------
-    // helper for switching between data pointers and poison
-    template <ParticleField ReadMask, ParticleField WriteMask, ParticleField F, typename Source>
-    constexpr auto init_packed(const Source& src) {
-        if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, F>) {
-            // no de-reference here because pointers are needed to initialize packed references
-            return src.template get<F>();
-        }
-        else {
-            return AccessForbidden<F>();
-        }
-    }
-
-    template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes U>
-    struct PackedParticleRef {
-    private:
-        template <typename MutT, typename ConstT, ParticleField F>
-        using field_t = field_access_t<MutT, ConstT, F, ReadMask, WriteMask>;
-
-        using MutVec3Ref = math::Vec3Proxy<pvec3::type>;
-        using ConstVec3Ref = math::Vec3Proxy<const pvec3::type>;
-
-    public:
-        explicit PackedParticleRef(const auto& source) noexcept
-            : force(internal::init_packed<ReadMask, WriteMask, ParticleField::force>(source))
-              , position(internal::init_packed<ReadMask, WriteMask, ParticleField::position>(source))
-              , velocity(internal::init_packed<ReadMask, WriteMask, ParticleField::velocity>(source))
-              , old_position(internal::init_packed<ReadMask, WriteMask, ParticleField::old_position>(source))
-              , mass(internal::init_packed<ReadMask, WriteMask, ParticleField::mass>(source)) {}
-
-        // Cross-constructor for narrowing write permissions (e.g. creating a view)
-        template <ParticleField OtherWriteMask>
-            requires ((WriteMask & OtherWriteMask) == WriteMask)
-        explicit PackedParticleRef(const PackedParticleRef<ReadMask, OtherWriteMask, U>& r) noexcept
-            : force(r.force)
-              , position(r.position)
-              , velocity(r.velocity)
-              , old_position(r.old_position)
-              , mass(r.mass) {}
-
-        // A View is just a PackedParticleRef with no write permissions
-        auto to_view() const noexcept {
-            return PackedParticleRef<ReadMask, ParticleField::none, U>(*this);
-        }
-
-        // Spits out the mutable buffer we just designed
-        PackedParticleBuffer<ReadMask, WriteMask> load_buffer() const noexcept {
-            return PackedParticleBuffer<ReadMask, WriteMask>(*this);
-        }
-
-        // Write the buffer back to memory, strictly respecting the WriteMask
-        AP_FORCE_INLINE void update(const PackedParticleBuffer<ReadMask, WriteMask>& buf) noexcept {
-            if constexpr (particle::internal::has_field_v<WriteMask, ParticleField::position>) {
-                position = buf.position;
-            }
-            if constexpr (particle::internal::has_field_v<WriteMask, ParticleField::old_position>) {
-                old_position = buf.old_position;
-            }
-            if constexpr (particle::internal::has_field_v<WriteMask, ParticleField::velocity>) {
-                velocity = buf.velocity;
-            }
-            if constexpr (particle::internal::has_field_v<WriteMask, ParticleField::force>) {
-                force = buf.force;
-            }
-            if constexpr (particle::internal::has_field_v<WriteMask, ParticleField::mass>) {
-                mass = buf.mass;
-            }
-        }
-
-        // Data members with strict const-correctness
-        AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref, ConstVec3Ref, ParticleField::force> force;
-        AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref, ConstVec3Ref, ParticleField::position> position;
-        AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref, ConstVec3Ref, ParticleField::velocity> velocity;
-        AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref, ConstVec3Ref, ParticleField::old_position> old_position;
-        AP_NO_UNIQUE_ADDRESS field_t<simd::PackedRef<double>, simd::PackedRef<const double>, ParticleField::mass> mass;
-    };
 
 
     //---------

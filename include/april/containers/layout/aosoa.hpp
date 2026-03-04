@@ -544,7 +544,7 @@ namespace april::container::layout {
                     auto packed = self.template at_packed<K::Read, K::Write>(c, i); \
                     auto buffer = packed.load_buffer(); \
                     kernel(curr_idx, buffer.to_view()); \
-                    packed.update(buffer); \
+                    buffer.update_into(packed); \
                 } \
                 curr_idx += simd_width
 

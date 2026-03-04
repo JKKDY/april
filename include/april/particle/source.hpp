@@ -64,7 +64,7 @@ namespace april::particle::internal {
 		// Note: in c++26 use std::format to print particle field in static assert
         template<typename U = void>
         static void trigger() {
-            static_assert(std::is_same_v<U, int>,
+            static_assert(std::is_same_v<U, int>, // will evaluate to false
                 "\n\nError: Field Access Violation!\n"
                 "The requested field is not present in the current Accessor Mask.\n"
                 "Make sure that all used fields are in the particle mask\n");

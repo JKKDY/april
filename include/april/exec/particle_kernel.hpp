@@ -69,13 +69,13 @@ namespace april {
 
 
 
-    template<ParticleField Read, ParticleField Write=ParticleField::none, typename F> auto scalar_kernel(F&& f) {
+    template<ParticleField Read=ParticleField::none, ParticleField Write=ParticleField::none, typename F> auto scalar_kernel(F&& f) {
         return exec::internal::ScalarKernel<Read, Write, F>{std::forward<F>(f)};
     }
-    template<ParticleField Read, ParticleField Write=ParticleField::none, typename F> auto vector_kernel(F&& f) {
+    template<ParticleField Read=ParticleField::none, ParticleField Write=ParticleField::none, typename F> auto vector_kernel(F&& f) {
         return exec::internal::VectorKernel<Read, Write, F>{std::forward<F>(f)};
     }
-    template<ParticleField Read, ParticleField Write=ParticleField::none, typename F> auto universal_kernel(F&& f) {
+    template<ParticleField Read=ParticleField::none, ParticleField Write=ParticleField::none, typename F> auto universal_kernel(F&& f) {
         return exec::internal::UniversalKernel<Read, Write, F>{std::forward<F>(f)};
     }
 } //namespace april

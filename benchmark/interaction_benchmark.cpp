@@ -84,8 +84,8 @@ int main() {
 
 
 		n_interactions = 0;
-		system.for_each_interaction_pair<ParticleField::position>(scalar_kernel(
-			[&](auto, auto, auto) {
+		system.for_each_interaction_pair(scalar_kernel(
+			[&](auto, auto) {
 				n_interactions++;
 			}
 		));

@@ -175,20 +175,35 @@ namespace april {
 
 		template<exec::IsKernel Kernel>
 		void for_each_interaction_pair(Kernel && func) { // func(particle, particle, dist)
-			auto update_batch = [&]<container::batching::IsBatch Batch, /*TODO container::IsBCP*/ typename BCP>(const Batch& batch, BCP && apply_bcp) {
-				auto bridge = [&](auto && p1, auto && p2) {
-					auto r = p2.position - p1.position;
-					if constexpr (particle::internal::has_field_v<Kernel::Read, ParticleField::position> &&
-						std::is_same_v<std::decay_t<BCP>, container::batching::NoBatchBCP>) {
-						r = p2.position - p1.position;
-					} else {
-						r = apply_bcp(p2.position - p1.position);
-					}
+			auto update_batch = [&]</*TODO container::IsBCP*/ typename BCP>(const container::batching::IsBatch auto& batch, BCP && apply_bcp) {
+				using K = std::remove_cvref_t<Kernel>;
 
-					func(p1, p2, r);
+				auto bridge = [&](auto&& p1, auto&& p2) {
+					// If it doesn't accept 2 arguments, assume it requires the distance vector (3 arguments)
+					constexpr bool takes_2_args = std::is_invocable_v<K, decltype(p1), decltype(p2)>;
+					constexpr bool requires_r = !takes_2_args;
+
+					constexpr bool position_requested = particle::internal::has_field_v<K::Read, ParticleField::position>;
+
+					if constexpr (requires_r && position_requested) {
+						auto diff = p2.position - p1.position;
+
+						const auto r = [&] {
+							if constexpr (std::is_same_v<std::decay_t<BCP>, container::batching::NoBatchBCP>) {
+								return diff;
+							} else {
+								return apply_bcp(diff);
+							}
+						}();
+
+						func(p1, p2, r);
+					} else if constexpr (requires_r && !position_requested) {
+						static_assert(false, "APRIL ERROR: Kernel requires distance vector 'r', but ParticleField::position is missing from the ReadMask.");
+					} else {
+						func(p1, p2); // Fallback to 2-argument invocation
+					}
 				};
 
-				using K = std::remove_cvref_t<Kernel>; // TODO add a make kernel wrapper function
 				auto kernel = exec::internal::KernelWrapper<K::Read, K::Write, K::mode, decltype(bridge)>{bridge};
 				execute_batch_kernel<ParallelPolicy::Serial, VectorPolicy::Scalar>(batch, kernel);
 			};

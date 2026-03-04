@@ -322,6 +322,9 @@ namespace april::container::layout {
                         // set ID to max to avoid map lookups
                         dst_chunk.id[dst_l] = std::numeric_limits<ParticleID>::max();
 
+                        // make mass safe
+                        dst_chunk.mass[dst_l] = 1.0;
+
                         dst_l++;
                     }
                     // chunk is now "full"

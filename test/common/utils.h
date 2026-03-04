@@ -50,7 +50,7 @@ std::vector<typename System::ParticleRec> export_particles(System& sys) {
 	std::vector<typename System::ParticleRec> records;
 	records.reserve(sys.size());
 
-	sys.template for_each_particle(april::scalar_kernel<ParticleField::none>(
+	sys.for_each_particle(april::scalar_kernel<ParticleField::none>(
 		[&](size_t idx, auto &&) {
 			records.push_back(get_particle(sys, idx));
 		}

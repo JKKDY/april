@@ -156,13 +156,42 @@ namespace april::container::batching {
             interact_tails_vs_tails(full_chunks1, full_chunks2, partial_tail1, partial_tail2, f);
         }
 
+
+        // helper for 360-degree SIMD rotation sweep for distinct blocks
+        template <typename BufferT, typename PackedAccessor, typename Kernel>
+        AP_FORCE_INLINE void interact_block_vs_block(BufferT& buffer1, PackedAccessor&& packed2, Kernel& f) const {
+            auto buffer2 = packed2.load_buffer(); // Natively zeroes WOMask fields
+
+            AP_UNROLL_LOOP_N(packed_size)
+            for (size_t k = 0; k < packed_size; k++) {
+                auto view1 = buffer1.to_view();
+                auto view2 = buffer2.to_view();
+                f(view1, view2);
+                buffer2.rotate_right();
+            }
+
+            buffer2.update_into(packed2); // Native WOMask accumulation
+        }
+
+        // helper for packed vs broadcast scalar block (no rotations needed)
+        template <typename BufferT, typename PackedAccessor, typename Kernel>
+        AP_FORCE_INLINE void interact_scalar_vs_block(BufferT& buffer_scalar, PackedAccessor && packed_block, Kernel& f) const {
+            auto buffer_block = packed_block.load_buffer();
+
+            auto view1 = buffer_scalar.to_view();
+            auto view2 = buffer_block.to_view();
+            f(view1, view2);
+
+            buffer_block.update_into(packed_block);
+        }
+
         template <typename Kernel>
         AP_FORCE_INLINE void interact_body_vs_body(
             const math::Range& full_chunks1, const math::Range& full_chunks2,
             const math::Range& full_tail1, const math::Range& full_tail2,
             Kernel && f) const {
 
-            using K = std::remove_cvref_t<Kernel>;
+            using K = std::remove_cvref_t<Kernel>; // cvref stripped alias used in get_packed macro
 
             // 1. full SIMD blocks in range 1 (Chunks) vs full SIMD blocks in range 2 (Chunks + Tail)
             for (size_t c1 : full_chunks1) {
@@ -177,35 +206,13 @@ namespace april::container::batching {
                         AP_PREFETCH(chunks + c2 + 1);
                         AP_UNROLL_LOOP_N(iter_chunks)
                         for (size_t j = 0; j < chunk_size; j += packed_size) {
-                            auto packed2 = get_packed(c2, j);
-                            auto buffer2 = packed2.load_buffer();
-
-                            AP_UNROLL_LOOP_N(packed_size)
-                            for (size_t k = 0; k < packed_size; k++) {
-                                auto view1 = buffer1.to_view();
-                                auto view2 = buffer2.to_view();
-                                f(view1, view2);
-                                buffer2.rotate_right();
-                            }
-
-                            buffer2.update_into(packed2);
+                            interact_block_vs_block(buffer1, get_packed(c2, j), f);
                         }
                     }
 
                     // b. sweep buffer1 across SIMD-aligned blocks within the Range 2 tail chunk [F2]
                     for (size_t t2 : full_tail2) {
-                        auto packed2 = get_packed(full_chunks2.stop, t2);
-                        auto buffer2 = packed2.load_buffer();
-
-                        AP_UNROLL_LOOP_N(packed_size)
-                        for (size_t k = 0; k < packed_size; k++) {
-                            auto view1 = buffer1.to_view();
-                            auto view2 = buffer2.to_view();
-                            f(view1, view2);
-                            buffer2.rotate_right();
-                        }
-
-                        buffer2.update_into(packed2);
+                        interact_block_vs_block(buffer1, get_packed(full_chunks2.stop, t2), f);
                     }
 
                     buffer1.update_into(packed1); // final register flush for buffer1
@@ -222,35 +229,13 @@ namespace april::container::batching {
                     AP_PREFETCH(chunks + c2 + 1);
                     AP_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
-                        auto packed2 = get_packed(c2, j);
-                        auto buffer2 = packed2.load_buffer();
-
-                        AP_UNROLL_LOOP_N(packed_size)
-                        for (size_t k = 0; k < packed_size; k++) {
-                            auto view1 = buffer1.to_view();
-                            auto view2 = buffer2.to_view();
-                            f(view1, view2);
-                            buffer2.rotate_right();
-                        }
-
-                        buffer2.update_into(packed2);
+                        interact_block_vs_block(buffer1, get_packed(c2, j), f);
                     }
                 }
 
                 // b. Interaction with SIMD-aligned blocks within the Range 2 tail chunk [F2]
                 for (size_t t2 : full_tail2) {
-                    auto packed2 =get_packed(full_chunks2.stop, t2);
-                    auto buffer2 = packed2.load_buffer();
-
-                    AP_UNROLL_LOOP_N(packed_size)
-                    for (size_t k = 0; k < packed_size; k++) {
-                        auto view1 = buffer1.to_view();
-                        auto view2 = buffer2.to_view();
-                        f(view1, view2);
-                        buffer2.rotate_right();
-                    }
-
-                    buffer2.update_into(packed2);
+                    interact_block_vs_block(buffer1, get_packed(full_chunks2.stop, t2), f);
                 }
                 buffer1.update_into(packed1);
             }
@@ -276,27 +261,13 @@ namespace april::container::batching {
                     AP_PREFETCH(chunks + c1 + 1);
                     AP_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
-                        auto packed1 = get_packed(c1, j);
-                        auto buffer1 = packed1.load_buffer();
-
-                        auto view1 = buffer1.to_view();
-                        auto view2 = buffer2.to_view();
-                        f(view1, view2);
-
-                        buffer1.update_into(packed1);
+                        interact_scalar_vs_block(buffer2, get_packed(c1, j), f);
                     }
                 }
 
                 // b. Interaction with SIMD-aligned blocks in Range 1 tail chunk
                 for (size_t t1 : full_tail1) {
-                    auto packed1 = get_packed(full_chunks1.stop, t1);
-                    auto buffer1 = packed1.load_buffer();
-
-                    auto view1 = buffer1.to_view();
-                    auto view2 = buffer2.to_view();
-                    f(view1, view2);
-
-                    buffer1.update_into(packed1);
+                    interact_scalar_vs_block(buffer2, get_packed(full_chunks1.stop, t1), f);
                 }
 
                 buffer2.reduce_into(p2);
@@ -312,27 +283,13 @@ namespace april::container::batching {
                     AP_PREFETCH(chunks + c2 + 1);
                     AP_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
-                        auto packed2 = get_packed(c2, j);
-                        auto buffer2 = packed2.load_buffer();
-
-                        auto view1 = buffer1.to_view();
-                        auto view2 = buffer2.to_view();
-                        f(view1, view2);
-
-                        buffer2.update_into(packed2);
+                        interact_scalar_vs_block(buffer1, get_packed(c2, j), f);
                     }
                 }
 
                 // b. Interaction with SIMD-aligned blocks in Range 2 tail chunk
                 for (size_t t2 : full_tail2) {
-                    auto packed2 = get_packed(full_chunks2.stop, t2);
-                    auto buffer2 = packed2.load_buffer();
-
-                    auto view1 = buffer1.to_view();
-                    auto view2 = buffer2.to_view();
-                    f(view1, view2);
-
-                    buffer2.update_into(packed2);
+                    interact_scalar_vs_block(buffer1, get_packed(full_chunks2.stop, t2), f);
                 }
 
                 buffer1.reduce_into(p1);
@@ -503,6 +460,57 @@ namespace april::container::batching {
         }
 
 
+        // helper for 360-degree SIMD rotation sweep for distinct blocks
+        template <typename BufferT, typename PackedAccessor, typename Kernel>
+        AP_FORCE_INLINE void interact_block_vs_block(BufferT& buffer1, PackedAccessor&& packed2, Kernel& f) const {
+            auto buffer2 = packed2.load_buffer(); // Natively zeroes WOMask fields
+
+            AP_UNROLL_LOOP_N(packed_size)
+            for (size_t k = 0; k < packed_size; k++) {
+                auto view1 = buffer1.to_view();
+                auto view2 = buffer2.to_view();
+                f(view1, view2);
+                buffer2.rotate_right();
+            }
+
+            buffer2.update_into(packed2); // Native WOMask accumulation
+        }
+
+        // helper for packed vs broadcast scalar block (no rotations needed)
+        template <typename BufferT, typename ScalarAccessor, typename Kernel>
+        AP_FORCE_INLINE void interact_block_vs_scalar(BufferT& buffer_block, const ScalarAccessor& p2, Kernel& f) const {
+            auto buffer_scalar = p2.broadcast();
+
+            auto view1 = buffer_block.to_view();
+            auto view2 = buffer_scalar.to_view();
+            f(view1, view2);
+
+            buffer_scalar.reduce_into(p2);
+        }
+
+        // helper for symmetric pairwise interaction within a single SIMD block
+        template <typename BufferT, typename PackedAccessor, typename Kernel>
+        AP_FORCE_INLINE void interact_symmetric_self(BufferT& buffer1, const PackedAccessor& packed1, Kernel& f) const {
+            auto buffer2 = packed1.load_buffer();
+
+            AP_UNROLL_LOOP()
+            for (size_t k = 0; k < packed_size / 2 - 1; k++) {
+                buffer2.rotate_right();
+                auto view1 = buffer1.to_view();
+                auto view2 = buffer2.to_view();
+                f(view1, view2);
+            }
+
+            buffer2.template rotate_left<packed_size / 2 - 1>(); // Realign buffer2 back to its origin lanes
+            buffer1.accumulate(buffer2); // merge deltas from buffer 2 into buffer 1
+            buffer2.template rotate_right<packed_size / 2>(); // rotate 180 for last half step
+
+            auto view1 = buffer1.to_view();
+            auto view2 = buffer2.to_view();
+            f(view1, view2);
+        }
+
+
         template <typename Kernel>
         AP_FORCE_INLINE void interact_body_vs_everything(
             const math::Range& full_chunks,
@@ -521,39 +529,11 @@ namespace april::container::batching {
                     auto buffer1 = packed1.load_buffer();
 
                     // a. simd register self interaction
-                    {
-                        auto buffer2 = packed1.load_buffer();
-
-                        AP_UNROLL_LOOP()
-                        for (size_t k = 0; k < packed_size / 2 - 1; k++) {
-                            buffer2.rotate_right();
-                            auto view1 = buffer1.to_view();
-                            auto view2 = buffer2.to_view();
-                            f(view1, view2);
-                        }
-
-                        buffer2.template rotate_left<packed_size / 2 - 1>(); // Realign buffer2 back to its origin lanes
-                        buffer1.accumulate(buffer2); // merge deltas from buffer 2 into buffer 1
-                        buffer2.template rotate_right<packed_size / 2>(); // rotate 180 for last half step
-
-                        auto view1 = buffer1.to_view();
-                        auto view2 = buffer2.to_view();
-                        f(view1, view2);
-                    }
+                    interact_symmetric_self(buffer1, packed1, f);
 
                     // b. intra-chunk interactions (Block i vs Blocks j where j > i inside c1)
                     for (size_t j = i + packed_size; j < chunk_size; j += packed_size) {
-                        auto packed2 = get_packed(c1, j);
-                        auto buffer2 = packed2.load_buffer();
-
-                        AP_UNROLL_LOOP_N(packed_size)
-                        for (size_t k = 0; k < packed_size; k++) {
-                            auto view1 = buffer1.to_view();
-                            auto view2 = buffer2.to_view();
-                            f(view1, view2);
-                            buffer2.rotate_right();
-                        }
-                        buffer2.update_into(packed2);
+                        interact_block_vs_block(buffer1, get_packed(c1, j), f);
                     }
 
                     // c. inter-chunk interactions (Block i vs all Blocks in c2 where c2 > c1)
@@ -561,45 +541,18 @@ namespace april::container::batching {
                         AP_PREFETCH(chunks + c2 + 1);
                         AP_UNROLL_LOOP_N(iter_chunks)
                         for (size_t j = 0; j < chunk_size; j += packed_size) {
-                            auto packed2 = get_packed(c2, j);
-                            auto buffer2 = packed2.load_buffer();
-
-                            AP_UNROLL_LOOP_N(packed_size)
-                            for (size_t k = 0; k < packed_size; k++) {
-                                auto view1 = buffer1.to_view();
-                                auto view2 = buffer2.to_view();
-                                f(view1, view2);
-                                buffer2.rotate_right();
-                            }
-                            buffer2.update_into(packed2);
+                            interact_block_vs_block(buffer1, get_packed(c2, j), f);
                         }
                     }
 
                     // d. interaction with SIMD-aligned blocks in the tail chunk [F]
                     for (size_t j : full_tail) {
-                        auto packed2 = get_packed(full_chunks.stop, j);
-                        auto buffer2 = packed2.load_buffer();
-
-                        AP_UNROLL_LOOP_N(packed_size)
-                        for (size_t k = 0; k < packed_size; k++) {
-                            auto view1 = buffer1.to_view();
-                            auto view2 = buffer2.to_view();
-                            f(view1, view2);
-                            buffer2.rotate_right();
-                        }
-                        buffer2.update_into(packed2);
+                        interact_block_vs_block(buffer1, get_packed(full_chunks.stop, j), f);
                     }
 
                     // e. interaction with partial particles in the tail chunk [P]
                     for (size_t j : partial_tail) {
-                        auto p2 = get_scalar(full_chunks.stop, j);
-                        auto buffer2 = p2.broadcast();
-
-                        auto view1 = buffer1.to_view();
-                        auto view2 = buffer2.to_view();
-                        f(view1, view2);
-
-                        buffer2.reduce_into(p2);
+                        interact_block_vs_scalar(buffer1, get_scalar(full_chunks.stop, j), f);
                     }
 
                     buffer1.update_into(packed1);
@@ -620,59 +573,26 @@ namespace april::container::batching {
 
             // 2. all full blocks i in tail chunk [F] vs remainder [a) Self, b) F_intra, c) P]
             for (size_t i : full_tail) {
-                // a. self interaction
                 auto packed1 = get_packed(full_chunks.stop, i);
                 auto buffer1 = packed1.load_buffer();
-                {
-                    auto buffer2 = packed1.load_buffer();
 
-                    AP_UNROLL_LOOP()
-                    for (size_t k = 0; k < packed_size / 2 - 1; k++) {
-                        buffer2.rotate_right();
-                        auto view1 = buffer1.to_view();
-                        auto view2 = buffer2.to_view();
-                        f(view1, view2);
-                    }
-
-                    buffer2.template rotate_left<packed_size / 2 - 1>(); // Realign buffer2 back to its origin lanes
-                    buffer1.accumulate(buffer2); // merge deltas from buffer 2 into buffer 1
-                    buffer2.template rotate_right<packed_size / 2>(); // rotate 180 for last half step
-
-                    auto view1 = buffer1.to_view();
-                    auto view2 = buffer2.to_view();
-                    f(view1, view2);
-                }
+                // a. self interaction
+                interact_symmetric_self(buffer1, packed1, f);
 
                 // b. intra-chunk interactions (Block i vs Blocks j where j > i inside full tail)
                 for (size_t j = i + packed_size; j < full_tail_end; j += packed_size) {
-                    auto packed2 = get_packed(full_chunks.stop, j);
-                    auto buffer2 = packed2.load_buffer();
-
-                    AP_UNROLL_LOOP_N(packed_size)
-                    for (size_t k = 0; k < packed_size; k++) {
-                        auto view1 = buffer1.to_view();
-                        auto view2 = buffer2.to_view();
-                        f(view1, view2);
-                        buffer2.rotate_right();
-                    }
-                    buffer2.update_into(packed2);
+                    interact_block_vs_block(buffer1, get_packed(full_chunks.stop, j), f);
                 }
 
                 // c interaction with partial particles in the tail chunk [P]
                 for (size_t j : partial_tail) {
-                    auto p2 = get_scalar(full_chunks.stop, j);
-                    auto buffer2 =  p2.broadcast();
-
-                    auto view1 = buffer1.to_view();
-                    auto view2 = buffer2.to_view();
-                    f(view1, view2);
-
-                    buffer2.reduce_into(p2);
+                    interact_block_vs_scalar(buffer1, get_scalar(full_chunks.stop, j), f);
                 }
 
                 buffer1.update_into(packed1);
             }
         }
+
 
         template <typename Kernel>
         AP_FORCE_INLINE void interact_partial_vs_partial(
@@ -704,7 +624,9 @@ namespace april::container::batching {
                     auto temp_chunk = packed_chunk.load_buffer(); // Natively zeroes WOMask
 
                     // scalar p1 vs entire chunk
-                    f(buffer1, temp_chunk);
+                    auto view1 = buffer1.to_view();
+                    auto view2 = temp_chunk.to_view();
+                    f(view1, view2);
 
                     // upper triangle mask (j > i) to prevent double counting and self-interaction
                     auto current_mask = valid_tail_mask && (absolute_lane_indices > static_cast<double>(i));

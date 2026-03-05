@@ -9,9 +9,10 @@
 #include "april/particle/particle_types.hpp"
 #include "april/core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
-
+#include "april/containers/batching/common.hpp"
 
 namespace april::container::internal {
+
 	template <class ContainerBase>
 	class DirectSumCore : public ContainerBase {
 	public:
@@ -20,8 +21,29 @@ namespace april::container::internal {
 		using typename ContainerBase::ParticleRecord;
 
 		void build(this auto&& self, const std::vector<ParticleRecord>& particles) {
+			// precompute topology batches (id based batches)
+			for (size_t i = 0; i < self.force_schema.interactions.size(); ++i) {
+				const auto& prop = self.force_schema.interactions[i];
+
+				if (!prop.used_by_ids.empty() && prop.is_active) {
+					batching::TopologyBatch batch;
+					batch.id1 = prop.used_by_ids[0].first;
+					batch.id2 = prop.used_by_ids[0].second;
+					batch.pairs = prop.used_by_ids;
+
+					self.topology_batches.push_back(std::move(batch));
+				}
+			}
+
 			self.build_storage(particles);
 			self.build_batches();
+		}
+
+		template<typename Func>
+		void for_each_topology_batch(Func && func) {
+			for (const auto & batch : topology_batches) {
+				func(batch);
+			}
 		}
 
 		template<typename F>
@@ -93,6 +115,8 @@ namespace april::container::internal {
 		void rebuild_structure() {}
 
 	private:
+		std::vector<batching::TopologyBatch> topology_batches;
+
 		void build_batches(this auto&& self) {
 			// calculate the buckets for bucket sorting the particles by types
 			// outer vector holds buckets, inner vectors hold physical indexes to particles belonging to that bucket

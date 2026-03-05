@@ -2,7 +2,6 @@
 
 #include "april/particle/particle.hpp"
 #include "april/containers/container.hpp"
-#include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
 #include "april/exec/policy.hpp"
 
@@ -17,32 +16,6 @@ namespace april::container::layout {
 		friend Base;
 
 		using Particle = particle::ParticleRecord<A>;
-
-		AoS(const Config & config, const internal::ContainerCreateInfo & info):
-			Container<Config, A>(config, info)
-		{
-			// TODO move topology batch related code into the core implementations instead of the layouts
-			// precompute topology batches (id based batches)
-			for (size_t i = 0; i < force_schema.interactions.size(); ++i) {
-				const auto& prop = force_schema.interactions[i];
-
-				if (!prop.used_by_ids.empty() && prop.is_active) {
-					batching::TopologyBatch batch;
-					batch.id1 = prop.used_by_ids[0].first;
-					batch.id2 = prop.used_by_ids[0].second;
-					batch.pairs = prop.used_by_ids;
-
-					topology_batches.push_back(std::move(batch));
-				}
-			}
-		}
-
-		template<typename Func>
-		void for_each_topology_batch(Func && func) {
-			for (const auto & batch : topology_batches) {
-				func(batch);
-			}
-		}
 
 
 		// INDEXING
@@ -163,9 +136,6 @@ namespace april::container::layout {
 				}
 			}
 		}
-
-	private:
-		std::vector<batching::TopologyBatch> topology_batches;
 	};
 }
 

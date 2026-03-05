@@ -11,6 +11,8 @@
 #include "april/particle/particle_types.hpp"
 #include "april/core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
+#include "april/containers/batching/common.hpp"
+
 
 namespace april::container::internal {
 	template <class ContainerBase>
@@ -42,6 +44,7 @@ namespace april::container::internal {
 		using typename ContainerBase::ParticleRecord;
 
 		void build (this auto&& self, const std::vector<ParticleRecord>& particles) {
+			self.setup_topology_batches();
 			self.setup_cell_grid();
 			self.init_cell_order();
 			self.create_neighbor_stencil();
@@ -49,6 +52,13 @@ namespace april::container::internal {
 			self.build_storage(particles);
 			self.pre_allocate_assignment_bins();
 			self.rebuild_structure();
+		}
+
+		template<typename Func>
+		void for_each_topology_batch(Func && func) {
+			for (const auto & batch : topology_batches) {
+				func(batch);
+			}
 		}
 
 		void rebuild_structure(this auto&& self) {
@@ -123,6 +133,22 @@ namespace april::container::internal {
 		//------
 		// SETUP
 		//------
+		void setup_topology_batches(this auto && self) {
+			// precompute topology batches (id based batches)
+			for (size_t i = 0; i < self.force_schema.interactions.size(); ++i) {
+				const auto& prop = self.force_schema.interactions[i];
+
+				if (!prop.used_by_ids.empty() && prop.is_active) {
+					batching::TopologyBatch batch;
+					batch.id1 = prop.used_by_ids[0].first;
+					batch.id2 = prop.used_by_ids[0].second;
+					batch.pairs = prop.used_by_ids;
+
+					self.topology_batches.push_back(std::move(batch));
+				}
+			}
+		}
+
 		void setup_cell_grid(this auto&& self) {
 			// determine the physical cutoff (max_rc) from interactions
 			double max_cutoff = 0;
@@ -523,6 +549,8 @@ namespace april::container::internal {
 
 			return self.cell_pos_to_idx(x, y, z);
 		}
+	private:
+		std::vector<batching::TopologyBatch> topology_batches;
 	};
 }
 

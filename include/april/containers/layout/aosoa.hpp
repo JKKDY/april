@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <bit>
 
-#include "april/containers/batching/common.hpp"
 #include "april/containers/container.hpp"
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
@@ -68,29 +67,6 @@ namespace april::container::layout {
         using Base::view;
         using Base::at;
         using Base::access_particle;
-
-
-        AoSoA(const Config& config, const internal::ContainerCreateInfo& info)
-            : Base(config, info) {
-            // Topology batch initialization (identical to SoA/AoS)
-            for (size_t i = 0; i < force_schema.interactions.size(); ++i) {
-                const auto& prop = force_schema.interactions[i];
-                if (!prop.used_by_ids.empty() && prop.is_active) {
-                    batching::TopologyBatch batch;
-                    batch.id1 = prop.used_by_ids[0].first;
-                    batch.id2 = prop.used_by_ids[0].second;
-                    batch.pairs = prop.used_by_ids;
-                    topology_batches.push_back(batch);
-                }
-            }
-        }
-
-        template <typename Func>
-        void for_each_topology_batch(Func&& func) {
-            for (const auto& batch : topology_batches) {
-                func(batch);
-            }
-        }
 
 
         // ACCESSORS (chunk based)
@@ -376,8 +352,6 @@ namespace april::container::layout {
         }
 
     private:
-        std::vector<batching::TopologyBatch> topology_batches;
-
         template <ParticleField Read, ParticleField Write>
         [[nodiscard]] auto access_particle(this auto&& self, size_t chunk_idx, size_t lane_idx) {
             constexpr bool is_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;

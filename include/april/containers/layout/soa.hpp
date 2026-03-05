@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include "april/containers/container.hpp"
-#include "april/containers/batching/common.hpp"
 #include "april/particle/particle.hpp"
 #include "april/exec/policy.hpp"
 
@@ -47,8 +46,8 @@ namespace april::container::layout {
         ParticleID    * AP_RESTRICT ptr_id    = nullptr;
         Attributes * AP_RESTRICT ptr_attributes = nullptr;
 
-        size_t capacity;
-        size_t size;
+        size_t capacity{};
+        size_t size{};
 
         void update_pointer_cache() {
             ptr_pos_x = pos_x.data(); ptr_pos_y = pos_y.data(); ptr_pos_z = pos_z.data();
@@ -122,33 +121,6 @@ namespace april::container::layout {
         using Base::force_schema;
         using Base::Base;
         friend Base;
-
-        SoA(const Config & config, const internal::ContainerCreateInfo & info)
-            : Base(config, info)
-        {
-            // precompute topology batches (id based batches)
-            for (size_t i = 0; i < force_schema.interactions.size(); ++i) {
-                const auto& prop = force_schema.interactions[i];
-
-                if (!prop.used_by_ids.empty() && prop.is_active) {
-                    batching::TopologyBatch batch;
-                    batch.id1 = prop.used_by_ids[0].first;
-                    batch.id2 = prop.used_by_ids[0].second;
-                    batch.pairs = prop.used_by_ids;
-
-                    topology_batches.push_back(std::move(batch));
-                }
-            }
-        }
-
-        template<typename Func>
-        void for_each_topology_batch(Func && func) {
-            for (const auto & batch : topology_batches) {
-                func(batch);
-            }
-        }
-
-
 
         // INDEXING
         [[nodiscard]] size_t id_to_index(const ParticleID id) const {
@@ -347,9 +319,6 @@ namespace april::container::layout {
                 }
             }
         }
-
-    private:
-        std::vector<batching::TopologyBatch> topology_batches;
     };
 }
 

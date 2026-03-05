@@ -17,6 +17,13 @@ namespace april::simd::internal::xsimd {
         Mask(native_type d) : data(d) {}
         Mask(bool val) : data(val) {}
 
+        // bitwise cast to other mask types of the same lane width
+        template<typename U>
+        requires (sizeof(T) == sizeof(U))
+        operator Mask<U>() const {
+            return { ::xsimd::bitwise_cast<U>(data) };
+        }
+
         operator native_type() const { return data; }
         static constexpr size_t size() { return native_type::size; }
 
@@ -93,6 +100,20 @@ namespace april::simd::internal::xsimd {
         // DATA LOADS
         static Packed load(const T* ptr) {
             return { ::xsimd::load_unaligned(ptr) };
+        }
+
+        // load a type narrower than T and extend it to match target width
+        template<typename NarrowT>
+        requires std::is_arithmetic_v<NarrowT> && (sizeof(NarrowT) < sizeof(T)) && std::is_convertible_v<NarrowT, T>
+        static Packed load_narrow(const NarrowT* ptr) {
+            // create a batch type of the narrow data that has the EXACT same lane count as our target
+            using narrow_batch_t = ::xsimd::make_sized_batch_t<NarrowT, size()>;
+
+            // load strictly the required number of bytes (prevents page boundary segfaults)
+            auto narrow_batch = narrow_batch_t::load_unaligned(ptr);
+
+            // cast/Extend up to the target width (float->double, uint8_t->uint64_t, etc.)
+            return { ::xsimd::batch_cast<value_type>(narrow_batch) };
         }
 
         static Packed load_aligned(const T* ptr) {
@@ -237,18 +258,7 @@ namespace april::simd::internal::xsimd {
     static_assert(IsSimdType<Packed<double>>);
     static_assert(IsSimdMask<Mask<double>>);
     static_assert(IsSimdType<Packed<float>>);
-
+    static_assert(IsSimdType<Packed<uint32_t>>);
+    static_assert(IsSimdType<Packed<uint64_t>>);
+    static_assert(IsSimdMask<Mask<uint64_t>>);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

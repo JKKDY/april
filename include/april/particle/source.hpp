@@ -128,15 +128,3 @@ namespace april::particle::internal {
 		}
 	};
 }
-
-
-
-
-
-
-
-
-
-
-
-

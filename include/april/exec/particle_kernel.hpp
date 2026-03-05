@@ -65,6 +65,14 @@ namespace april {
         // Kernel concept
         template<typename T>
         concept IsKernel = internal::is_kernel_wrapper<std::remove_cvref_t<T>>::value;
+
+        template<IsKernel K, typename F>
+        auto make_kernel_wrapper(F&& func) {
+            using KernelType = std::remove_cvref_t<K>;
+            return exec::internal::KernelWrapper<
+                KernelType::Read, KernelType::Write, KernelType::Mode, std::remove_cvref_t<F>
+            >{std::forward<F>(func)};
+        }
     }
 
 
@@ -79,12 +87,3 @@ namespace april {
         return exec::internal::UniversalKernel<Read, Write, F>{std::forward<F>(f)};
     }
 } //namespace april
-
-
-
-
-
-
-
-
-

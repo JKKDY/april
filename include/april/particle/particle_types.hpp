@@ -86,16 +86,3 @@ namespace april {
 		inline constexpr bool has_field_v = (M & F) != ParticleField::none;
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

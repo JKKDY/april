@@ -138,7 +138,7 @@ namespace april::simd {
     template<typename T>
     concept IsSimdTypeImpl = requires(T t, const T ct, typename T::value_type scalar, const typename T::value_type* ptr) {
         typename T::value_type;
-        requires (std::floating_point<typename T::value_type>);
+        requires (std::is_arithmetic_v<typename T::value_type>);
         { T::size() } -> std::convertible_to<std::size_t>;
         { ct.to_string() } -> std::convertible_to<std::string>;
 
@@ -163,20 +163,12 @@ namespace april::simd {
         { ct.template rotate_left<2>() } -> std::same_as<T>;
         { ct.template rotate_right<2>() } -> std::same_as<T>;
         { ct.template permute<0>() } -> std::same_as<T>;
-    } && HasSimdOps<T>;
+    } &&HasSimdOps<T> &&
+    // Conditionally check load_narrow only if the target is larger than 1 byte
+    (sizeof(T::value_type) <= 1 || requires(const uint8_t* ptr) {
+        { T::template load_narrow<uint8_t>(ptr) } -> std::same_as<T>;
+    });;
 
     template<typename T>
     concept IsSimdType = IsSimdTypeImpl<std::remove_cvref_t<T>>;
 }
-
-
-
-
-
-
-
-
-
-
-
-

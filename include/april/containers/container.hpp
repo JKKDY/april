@@ -303,8 +303,7 @@ namespace april::container {
 					return kernel(p); // user only wants particle
 				}
 			};
-			using K = std::remove_cvref_t<Kernel>; // TODO add a make kernel wrapper function
-			return exec::internal::KernelWrapper<K::Read, K::Write, K::Mode, decltype(bridge)>{bridge};
+			return exec::make_kernel_wrapper<Kernel>(std::move(bridge));
 		}
 
 		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
@@ -330,16 +329,21 @@ namespace april::container {
 				// only valid memory will be accessed (AoS, SoA, AoSoA support this)
 				// the user may still need to implement extra functionality to guard against sentinel data
 
-				auto state_filter = [&](size_t i, auto && p) {
-					if constexpr (particle::IsPackedParticleAccessor<decltype(p)>) {
-						kernel(i, p); // TODO add state checking for vectorized kernels (add a mask member to packed accessors?)
+				auto state_filter = [&]<typename Part>(size_t i, Part && p) {
+					if constexpr (particle::IsPackedParticleRef<Part>) {
+						// TODO add state checking for vectorized kernels (add a mask member to packed accessors?)
+						auto buffer = p.load_buffer();
+						auto view = buffer.to_view();
+
+						kernel(i, view);
+
+						buffer.update_into(p);
 					} else {
 						if (self.index_is_valid(i) && static_cast<int>(p.state & state)) {
 							kernel(i, p);
 						}
 					}
 				};
-
 
 				self.template iterate_range<P, mode, is_const>( // TODO add a make kernel wrapper function
 					exec::internal::KernelWrapper<K::Read | ParticleField::state, K::Write, mode, decltype(state_filter)>(state_filter),
@@ -512,16 +516,3 @@ namespace april::container {
 		&& IsContainer<typename ContainerDecl::template impl<typename Traits::particle_attributes_t>>;
 
 } // namespace april::container
-
-
-
-
-
-
-
-
-
-
-
-
-

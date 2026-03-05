@@ -25,6 +25,9 @@ namespace april {
 	using packedd = simd::Packed<double>;
 	using packedf = simd::Packed<float>;
 
+	using packedi = simd::Packed<std::conditional_t<sizeof(VEC3_TYPE) == 8, int64_t, int32_t>>;
+	using packedu = simd::Packed<std::conditional_t<sizeof(VEC3_TYPE) == 8, uint64_t, uint32_t>>;
+
 	using pvec3 = math::Vec3<packed>;
 	using pvec3f = math::Vec3<packedf>;
 	using pvec3d = math::Vec3<packedd>;
@@ -32,17 +35,3 @@ namespace april {
 	using int3 = math::Vec3<int32_t>;
 	using uint3 = math::Vec3<uint32_t>;
 } // namespace april
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -36,6 +36,17 @@ namespace april::simd::internal::std_simd {
         Mask(native_type d) : data(d) {}
         Mask(bool val) : data(val) {}
 
+        template<typename U>
+        requires (sizeof(T) == sizeof(U))
+        operator Mask<U>() const {
+            typename Mask<U>::native_type converted;
+            // Compilers should optimize this fixed-size loop into a zero-cost cast
+            for (size_t i = 0; i < size(); ++i) {
+                converted[i] = data[i];
+            }
+            return { converted };
+        }
+
         operator native_type() const { return data; }
         static constexpr size_t size() { return native_type::size(); }
 
@@ -130,6 +141,23 @@ namespace april::simd::internal::std_simd {
             native_type tmp;
             tmp.copy_from(ptr, stdx::element_aligned);
             return { tmp };
+        }
+
+        // load a type narrower than T and extend it to match target width
+        template<typename NarrowT>
+        requires std::is_arithmetic_v<NarrowT> && (sizeof(NarrowT) < sizeof(T)) && std::is_convertible_v<NarrowT, T>
+        static Packed load_narrow(const NarrowT* ptr) {
+            // create a batch type of the narrow data that has the EXACT same lane count as our target
+            using narrow_simd_t = stdx::simd<NarrowT, stdx::simd_abi::fixed_size<size()>>;
+
+            // load strictly the required number of bytes (prevents page boundary segfaults)
+            narrow_simd_t narrow_batch;
+            narrow_batch.copy_from(ptr, stdx::element_aligned);
+
+            // cast/Extend up to the target width (float->double, uint8_t->uint64_t, etc.)
+            return { native_type([&](size_t i) {
+                return static_cast<value_type>(narrow_batch[i]);
+            }) };
         }
 
         static Packed load_aligned(const T* ptr) {
@@ -326,18 +354,10 @@ namespace april::simd::internal::std_simd {
     }
 
     static_assert(IsSimdType<Packed<double>>);
+    static_assert(IsSimdType<Packed<float>>);
     static_assert(IsSimdMask<Mask<double>>);
+    static_assert(IsSimdType<Packed<uint32_t>>);
+    static_assert(IsSimdType<Packed<uint64_t>>);
+    static_assert(IsSimdMask<Mask<uint64_t>>);
+
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

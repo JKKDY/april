@@ -33,15 +33,3 @@ static_assert(april::simd::IsSimdType<april::simd::Packed<float>>);
 static_assert(april::simd::IsSimdMask<april::simd::PackedMask<double>>);
 static_assert(april::simd::IsSimdMask<april::simd::PackedMask<float>>);
 
-
-
-
-
-
-
-
-
-
-
-
-

@@ -34,6 +34,9 @@ namespace april::particle::internal {
        using ConstVec3Ref = const math::Vec3Proxy<const vec3::type>;
 
     public:
+		static constexpr ParticleField ReadAccess  = ReadMask;
+		static constexpr ParticleField WriteAccess = WriteMask;
+
        // construct from ParticleSource
        template<class S>
        explicit ScalarParticleRef(const S & source) noexcept

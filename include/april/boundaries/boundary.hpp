@@ -90,7 +90,7 @@ namespace april::boundary {
 
 		// TODO: replace ScalarParticle ref with auto
 		template<ParticleField IncomingMask, ParticleField M, particle::IsParticleAttributes U>
-		void invoke_apply(this const auto & self,particle::internal::ScalarParticleRef<IncomingMask, M, U> & particle, const core::Box & domain_box, DomainFace face) noexcept {
+		void invoke_apply(this const auto & self, particle::internal::ScalarParticleRef<IncomingMask, M, U> & particle, const core::Box & domain_box, DomainFace face) noexcept {
 			static_assert(
 			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },
 			   "BoundaryCondition subclass must implement: void dispatch_apply(particle)"

@@ -42,6 +42,9 @@ namespace april::particle::internal {
         using ConstVec3Ref = math::Vec3Proxy<const pvec3::type>;
 
     public:
+        static constexpr ParticleField ReadAccess  = ReadMask;
+        static constexpr ParticleField WriteAccess = WriteMask;
+
         explicit PackedParticleRef(const auto& source) noexcept
            : force(init_packed<ParticleField::force>(source))
            , position(init_packed<ParticleField::position>(source))
@@ -99,6 +102,9 @@ namespace april::particle::internal {
         template <ParticleField F>
         using scalar_t = buffer_field_t<simd::Packed<double>, F>;
     public:
+        static constexpr ParticleField ReadAccess  = ReadMask;
+        static constexpr ParticleField WriteAccess = WriteMask;
+
         static constexpr ParticleField RWMask = ReadMask & WriteMask;  // read & write
         static constexpr ParticleField WOMask = WriteMask & ~ReadMask; // write only
         static constexpr ParticleField ROMask = ReadMask & ~WriteMask; // read only
@@ -436,6 +442,9 @@ namespace april::particle::internal {
         using Buffer = PackedParticleBuffer<ReadMask, WriteMask>;
 
     public:
+        static constexpr ParticleField ReadAccess  = ReadMask;
+        static constexpr ParticleField WriteAccess = WriteMask;
+
         AP_NO_UNIQUE_ADDRESS ref_t<ParticleField::position, decltype(Buffer::position)> position;
         AP_NO_UNIQUE_ADDRESS ref_t<ParticleField::old_position, decltype(Buffer::old_position)> old_position;
         AP_NO_UNIQUE_ADDRESS ref_t<ParticleField::velocity, decltype(Buffer::velocity)> velocity;

@@ -175,7 +175,7 @@ namespace april {
 
 		template<exec::IsKernel Kernel>
 		void for_each_interaction_pair(Kernel && func) { // func(particle, particle, dist)
-			auto update_batch = [&]</*TODO container::IsBCP*/ typename BCP>(const container::batching::IsBatch auto& batch, BCP && apply_bcp) {
+			auto update_batch = [&]<container::batching::IsBCP BCP>(const container::batching::IsBatch auto& batch, BCP && apply_bcp) {
 				using K = std::remove_cvref_t<Kernel>;
 
 				auto bridge = [&](auto&& p1, auto&& p2) {
@@ -189,7 +189,7 @@ namespace april {
 						auto diff = p2.position - p1.position;
 
 						const auto r = [&] {
-							if constexpr (std::is_same_v<std::decay_t<BCP>, container::batching::NoBatchBCP>) {
+							if constexpr (std::is_same_v<std::remove_cvref_t<BCP>, container::batching::NoBatchBCP>) {
 								return diff;
 							} else {
 								return apply_bcp(diff);
@@ -198,7 +198,8 @@ namespace april {
 
 						func(p1, p2, r);
 					} else if constexpr (requires_r && !position_requested) {
-						static_assert(false, "APRIL ERROR: Kernel requires distance vector 'r', but ParticleField::position is missing from the ReadMask.");
+						static_assert(false,
+							"[APRIL] ERROR: Kernel requires distance vector 'r', but ParticleField::position is missing from the ReadMask.");
 					} else {
 						func(p1, p2); // Fallback to 2-argument invocation
 					}

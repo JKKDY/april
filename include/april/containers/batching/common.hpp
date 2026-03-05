@@ -37,16 +37,17 @@ namespace april::container::batching {
 		{ b.types } -> std::convertible_to<std::pair<ParticleType, ParticleType>>;
 	};
 
+
 	template<typename T>
-	concept IsBatchAtom = true ; // TODO
-	// requires(const T& t) {
-	// 	// callable must take in two particle views
-	// 	{ t.template for_each_pair<ParticleField::all, ParallelPolicy::Serial, VectorPolicy::Scalar>(
-	// 		[]<typename P0, typename P1>(P0&&, P1&&)
-	// 		// requires env::IsRestrictedRef<P0> && env::IsRestrictedRef<P1>
-	// 		{}
-	// 	) };
-	// };
+	concept IsBatchAtom = requires(const T& t) {
+		// must have vector trait exists
+		{ std::remove_cvref_t<T>::vector_trait } -> std::convertible_to<exec::internal::VectorTrait>;
+
+		// must have a for_each_pair function
+		t.template for_each_pair<ParallelPolicy::Serial, exec::internal::ExecutionMode::Hybrid>(
+			universal_kernel([](auto&&, auto&&) {})
+		);
+	};
 
 	template<typename T>
 	concept IsBatchAtomRange = std::ranges::input_range<T> && IsBatchAtom<std::ranges::range_value_t<T>>;
@@ -59,10 +60,13 @@ namespace april::container::batching {
 	// BCP CONCEPT
 	//------------
 	template<typename F>
-	concept IsBCP = true; // TODO: fix
-	// requires(const F& f, const vec3& v) {
-	// 	{ f(v) } -> std::convertible_to<vec3>;
-	// };
+	concept IsBCP = requires(const F& f, const vec3& v, const pvec3& pv) {
+		// Must handle scalar vectors
+		{ f(v) } -> std::convertible_to<vec3>;
+
+		// Must handle packed SIMD vectors
+		{ f(pv) } -> std::convertible_to<pvec3>;
+	};
 
 	struct NoBatchBCP {
 		template <class T>

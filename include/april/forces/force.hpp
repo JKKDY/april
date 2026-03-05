@@ -29,32 +29,31 @@ namespace april::force {
 
         // template<ParticleField IncomingMask, env::IsUserData U>
         AP_FORCE_INLINE
-        auto operator()(this const auto& self,
-                const auto & p1,
-                const auto & p2,
-                const auto & r) {
+        auto operator()(this const auto& self, const auto & p1, const auto & p2, const auto & r) {
+            using Derived = std::remove_cvref_t<decltype(self)>;
+            using ReturnType = std::remove_cvref_t<decltype(r)>; // Resolves to vec3 or pvec3
 
-            // TODO: Force operator()
-            // static_assert(
-            //     requires { {self.eval(p1, p2, r)} -> std::same_as<decltype(r)>; },
-            //     "Force must implement eval(auto p1, auto p2, auto r) -> decltype(r)"
-            // );
-            //
-            // using Derived = std::remove_cvref_t<decltype(self)>;
-            //
-            // // check for fields requirements
-            // static_assert(
-            //     requires { Derived::fields; },
-            //     "Force subclass must define 'static constexpr env::Field fields'"
-            // );
-            //
-            // constexpr ParticleField Required = Derived::fields;
-            //
-            // // check for
-            // static_assert(
-            //     (IncomingMask & Required) == Required,
-            //     "ParticleView is missing required fields for this Force."
-            // );
+            // check if fields is defined
+            static_assert(
+                 requires {
+                     []{ constexpr auto _ = Derived::fields; };
+                     { Derived::fields } -> std::convertible_to<ParticleField>;
+                 },
+                 "[APRIL] Force: subclass must define 'static constexpr ParticleField fields'"
+             );
+
+            static_assert(requires { { self.eval(p1, p2, r) } -> std::same_as<ReturnType>; },
+                "[APRIL] Force: must implement eval(p1, p2, r) and return the same vector type as 'r' (vec3 or pvec3)"
+            );
+
+            using P1Type = std::remove_cvref_t<decltype(p1)>;
+            constexpr ParticleField Required = Derived::fields;
+            constexpr ParticleField IncomingMask = P1Type::ReadAccess;
+            // check for
+            static_assert(
+                (IncomingMask & Required) == Required,
+                "ParticleView is missing required fields for this Force."
+            );
 
             return self.eval(p1, p2, r);
         }
@@ -64,13 +63,13 @@ namespace april::force {
             using OtherT = std::remove_cvref_t<decltype(other)>;
 
             static_assert(std::same_as<SelfT, OtherT>,
-                "Force::mix() requires both operands to be of the same type.");
+                "[APRIL] Error: Force::mix() requires both operands to be of the same type.");
 
             if constexpr (requires{self.mix(other);}) {
                 return self.mix(other);
             } else {
                 if (!self.equals(other)) {
-                    throw std::invalid_argument("Mixing disabled by default for this force");
+                    throw std::invalid_argument("[APRIL] Error: Mixing disabled by default for this force");
                 } else {
                     return self;
                 }
@@ -189,7 +188,7 @@ namespace april::force {
         struct VariantType {
             // Disallow the internal sentinel type in user packs
             static_assert((!std::is_same_v<ForceSentinel, Fs> && ...),
-                          "ForceSentinel must NOT appear in ForcePack (internal sentinel only).");
+                          "[APRIL] Error: ForceSentinel must NOT appear in ForcePack (internal sentinel only).");
 
             // Detect whether NoForce is already supplied
             static constexpr bool has_no_force = (std::is_same_v<NoForce, Fs> || ...);

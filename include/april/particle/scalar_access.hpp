@@ -25,36 +25,36 @@ namespace april::particle::internal {
 	// Ghost struct with references to particle data to abstract memory layout. Dissolves at compile time.
 	template<ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes UserDataT>
     struct ScalarParticleRef {
+		static constexpr ParticleField ReadAccess  = ReadMask;
+		static constexpr ParticleField WriteAccess = WriteMask & ~ParticleField::id;
     private:
        // Helper alias to pass the mutable type, the const type, and the field type
        template <typename MutT, typename ConstT, ParticleField F>
-       using field_t = field_access_t<MutT, ConstT, F, ReadMask, WriteMask>;
+       using field_t = field_access_t<MutT, ConstT, F, ReadAccess, WriteAccess>;
 
        using MutVec3Ref   = math::Vec3Proxy<vec3::type>;
        using ConstVec3Ref = const math::Vec3Proxy<const vec3::type>;
 
     public:
-		static constexpr ParticleField ReadAccess  = ReadMask;
-		static constexpr ParticleField WriteAccess = WriteMask;
 
        // construct from ParticleSource
        template<class S>
        explicit ScalarParticleRef(const S & source) noexcept
-          : force       (init_scalar_field<ReadMask, WriteMask, ParticleField::force>        (source))
-          , position    (init_scalar_field<ReadMask, WriteMask, ParticleField::position>      (source))
-          , velocity    (init_scalar_field<ReadMask, WriteMask, ParticleField::velocity>      (source))
-          , old_position(init_scalar_field<ReadMask, WriteMask, ParticleField::old_position>   (source))
-          , mass        (init_scalar_field<ReadMask, WriteMask, ParticleField::mass>         (source))
-          , state       (init_scalar_field<ReadMask, WriteMask, ParticleField::state>        (source))
-          , type        (init_scalar_field<ReadMask, WriteMask, ParticleField::type>         (source))
-          , id          (init_scalar_field<ReadMask, WriteMask, ParticleField::id>           (source))
-          , attributes  (init_scalar_field<ReadMask, WriteMask, ParticleField::attributes>   (source))
+          : force       (init_scalar_field<ReadAccess, WriteAccess, ParticleField::force>        (source))
+          , position    (init_scalar_field<ReadAccess, WriteAccess, ParticleField::position>      (source))
+          , velocity    (init_scalar_field<ReadAccess, WriteAccess, ParticleField::velocity>      (source))
+          , old_position(init_scalar_field<ReadAccess, WriteAccess, ParticleField::old_position>   (source))
+          , mass        (init_scalar_field<ReadAccess, WriteAccess, ParticleField::mass>         (source))
+          , state       (init_scalar_field<ReadAccess, WriteAccess, ParticleField::state>        (source))
+          , type        (init_scalar_field<ReadAccess, WriteAccess, ParticleField::type>         (source))
+          , id          (init_scalar_field<ReadAccess, WriteAccess, ParticleField::id>           (source))
+          , attributes  (init_scalar_field<ReadAccess, WriteAccess, ParticleField::attributes>   (source))
        {}
 
        // construct from a more permissive reference (e.g., converting a mutable ref to a view)
        template<ParticleField OtherReadMask, ParticleField OtherWriteMask>
-       requires ((WriteMask & OtherWriteMask) == WriteMask) // Can only narrow write permissions, not expand
-		&& ((OtherWriteMask | OtherReadMask) == (ReadMask | WriteMask))// must have the exact same fields
+       requires ((WriteAccess & OtherWriteMask) == WriteAccess) // Can only narrow write permissions, not expand
+		&& ((OtherWriteMask | OtherReadMask) == (ReadAccess | WriteAccess))// must have the exact same fields
        explicit ScalarParticleRef(const ScalarParticleRef<OtherReadMask, OtherWriteMask, UserDataT>& r) noexcept
           : force       (r.force)
           , position    (r.position)
@@ -69,11 +69,11 @@ namespace april::particle::internal {
 
        // convenience method to drop all write permissions
        auto to_view() const noexcept {
-          return ScalarParticleRef<ReadMask | WriteMask, ParticleField::none, UserDataT>(*this);
+          return ScalarParticleRef<ReadAccess | WriteAccess, ParticleField::none, UserDataT>(*this);
        }
 
 		auto broadcast() const noexcept {
-	       return PackedParticleBuffer<ReadMask, WriteMask>(*this);
+	       return PackedParticleBuffer<ReadAccess, WriteAccess>(*this);
        }
 
        // Data Fields: Mutable Type, Const Type, Field Enum

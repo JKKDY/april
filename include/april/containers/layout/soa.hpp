@@ -47,6 +47,9 @@ namespace april::container::layout {
         ParticleID    * AP_RESTRICT ptr_id    = nullptr;
         Attributes * AP_RESTRICT ptr_attributes = nullptr;
 
+        size_t capacity;
+        size_t size;
+
         void update_pointer_cache() {
             ptr_pos_x = pos_x.data(); ptr_pos_y = pos_y.data(); ptr_pos_z = pos_z.data();
             ptr_vel_x = vel_x.data(); ptr_vel_y = vel_y.data(); ptr_vel_z = vel_z.data();
@@ -61,12 +64,20 @@ namespace april::container::layout {
         }
 
         void resize(const size_t n) {
-            pos_x.resize(n); pos_y.resize(n); pos_z.resize(n);
-            vel_x.resize(n); vel_y.resize(n); vel_z.resize(n);
-            frc_x.resize(n); frc_y.resize(n); frc_z.resize(n);
-            old_x.resize(n); old_y.resize(n); old_z.resize(n);
-            mass.resize(n); state.resize(n); type.resize(n); id.resize(n);
-            attributes.resize(n);
+            capacity = n + packed::size();
+            size = n;
+
+            pos_x.resize(capacity); pos_y.resize(capacity); pos_z.resize(capacity);
+            vel_x.resize(capacity); vel_y.resize(capacity); vel_z.resize(capacity);
+            frc_x.resize(capacity); frc_y.resize(capacity); frc_z.resize(capacity);
+            old_x.resize(capacity); old_y.resize(capacity); old_z.resize(capacity);
+
+            mass.resize(capacity);
+            state.resize(capacity);
+            type.resize(capacity);
+            id.resize(capacity);
+            attributes.resize(capacity);
+
             update_pointer_cache();
         }
 
@@ -159,10 +170,10 @@ namespace april::container::layout {
 
         // QUERIES
         [[nodiscard]] size_t capacity() const {
-            return particle_count();
+            return data.capacity;
         }
         [[nodiscard]] size_t particle_count() const {
-            return data.pos_x.size();
+            return data.size;
         }
 
     protected:
@@ -183,7 +194,7 @@ namespace april::container::layout {
             bin_starts.push_back(0);
             bin_sizes.push_back(particles.size());
 
-            for (size_t i = 0; i < n; ++i) {
+            for (size_t i = 0; i < particle_count(); ++i) {
                 const auto& p = particles[i];
 
                 // Vectors
@@ -202,6 +213,15 @@ namespace april::container::layout {
                 // ID Map
                 id_to_index_map[static_cast<size_t>(p.id)] = i;
             }
+
+             for (size_t i = particle_count(); i < capacity(); ++i) {
+                 data.pos_x[i] = 1e50;
+                 data.pos_y[i] = 1e50;
+                 data.pos_z[i] = 1e50;
+                 data.mass[i] = 1.0;
+                 data.id[i] = -1;
+                 data.state[i] = ParticleState::INVALID;
+             }
 
             tmp.resize(n);
         }
@@ -231,7 +251,7 @@ namespace april::container::layout {
             tmp.update_pointer_cache();
 
             // rebuild iD Map
-            for (size_t i = 0; i < data.id.size(); i++) {
+            for (size_t i = 0; i < particle_count(); i++) {
                 const auto id = data.id[i];
                 if (static_cast<size_t>(id) >= id_to_index_map.size()) {
                     id_to_index_map.resize(static_cast<size_t>(id) + 1, std::numeric_limits<uint32_t>::max());

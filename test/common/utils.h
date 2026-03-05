@@ -29,7 +29,7 @@ template<core::IsSystem System>
 System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
 	constexpr auto all_fields = ParticleField::all;
 
-	auto p_ref = sys.template at_id<all_fields>(id);
+	auto p_ref = sys.template view_id<all_fields>(id);
 
 	typename System::ParticleRec rec;
 	rec.id          = p_ref.id;

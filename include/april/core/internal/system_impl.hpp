@@ -1,6 +1,7 @@
 #pragma once
 
 #include "april/boundaries/boundary.hpp"
+#include "april/exec/policy.hpp"
 #include "april/forces/force.hpp"
 
 
@@ -13,66 +14,27 @@ namespace april {
 		ContainerDecl, Traits>
 	template <ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
 	void System<ContainerDecl, Traits>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
-			using namespace april::exec::internal;
-			constexpr VectorTrait batch_capabilities = std::remove_cvref_t<Batch>::vector_trait;
-			constexpr ExecutionMode kernel_capabilities =std::remove_cvref_t<Kernel>::Mode;
+		using namespace april::exec::internal;
+		constexpr VectorTrait batch_traits = std::remove_cvref_t<Batch>::vector_trait;
+		constexpr ExecutionMode kernel_modes = std::remove_cvref_t<Kernel>::Mode;
 
-			// map VectorPolicy -> VectorTrait (execution mode)
-			constexpr ExecutionMode exec_mode = [] {
-				if constexpr (V == VectorPolicy::Vector) {
-					return ExecutionMode::Vector; // Force Vector
-				}
-				else if constexpr (V == VectorPolicy::Scalar) {
-					return ExecutionMode::Scalar; // Force Scalar
-				}
-				else { // Auto
-					return kernel_capabilities; // return kernel capabilities. Batch will figure out what to do
-				}
-			}();
+		constexpr ExecutionMode required_modes = required_execution_modes<batch_traits>();
+		constexpr ExecutionMode valid_modes = valid_execution_modes<V, kernel_modes>();
 
-			// Enforce Contracts
-			if constexpr (V == VectorPolicy::Vector) {  // Case user demands strict vectorization
-				// Batch must have a vector only path
-				static_assert(has_flag(batch_capabilities, VectorTrait::VectorOnly),
-					"Policy Violation: VectorPolicy::Vector requires a fully vectorized Batch. ");
+		static_assert((valid_modes & required_modes) == required_modes, // required modes must be a subset of valid modes
+			"[APRIL] Compatibility Failure: No valid execution path found between Batch and Kernel capability sets.");
 
-				// Kernel must be Vector-Capable
-				static_assert(has_flag(kernel_capabilities, ExecutionMode::Vector),
-					"Policy Violation: VectorPolicy::Vector requires a SIMD-capable Kernel.");
-			}
-			else if constexpr (V == VectorPolicy::Scalar) {  // Case user demands strict scalar computation
-				// Batch must have a scalar only path
-				static_assert(has_flag(batch_capabilities, VectorTrait::ScalarOnly),
-					"Policy Violation: VectorPolicy::Scalar requires a fully scalarized Batch. ");
+		constexpr ExecutionMode exec_mode = resolve_execution_mode<valid_modes, required_modes>();
 
-				//  Kernel must be Scalar-Capable
-				static_assert(has_flag(kernel_capabilities, ExecutionMode::Scalar),
-					"Policy Violation: VectorPolicy::Scalar requires a Scalar-capable Kernel.");
-			}
-			else if constexpr (V == VectorPolicy::Auto) {  // Case auto (best effort vectorization)
-				constexpr bool CanRunVector = has_flag(batch_capabilities, VectorTrait::VectorOnly) &&
-					has_flag(kernel_capabilities, ExecutionMode::Vector);
-
-				constexpr bool CanRunScalar = has_flag(batch_capabilities, VectorTrait::ScalarOnly) &&
-					has_flag(kernel_capabilities, ExecutionMode::Scalar);
-
-				constexpr bool CanRunHybrid = has_flag(batch_capabilities, VectorTrait::Mixed) &&
-					kernel_capabilities == (ExecutionMode::Vector | ExecutionMode::Scalar);
-
-				static_assert(CanRunVector || CanRunScalar || CanRunHybrid,
-					"Compatibility Failure: No valid execution path found between Batch and Kernel capability sets.");
-			}
-
-			// Execute
-			if constexpr (container::batching::IsBatchAtom<Batch>) {
-				batch.template for_each_pair<P, exec_mode>(kernel);
-			}
-			else if constexpr (container::batching::IsBatchAtomRange<Batch>) {
-				for (const auto& atom : batch) {
-					atom.template for_each_pair<P, exec_mode>(kernel);
-				}
+		if constexpr (container::batching::IsBatchAtom<Batch>) {
+			batch.template for_each_pair<P, exec_mode>(kernel);
+		}
+		else if constexpr (container::batching::IsBatchAtomRange<Batch>) {
+			for (const auto& atom : batch) {
+				atom.template for_each_pair<P, exec_mode>(kernel);
 			}
 		}
+	}
 
 
 

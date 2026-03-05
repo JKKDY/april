@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "april/exec/policy.hpp"
+#include "april/exec/particle_kernel.hpp"
 #include "april/containers/batching/common.hpp"
 
 
@@ -10,7 +11,7 @@ namespace april::container::internal {
 
 	template<typename AsymmetricBatch, typename SymmetricBatch>
 	struct LinkedCellsBatch : batching::BatchBase<exec::internal::ParallelTrait::None,
-		exec::internal::VectorTrait::ScalarOnly | exec::internal::VectorTrait::VectorOnly> {
+		AsymmetricBatch::vector_trait & SymmetricBatch::vector_trait> {
 
 		template<ParallelPolicy P, exec::internal::ExecutionMode E, exec::IsKernel Func>
 		void for_each_pair (Func && f) const {

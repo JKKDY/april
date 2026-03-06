@@ -55,9 +55,20 @@ namespace april::particle::internal {
         template <typename MutT, typename ConstT, ParticleField F>
         using field_t = field_access_t<MutT, ConstT, F, ReadAccess, WriteAccess>;
 
+        template <typename T>
+        using target_reg_t = std::conditional_t<
+            std::is_floating_point_v<T>,
+            packed::value_type,
+            std::conditional_t<std::is_signed_v<T>, packedi::value_type, packedu::value_type>
+        >;
+
         // declare a packed type
-        template <typename T, ParticleField F>
-        using packed_field_t = field_t<simd::PackedRef<T>, const simd::PackedRef<const T>, F>;
+        template <typename MemT, ParticleField F>
+        using packed_field_t = field_t<
+            simd::PackedRef<MemT, simd::Packed<target_reg_t<MemT>>>,
+            const simd::PackedRef<const MemT, simd::Packed<target_reg_t<MemT>>>,
+            F
+        >;
 
         // declare a vec type
         template <ParticleField F>
@@ -150,8 +161,8 @@ namespace april::particle::internal {
 
         AP_NO_UNIQUE_ADDRESS packed_float_t<ParticleField::mass> mass;
         AP_NO_UNIQUE_ADDRESS packed_int_t<ParticleField::state> state;
-        // AP_NO_UNIQUE_ADDRESS scalar_t<ParticleType,  ParticleField::type>  type;
-        // AP_NO_UNIQUE_ADDRESS scalar_t<ParticleID,    ParticleField::id>    id;
+        AP_NO_UNIQUE_ADDRESS packed_int_t<ParticleField::type>  type;
+        AP_NO_UNIQUE_ADDRESS packed_int_t<ParticleField::id>    id;
 
         PackedParticleBuffer() = default;
 
@@ -163,9 +174,9 @@ namespace april::particle::internal {
             if constexpr (has_field_v<ReadMask, ParticleField::velocity>) velocity = source.velocity;
             if constexpr (has_field_v<ReadMask, ParticleField::force>) force = source.force;
             if constexpr (has_field_v<ReadMask, ParticleField::mass>) mass = source.mass;
-            // if constexpr (has_field_v<ReadMask, ParticleField::state>) state = source.state;
-            // if constexpr (has_field_v<ReadMask, ParticleField::type>) type = source.type;
-            // if constexpr (has_field_v<ReadMask, ParticleField::state>) id = source.id;
+            if constexpr (has_field_v<ReadMask, ParticleField::state>) state = source.state;
+            if constexpr (has_field_v<ReadMask, ParticleField::type>) type = source.type;
+            if constexpr (has_field_v<ReadMask, ParticleField::state>) id = source.id;
 
             // Write-Only fields: Zero-initialize for pure delta accumulation (necessary for symmetric batches)
             if constexpr (has_field_v<WOMask, ParticleField::position>) position = pvec3(0.0);
@@ -191,8 +202,7 @@ namespace april::particle::internal {
                 old_position.x = scalar.old_position.x;
                 old_position.y = scalar.old_position.y;
                 old_position.z = scalar.old_position.z;
-            }
-            else if constexpr (has_field_v<WOMask, ParticleField::old_position>) {
+            } else if constexpr (has_field_v<WOMask, ParticleField::old_position>) {
                 old_position = pvec3(0.0);
             }
 
@@ -200,8 +210,7 @@ namespace april::particle::internal {
                 velocity.x = scalar.velocity.x;
                 velocity.y = scalar.velocity.y;
                 velocity.z = scalar.velocity.z;
-            }
-            else if constexpr (has_field_v<WOMask, ParticleField::velocity>) {
+            } else if constexpr (has_field_v<WOMask, ParticleField::velocity>) {
                 velocity = pvec3(0.0);
             }
 
@@ -209,29 +218,27 @@ namespace april::particle::internal {
                 force.x = scalar.force.x;
                 force.y = scalar.force.y;
                 force.z = scalar.force.z;
-            }
-            else if constexpr (has_field_v<WOMask, ParticleField::force>) {
+            } else if constexpr (has_field_v<WOMask, ParticleField::force>) {
                 force = pvec3(0.0);
             }
 
             if constexpr (has_field_v<ReadMask, ParticleField::mass>) {
                 mass = scalar.mass;
-            }
-            else if constexpr (has_field_v<WOMask, ParticleField::mass>) {
+            } else if constexpr (has_field_v<WOMask, ParticleField::mass>) {
                 mass = 0.0;
             }
 
-            // if constexpr (has_field_v<ReadMask, ParticleField::state>) {
-            //     state = scalar.state;
-            // }
+            if constexpr (has_field_v<ReadMask, ParticleField::state>) {
+                state = scalar.state;
+            }
 
-            // if constexpr (has_field_v<ReadMask, ParticleField::type>) {
-            //     type = scalar.type;
-            // }
-            //
-            // if constexpr (has_field_v<ReadMask, ParticleField::id>) {
-            //     id = scalar.id;
-            // }
+            if constexpr (has_field_v<ReadMask, ParticleField::type>) {
+                type = scalar.type;
+            }
+
+            if constexpr (has_field_v<ReadMask, ParticleField::id>) {
+                id = scalar.id;
+            }
         }
 
         // export as view
@@ -265,15 +272,15 @@ namespace april::particle::internal {
             if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::mass>) {
                 mass = mass.template rotate_left<K>();
             }
-            // if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::state>) {
-            //     state = state.template rotate_left<K>();
-            // }
-            // if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::type>) {
-            //     type = type.template rotate_left<K>();
-            // }
-            // if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::id>) {
-            //     id = id.template rotate_left<K>();
-            // }
+            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::state>) {
+                state = state.template rotate_left<K>();
+            }
+            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::type>) {
+                type = type.template rotate_left<K>();
+            }
+            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::id>) {
+                id = id.template rotate_left<K>();
+            }
         }
 
         template <unsigned K = 1>
@@ -301,15 +308,15 @@ namespace april::particle::internal {
             if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::mass>) {
                 mass = mass.template rotate_right<K>();
             }
-            // if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::type>) {
-            //     type = type.template rotate_right<K>();
-            // }
-            // if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::state>) {
-            //     state = state.template rotate_right<K>();
-            // }
-            // if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::id>) {
-            //     id = id.template rotate_right<K>();
-            // }
+            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::type>) {
+                type = type.template rotate_right<K>();
+            }
+            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::state>) {
+                state = state.template rotate_right<K>();
+            }
+            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::id>) {
+                id = id.template rotate_right<K>();
+            }
         }
 
         // Accumulate reciprocal deltas from another buffer (Write-Only fields strictly)
@@ -402,14 +409,14 @@ namespace april::particle::internal {
             }
 
             // STATE
-            // if constexpr (has_field_v<RWMask, ParticleField::state>) {
-            //     packed_ref.state = state;
-            // }
-            //
-            // // TYPE
-            // if constexpr (has_field_v<RWMask, ParticleField::state>) {
-            //     packed_ref.type = type;
-            // }
+            if constexpr (has_field_v<RWMask, ParticleField::state>) {
+                packed_ref.state = state;
+            }
+
+            // TYPE
+            if constexpr (has_field_v<RWMask, ParticleField::state>) {
+                packed_ref.type = type;
+            }
 
             // id is not assignable
         }
@@ -533,6 +540,9 @@ namespace april::particle::internal {
         AP_NO_UNIQUE_ADDRESS ref_t<ParticleField::velocity, decltype(Buffer::velocity)> velocity;
         AP_NO_UNIQUE_ADDRESS ref_t<ParticleField::force, decltype(Buffer::force)> force;
         AP_NO_UNIQUE_ADDRESS ref_t<ParticleField::mass, decltype(Buffer::mass)> mass;
+        AP_NO_UNIQUE_ADDRESS ref_t<ParticleField::state, decltype(Buffer::state)> state;
+        AP_NO_UNIQUE_ADDRESS ref_t<ParticleField::type, decltype(Buffer::type)> type;
+        AP_NO_UNIQUE_ADDRESS ref_t<ParticleField::id, decltype(Buffer::id)> id;
 
         // Directly maps buffer fields to references or poison copies. Zero branching.
         AP_FORCE_INLINE explicit PackedBufferView(Buffer& buf)
@@ -540,7 +550,11 @@ namespace april::particle::internal {
               old_position(buf.old_position),
               velocity(buf.velocity),
               force(buf.force),
-              mass(buf.mass) {}
+              mass(buf.mass),
+              state(buf.state),
+              type(buf.type),
+              id(buf.id)
+            {}
     };
 
 

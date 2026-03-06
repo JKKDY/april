@@ -17,11 +17,10 @@ namespace april::simd::internal::xsimd {
         Mask(native_type d) : data(d) {}
         Mask(bool val) : data(val) {}
 
-        // bitwise cast to other mask types of the same lane width
         template<typename U>
         requires (sizeof(T) == sizeof(U))
         operator Mask<U>() const {
-            return { ::xsimd::bitwise_cast<U>(data) };
+            return { ::xsimd::bitwise_cast<::xsimd::batch_bool<U>>(data) };
         }
 
         operator native_type() const { return data; }
@@ -254,18 +253,20 @@ namespace april::simd::internal::xsimd {
         friend Packed max(const Packed& a, const Packed& b) { return { ::xsimd::max(a.data, b.data) }; }
         friend Packed fma(const Packed& a, const Packed& b, const Packed& c) { return { ::xsimd::fma(a.data, b.data, c.data) }; }
 
-        // Inside Packed struct in xsimd_backend.hpp
-        [[nodiscard]] T reduce_add() const {
-            return ::xsimd::reduce_add(data);
-        }
+        // BITWISE (strictly constrained to integer types)
+        friend Packed operator~(const Packed& rhs) requires std::is_integral_v<T> { return { ~rhs.data }; }
+        friend Packed operator&(const Packed& lhs, const Packed& rhs) requires std::is_integral_v<T> { return { lhs.data & rhs.data }; }
+        friend Packed operator|(const Packed& lhs, const Packed& rhs) requires std::is_integral_v<T> { return { lhs.data | rhs.data }; }
+        friend Packed operator^(const Packed& lhs, const Packed& rhs) requires std::is_integral_v<T> { return { lhs.data ^ rhs.data }; }
 
-        [[nodiscard]] T reduce_min() const {
-            return ::xsimd::reduce_min(data);
-        }
+        Packed& operator&=(const Packed& rhs) requires std::is_integral_v<T> { data &= rhs.data; return *this; }
+        Packed& operator|=(const Packed& rhs) requires std::is_integral_v<T> { data |= rhs.data; return *this; }
+        Packed& operator^=(const Packed& rhs) requires std::is_integral_v<T> { data ^= rhs.data; return *this; }
 
-        [[nodiscard]] T reduce_max() const {
-            return ::xsimd::reduce_max(data);
-        }
+        // REDUCTIONS
+        [[nodiscard]] T reduce_add() const { return ::xsimd::reduce_add(data); }
+        [[nodiscard]] T reduce_min() const { return ::xsimd::reduce_min(data); }
+        [[nodiscard]] T reduce_max() const { return ::xsimd::reduce_max(data); }
 
 
         // MASKING

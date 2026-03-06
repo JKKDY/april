@@ -16,7 +16,6 @@
 #include "april/particle/packed_access.hpp"
 
 
-
 namespace april::container {
 
 	namespace internal {
@@ -334,10 +333,13 @@ namespace april::container {
 						// TODO add state checking for vectorized kernels (add a mask member to packed accessors?)
 						// auto buffer = p.load_buffer();
 						// auto view = buffer.to_view();
+						//
+						// const auto mask = (buffer.state & +state) != 0;
+						// if (!any(mask)) return; // if no particle is in requested state, skip this execution
 
 						kernel(i, p);
 
-						// buffer.update_into(p);
+						// buffer.update_into(p, mask);
 					} else {
 						if (self.index_is_valid(i) && static_cast<int>(p.state & state)) {
 							kernel(i, p);

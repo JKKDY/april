@@ -97,58 +97,109 @@ namespace april::simd::internal::xsimd {
             return *this;
         }
 
+        // ----------
         // DATA LOADS
-        static Packed load(const T* ptr) {
-            return { ::xsimd::load_unaligned(ptr) };
+        // ----------
+        template<typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        static Packed load(const PtrT* ptr) { return load_unaligned(ptr); }
+
+        template<typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        static Packed load_unaligned(const PtrT* ptr) {
+            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
+                // Safely upcast element-by-element into a wide padded buffer
+                alignas(alignof(native_type)) value_type temp[size()];
+                for (size_t i = 0; i < size(); ++i) {
+                    temp[i] = static_cast<value_type>(ptr[i]);
+                }
+                return { ::xsimd::load_aligned(temp) };
+            } else {
+                return { ::xsimd::load_unaligned(reinterpret_cast<const value_type*>(ptr)) };
+            }
         }
 
-        // load a type narrower than T and extend it to match target width
-        template<typename NarrowT>
-        requires std::is_arithmetic_v<NarrowT> && (sizeof(NarrowT) < sizeof(T)) && std::is_convertible_v<NarrowT, T>
-        static Packed load_narrow(const NarrowT* ptr) {
-            // create a batch type of the narrow data that has the EXACT same lane count as our target
-            using narrow_batch_t = ::xsimd::make_sized_batch_t<NarrowT, size()>;
-
-            // load strictly the required number of bytes (prevents page boundary segfaults)
-            auto narrow_batch = narrow_batch_t::load_unaligned(ptr);
-
-            // cast/Extend up to the target width (float->double, uint8_t->uint64_t, etc.)
-            return { ::xsimd::batch_cast<value_type>(narrow_batch) };
+        template<typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        static Packed load_aligned(const PtrT* ptr) {
+            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
+                return load_unaligned(ptr); // Alignment doesn't matter for the scalar fallback
+            } else {
+                return { ::xsimd::load_aligned(reinterpret_cast<const value_type*>(ptr)) };
+            }
         }
 
-        static Packed load_aligned(const T* ptr) {
-            return { ::xsimd::load_aligned(ptr) };
+
+        // ------------
+        // DATA GATHERS
+        // ------------
+        // Gather via offsets
+        template<typename PtrT, typename IndexType>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        static Packed gather(const PtrT* base_addr, const IndexType& offsets) {
+            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
+                alignas(alignof(native_type)) value_type temp[size()];
+                for (size_t i = 0; i < size(); ++i) {
+                    temp[i] = static_cast<value_type>(base_addr[offsets.data[i]]);
+                }
+                return { ::xsimd::load_aligned(temp) };
+            } else {
+                return { ::xsimd::batch<value_type>::gather(reinterpret_cast<const value_type*>(base_addr), offsets.data) };
+            }
         }
 
-        static Packed load_unaligned(const T* ptr) {
-            return { ::xsimd::load_unaligned(ptr) };
-        }
-
-        template<typename IndexType>
-        static Packed gather(const T* base_addr, const IndexType& offsets) {
-            return { native_type::gather(base_addr, offsets.data) };
-        }
-
-        static Packed gather(const T* const* pointers) {
+        // Gather via array of pointers
+        template<typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        static Packed gather(const PtrT* const* pointers) {
             return gather_impl(pointers, std::make_index_sequence<size()>{});
         }
 
+
+        // -----------
         // DATA STORES
-        void store(T* ptr) const {
-            ::xsimd::store_unaligned(ptr, data);
+        // -----------
+        // Default store delegates to unaligned
+        template <typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        void store(PtrT* ptr) const { store_unaligned(ptr); }
+
+        template <typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        void store_unaligned(PtrT* ptr) const {
+            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
+                alignas(alignof(native_type)) value_type temp[size()];
+                ::xsimd::store_aligned(temp, data);
+                for (size_t i = 0; i < size(); ++i) {
+                    ptr[i] = static_cast<PtrT>(temp[i]);
+                }
+            } else {
+                ::xsimd::store_unaligned(reinterpret_cast<value_type*>(ptr), data);
+            }
         }
 
-        void store_aligned(T* ptr) const {
-            ::xsimd::store_aligned(ptr, data);
+        template <typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        void store_aligned(PtrT* ptr) const {
+            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
+                store_unaligned(ptr);
+            } else {
+                ::xsimd::store_aligned(reinterpret_cast<value_type*>(ptr), data);
+            }
         }
 
-        void store_unaligned(T* ptr) const {
-            ::xsimd::store_unaligned(ptr, data);
-        }
-
-        template<typename IndexType>
-        void scatter(T* base_addr, const IndexType& offsets) const {
-            data.scatter(base_addr, offsets.data);
+        template<typename PtrT, typename IndexType>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        void scatter(PtrT* base_addr, const IndexType& offsets) const {
+            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
+                alignas(alignof(native_type)) value_type temp[size()];
+                ::xsimd::store_aligned(temp, data);
+                for (size_t i = 0; i < size(); ++i) {
+                    base_addr[offsets.data[i]] = static_cast<PtrT>(temp[i]);
+                }
+            } else {
+                data.scatter(reinterpret_cast<value_type*>(base_addr), offsets.data);
+            }
         }
 
         // PERMUTES AND SHUFFLES
@@ -246,9 +297,17 @@ namespace april::simd::internal::xsimd {
         }
 
     private:
-        template<size_t... Is>
-        static Packed gather_impl(const T* const* pointers, std::index_sequence<Is...>) {
-            return Packed(::xsimd::batch<T>(*pointers[Is]...));
+        template<typename PtrT, size_t... Is>
+        static Packed gather_impl(const PtrT* const* pointers, std::index_sequence<Is...>) {
+            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
+                alignas(alignof(native_type)) value_type temp[size()];
+                // Fold expression to unpack the pointers
+                size_t i = 0;
+                ((temp[i++] = static_cast<value_type>(*pointers[Is])), ...);
+                return { ::xsimd::load_aligned(temp) };
+            } else {
+                return { ::xsimd::batch<value_type>(*reinterpret_cast<const value_type*>(pointers[Is])...) };
+            }
         }
 
         native_type data;

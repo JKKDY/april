@@ -122,6 +122,16 @@ namespace april::simd {
         { ct.reduce_max() } -> std::same_as<typename T::value_type>;
     };
 
+    template<typename T> // only for integers
+    concept HasBitwiseOps = requires(T a, T b) {
+        { ~a } -> std::same_as<T>;
+        { a & b } -> std::same_as<T>;
+        { a | b } -> std::same_as<T>;
+        { a ^ b } -> std::same_as<T>;
+        { a &= b } -> std::same_as<T&>;
+        { a |= b } -> std::same_as<T&>;
+        { a ^= b } -> std::same_as<T&>;
+    };
 
     template<typename T>
     concept HasSimdOps =
@@ -132,7 +142,6 @@ namespace april::simd {
         && HasScalarMixedOps<T, float>
         && HasScalarMixedOps<T, double>
         && HasScalarMixedOps<T, long double>;
-
 
     // The Main Concept
     template<typename T>
@@ -150,12 +159,25 @@ namespace april::simd {
         { T::load(ptr) } -> std::same_as<T>;
         { T::load_aligned(ptr) } -> std::same_as<T>;
         { T::load_unaligned(ptr) } -> std::same_as<T>;
+
+        // gathering
+        // Indirect load via pointer array
         { T::gather(static_cast<const T::value_type* const*>(nullptr)) } -> std::same_as<T>;
+        // Indirect load via offsets (using a vector of the same width for indices)
+        { T::gather(ptr, t) } -> std::same_as<T>;
 
         // storing
-        ct.store(const_cast<T::value_type*>(ptr));
-        ct.store_aligned(const_cast<T::value_type*>(ptr));
-        ct.store_unaligned(const_cast<T::value_type*>(ptr));
+        { ct.store(const_cast<T::value_type*>(ptr)) } -> std::same_as<void>;
+        { ct.store_aligned(const_cast<T::value_type*>(ptr)) } -> std::same_as<void>;
+        { ct.store_unaligned(const_cast<T::value_type*>(ptr)) } -> std::same_as<void>;
+
+        // scattering
+        // Indirect store via offsets
+        { ct.scatter(const_cast<T::value_type*>(ptr), t) } -> std::same_as<void>;
+
+        // masking
+        // t==t produces a mask
+        { select(t==t, t, t) } -> std::same_as<T>;
 
         // permutations
         { ct.rotate_left() } -> std::same_as<T>;
@@ -163,7 +185,11 @@ namespace april::simd {
         { ct.template rotate_left<2>() } -> std::same_as<T>;
         { ct.template rotate_right<2>() } -> std::same_as<T>;
         { ct.template permute<0>() } -> std::same_as<T>;
-    } &&HasSimdOps<T>;
+
+        // bitwise requirement (only enforced if the scalar type is an integer)
+        requires (std::is_integral_v<typename T::value_type> ? HasBitwiseOps<T> : true);
+
+    } && HasSimdOps<T>;
 
     template<typename T>
     concept IsSimdType = IsSimdTypeImpl<std::remove_cvref_t<T>>;

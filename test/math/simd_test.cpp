@@ -410,6 +410,120 @@ TYPED_TEST(SimdWideTest, LogicalMaskReductions) {
 
 
 
+// ---------------------------------------------------------
+// NARROW TYPES TEST SUITE (Upcast/Downcast Memory Interface)
+// ---------------------------------------------------------
+
+#if APRIL_HAS_STD_SIMD
+using NarrowBackendTypes = testing::Types<
+    april::simd::internal::xsimd::Packed<uint64_t>,
+    april::simd::internal::xsimd::Packed<uint32_t>
+    // april::simd::internal::std_simd::Packed<uint64_t>,
+    // april::simd::internal::std_simd::Packed<uint32_t>
+>;
+#else
+using NarrowBackendTypes = testing::Types<
+    april::simd::internal::xsimd::Packed<uint64_t>,
+    april::simd::internal::xsimd::Packed<uint32_t>
+>;
+#endif
+
+template <typename T>
+class SimdNarrowTest : public testing::Test {
+public:
+    using WideType = T;
+    using WideScalar = T::value_type;
+    static constexpr size_t Size = T::size();
+};
+
+TYPED_TEST_SUITE(SimdNarrowTest, NarrowBackendTypes);
+
+// Test 1: Load 8-bit integers into wide registers
+TYPED_TEST(SimdNarrowTest, LoadNarrowUint8) {
+    using Wide = TestFixture::WideType;
+    using WideScalar = TestFixture::WideScalar;
+    size_t N = TestFixture::Size;
+
+    // Allocate EXACTLY N bytes to fiercely test for ASAN over-reads
+    std::vector<uint8_t> narrow_mem(N);
+    for (size_t i = 0; i < N; ++i) {
+        narrow_mem[i] = static_cast<uint8_t>(i + 10);
+    }
+
+    Wide w_load = Wide::load(narrow_mem.data());
+
+    // Export to wide array to check upcasting
+    auto out = w_load.to_array();
+
+    for (size_t i = 0; i < N; ++i) {
+        EXPECT_EQ(out[i], static_cast<WideScalar>(i + 10));
+    }
+}
+
+// Test 2: Store wide registers into 8-bit memory (Truncation)
+TYPED_TEST(SimdNarrowTest, StoreNarrowUint8) {
+    using Wide = TestFixture::WideType;
+    size_t N = TestFixture::Size;
+
+    // Setup wide data: [20, 21, 22...]
+    std::vector<typename TestFixture::WideScalar> wide_mem(N);
+    std::iota(wide_mem.begin(), wide_mem.end(), 20);
+    Wide w_val = Wide::load(wide_mem.data());
+
+    // Allocate EXACTLY N bytes to test for ASAN over-writes
+    std::vector<uint8_t> narrow_mem(N, 0);
+    w_val.store(narrow_mem.data());
+
+    for (size_t i = 0; i < N; ++i) {
+        EXPECT_EQ(narrow_mem[i], static_cast<uint8_t>(i + 20));
+    }
+}
+
+// Test 3: Load 16-bit integers into wide registers
+TYPED_TEST(SimdNarrowTest, LoadNarrowUint16) {
+    using Wide = TestFixture::WideType;
+    using WideScalar = TestFixture::WideScalar;
+    size_t N = TestFixture::Size;
+
+    std::vector<uint16_t> narrow_mem(N);
+    for (size_t i = 0; i < N; ++i) {
+        narrow_mem[i] = static_cast<uint16_t>(i + 1000);
+    }
+
+    Wide w_load = Wide::load(narrow_mem.data());
+    auto out = w_load.to_array();
+
+    for (size_t i = 0; i < N; ++i) {
+        EXPECT_EQ(out[i], static_cast<WideScalar>(i + 1000));
+    }
+}
+
+// Test 4: Gather narrow integers from non-contiguous memory
+TYPED_TEST(SimdNarrowTest, GatherNarrow) {
+    using Wide = TestFixture::WideType;
+    using WideScalar = TestFixture::WideScalar;
+    size_t N = TestFixture::Size;
+
+    // Source memory: [50, 51, 52...]
+    std::vector<uint8_t> memory(100);
+    std::iota(memory.begin(), memory.end(), static_cast<uint8_t>(50));
+
+    // Pointer array: Pick indices 0, 2, 4, 6...
+    std::vector<const uint8_t*> ptrs(N);
+    for(size_t i = 0; i < N; ++i) {
+        ptrs[i] = &memory[i * 2];
+    }
+
+    Wide gathered = Wide::gather(ptrs.data());
+    auto out = gathered.to_array();
+
+    for (size_t i = 0; i < N; ++i) {
+        EXPECT_EQ(out[i], static_cast<WideScalar>(50 + (i * 2)));
+    }
+}
+
+
+
 
 
 

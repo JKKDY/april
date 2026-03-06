@@ -22,28 +22,48 @@ namespace april::particle::internal {
     // for better perf use buffers for a single load at the beginning and single write back at the end
     template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes U>
     struct PackedParticleRef {
+        static constexpr ParticleField ReadAccess  = ReadMask;
+        static constexpr ParticleField WriteAccess = WriteMask;
     private:
         // helper for switching between data pointers and poison
         template <ParticleField F, typename Source>
         constexpr auto init_packed(const Source& src) {
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, F>) {
-                // no de-reference here because pointers are needed to initialize packed references
-                return src.template get<F>();
+            if constexpr (particle::internal::has_field_v<ReadAccess | WriteAccess, F>) {
+                auto ptr = src.template get<F>();
+
+                // get value type from pointer
+                using PtrType = decltype(ptr);
+                using ValueType = std::remove_pointer_t<PtrType>;
+
+                if constexpr (std::is_enum_v<ValueType>) {
+                    // Determine the underlying integer and preserve constness
+                    using IntType = std::underlying_type_t<ValueType>;
+                    using TargetPtr = std::conditional_t<std::is_const_v<ValueType>, const IntType*, IntType*>;
+
+                    return reinterpret_cast<TargetPtr>(ptr);
+                } else {
+                    // Return normal pointers as-is
+                    return ptr;
+                }
             }
             else {
                 return AccessForbidden<F>();
             }
         }
 
+        //switch between mutable and const type depending on read and write mask
         template <typename MutT, typename ConstT, ParticleField F>
-        using field_t = field_access_t<MutT, ConstT, F, ReadMask, WriteMask>;
+        using field_t = field_access_t<MutT, ConstT, F, ReadAccess, WriteAccess>;
 
-        using MutVec3Ref = math::Vec3Proxy<pvec3::type>;
-        using ConstVec3Ref = math::Vec3Proxy<const pvec3::type>;
+        // declare a packed type
+        template <typename T, ParticleField F>
+        using packed_field_t = field_t<simd::PackedRef<T>, const simd::PackedRef<const T>, F>;
+
+        // declare a vec type
+        template <ParticleField F>
+        using vec3_field_t = field_t<math::Vec3Proxy<pvec3::type>, const math::Vec3Proxy<const pvec3::type>, F>;
 
     public:
-        static constexpr ParticleField ReadAccess  = ReadMask;
-        static constexpr ParticleField WriteAccess = WriteMask;
 
         explicit PackedParticleRef(const auto& source) noexcept
            : force(init_packed<ParticleField::force>(source))
@@ -51,33 +71,44 @@ namespace april::particle::internal {
            , velocity(init_packed<ParticleField::velocity>(source))
            , old_position(init_packed<ParticleField::old_position>(source))
            , mass(init_packed<ParticleField::mass>(source))
+           , state(init_packed<ParticleField::state>(source))
+           , type(init_packed<ParticleField::type>(source))
+           , id(init_packed<ParticleField::id>(source))
             {}
 
         // Cross-constructor for narrowing write permissions (e.g. creating a view)
         template <ParticleField OtherWriteMask>
-            requires ((WriteMask & OtherWriteMask) == WriteMask)
-        explicit PackedParticleRef(const PackedParticleRef<ReadMask, OtherWriteMask, U>& r) noexcept
+            requires ((WriteAccess & OtherWriteMask) == WriteAccess)
+        explicit PackedParticleRef(const PackedParticleRef<ReadAccess, OtherWriteMask, U>& r) noexcept
             : force(r.force)
               , position(r.position)
               , velocity(r.velocity)
               , old_position(r.old_position)
-              , mass(r.mass) {}
+              , mass(r.mass)
+              , state(r.state)
+              , type(r.type)
+              , id(r.id)
+        {}
 
         // a view is just a PackedParticleRef with no write permissions
         auto to_view() const noexcept {
-            return PackedParticleRef<ReadMask | WriteMask, ParticleField::none, U>(*this);
+            return PackedParticleRef<ReadAccess | WriteAccess, ParticleField::none, U>(*this);
         }
 
-        PackedParticleBuffer<ReadMask, WriteMask> load_buffer() const noexcept {
-            return PackedParticleBuffer<ReadMask, WriteMask>(*this);
+        PackedParticleBuffer<ReadAccess, WriteAccess> load_buffer() const noexcept {
+            return PackedParticleBuffer<ReadAccess, WriteAccess>(*this);
         }
 
         // Data members with strict const-correctness
-        AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref, ConstVec3Ref, ParticleField::force> force;
-        AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref, ConstVec3Ref, ParticleField::position> position;
-        AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref, ConstVec3Ref, ParticleField::velocity> velocity;
-        AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref, ConstVec3Ref, ParticleField::old_position> old_position;
-        AP_NO_UNIQUE_ADDRESS field_t<simd::PackedRef<double>, simd::PackedRef<const double>, ParticleField::mass> mass;
+        AP_NO_UNIQUE_ADDRESS vec3_field_t<ParticleField::force> force;
+        AP_NO_UNIQUE_ADDRESS vec3_field_t<ParticleField::position> position;
+        AP_NO_UNIQUE_ADDRESS vec3_field_t<ParticleField::velocity> velocity;
+        AP_NO_UNIQUE_ADDRESS vec3_field_t<ParticleField::old_position> old_position;
+
+        AP_NO_UNIQUE_ADDRESS packed_field_t<double,        ParticleField::mass>  mass;
+        AP_NO_UNIQUE_ADDRESS packed_field_t<std::underlying_type_t<ParticleState>, ParticleField::state> state;
+        AP_NO_UNIQUE_ADDRESS packed_field_t<ParticleType,  ParticleField::type>  type;
+        AP_NO_UNIQUE_ADDRESS packed_field_t<ParticleID,    ParticleField::id>    id;
     };
 
 
@@ -100,7 +131,10 @@ namespace april::particle::internal {
         using pvec3_t = buffer_field_t<pvec3, F>;
 
         template <ParticleField F>
-        using scalar_t = buffer_field_t<simd::Packed<double>, F>;
+        using packed_float_t = buffer_field_t<packed, F>;
+
+        template <ParticleField F>
+        using packed_int_t = buffer_field_t<packedu, F>;
     public:
         static constexpr ParticleField ReadAccess  = ReadMask;
         static constexpr ParticleField WriteAccess = WriteMask;
@@ -113,7 +147,11 @@ namespace april::particle::internal {
         AP_NO_UNIQUE_ADDRESS pvec3_t<ParticleField::old_position> old_position;
         AP_NO_UNIQUE_ADDRESS pvec3_t<ParticleField::velocity> velocity;
         AP_NO_UNIQUE_ADDRESS pvec3_t<ParticleField::force> force;
-        AP_NO_UNIQUE_ADDRESS scalar_t<ParticleField::mass> mass;
+
+        AP_NO_UNIQUE_ADDRESS packed_float_t<ParticleField::mass> mass;
+        AP_NO_UNIQUE_ADDRESS packed_int_t<ParticleField::state> state;
+        // AP_NO_UNIQUE_ADDRESS scalar_t<ParticleType,  ParticleField::type>  type;
+        // AP_NO_UNIQUE_ADDRESS scalar_t<ParticleID,    ParticleField::id>    id;
 
         PackedParticleBuffer() = default;
 
@@ -125,6 +163,9 @@ namespace april::particle::internal {
             if constexpr (has_field_v<ReadMask, ParticleField::velocity>) velocity = source.velocity;
             if constexpr (has_field_v<ReadMask, ParticleField::force>) force = source.force;
             if constexpr (has_field_v<ReadMask, ParticleField::mass>) mass = source.mass;
+            // if constexpr (has_field_v<ReadMask, ParticleField::state>) state = source.state;
+            // if constexpr (has_field_v<ReadMask, ParticleField::type>) type = source.type;
+            // if constexpr (has_field_v<ReadMask, ParticleField::state>) id = source.id;
 
             // Write-Only fields: Zero-initialize for pure delta accumulation (necessary for symmetric batches)
             if constexpr (has_field_v<WOMask, ParticleField::position>) position = pvec3(0.0);
@@ -179,6 +220,18 @@ namespace april::particle::internal {
             else if constexpr (has_field_v<WOMask, ParticleField::mass>) {
                 mass = 0.0;
             }
+
+            // if constexpr (has_field_v<ReadMask, ParticleField::state>) {
+            //     state = scalar.state;
+            // }
+
+            // if constexpr (has_field_v<ReadMask, ParticleField::type>) {
+            //     type = scalar.type;
+            // }
+            //
+            // if constexpr (has_field_v<ReadMask, ParticleField::id>) {
+            //     id = scalar.id;
+            // }
         }
 
         // export as view
@@ -212,6 +265,15 @@ namespace april::particle::internal {
             if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::mass>) {
                 mass = mass.template rotate_left<K>();
             }
+            // if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::state>) {
+            //     state = state.template rotate_left<K>();
+            // }
+            // if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::type>) {
+            //     type = type.template rotate_left<K>();
+            // }
+            // if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::id>) {
+            //     id = id.template rotate_left<K>();
+            // }
         }
 
         template <unsigned K = 1>
@@ -239,6 +301,15 @@ namespace april::particle::internal {
             if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::mass>) {
                 mass = mass.template rotate_right<K>();
             }
+            // if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::type>) {
+            //     type = type.template rotate_right<K>();
+            // }
+            // if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::state>) {
+            //     state = state.template rotate_right<K>();
+            // }
+            // if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::id>) {
+            //     id = id.template rotate_right<K>();
+            // }
         }
 
         // Accumulate reciprocal deltas from another buffer (Write-Only fields strictly)
@@ -329,6 +400,18 @@ namespace april::particle::internal {
             } else if constexpr (has_field_v<RWMask, ParticleField::mass>) {
                 packed_ref.mass = mass;
             }
+
+            // STATE
+            // if constexpr (has_field_v<RWMask, ParticleField::state>) {
+            //     packed_ref.state = state;
+            // }
+            //
+            // // TYPE
+            // if constexpr (has_field_v<RWMask, ParticleField::state>) {
+            //     packed_ref.type = type;
+            // }
+
+            // id is not assignable
         }
 
       // Masked SIMD Write-Back (For Tail Chunks)
@@ -490,7 +573,6 @@ namespace april::particle {
     //---------
     // CONCEPTS
     //---------
-    // TODO review which types to expose
     template <typename T>
     concept IsPackedParticleBuffer = internal::is_packed_buffer_impl<std::remove_cvref_t<T>>::value;
 
@@ -508,4 +590,8 @@ namespace april::particle {
 
     template <typename T>
     concept IsAnyParticleAccessor = IsScalarParticleAccessor<T> || IsPackedParticleAccessor<T>;
+
+    static_assert(IsPackedParticleRef<internal::PackedParticleRef<ParticleField::all, ParticleField::all, NoParticleAttributes>>);
+    static_assert(IsPackedParticleView<internal::PackedBufferView<ParticleField::all, ParticleField::all>>);
+    static_assert(IsPackedParticleBuffer<internal::PackedParticleBuffer<ParticleField::all, ParticleField::all>>);
 }

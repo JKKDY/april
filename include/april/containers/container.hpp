@@ -295,7 +295,7 @@ namespace april::container {
 		const core::Box domain; // Note: in the future this may be adjustable during run time
 
 		template<exec::IsKernel Kernel>
-		static auto wrap_iter_kernel(Kernel && kernel) {
+		static auto wrap_iter_kernel(Kernel && kernel) { // TODO in the packed case: pass a view to the kernel. internally iterate_range will pass a ref to the bridge (the bridge gives the user a view then)
 			auto bridge = [&](size_t i, auto && p) {
 				if constexpr (requires { kernel(i, p); }) {
 					return kernel(i, p); // user wants index
@@ -330,14 +330,14 @@ namespace april::container {
 				// the user may still need to implement extra functionality to guard against sentinel data
 
 				auto state_filter = [&]<typename Part>(size_t i, Part && p) {
-					if constexpr (particle::IsPackedParticleRef<Part>) {
+					if constexpr (particle::IsPackedParticleAccessor<Part>) { // TODO restrict to a PackedRef
 						// TODO add state checking for vectorized kernels (add a mask member to packed accessors?)
-						auto buffer = p.load_buffer();
-						auto view = buffer.to_view();
+						// auto buffer = p.load_buffer();
+						// auto view = buffer.to_view();
 
-						kernel(i, view);
+						kernel(i, p);
 
-						buffer.update_into(p);
+						// buffer.update_into(p);
 					} else {
 						if (self.index_is_valid(i) && static_cast<int>(p.state & state)) {
 							kernel(i, p);
@@ -345,7 +345,7 @@ namespace april::container {
 					}
 				};
 
-				self.template iterate_range<P, mode, is_const>( // TODO add a make kernel wrapper function
+				self.template iterate_range<P, mode, is_const>(
 					exec::internal::KernelWrapper<K::Read | ParticleField::state, K::Write, mode, decltype(state_filter)>(state_filter),
 					0, self.capacity());
 			}

@@ -519,9 +519,7 @@ namespace april::container::layout {
                 if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::Read>(c, i)); \
                 else { \
                     auto packed = self.template at_packed<K::Read, K::Write>(c, i); \
-                    auto buffer = packed.load_buffer(); \
-                    kernel(curr_idx, buffer.to_view()); \
-                    buffer.update_into(packed); \
+                    kernel(curr_idx, packed); \
                 } \
                 curr_idx += simd_width
 

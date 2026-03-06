@@ -45,7 +45,7 @@ int main() {
 
 	const auto container = LinkedCells<Layout::SoA>()
 		.with_cell_size(container::CellSize::Cutoff)
-		// .with_cell_ordering(hilbert_order)
+		.with_cell_ordering(hilbert_order)
 		.with_block_size(4);
 
 	auto system = build_system(env, container);

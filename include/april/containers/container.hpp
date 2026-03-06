@@ -15,7 +15,6 @@
 #include "april/particle/scalar_access.hpp"
 #include "april/particle/packed_access.hpp"
 
-
 namespace april::container {
 
 	namespace internal {
@@ -294,8 +293,8 @@ namespace april::container {
 		const core::Box domain; // Note: in the future this may be adjustable during run time
 
 		template<exec::IsKernel Kernel>
-		static auto wrap_iter_kernel(Kernel && kernel) { // TODO in the packed case: pass a view to the kernel. internally iterate_range will pass a ref to the bridge (the bridge gives the user a view then)
-			auto bridge = [&](size_t i, auto && p) {
+		static auto adapt_indexed_kernel(Kernel && kernel) {
+			auto bridge = [&]<bool is_packed>(size_t i, auto && p) {
 				if constexpr (requires { kernel(i, p); }) {
 					return kernel(i, p); // user wants index
 				} else {
@@ -305,45 +304,67 @@ namespace april::container {
 			return exec::make_kernel_wrapper<Kernel>(std::move(bridge));
 		}
 
+		template<exec::IsKernel Kernel>
+		static auto adapt_buffered_kernel(Kernel && kernel) {
+			auto bridge = [&]<bool is_packed>(size_t i, auto && p) {
+				if constexpr (is_packed) {
+					static_assert(particle::IsPackedParticleRef<decltype(p)>);
+					auto buffer = p.load_buffer();
+					auto view = buffer.to_view();
+
+					kernel(i, view);
+					buffer.update_into(p);
+				} else {
+					static_assert(particle::IsScalarParticleAccessor<decltype(p)>);
+					kernel(i, p);
+				}
+			};
+			return exec::make_kernel_wrapper<Kernel>(std::move(bridge));
+		}
+
+
+
 		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
 		void invoke_iterate_range(this auto&& self, Kernel && func, size_t start, size_t end) {
 			constexpr auto mode = exec::internal::valid_execution_modes<V, std::remove_cvref_t<Kernel>::Mode>();
-			auto kernel = wrap_iter_kernel(func);
-			self.template iterate_range<P, mode, is_const>(kernel, start, end);
+			auto kernel = adapt_indexed_kernel(func);
+			auto buffered_kernel = adapt_buffered_kernel(kernel);
+			self.template iterate_range<P, mode, is_const>(buffered_kernel, start, end);
 		}
 
 		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
 		void invoke_iterate_state(this auto&& self, Kernel && func, const ParticleState state) {
 			using K = std::remove_cvref_t<Kernel>;
-			auto kernel = wrap_iter_kernel(func);
+			auto kernel = adapt_indexed_kernel(func);
+			auto buffered_kernel = adapt_buffered_kernel(kernel);
 			constexpr auto mode = exec::internal::valid_execution_modes<V, K::Mode>();
 
 			// try optimized implementation else fallback to default. Default assumes valid data for the entire iteration range
-			if constexpr (requires {self.template iterate<P, V, is_const>(kernel, state);}) {
-				self.template iterate<P, mode, is_const>(kernel, state);
+			if constexpr (requires {self.template iterate<P, V, is_const>(buffered_kernel, state);}) {
+				self.template iterate<P, mode, is_const>(buffered_kernel, state);
 			} else {
 				// note: iterate_range makes no checks so if it encounters memory that cannot be interpreted as
 				// particle data or memory it is not allowed to access it can crash
 				// meaning the following default implementation is only safe if the container can guarantee that
-				// only valid memory will be accessed (AoS, SoA, AoSoA support this)
-				// the user may still need to implement extra functionality to guard against sentinel data
-
+				// only valid memory will be accessed (The build in AoS, SoA, AoSoA layouts support this)
 				auto state_filter = [&]<typename Part>(size_t i, Part && p) {
-					if constexpr (particle::IsPackedParticleAccessor<Part>) { // TODO restrict to a PackedRef
-						// TODO add state checking for vectorized kernels (add a mask member to packed accessors?)
-						// auto buffer = p.load_buffer();
-						// auto view = buffer.to_view();
-						//
-						// const auto mask = (buffer.state & +state) != 0;
-						// if (!any(mask)) return; // if no particle is in requested state, skip this execution
+					if constexpr (particle::IsPackedParticleAccessor<Part>) {
+						static_assert(particle::IsPackedParticleRef<Part>);
+						auto buffer = p.load_buffer();
+						auto view = buffer.to_view();
 
-						kernel(i, p);
+						const auto mask = (buffer.state & +state) != 0;
+						if (!any(mask)) return; // if no particle is in requested state, skip this execution
 
-						// buffer.update_into(p, mask);
+						kernel(i, view);
+
+						buffer.update_into(p, mask);
 					} else {
+						static_assert(particle::IsScalarParticleAccessor<decltype(p)>);
 						if (self.index_is_valid(i) && static_cast<int>(p.state & state)) {
 							kernel(i, p);
 						}
+
 					}
 				};
 

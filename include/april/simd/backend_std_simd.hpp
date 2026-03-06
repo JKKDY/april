@@ -54,7 +54,7 @@ namespace april::simd::internal::std_simd {
         // DATA LOADS
         // ---------------------
         static Mask load(const bool* ptr) {
-           load_unaligned(ptr);
+            return load_unaligned(ptr);
         }
         static Mask load_aligned(const bool* ptr) {
             Mask m;
@@ -136,73 +136,116 @@ namespace april::simd::internal::std_simd {
             return *this;
         }
 
+        //-----------
         // DATA LOADS
-        static Packed load(const T* ptr) {
-            native_type tmp;
-            tmp.copy_from(ptr, stdx::element_aligned);
-            return { tmp };
+        //-----------
+        template<typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        static Packed load(const PtrT* ptr) {
+            return load_unaligned(ptr);
         }
 
-        // load a type narrower than T and extend it to match target width
-        template<typename NarrowT>
-        requires std::is_arithmetic_v<NarrowT> && (sizeof(NarrowT) < sizeof(T)) && std::is_convertible_v<NarrowT, T>
-        static Packed load_narrow(const NarrowT* ptr) {
-            // create a batch type of the narrow data that has the EXACT same lane count as our target
-            using narrow_simd_t = stdx::simd<NarrowT, stdx::simd_abi::fixed_size<size()>>;
+        template<typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        static Packed load_unaligned(const PtrT* ptr) {
+            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
+                // Generator constructor: safe upcasting from narrow memory.
+                // This ensures we only read exactly size() elements, satisfying ASAN.
+                return { native_type([&](size_t i) {
+                    return static_cast<value_type>(ptr[i]);
+                }) };
+            } else {
+                native_type tmp;
+                tmp.copy_from(reinterpret_cast<const value_type*>(ptr), stdx::element_aligned);
+                return { tmp };
+            }
+        }
 
-            // load strictly the required number of bytes (prevents page boundary segfaults)
-            narrow_simd_t narrow_batch;
-            narrow_batch.copy_from(ptr, stdx::element_aligned);
+        template<typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        static Packed load_aligned(const PtrT* ptr) {
+            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
+                // Alignment usually only applies to the native register width.
+                // For narrow types, we fall back to the safe generator load.
+                return load_unaligned(ptr);
+            } else {
+                native_type tmp;
+                tmp.copy_from(reinterpret_cast<const value_type*>(ptr), stdx::vector_aligned);
+                return { tmp };
+            }
+        }
 
-            // cast/Extend up to the target width (float->double, uint8_t->uint64_t, etc.)
+        // ------------
+        // DATA GATHERS
+        // ------------
+        // Gather via offsets: handles upcasting PtrT -> value_type
+        template<typename PtrT, typename IndexType>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        static Packed gather(const PtrT* base_addr, const IndexType& offsets) {
+            // Implemented via Generator Constructor:
+            // "Construct a SIMD vector where the i-th element is base[offsets[i]]"
             return { native_type([&](size_t i) {
-                return static_cast<value_type>(narrow_batch[i]);
+                return static_cast<value_type>(base_addr[offsets.data[i]]);
             }) };
         }
 
-        static Packed load_aligned(const T* ptr) {
-            native_type tmp;
-            tmp.copy_from(ptr, stdx::vector_aligned);
-            return { tmp };
-        }
-
-        static Packed load_unaligned(const T* ptr) {
-            native_type tmp;
-            tmp.copy_from(ptr, stdx::element_aligned);
-            return { tmp };
-        }
-        // Implemented via Generator Constructor:
-        // "Construct a SIMD vector where the i-th element is base[offsets[i]]"
-        template<typename IndexType>
-        static Packed gather(const T* base_addr, const IndexType& offsets) {
-            return { native_type([&](size_t i) { return base_addr[offsets.data[i]]; }) };
-        }
-
-        static Packed gather(const T* const* pointers) {
-            return { native_type([&](size_t i) { return *pointers[i]; }) };
+        // Gather via array of pointers: handles upcasting PtrT -> value_type
+        template<typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        static Packed gather(const PtrT* const* pointers) {
+            return { native_type([&](size_t i) {
+                return static_cast<value_type>(*pointers[i]);
+            }) };
         }
 
 
+
+
+        // -----------
         // DATA STORES
-        void store(T* ptr) const {
-            data.copy_to(ptr, stdx::element_aligned);
+        // -----------
+        // Default store delegates to unaligned
+        template <typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        void store(PtrT* ptr) const {
+            store_unaligned(ptr);
         }
 
-        void store_aligned(T* ptr) const {
-            data.copy_to(ptr, stdx::vector_aligned);
-        }
-
-        void store_unaligned(T* ptr) const {
-            data.copy_to(ptr, stdx::element_aligned);
-        }
-        // std::simd has no direct scatter, so we scalarize the loop.
-        // Compilers (GCC/Clang) are very good at auto-vectorizing this pattern.
-        template<typename IndexType>
-        void scatter(T* base_addr, const IndexType& offsets) const {
-            for (size_t i = 0; i < size(); ++i) {
-                base_addr[offsets.data[i]] = data[i];
+        template <typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        void store_unaligned(PtrT* ptr) const {
+            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
+                // Safe truncation loop: explicitly bound to size() elements.
+                // This prevents ASAN from flagging 'over-writes' on narrow buffers.
+                for (size_t i = 0; i < size(); ++i) {
+                    ptr[i] = static_cast<PtrT>(data[i]);
+                }
+            } else {
+                data.copy_to(reinterpret_cast<value_type*>(ptr), stdx::element_aligned);
             }
         }
+
+        template <typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        void store_aligned(PtrT* ptr) const {
+            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
+                // Alignment usually only applies to native vector widths.
+                // Fall back to safe loop for narrow types.
+                store_unaligned(ptr);
+            } else {
+                data.copy_to(reinterpret_cast<value_type*>(ptr), stdx::vector_aligned);
+            }
+        }
+
+        template<typename PtrT, typename IndexType>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        void scatter(PtrT* base_addr, const IndexType& offsets) const {
+            // std::simd has no direct scatter -> use scalarized loop (compilers can auto-vectorize)
+            for (size_t i = 0; i < size(); ++i) {
+                base_addr[offsets.data[i]] = static_cast<PtrT>(data[i]);
+            }
+        }
+
 
 
         // PERMUTES AND SHUFFLES
@@ -251,15 +294,9 @@ namespace april::simd::internal::std_simd {
 
 
         // MATH FUNCTIONS
-        friend Packed sqrt(const Packed& x) {
-            return stdx::sqrt(x.data);
-        }
-        friend Packed rsqrt(const Packed& x) {
-            return static_cast<value_type>(1.0) / sqrt(x.data);
-        }
-        friend Packed abs(const Packed& x) {
-            return stdx::abs(x.data);
-        }
+        friend Packed sqrt(const Packed& x) { return stdx::sqrt(x.data); }
+        friend Packed rsqrt(const Packed& x) { return static_cast<value_type>(1.0) / sqrt(x.data); }
+        friend Packed abs(const Packed& x) { return stdx::abs(x.data); }
 
         // Min/Max/FMA
         friend Packed min(const Packed& a, const Packed& b) { return stdx::min(a.data, b.data) ; }
@@ -270,6 +307,16 @@ namespace april::simd::internal::std_simd {
         friend Packed round(const Packed& x) { return { stdx::round(x.data) }; }
         friend Packed floor(const Packed& x) { return { stdx::floor(x.data) }; }
         friend Packed ceil(const Packed& x)  { return { stdx::ceil(x.data) };  }
+
+        // BITWISE OPS
+        friend Packed operator~(const Packed& rhs) requires std::is_integral_v<T> { return { ~rhs.data }; }
+        friend Packed operator&(const Packed& lhs, const Packed& rhs) requires std::is_integral_v<T> { return { lhs.data & rhs.data }; }
+        friend Packed operator|(const Packed& lhs, const Packed& rhs) requires std::is_integral_v<T> { return { lhs.data | rhs.data }; }
+        friend Packed operator^(const Packed& lhs, const Packed& rhs) requires std::is_integral_v<T> { return { lhs.data ^ rhs.data }; }
+
+        Packed& operator&=(const Packed& rhs) requires std::is_integral_v<T> { data &= rhs.data; return *this; }
+        Packed& operator|=(const Packed& rhs) requires std::is_integral_v<T> { data |= rhs.data; return *this; }
+        Packed& operator^=(const Packed& rhs) requires std::is_integral_v<T> { data ^= rhs.data; return *this; }
 
         // REDUCTION
         [[nodiscard]] value_type reduce_add() const {

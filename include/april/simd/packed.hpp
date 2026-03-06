@@ -25,6 +25,9 @@ namespace april::simd {
     template<typename T, size_t W = 0> using Packed = internal::std_simd::Packed<T, W>;
     template<typename T> using PackedMask = internal::std_simd::Mask<T>;
 }
+
+#else
+#error "Choose either xsimd or std::simd backend with AP_SIMD_BACKEND_XSIMD or AP_SIMD_BACKEND_STD_SIMD respectively."
 #endif
 
 

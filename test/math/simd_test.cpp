@@ -417,9 +417,9 @@ TYPED_TEST(SimdWideTest, LogicalMaskReductions) {
 #if APRIL_HAS_STD_SIMD
 using NarrowBackendTypes = testing::Types<
     april::simd::internal::xsimd::Packed<uint64_t>,
-    april::simd::internal::xsimd::Packed<uint32_t>
-    // april::simd::internal::std_simd::Packed<uint64_t>,
-    // april::simd::internal::std_simd::Packed<uint32_t>
+    april::simd::internal::xsimd::Packed<uint32_t>,
+    april::simd::internal::std_simd::Packed<uint64_t>,
+    april::simd::internal::std_simd::Packed<uint32_t>
 >;
 #else
 using NarrowBackendTypes = testing::Types<

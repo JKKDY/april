@@ -8,7 +8,7 @@
 
 namespace april::particle::internal {
 	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT> struct ScalarParticleRef;
-	template <ParticleField ReadMask, ParticleField WriteMask> struct PackedParticleBuffer;
+	template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes> struct PackedParticleBuffer;
 
 	template<ParticleField ReadMask, ParticleField WriteMask, ParticleField F, typename Source>
 	constexpr decltype(auto) init_scalar_field(const Source& src) {
@@ -24,7 +24,7 @@ namespace april::particle::internal {
 	// PARTICLE REFERENCE
 	//-------------------
 	// Ghost struct with references to particle data to abstract memory layout. Dissolves at compile time.
-	template<ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes UserDataT>
+	template<ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes>
     struct ScalarParticleRef {
 		static constexpr ParticleField ReadAccess  = ReadMask;
 		static constexpr ParticleField WriteAccess = WriteMask & ~ParticleField::id;
@@ -56,7 +56,7 @@ namespace april::particle::internal {
        template<ParticleField OtherReadMask, ParticleField OtherWriteMask>
        requires ((WriteAccess & OtherWriteMask) == WriteAccess) // Can only narrow write permissions, not expand
 		&& ((OtherWriteMask | OtherReadMask) == (ReadAccess | WriteAccess))// must have the exact same fields
-       explicit ScalarParticleRef(const ScalarParticleRef<OtherReadMask, OtherWriteMask, UserDataT>& r) noexcept
+       explicit ScalarParticleRef(const ScalarParticleRef<OtherReadMask, OtherWriteMask, Attributes>& r) noexcept
           : force       (r.force)
           , position    (r.position)
           , velocity    (r.velocity)
@@ -70,11 +70,11 @@ namespace april::particle::internal {
 
        // convenience method to drop all write permissions
        auto to_view() const noexcept {
-          return ScalarParticleRef<ReadAccess | WriteAccess, ParticleField::none, UserDataT>(*this);
+          return ScalarParticleRef<ReadAccess | WriteAccess, ParticleField::none, Attributes>(*this);
        }
 
 		auto broadcast() const noexcept {
-	       return PackedParticleBuffer<ReadAccess, WriteAccess>(*this);
+	       return PackedParticleBuffer<ReadAccess, WriteAccess, Attributes>(*this);
        }
 
        // Data Fields: Mutable Type, Const Type, Field Enum
@@ -87,7 +87,7 @@ namespace april::particle::internal {
        AP_NO_UNIQUE_ADDRESS field_t<ParticleState&, const ParticleState&, ParticleField::state>        state;
        AP_NO_UNIQUE_ADDRESS field_t<ParticleType&,  const ParticleType&,  ParticleField::type>         type;
        AP_NO_UNIQUE_ADDRESS field_t<ParticleID&,    const ParticleID&,    ParticleField::id>           id;
-       AP_NO_UNIQUE_ADDRESS field_t<UserDataT&,     const UserDataT&,     ParticleField::attributes>   attributes;
+       AP_NO_UNIQUE_ADDRESS field_t<Attributes&,    const Attributes&,    ParticleField::attributes>   attributes;
     };
 
 

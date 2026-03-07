@@ -120,7 +120,7 @@ namespace april {
 				// 	static_cast<bool>(M & ParticleField::attributes)),
 				// 	"[APRIL] No support for non trivially vectorizable attributes. Wait for C++26 Reflections");
 				// constexpr bool force_scalar = !particle::IsVectorizable<ParticleAttributes> && static_cast<bool>(M & ParticleField::attributes);
-				constexpr bool force_scalar = static_cast<bool>(M & ParticleField::attributes);
+				constexpr bool force_scalar = static_cast<bool>(M & ParticleField::attributes) && !particle::IsVectorizable<ParticleAttributes>;
 				constexpr VectorPolicy vp = force_scalar ? VectorPolicy::Scalar : VectorPolicy::Auto;
 				execute_batch_kernel<ParallelPolicy::Serial, vp>(batch, april::universal_kernel<M, ParticleField::force>(kernel));
 			};

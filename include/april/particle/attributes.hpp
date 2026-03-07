@@ -5,59 +5,61 @@
 
 #include "april/base/types.hpp"
 
+// ---------------------------------------------------------
+// TRIVIAL ATTRIBUTE MACRO
+// ---------------------------------------------------------
+// Stopgap macro to automatically generate the required C++20
+// SIMD reflection boilerpate for single-field attributes.
+//
+// Usage:
+// struct Charge {
+//     APRIL_TRIVIAL_ATTRIBUTE(double /*type*/, charge /*name*/);
+// };
+// ---------------------------------------------------------
+#define APRIL_TRIVIAL_ATTRIBUTE(ScalarT, FieldName) \
+    ScalarT FieldName; \
+    struct VectorLayout { \
+        using ScalarType = ScalarT; \
+        april::simd::Packed<ScalarT> FieldName; \
+    }
+
 namespace april {
-    struct NoParticleAttributes {
-        // empty layout
-        struct VectorLayout {
-            struct Registers {};
-            static Registers load(const NoParticleAttributes*) { return {}; }
-            static void store(NoParticleAttributes*, const Registers&, const auto&) {}
-        };
-    };
+    struct NoParticleAttributes {};
 }
 
 namespace april::particle {
-    namespace internal {
-        // resolve enums to their underlying arithmetic type, or leave as-is
-        template <typename T>
-        using underlying_arithmetic_t = std::conditional_t<std::is_enum_v<T>, std::underlying_type_t<T>, T>;
-    }
 
-    // 1. Trivial Vectorization Concept
-    // Matches standard layout structs containing exactly one arithmetic type (or enum)
+    // ==== STOP GAP SOLUTION ====
+    // this is a stopgap solution until reflection arrives
+    // this allows Attributes with a single arithmetic type to be vectorized
     template <typename T>
-    concept IsTriviallyVectorizable = requires {
+     concept HasTrivialVectorLayout = requires {
         typename T::VectorLayout;
-    } &&
-    std::is_arithmetic_v<internal::underlying_arithmetic_t<typename T::VectorLayout>> &&
-    std::is_standard_layout_v<T> &&
-    std::is_trivially_copyable_v<T> &&
-    sizeof(T) == sizeof(T::VectorLayout);
+        typename T::VectorLayout::ScalarType;
+     };
 
+    template <typename T>
+    concept IsTriviallyVectorizable = HasTrivialVectorLayout<T> && requires {
+        // The underlying type must be arithmetic for SIMD math
+        requires std::is_arithmetic_v<typename T::VectorLayout::ScalarType>;
 
-    template <typename Layout, typename AttrT>
-    concept IsVectorLayout = requires(
-        const AttrT* cptr, AttrT* ptr, typename Layout::Registers regs, const typename Layout::Registers cregs, packed_mask m
-    ) {
-        // Must define the bundle of registers (e.g., a struct of Packed types)
-        typename Layout::Registers;
+        // The outer struct must be exactly the size of the scalar (e.g., 8 bytes for double)
+        // This guarantees no hidden fields or padding
+        requires sizeof(T) == sizeof(T::VectorLayout::ScalarType);
 
-        // Must provide a way to load from the AoS array into the Register bundle
-        { Layout::load(cptr) } -> std::same_as<typename Layout::Registers>;
+        // The layout struct must be exactly the size of one SIMD register
+        // This guarantees they didn't add multiple packed registers to the layout
+        requires sizeof(T::VectorLayout) == sizeof(simd::Packed<typename T::VectorLayout::ScalarType>);
 
-        // Must provide a way to store the bundle back to AoS memory
-        // Note: We use the mask to ensure only active particles are updated
-        { Layout::store(ptr, cregs, m) } -> std::same_as<void>;
+        // Must be standard layout for safe reinterpret_cast
+        requires std::is_standard_layout_v<T>;
+        requires std::is_trivially_copyable_v<T>;
+        requires std::is_standard_layout_v<typename T::VectorLayout>;
     };
-
-    // Check if the VectorLayout struct even exists
-    template <typename T>
-    concept HasVectorLayout = requires {
-        typename T::VectorLayout;
-    } && IsVectorLayout<typename T::VectorLayout, T>;
+    // ==== STOP GAP SOLUTION END ====
 
     template <typename T>
-    concept IsVectorizable = IsTriviallyVectorizable<T> || HasVectorLayout<T>;
+    concept IsVectorizable = IsTriviallyVectorizable<T>; // note: with C++26 reflection automatic best effort vectorization will be added
 
 
     template <typename T>

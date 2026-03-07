@@ -4,7 +4,7 @@
 
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
-
+#include "april/particle/attributes.hpp"
 
 namespace april {
 
@@ -64,7 +64,7 @@ namespace april {
     namespace particle
     {
         // used internally in system. Holds all data of a particle
-        template<particle::IsParticleAttributes A>
+        template<IsParticleAttributes A>
         struct ParticleRecord {
             using particle_attributes_t = A;
             ParticleRecord() = default;

@@ -19,9 +19,9 @@ namespace april {
 		requires requires(P p) {
 			p.attributes.charge;
 		}
-		auto eval(P && p1, P && p2, const vec3 & r) const {
-			const double inv_r = r.inv_norm();
-			const double mag = coulomb_constant * p1.attributes.charge * p2.attributes.charge * inv_r * inv_r;
+		auto eval(P && p1, P && p2, const auto & r) const {
+			const auto inv_r = r.inv_norm();
+			const auto mag = coulomb_constant * p1.attributes.charge * p2.attributes.charge * inv_r * inv_r;
 
 			return mag * inv_r * r;  // Force vector pointing along +r
 		}

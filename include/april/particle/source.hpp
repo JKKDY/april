@@ -3,6 +3,7 @@
 #include "april/base/types.hpp"
 #include "april/base/macros.hpp"
 #include "april/particle/particle_types.hpp"
+#include "april/particle/attributes.hpp"
 
 
 namespace april::particle::internal {
@@ -85,7 +86,7 @@ namespace april::particle::internal {
 	>;
 
 
-	template<ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes U>
+	template<ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes>
 	struct ParticleSource {
 
 		// type generator for standard scalar pointers
@@ -107,7 +108,7 @@ namespace april::particle::internal {
 		AP_NO_UNIQUE_ADDRESS Ptr<ParticleState, ParticleField::state>      state;
 		AP_NO_UNIQUE_ADDRESS Ptr<ParticleType,  ParticleField::type>       type;
 		AP_NO_UNIQUE_ADDRESS Ptr<ParticleID,    ParticleField::id>         id;
-		AP_NO_UNIQUE_ADDRESS Ptr<U,             ParticleField::attributes> attributes;
+		AP_NO_UNIQUE_ADDRESS Ptr<Attributes,    ParticleField::attributes> attributes;
 
 		// ParticleField based getter
 		template<ParticleField F>

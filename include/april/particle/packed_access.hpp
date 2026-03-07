@@ -6,6 +6,7 @@
 #include "april/math/vec3.hpp"
 #include "april/particle/particle_types.hpp"
 #include "april/particle/scalar_access.hpp"
+#include "april/particle/attributes.hpp"
 
 namespace april::particle::internal {
     // fwd declaration
@@ -20,7 +21,7 @@ namespace april::particle::internal {
     //--------------------
     // holds packed references which act like packed types but will touch memory on loads/writebacks.
     // for better perf use buffers for a single load at the beginning and single write back at the end
-    template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes U>
+    template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes>
     struct PackedParticleRef {
         static constexpr ParticleField ReadAccess  = ReadMask;
         static constexpr ParticleField WriteAccess = WriteMask;
@@ -74,6 +75,10 @@ namespace april::particle::internal {
         template <ParticleField F>
         using vec3_field_t = field_t<math::Vec3Proxy<pvec3::type>, const math::Vec3Proxy<const pvec3::type>, F>;
 
+        // declare a raw pointer
+        template<typename T, ParticleField F>
+        using Ptr = field_access_t<T* AP_RESTRICT, const T* AP_RESTRICT, F, ReadAccess, WriteAccess>;
+
     public:
 
         explicit PackedParticleRef(const auto& source) noexcept
@@ -90,7 +95,7 @@ namespace april::particle::internal {
         // Cross-constructor for narrowing write permissions (e.g. creating a view)
         template <ParticleField OtherWriteMask>
             requires ((WriteAccess & OtherWriteMask) == WriteAccess)
-        explicit PackedParticleRef(const PackedParticleRef<ReadAccess, OtherWriteMask, U>& r) noexcept
+        explicit PackedParticleRef(const PackedParticleRef<ReadAccess, OtherWriteMask, Attributes>& r) noexcept
             : force(r.force)
               , position(r.position)
               , velocity(r.velocity)
@@ -103,7 +108,7 @@ namespace april::particle::internal {
 
         // a view is just a PackedParticleRef with no write permissions
         auto to_view() const noexcept {
-            return PackedParticleRef<ReadAccess | WriteAccess, ParticleField::none, U>(*this);
+            return PackedParticleRef<ReadAccess | WriteAccess, ParticleField::none, Attributes>(*this);
         }
 
         PackedParticleBuffer<ReadAccess, WriteAccess> load_buffer() const noexcept {
@@ -116,10 +121,12 @@ namespace april::particle::internal {
         AP_NO_UNIQUE_ADDRESS vec3_field_t<ParticleField::velocity> velocity;
         AP_NO_UNIQUE_ADDRESS vec3_field_t<ParticleField::old_position> old_position;
 
-        AP_NO_UNIQUE_ADDRESS packed_field_t<double,        ParticleField::mass>  mass;
+        AP_NO_UNIQUE_ADDRESS packed_field_t<double,        ParticleField::mass> mass;
         AP_NO_UNIQUE_ADDRESS packed_field_t<std::underlying_type_t<ParticleState>, ParticleField::state> state;
-        AP_NO_UNIQUE_ADDRESS packed_field_t<ParticleType,  ParticleField::type>  type;
-        AP_NO_UNIQUE_ADDRESS packed_field_t<ParticleID,    ParticleField::id>    id;
+        AP_NO_UNIQUE_ADDRESS packed_field_t<ParticleType,  ParticleField::type> type;
+        AP_NO_UNIQUE_ADDRESS packed_field_t<ParticleID,    ParticleField::id> id;
+
+        AP_NO_UNIQUE_ADDRESS Ptr<Attributes,    ParticleField::attributes> attributes;
     };
 
 

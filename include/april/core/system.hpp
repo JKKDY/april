@@ -34,7 +34,7 @@ namespace april {
 		using FieldStorage	    = Traits::field_storage_t;
 		using ForceTable     	= Traits::force_table_t;
 		using BoundaryTable  	= Traits::boundary_table_t;
-		using ParticleData		= Traits::particle_attributes_t;
+		using ParticleAttributes= Traits::particle_attributes_t;
 	public:
 
 		// ----------------
@@ -42,7 +42,7 @@ namespace april {
 		// ----------------
 		using SysContext = core::SystemContext<System>;
 		using TrigContext = utility::internal::TriggerContextImpl<System>;
-		using Container = ContainerDecl::template impl<typename Traits::particle_attributes_t>;
+		using Container = ContainerDecl::template impl<ParticleAttributes>;
 		using ParticleRec = Traits::particle_record_t;
 
 

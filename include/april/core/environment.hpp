@@ -14,6 +14,7 @@
 
 #include "april/particle/generators.hpp"
 #include "april/particle/particle_types.hpp"
+#include "april/particle/attributes.hpp"
 
 
 namespace april {

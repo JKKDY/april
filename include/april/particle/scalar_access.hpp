@@ -4,6 +4,7 @@
 #include "april/base/macros.hpp"
 #include "april/particle/particle_types.hpp"
 #include "april/particle/source.hpp"
+#include "april/particle/attributes.hpp"
 
 namespace april::particle::internal {
 	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT> struct ScalarParticleRef;
@@ -41,9 +42,9 @@ namespace april::particle::internal {
        template<class S>
        explicit ScalarParticleRef(const S & source) noexcept
           : force       (init_scalar_field<ReadAccess, WriteAccess, ParticleField::force>        (source))
-          , position    (init_scalar_field<ReadAccess, WriteAccess, ParticleField::position>      (source))
-          , velocity    (init_scalar_field<ReadAccess, WriteAccess, ParticleField::velocity>      (source))
-          , old_position(init_scalar_field<ReadAccess, WriteAccess, ParticleField::old_position>   (source))
+          , position    (init_scalar_field<ReadAccess, WriteAccess, ParticleField::position>     (source))
+          , velocity    (init_scalar_field<ReadAccess, WriteAccess, ParticleField::velocity>     (source))
+          , old_position(init_scalar_field<ReadAccess, WriteAccess, ParticleField::old_position> (source))
           , mass        (init_scalar_field<ReadAccess, WriteAccess, ParticleField::mass>         (source))
           , state       (init_scalar_field<ReadAccess, WriteAccess, ParticleField::state>        (source))
           , type        (init_scalar_field<ReadAccess, WriteAccess, ParticleField::type>         (source))

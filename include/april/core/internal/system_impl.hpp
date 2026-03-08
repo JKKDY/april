@@ -50,7 +50,7 @@ namespace april {
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
 				constexpr ParticleField M = ForceT::fields | ParticleField::position;
 
-				auto kernel = [&]<bool is_packed>(auto & p1, auto & p2) {
+				auto kernel = [&]<bool is_packed>(auto && p1, auto && p2) {
 					auto diff = p2.position - p1.position;
 
 					const auto r = [&] {
@@ -114,13 +114,10 @@ namespace april {
 					}
 				};
 
-				// static_assert(!(
-				// 	particle::HasVectorLayout<ParticleAttributes> &&
-				// 	!particle::IsTriviallyVectorizable<ParticleAttributes> &&
-				// 	static_cast<bool>(M & ParticleField::attributes)),
-				// 	"[APRIL] No support for non trivially vectorizable attributes. Wait for C++26 Reflections");
-				// constexpr bool force_scalar = !particle::IsVectorizable<ParticleAttributes> && static_cast<bool>(M & ParticleField::attributes);
-				constexpr bool force_scalar = static_cast<bool>(M & ParticleField::attributes) && !particle::IsVectorizable<ParticleAttributes>;
+
+				constexpr bool force_scalar =
+					(static_cast<bool>(M & ParticleField::attributes) && !particle::IsVectorizable<ParticleAttributes>)
+					|| ForceT::VectorMode == exec::internal::ExecutionMode::Scalar;
 				constexpr VectorPolicy vp = force_scalar ? VectorPolicy::Scalar : VectorPolicy::Auto;
 				execute_batch_kernel<ParallelPolicy::Serial, vp>(batch, april::universal_kernel<M, ParticleField::force>(kernel));
 			};

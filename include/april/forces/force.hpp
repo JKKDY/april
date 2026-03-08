@@ -5,9 +5,9 @@
 #include <utility>
 
 #include "april/base/types.hpp"
+#include "april/particle/packed_access.hpp"
 #include "april/particle/particle_types.hpp"
-#include "april/particle/scalar_access.hpp"
-
+#include "april/exec/policy.hpp"
 
 namespace april {
     struct NoForce;
@@ -25,9 +25,10 @@ namespace april::force {
 
     struct Force {
         static constexpr auto symmetry = ForceSymmetry::Antisymmetric;
+        static constexpr auto VectorMode = exec::internal::ExecutionMode::Hybrid; // scalar only must be a deliberate opt-out
+
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
-        // template<ParticleField IncomingMask, env::IsUserData U>
         AP_FORCE_INLINE
         auto operator()(this const auto& self, const auto & p1, const auto & p2, const auto & r) {
             using Derived = std::remove_cvref_t<decltype(self)>;
@@ -42,20 +43,45 @@ namespace april::force {
                  "[APRIL] Force: subclass must define 'static constexpr ParticleField fields'"
              );
 
-            static_assert(requires { { self.eval(p1, p2, r) } -> std::same_as<ReturnType>; },
-                "[APRIL] Force: must implement eval(p1, p2, r) and return the same vector type as 'r' (vec3 or pvec3)"
-            );
-
+            // check if the incoming particles have all requested fields
             using P1Type = std::remove_cvref_t<decltype(p1)>;
             constexpr ParticleField Required = Derived::fields;
             constexpr ParticleField IncomingMask = P1Type::ReadAccess;
-            // check for
             static_assert(
                 (IncomingMask & Required) == Required,
-                "ParticleView is missing required fields for this Force."
+                "[APRIL] Force: ParticleView is missing required fields for this Force."
             );
 
-            return self.eval(p1, p2, r);
+
+            constexpr bool is_vector = particle::IsPackedParticleAccessor<P1Type>;
+            if constexpr (is_vector) {
+                // Try Vector Override First
+                if constexpr (requires { self.eval_vector(p1, p2, r); }) {
+                    static_assert(requires { { self.eval_vector(p1, p2, r) } -> std::same_as<ReturnType>; },
+                        "[APRIL] Force: eval_vector must return the same vector type as 'r' (pvec3)");
+                    return self.eval_vector(p1, p2, r);
+                }
+                // Fallback to Generic
+                else {
+                    static_assert(requires { { self.eval(p1, p2, r) } -> std::same_as<ReturnType>; },
+                        "[APRIL] Force: must implement eval(p1, p2, r) or eval_vector(p1, p2, r)");
+                    return self.eval(p1, p2, r);
+                }
+            }
+            else {
+                // Try Scalar Override First
+                if constexpr (requires { self.eval_scalar(p1, p2, r); }) {
+                    static_assert(requires { { self.eval_scalar(p1, p2, r) } -> std::same_as<ReturnType>; },
+                        "[APRIL] Force: eval_scalar must return the same vector type as 'r' (vec3)");
+                    return self.eval_scalar(p1, p2, r);
+                }
+                // Fallback to Generic
+                else {
+                    static_assert(requires { { self.eval(p1, p2, r) } -> std::same_as<ReturnType>; },
+                        "[APRIL] Force: must implement eval(p1, p2, r) or eval_scalar(p1, p2, r)");
+                    return self.eval(p1, p2, r);
+                }
+            }
         }
 
         auto mix_forces(this const auto& self, const auto & other) {

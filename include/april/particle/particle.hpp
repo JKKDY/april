@@ -3,10 +3,10 @@
 #include <any>
 
 #include "april/base/types.hpp"
-#include "april/particle/defs.hpp"
+#include "april/particle/particle_types.hpp"
+#include "april/particle/attributes.hpp"
 
-
-namespace april::env {
+namespace april {
 
     // user facing declaration with optional fields and non typed field for user data
     struct Particle {
@@ -61,12 +61,12 @@ namespace april::env {
     };
 
 
-    namespace internal
+    namespace particle
     {
         // used internally in system. Holds all data of a particle
-        template<IsUserData U>
+        template<IsParticleAttributes A>
         struct ParticleRecord {
-            using user_data_t = U;
+            using particle_attributes_t = A;
             ParticleRecord() = default;
 
             vec3 position;			// current position of the particle.
@@ -79,7 +79,7 @@ namespace april::env {
             ParticleID id {};		// id of the particle.
             ParticleType type {};	// type of the particle.
 
-            [[no_unique_address]] U user_data; // optional user data
+            [[no_unique_address]] A attributes; // optional user data
 
             bool operator==(const ParticleRecord& other) const {
                 return id == other.id;
@@ -87,3 +87,17 @@ namespace april::env {
         };
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

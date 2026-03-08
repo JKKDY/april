@@ -3,25 +3,25 @@
 #include <cmath>
 
 #include "april/base/types.hpp"
-#include "april/particle/fields.hpp"
 #include "april/forces/force.hpp"
 
-namespace april::force {
-	struct Coulomb : Force{
-		static constexpr env::FieldMask fields = +env::Field::user_data;
+namespace april {
+
+	struct Coulomb : force::Force{
+		static constexpr auto fields = ParticleField::attributes;
 
 		double coulomb_constant;
 
-		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = no_cutoff)
+		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = force::no_cutoff)
 			: Force(cutoff), coulomb_constant(coulomb_const) {}
 
-		template<env::FieldMask M, env::IsUserData U>
-		requires requires {
-			{ U::charge } -> std::convertible_to<double>;
+		template<typename P>
+		requires requires(P p) {
+			p.attributes.charge;
 		}
-		vec3 eval(const env::ParticleView<M, U> & p1, const env::ParticleView<M, U> & p2, const vec3& r) const noexcept {
-			const double inv_r = r.inv_norm();
-			const double mag = coulomb_constant * p1.user_data.charge * p2.user_data.charge * inv_r * inv_r;
+		auto eval(P && p1, P && p2, const auto & r) const {
+			const auto inv_r = r.inv_norm();
+			const auto mag = coulomb_constant * p1.attributes.charge * p2.attributes.charge * inv_r * inv_r;
 
 			return mag * inv_r * r;  // Force vector pointing along +r
 		}
@@ -38,3 +38,17 @@ namespace april::force {
 	};
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

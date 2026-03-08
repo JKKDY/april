@@ -1,17 +1,21 @@
 #include <gtest/gtest.h>
 
 
-#include "april/particle/access.hpp"
+#include "april/particle/scalar_access.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/reflective.hpp"
+#include "april/containers/direct_sum.hpp"
+#include "april/containers/layout.hpp"
+#include "april/containers/linked_cells.hpp"
+
 #include "utils.h"
 
 using namespace april;
 
 // simple helper to make a dummy particle
-inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& pos, const vec3& vel = {0,0,0}) {
-	env::internal::ParticleRecord<env::NoUserData> p;
+inline particle::ParticleRecord<NoParticleAttributes> make_particle(const vec3& pos, const vec3& vel = {0,0,0}) {
+	particle::ParticleRecord<NoParticleAttributes> p;
 	p.id = 0;
 	p.position = pos + vel;
 	p.old_position = pos;
@@ -21,40 +25,39 @@ inline env::internal::ParticleRecord<env::NoUserData> make_particle(const vec3& 
 	return p;
 }
 
-template<env::FieldMask Mask, typename RecordT>
+template<ParticleField Mask, typename RecordT>
 auto make_source(RecordT& record) {
 
-	constexpr bool IsConst = std::is_const_v<RecordT>;
-	using UserDataT = typename RecordT::user_data_t;
+	using UserDataT = RecordT::particle_attributes_t;
 
-	env::ParticleSource<Mask, UserDataT, IsConst> src;
+	particle::internal::ParticleSource<Mask, Mask, UserDataT> src;
 
-	if constexpr (env::has_field_v<Mask, env::Field::position>)     src.position     = &record.position;
-	if constexpr (env::has_field_v<Mask, env::Field::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (env::has_field_v<Mask, env::Field::force>)        src.force        = &record.force;
-	if constexpr (env::has_field_v<Mask, env::Field::old_position>) src.old_position = &record.old_position;
-	if constexpr (env::has_field_v<Mask, env::Field::mass>)         src.mass         = &record.mass;
-	if constexpr (env::has_field_v<Mask, env::Field::state>)        src.state        = &record.state;
-	if constexpr (env::has_field_v<Mask, env::Field::type>)         src.type         = &record.type;
-	if constexpr (env::has_field_v<Mask, env::Field::id>)           src.id           = &record.id;
-	if constexpr (env::has_field_v<Mask, env::Field::user_data>)    src.user_data    = &record.user_data;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
+	if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)    src.attributes    = &record.attributes;
 
 	return src;
 }
 
 // Direct application should reflect the particles position
 TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
-	const Reflective reflective;
-	constexpr env::FieldMask Mask = Reflective::fields;
+	const ReflectiveBoundary reflective;
+	constexpr ParticleField Mask = ReflectiveBoundary::fields;
 
-	const env::Box box({0,0,0}, {10,10,10});
+	const core::Box box({0,0,0}, {10,10,10});
 
 	// heading out X+. Intersection at {10, 5, 5}
 	auto p = make_particle({9.5,4.5,4.5}, {2,2,2});
 	auto src = make_source<Mask>(p);
-	env::ParticleRef<Mask, env::NoUserData> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
-	reflective.apply(ref, box, Face::XPlus);
+	reflective.apply(ref, box, DomainFace::XPlus);
 
 	EXPECT_TRUE(box.contains(p.position));
 	EXPECT_EQ(p.position.x, 8.5);
@@ -68,7 +71,7 @@ TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
 
 // Topology sanity: outside region, not coupled, no force wrap, position change
 TEST(ReflectiveBoundaryTest, Topology_IsOutsideAndChangesPosition) {
-	const Reflective reflective;
+	const ReflectiveBoundary reflective;
 	const auto& topology = reflective.topology;
 
 	EXPECT_LT(topology.boundary_thickness, 0.0)
@@ -81,22 +84,22 @@ TEST(ReflectiveBoundaryTest, Topology_IsOutsideAndChangesPosition) {
 
 
 TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPosition) {
-	std::variant<Reflective> reflect = Reflective();
-	constexpr env::FieldMask Mask = Reflective::fields;
+	std::variant<ReflectiveBoundary> reflect = ReflectiveBoundary();
+	constexpr ParticleField Mask = ReflectiveBoundary::fields;
 
-	env::Domain domain({0,0,0}, {10,10,10});
+	Domain domain({0,0,0}, {10,10,10});
 
 	// Compile boundary for X+ face
-	auto compiled = boundary::internal::compile_boundary(reflect, env::Box::from_domain(domain), Face::XPlus);
+	auto compiled = boundary::internal::compile_boundary(reflect, core::Box::from_domain(domain), DomainFace::XPlus);
 
 	auto p = make_particle({9.8,5,5}, {+1,0,0});
 	auto src = make_source<Mask>(p);
-	env::ParticleRef<Mask, env::NoUserData> ref(src);
+	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
-	env::Box box{{0,0,0}, {10,10,10}};
+	core::Box box{{0,0,0}, {10,10,10}};
 
 	compiled.dispatch([&](auto && bc) {
-		bc.apply(ref, box, Face::XPlus);
+		bc.apply(ref, box, DomainFace::XPlus);
 	});
 
 	EXPECT_TRUE(box.contains(p.position));
@@ -113,12 +116,15 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPositi
 template <class ContainerT>
 class ReflectiveBoundarySystemTestT : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, LinkedCellsAoS, LinkedCellsSoA>;
+using ContainerTypes = testing::Types<
+    DirectSum<Layout::AoS>, DirectSum<Layout::SoA>, DirectSum<Layout::AoSoA<>>,
+    LinkedCells<Layout::AoS>, LinkedCells<Layout::SoA>, LinkedCells<Layout::AoSoA<>>
+>;
 TYPED_TEST_SUITE(ReflectiveBoundarySystemTestT, ContainerTypes);
 
 
 TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
-    Environment env(forces<NoForce>, boundary::boundaries<Reflective>);
+    Environment env(forces<NoForce>, boundaries<ReflectiveBoundary>);
     env.set_origin({0,0,0});
     env.set_extent({10,10,10});
     env.add_force(NoForce{}, to_type(0));
@@ -131,7 +137,7 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
 	env.add_particle(make_particle(0, {5,5,0.4}, {0,0,-1}, 1, ParticleState::ALIVE, 4)); // Z−
 	env.add_particle(make_particle(0, {5,5,9.6}, {0,0,+1}, 1, ParticleState::ALIVE, 5)); // Z+
 
-	env.set_boundaries(Reflective(), all_faces);
+	env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 
     BuildInfo mappings;
@@ -145,7 +151,7 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
     sys.apply_boundary_conditions();
 
 	// expected positions
-	std::array expected_pos = {
+	const std::array expected_pos = {
 		vec3{0.6, 5, 5},
 		vec3{9.4, 5, 5},
 		vec3{5, 0.6, 5},
@@ -178,3 +184,14 @@ TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
         EXPECT_EQ(p.velocity.z, expected_vel[uid].z);
     }
 }
+
+
+
+
+
+
+
+
+
+
+

@@ -2,16 +2,15 @@
 
 #include "april/base/types.hpp"
 #include "april/fields/field.hpp"
-#include "april/particle/fields.hpp"
 
-namespace april::field {
-	struct UniformField final : Field {
-		static constexpr env::FieldMask fields = to_field_mask(env::Field::force);
+
+namespace april {
+	struct UniformField final : field::Field {
+		static constexpr auto fields = ParticleField::force;
 
 		explicit UniformField(const vec3 & force_dir): force(force_dir) {}
 
-		template<env::IsUserData U>
-		void apply(const env::RestrictedParticleRef<fields, U> & particle) const {
+		void apply(const auto & particle) const {
 			particle.force += force;
 		}
 
@@ -19,3 +18,17 @@ namespace april::field {
 		const vec3 force;
 	};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,8 +1,9 @@
 #pragma once
 
-#include "april/env/data.hpp"
-#include "april/particle/fields.hpp"
-#include "april/particle/defs.hpp"
+#include "april/base/traits.hpp"
+
+#include "environment_data.hpp"
+#include "april/particle/particle_types.hpp"
 
 #include "april/forces/force.hpp"
 #include "april/forces/force_table.hpp"
@@ -14,51 +15,49 @@
 #include "april/fields/field.hpp"
 #include "april/utility/pack_storage.hpp"
 
-namespace april::env::internal {
+namespace april::core::internal {
 	template<class FPack, class BPack, class CPack, class FFPack, class U>
 	   struct EnvironmentTraits;
 
 	// this class holds relevant types derived from template parameter packs
 	// this significantly cleans up dependent type declarations in other classes
 	template<
-	force::IsForce... Fs,
-	boundary::IsBoundary... BCs,
-	controller::IsController... Cs,
-	field::IsField... FFs,
-	IsUserData U
-	>
+		force::IsForce... Fs,
+		boundary::IsBoundary... BCs,
+		controller::IsController... Cs,
+		field::IsField... FFs,
+		particle::IsParticleAttributes Attributes>
 	struct EnvironmentTraits<
-		force::ForcePack<Fs...>,
-		boundary::BoundaryPack<BCs...>,
-		controller::ControllerPack<Cs...>,
-		field::FieldPack<FFs...>,
-		U
-	>
+		force::internal::ForcePack<Fs...>,
+		boundary::internal::BoundaryPack<BCs...>,
+		controller::internal::ControllerPack<Cs...>,
+		field::internal::FieldPack<FFs...>,
+		Attributes>
 	{
 		// Core Packs
-		using FPackT  = force::ForcePack<Fs...>;
-		using BPack_t  = boundary::BoundaryPack<BCs...>;
-		using CPack_t  = controller::ControllerPack<Cs...>;
-		using FFPack_t = field::FieldPack<FFs...>;
+		using FPackT  = force::internal::ForcePack<Fs...>;
+		using BPack_t  = boundary::internal::BoundaryPack<BCs...>;
+		using CPack_t  = controller::internal::ControllerPack<Cs...>;
+		using FFPack_t = field::internal::FieldPack<FFs...>;
 
 		// Derived Variants
 		using force_variant_t    = force::internal::VariantType_t<Fs...>;
 		using boundary_variant_t = boundary::internal::VariantType_t<BCs...>;
 
 		// Derived Storage Types
-		using controller_storage_t = shared::internal::PackStorage<Cs...>;
-		using field_storage_t      = shared::internal::PackStorage<FFs...>;
+		using controller_storage_t = utility::internal::PackStorage<Cs...>;
+		using field_storage_t      = utility::internal::PackStorage<FFs...>;
 
 		// Table Types
 		using boundary_table_t = boundary::internal::BoundaryTable<boundary_variant_t>;
 		using force_table_t    = force::internal::ForceTable<force_variant_t>;
 
 		// particles
-		using user_data_t = U;
-		using particle_record_t = ParticleRecord<user_data_t>;
-		template<FieldMask M> using particle_ref_t = ParticleRef<M, user_data_t>;
-		template<FieldMask M> using restricted_particle_ref_t = RestrictedParticleRef<M, user_data_t>;
-		template<FieldMask M> using particle_view_t = ParticleView<M, user_data_t>;
+		using particle_attributes_t = Attributes;
+		using particle_record_t = particle::ParticleRecord<particle_attributes_t>;
+		template<ParticleField M> using particle_ref_t = particle::internal::ScalarParticleRef<M, M, particle_attributes_t>;
+		// template<ParticleField M> using restricted_particle_ref_t = particle::internal::ScalarRestrictedParticleRef<M, M, particle_attributes_t>;
+		// template<ParticleField M> using particle_view_t = particle::internal::ScalarParticleView<M, M, particle_attributes_t>;
 
 		// Environment Data type
 		using environment_data_t = EnvironmentData<
@@ -129,7 +128,7 @@ namespace april::env::internal {
 	struct is_particle_data : std::false_type {};
 
 	template<class U>
-	struct is_particle_data<ParticleData<U>> : std::true_type {};
+	struct is_particle_data<particle::ParticleAttributes<U>> : std::true_type {};
 
 	template<class T>
 	inline constexpr bool is_particle_data_v = is_particle_data<std::remove_cvref_t<T>>::value;
@@ -137,26 +136,41 @@ namespace april::env::internal {
 
 	// Base Case
 	template<class ... Args>
-	struct get_user_data {using type = ParticleData<>::user_data_t;};
+	struct get_particle_attributes { using type = particle::ParticleAttributes<>::particle_attributes_t;};
 
 	// recursion
 	template<class Head, class ... Tail>
-	struct get_user_data<Head, Tail...> : get_user_data<Tail...>{};
+	struct get_particle_attributes<Head, Tail...> : get_particle_attributes<Tail...>{};
 
 	// match case:
 	template<class UserData, class ... Tail>
-	struct get_user_data<ParticleData<UserData>, Tail...> {
+	struct get_particle_attributes<particle::ParticleAttributes<UserData>, Tail...> {
 		static_assert(!(... || is_particle_data_v<Tail>), "Multiple Particle<...> markers provided to Environment().");
 		using type = UserData;
 	};
 
 	template<class... Args>
-	using get_user_data_t = get_user_data<std::remove_cvref_t<Args>...>::type;
+	using get_particle_attributes_t = get_particle_attributes<std::remove_cvref_t<Args>...>::type;
 
 
 	template<class T> static constexpr bool is_any_pack_v =
-		force::IsForcePack<T> || boundary::IsBoundaryPack<T> ||
-		controller::IsControllerPack<T> || field::IsFieldPack<T> ||
+		force::internal::IsForcePack<T> || boundary::internal::IsBoundaryPack<T> ||
+		controller::internal::IsControllerPack<T> || field::internal::IsFieldPack<T> ||
 		is_particle_data_v<T>;
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

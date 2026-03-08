@@ -5,65 +5,97 @@
 #include <utility>
 
 #include "april/base/types.hpp"
-#include "april/particle/fields.hpp"
-#include "april/particle/defs.hpp"
-#include "april/particle/access.hpp"
+#include "april/particle/packed_access.hpp"
+#include "april/particle/particle_types.hpp"
+#include "april/exec/policy.hpp"
 
+namespace april {
+    struct NoForce;
+}
 
 namespace april::force {
 
     constexpr double no_cutoff = 1.0e150; // 1.0e150 squared is 1.0e300 <  max of double = 1.79e308
 
+    enum class ForceSymmetry : uint8_t {
+        Antisymmetric, // f(p1, p2) = - f(p2, p1) -> N3 applicable
+        Symmetric, // f(p1, p2) = f(p2, p1) -> maybe in some esoteric active matter or graph sym
+        Nonsymmetric // no relation
+    };
+
     struct Force {
+        static constexpr auto symmetry = ForceSymmetry::Antisymmetric;
+        static constexpr auto vector_mode = exec::ExecutionMode::Hybrid; // scalar only must be a deliberate opt-out
+
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
-        template<env::FieldMask IncomingMask, env::IsUserData U>
-        vec3 operator()(this const auto& self,
-                const env::ParticleView<IncomingMask, U> & p1,
-                const env::ParticleView<IncomingMask, U> & p2,
-                const vec3 & r) {
-
-            static_assert(
-                requires { {self.eval(p1, p2, r)} -> std::same_as<vec3>; },
-                "Force must implement eval(env::internal::Particle, env::internal::Particle, const vec3&)"
-            );
-
+        AP_FORCE_INLINE
+        auto operator()(this const auto& self, const auto & p1, const auto & p2, const auto & r) {
             using Derived = std::remove_cvref_t<decltype(self)>;
+            using ReturnType = std::remove_cvref_t<decltype(r)>; // Resolves to vec3 or pvec3
 
-            // check for fields requirements
+            // check if fields is defined
             static_assert(
-                requires { Derived::fields; },
-                "Force subclass must define 'static constexpr env::FieldMask fields'"
-            );
+                 requires {
+                     []{ constexpr auto _ = Derived::fields; };
+                     { Derived::fields } -> std::convertible_to<ParticleField>;
+                 },
+                 "[APRIL] Force: subclass must define 'static constexpr ParticleField fields'"
+             );
 
-            constexpr env::FieldMask Required = Derived::fields;
-
-            // check for
+            // check if the incoming particles have all requested fields
+            using P1Type = std::remove_cvref_t<decltype(p1)>;
+            constexpr ParticleField Required = Derived::fields;
+            constexpr ParticleField IncomingMask = P1Type::ReadAccess;
             static_assert(
                 (IncomingMask & Required) == Required,
-                "ParticleView is missing required fields for this Force."
+                "[APRIL] Force: ParticleView is missing required fields for this Force."
             );
 
-            return self.eval(p1, p2, r);
+
+            constexpr bool is_vector = particle::IsPackedParticleAccessor<P1Type>;
+            if constexpr (is_vector) {
+                // Try Vector Override First
+                if constexpr (requires { self.eval_vector(p1, p2, r); }) {
+                    static_assert(requires { { self.eval_vector(p1, p2, r) } -> std::same_as<ReturnType>; },
+                        "[APRIL] Force: eval_vector must return the same vector type as 'r' (pvec3)");
+                    return self.eval_vector(p1, p2, r);
+                }
+                // Fallback to Generic
+                else {
+                    static_assert(requires { { self.eval(p1, p2, r) } -> std::same_as<ReturnType>; },
+                        "[APRIL] Force: must implement eval(p1, p2, r) or eval_vector(p1, p2, r)");
+                    return self.eval(p1, p2, r);
+                }
+            }
+            else {
+                // Try Scalar Override First
+                if constexpr (requires { self.eval_scalar(p1, p2, r); }) {
+                    static_assert(requires { { self.eval_scalar(p1, p2, r) } -> std::same_as<ReturnType>; },
+                        "[APRIL] Force: eval_scalar must return the same vector type as 'r' (vec3)");
+                    return self.eval_scalar(p1, p2, r);
+                }
+                // Fallback to Generic
+                else {
+                    static_assert(requires { { self.eval(p1, p2, r) } -> std::same_as<ReturnType>; },
+                        "[APRIL] Force: must implement eval(p1, p2, r) or eval_scalar(p1, p2, r)");
+                    return self.eval(p1, p2, r);
+                }
+            }
         }
 
         auto mix_forces(this const auto& self, const auto & other) {
-            static_assert(
-                requires { self.mix(other); },
-                "mix() not implemented"
-            );
-
             using SelfT  = std::remove_cvref_t<decltype(self)>;
             using OtherT = std::remove_cvref_t<decltype(other)>;
 
             static_assert(std::same_as<SelfT, OtherT>,
-                "Force::mix() requires both operands to be of the same type.");
+                "[APRIL] Error: Force::mix() requires both operands to be of the same type.");
 
             if constexpr (requires{self.mix(other);}) {
                 return self.mix(other);
             } else {
                 if (!self.equals(other)) {
-                    throw std::invalid_argument("Mixing disabled by default for this force");
+                    throw std::invalid_argument("[APRIL] Error: Mixing disabled by default for this force");
                 } else {
                     return self;
                 }
@@ -114,26 +146,23 @@ namespace april::force {
     template <class F>
     concept IsForce = std::derived_from<F, Force>;
 
-    // define Force pack
-    template<IsForce... Fs> struct ForcePack {};
-    template<class... Fs> inline constexpr ForcePack<Fs...> forces{};
-
-
-    // Concept to check if a type T is a ForcePack
-    template<typename T>
-    inline constexpr bool is_force_pack_v = false; // Default
-
-    template<IsForce... Fs>
-    inline constexpr bool is_force_pack_v<ForcePack<Fs...>> = true; // Specialization
-
-    template<typename T>
-    concept IsForcePack = is_force_pack_v<std::remove_cvref_t<T>>;
-
-
-    struct NoForce;
 
     namespace internal {
+        // define Force pack
+        template<IsForce... Fs> struct ForcePack {};
 
+        // Concept to check if a type T is a ForcePack
+        template<typename T>
+        inline constexpr bool is_force_pack_v = false; // Default
+
+        template<IsForce... Fs>
+        inline constexpr bool is_force_pack_v<ForcePack<Fs...>> = true; // Specialization
+
+        template<typename T>
+        concept IsForcePack = is_force_pack_v<std::remove_cvref_t<T>>;
+
+
+        // check if std::variant of forces
         template<typename T>
         struct is_force_variant : std::false_type {};
 
@@ -145,21 +174,21 @@ namespace april::force {
 
 
         template<IsForceVariant FV> struct TypeInteraction {
-            const env::ParticleType type1;
-            const env::ParticleType type2;
+            const ParticleType type1;
+            const ParticleType type2;
             const FV force;
 
-            TypeInteraction(const env::ParticleType type1, const env::ParticleType type2, FV f)
+            TypeInteraction(const ParticleType type1, const ParticleType type2, FV f)
               : type1(std::min(type1, type2)), type2(std::max(type1, type2)), force(std::move(f))
             {}
         };
 
         template<IsForceVariant FV> struct IdInteraction {
-            const env::ParticleID id1;
-            const env::ParticleID id2;
+            const ParticleID id1;
+            const ParticleID id2;
             const FV force;
 
-            IdInteraction(const env::ParticleID id1, const env::ParticleID id2, FV f)
+            IdInteraction(const ParticleID id1, const ParticleID id2, FV f)
               : id1(std::min(id1, id2)), id2(std::max(id1, id2)), force(std::move(f))
             {}
         };
@@ -167,12 +196,11 @@ namespace april::force {
 
         // internal placeholder only
         struct ForceSentinel : Force {
-            static constexpr env::FieldMask fields = +env::Field::none;
+            static constexpr auto fields = ParticleField::none;
 
             ForceSentinel() : Force(-1.0) {}
 
-            template<env::FieldMask M, env::IsUserData U>
-            vec3 eval(const env::ParticleView<M, U> &, const env::ParticleView<M, U> &, const vec3&) const noexcept {
+            vec3 eval(auto, auto, const vec3&) const noexcept {
                 AP_ASSERT(false, "NullForce should never be executed");
                 std::unreachable();
             }
@@ -184,14 +212,14 @@ namespace april::force {
 
         template<class... Fs>
         struct VariantType {
-            // 1. Disallow the internal sentinel type in user packs
+            // Disallow the internal sentinel type in user packs
             static_assert((!std::is_same_v<ForceSentinel, Fs> && ...),
-                          "ForceSentinel must NOT appear in ForcePack (internal sentinel only).");
+                          "[APRIL] Error: ForceSentinel must NOT appear in ForcePack (internal sentinel only).");
 
-            // 2. Detect whether NoForce is already supplied
+            // Detect whether NoForce is already supplied
             static constexpr bool has_no_force = (std::is_same_v<NoForce, Fs> || ...);
 
-            // 3. Compute the variant type
+            // Compute the variant type
             using type = std::conditional_t<
                 has_no_force,
                 std::variant<ForceSentinel, Fs...>,           // user already included NoForce
@@ -201,6 +229,23 @@ namespace april::force {
 
         // Convenience alias
         template<class... Fs>
-        using VariantType_t = typename VariantType<Fs...>::type;
-    }
-} // namespace april::env
+        using VariantType_t = VariantType<Fs...>::type;
+    } // namespace internal
+} // namespace april::force
+
+
+namespace april {
+    // define Force pack
+    template<class... Fs> inline constexpr force::internal::ForcePack<Fs...> forces{};
+}
+
+
+
+
+
+
+
+
+
+
+

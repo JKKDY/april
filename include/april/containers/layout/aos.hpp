@@ -2,69 +2,33 @@
 
 #include "april/particle/particle.hpp"
 #include "april/containers/container.hpp"
-#include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
+#include "april/exec/policy.hpp"
 
 namespace april::container::layout {
 
-	template<typename Config, env::IsUserData U>
-	class AoS : public Container<Config, U>{
+	template<typename Config, particle::IsParticleAttributes A>
+	class AoS : public Container<Config, A>{
 	public:
-		using Base = Container<Config, U>;
+		using Base = Container<Config, A>;
 		using Base::force_schema;
 		using Base::Base;
 		friend Base;
 
-		using Particle = env::internal::ParticleRecord<U>;
+		using Particle = particle::ParticleRecord<A>;
 
-		AoS(const Config & config, const internal::ContainerCreateInfo & info):
-			Container<Config, U>(config, info)
-		{
-			// TODO move topology batch related code into the core implementations instead of the layouts
-			// precompute topology batches (id based batches)
-			for (size_t i = 0; i < force_schema.interactions.size(); ++i) {
-				const auto& prop = force_schema.interactions[i];
-
-				if (!prop.used_by_ids.empty() && prop.is_active) {
-					TopologyBatch batch;
-					batch.id1 = prop.used_by_ids[0].first;
-					batch.id2 = prop.used_by_ids[0].second;
-					batch.pairs = prop.used_by_ids;
-
-					topology_batches.push_back(std::move(batch));
-				}
-			}
-		}
-
-		template<typename Func>
-		void for_each_topology_batch(Func && func) {
-			for (const auto & batch : topology_batches) {
-				func(batch);
-			}
-		}
-
-		template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Kernel>
-		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
-			for (size_t i = start; i < end; i++) {
-				if constexpr (is_const) {
-					kernel(i, self.template view<M>(i));
-				} else {
-					kernel(i, self.template at<M>(i));
-				}
-			}
-		}
 
 		// INDEXING
-		[[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
+		[[nodiscard]] size_t id_to_index(const ParticleID id) const {
 			return id_to_index_map[static_cast<size_t>(id)];
 		}
-		[[nodiscard]] env::ParticleID min_id() const {
+		[[nodiscard]] ParticleID min_id() const {
 			return 0;
 		}
-		[[nodiscard]] env::ParticleID max_id() const {
-			return static_cast<env::ParticleID>(particles.size());
+		[[nodiscard]] ParticleID max_id() const {
+			return static_cast<ParticleID>(particles.size());
 		}
-		[[nodiscard]] bool contains_id(const env::ParticleID id) const {
+		[[nodiscard]] bool contains_id(const ParticleID id) const {
 			return id <= max_id();
 		}
 		[[nodiscard]] bool index_is_valid(const size_t index) const {
@@ -79,6 +43,19 @@ namespace april::container::layout {
 		[[nodiscard]] size_t particle_count() const {
 			return  particles.size();
 		}
+
+
+		// DISABLE PACKED ACCESS
+		template<ParticleField R, ParticleField W>
+		[[nodiscard]] auto at_packed(this auto&&, size_t) {
+			static_assert(false, "AoS does not support packed access");
+		}
+
+		template<ParticleField R>
+		[[nodiscard]] auto view_packed(this const auto&, size_t) {
+			static_assert(false, "AoS does not support packed access");
+		}
+
 
 	protected:
 		std::vector<Particle> tmp = {};
@@ -134,20 +111,32 @@ namespace april::container::layout {
 		}
 
 		// Deducing 'this' automatically propagates constness to the return type
-		template<env::Field F>
+		template<ParticleField F>
 		auto get_field_ptr(this auto&& self, size_t i) {
-			if constexpr (F == env::Field::force)				return &self.particles[i].force;
-			else if constexpr (F == env::Field::position)	  	return &self.particles[i].position;
-			else if constexpr (F == env::Field::velocity)	  	return &self.particles[i].velocity;
-			else if constexpr (F == env::Field::old_position) 	return &self.particles[i].old_position;
-			else if constexpr (F == env::Field::mass)			return &self.particles[i].mass;
-			else if constexpr (F == env::Field::state)			return &self.particles[i].state;
-			else if constexpr (F == env::Field::type)			return &self.particles[i].type;
-			else if constexpr (F == env::Field::id)				return &self.particles[i].id;
-			else if constexpr (F == env::Field::user_data)		return &self.particles[i].user_data;
+			if constexpr (F == ParticleField::force)				return &self.particles[i].force;
+			else if constexpr (F == ParticleField::position)	  	return &self.particles[i].position;
+			else if constexpr (F == ParticleField::velocity)	  	return &self.particles[i].velocity;
+			else if constexpr (F == ParticleField::old_position) 	return &self.particles[i].old_position;
+			else if constexpr (F == ParticleField::mass)			return &self.particles[i].mass;
+			else if constexpr (F == ParticleField::state)			return &self.particles[i].state;
+			else if constexpr (F == ParticleField::type)			return &self.particles[i].type;
+			else if constexpr (F == ParticleField::id)				return &self.particles[i].id;
+			else if constexpr (F == ParticleField::attributes)		return &self.particles[i].attributes;
 		}
 
-	private:
-		std::vector<TopologyBatch> topology_batches;
+		template<ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
+		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+			static_assert(V != exec::ExecutionMode::Vector, "AoS cannot be vectorized. Change the vector policy to scalar or auto.");
+			for (size_t i = start; i < end; i++) {
+				using K = std::remove_cvref_t<Kernel>;
+				if constexpr (is_const) {
+					kernel(i, self.template view<K::Read>(i));
+				} else {
+					kernel(i, self.template at<K::Read, K::Write>(i));
+				}
+			}
+		}
 	};
 }
+
+

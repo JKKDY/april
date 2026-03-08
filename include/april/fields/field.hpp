@@ -1,10 +1,8 @@
 #pragma once
 
 #include <concepts>
-#include "april/particle/fields.hpp"
 
 namespace april::field {
-
 	class Field {
 	public:
 		// TODO add filters for region, types and ids. Right now dispatch apply is applied to everything
@@ -23,36 +21,12 @@ namespace april::field {
 			}
 		}
 
-		template<env::IsUserData U, env::HasFields Self>
-		void dispatch_apply(this const Self& self, const env::RestrictedParticleRef<env::FieldOf<Self>, U> & particle) {
+		template<particle::internal::HasFields Self>
+		void dispatch_apply(this const Self& self, const auto & particle) {
 			static_assert(
 				requires { self.apply(particle); },
-				"Field must implement: void apply(env::RestrictedParticleRef<M, U> particle) const"
+				"Field must implement: void apply(auto particle) const"
 			);
-			self.apply(particle);
-		}
-
-        template<env::FieldMask M, env::IsUserData U>
-		void invoke_apply(this const auto& self, env::RestrictedParticleRef<M, U> & particle) {
-			static_assert(
-				requires { self.apply(particle); },
-				"Field must implement: void apply(env::RestrictedParticleRef<M, U> & particle) const"
-			);
-
-			using Derived = std::remove_cvref_t<decltype(self)>;
-
-			static_assert(
-				requires { Derived::fields; },
-				"Field subclass must define 'static constexpr env::FieldMask fields'"
-			);
-
-			constexpr env::FieldMask Required = Derived::fields;
-
-			static_assert(
-				(M & Required) == Required,
-				"ParticleView is missing required fields for this Field."
-			);
-
 			self.apply(particle);
 		}
 	};
@@ -61,22 +35,44 @@ namespace april::field {
 	template <class FFs>
 	concept IsField = std::derived_from<FFs, Field>;
 
-	// define field Pack
-	template<IsField...>
-	struct FieldPack {};
+	namespace  internal {
+		// define field Pack
+		template<IsField...>
+		struct FieldPack {};
 
+	}
+}
+
+namespace april {
 	// constrained variable template
 	template<class... FFs>
-	requires (IsField<FFs> && ...)
-	inline constexpr FieldPack<FFs...> fields {};
+	requires (field::IsField<FFs> && ...)
+	inline constexpr field::internal::FieldPack<FFs...> fields {};
 
-	// Concept to check if a type T is a ForcePack
-	template<typename T>
-	inline constexpr bool is_field_pack_v = false; // Default
+	namespace field::internal {
+		// Concept to check if a type T is a ForcePack
+		template<typename T>
+		inline constexpr bool is_field_pack_v = false; // Default
 
-	template<IsField... FFs>
-	inline constexpr bool is_field_pack_v<FieldPack<FFs...>> = true; // Specialization
+		template<IsField... FFs>
+		inline constexpr bool is_field_pack_v<FieldPack<FFs...>> = true; // Specialization
 
-	template<typename T>
-	concept IsFieldPack = is_field_pack_v<std::remove_cvref_t<T>>;
+		template<typename T>
+		concept IsFieldPack = is_field_pack_v<std::remove_cvref_t<T>>;
+	}
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

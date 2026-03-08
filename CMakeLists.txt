@@ -20,6 +20,16 @@ endif()
 # project name: April. Language: C++
 project(April LANGUAGES CXX)
 
+include(FetchContent)
+
+# This xsimd and makes it available
+FetchContent_Declare(
+        xsimd
+        GIT_REPOSITORY https://github.com/xtensor-stack/xsimd.git
+        GIT_TAG       14.0.0
+)
+FetchContent_MakeAvailable(xsimd)
+
 
 
 # option to enable test coverage. Set with -DAPRIL_ENABLE_COVERAGE=ON/OFF
@@ -43,7 +53,12 @@ target_sources(April INTERFACE ${APRIL_HEADERS})  # add headers to the target so
 target_include_directories(April INTERFACE
         ${PROJECT_SOURCE_DIR}/include
 )
-
+# Mark xsimd headers as SYSTEM to suppress warnings from third-party code
+get_target_property(XSIMD_INCLUDE_DIRS xsimd INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(April SYSTEM INTERFACE
+        ${XSIMD_INCLUDE_DIRS}
+)
+target_link_libraries(April INTERFACE xsimd)
 target_compile_features(April INTERFACE cxx_std_23) # targets must use C++23
 
 
@@ -90,24 +105,28 @@ function(set_target_build_flags target_name)
             $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang>>:
                 -O3                      # Maximum optimization level
                 -march=native            # Use all CPU instructions available on host
+#            -march=haswell        # AVX2 + FMA, no AVX-512
                 -ffast-math              # Allow unsafe floating-point optimizations for speed
-                # -flto                  # Link-time optimization
+#                 -flto                  # Link-time optimization
                 -fomit-frame-pointer     # Omit frame pointer for slightly faster calls
-                -finline-functions       # Enable function inlining where profitable
-                # -funroll-loops         # Loop unrolling
+#                 -funroll-loops         # Loop unrolling
                 -fno-plt                 # Avoid procedure linkage table, improves direct calls
+                -Wno-psabi  # make apple gcc shut up about xsimd
             >
 
             # MSVC
             $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:
-                /Ox                 # optimize for speed
-                /GL                 # whole program optimization (LTCG)
-                /fp:fast            # fast-math (matches -ffast-math spirit)
-                /arch:AVX2          # enable AVX2 on x64
-                /favor:INTEL64
-                /Oi                 # intrinsic functions
-                /Ot                 # favor fast code
-                /Ob3                # aggressive inlining
+                /O2                 # Maximize speed (replaces /Ox)
+                /GL                 # Whole program optimization (LTCG)
+                /Gw                 # Optimize global data
+                /fp:fast            # Fast-math floating point
+                /arch:AVX2          # Enable AVX2 instructions
+                # /favor:INTEL64    # ONLY uncomment if host is definitely Intel
+                # /favor:AMD64      # ONLY uncomment if host is definitely AMD
+                /Ob3                # Aggressive inlining (better than /Ob2)
+                /Zc:inline          # Remove unreferenced COMDATs (shrinks binary/link time)
+                /cgthreads8         # Use 8 threads for compilation/codegen
+                /LTCG
             >
 
             #---------------------------
@@ -133,8 +152,8 @@ function(set_target_build_flags target_name)
             #------------
             # DEBUG BUILD
             #------------
-            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-O0 -g>
-            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang>>:-O0 -g>
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-O0 -g >
+            $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang>>:-O0 -g >
             $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od /Zi /bigobj>
 
 
@@ -190,11 +209,17 @@ function(enable_sanitizer_if_dbg target_name)
         return()
     endif()
 
+    # Disable for GCC on macOS (Homebrew GCC lacks proper ASan linker integration)
+    if (CMAKE_SYSTEM_NAME MATCHES "Darwin" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        message(STATUS "Skipping sanitizers for target ${target_name} (Homebrew GCC on macOS does not ship with ASan).")
+        return()
+    endif()
+
     # enable sanitizers for different compilers
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
             # AppleClang does not support LeakSanitizer
-            message(STATUS "Enabling AddressSanitizer + UBSan for target ${target_name} (AppleClang, Debug build)")
+            message(STATUS "Enabling AddressSanitizer + UBSan for target ${target_name} (Clang on macOS, Debug build)")
             target_compile_options(${target_name}
                     PRIVATE
                     -fsanitize=address,undefined -fno-omit-frame-pointer
@@ -219,7 +244,6 @@ function(enable_sanitizer_if_dbg target_name)
         message(WARNING "Skipping AddressSanitizer on MSVC for target ${target_name} to avoid LNK2038 mismatches. Enable full sanitized build instead if desired.")
     endif()
 endfunction()
-
 
 
 
@@ -265,6 +289,8 @@ enable_testing()
 add_subdirectory(examples)
 add_subdirectory(test)
 add_subdirectory(benchmark)
+
+
 
 
 

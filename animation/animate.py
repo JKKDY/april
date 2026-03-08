@@ -9,7 +9,7 @@ import struct
 
 def list_bin_files(folder):
     path = Path(folder)
-    return sorted(path.glob("*.bin"))
+    return  sorted(path.glob("*.bin"), key=lambda f: f.stat().st_ctime) # sorted(path.glob("*.bin"))
 
 def load_particles(filename):
     with open(filename, 'rb') as f:
@@ -113,8 +113,9 @@ if __name__ == "__main__":
     bench = "bench"
     sandbox = "sandbox"
     waterdrop = "falling_water_drop"
+    galaxy = "spiral_galaxy"
 
-    vis = ParticleVisualizer(f"../output/{sandbox}")
+    vis = ParticleVisualizer(f"../output/{two_body_collision}")
     app.run()
 
     # for f in list_bin_files("../output/two_body_collision"):

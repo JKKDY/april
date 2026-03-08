@@ -4,6 +4,7 @@
 #include <utils.h>
 
 #include "april/april.hpp"
+#include "april/containers/direct_sum.hpp"
 
 using namespace april;
 
@@ -18,7 +19,7 @@ struct SpyFieldSinks {
 // A SpyField that uses a raw pointer to sinks owned by the test
 class SpyField : public field::Field {
 public:
-    static constexpr env::FieldMask fields = to_field_mask(env::Field::force);
+    static constexpr ParticleField fields = ParticleField::force;
     SpyFieldSinks* sinks = nullptr;
 
     explicit SpyField(SpyFieldSinks* sinks_ptr) : sinks(sinks_ptr) {}
@@ -37,8 +38,7 @@ public:
         }
     }
 
-    template<env::IsUserData U>
-    void apply(const env::RestrictedParticleRef<fields, U>& /*particle*/) const {
+    void apply(auto /*particle*/) const {
         if (sinks) {
             sinks->apply_call_count++;
         }
@@ -74,7 +74,7 @@ protected:
 
 TEST_F(FieldTest, InitIsCalledOnce) {
     const auto env = setup_environment(2);
-    auto system = build_system(env, DirectSumAoS());
+    auto system = build_system(env, DirectSum());
     VelocityVerlet(system).with_dt(0.01).for_steps(10).run();
 
     EXPECT_EQ(sinks.init_call_count, 1);
@@ -82,7 +82,7 @@ TEST_F(FieldTest, InitIsCalledOnce) {
 
 TEST_F(FieldTest, UpdateIsCalledEveryStep) {
     const auto env = setup_environment(2);
-    auto system = build_system(env, DirectSumAoS());
+    auto system = build_system(env, DirectSum());
     VelocityVerlet(system).with_dt(0.01).for_steps(5).run(); // Runs 0, 1, 2, 3, 4
 
     EXPECT_EQ(sinks.update_call_count, 5);
@@ -95,7 +95,7 @@ TEST_F(FieldTest, ApplyIsCalledPerParticlePerStep) {
     const int num_steps = 5;
 
     const auto env = setup_environment(num_particles);
-    auto system = build_system(env, DirectSumAoS());
+    auto system = build_system(env, DirectSum());
     VelocityVerlet(system).with_dt(0.01).for_steps(num_steps).run(); // Runs 0, 1, 2, 3, 4
 
     EXPECT_EQ(sinks.apply_call_count, num_particles * num_steps);
@@ -106,10 +106,10 @@ TEST_F(FieldTest, ApplyIsCalledPerParticlePerStep) {
 // A second spy field to test multi-type field registration
 class SpyField2 : public field::Field {
 public:
-    static constexpr env::FieldMask fields = to_field_mask(env::Field::force);
+    static constexpr ParticleField fields = ParticleField::force;
     SpyFieldSinks* sinks = nullptr;
     explicit SpyField2(SpyFieldSinks* sinks_ptr) : sinks(sinks_ptr) {}
-    SpyField2() : sinks(nullptr) {}
+    SpyField2() {}
 
     template<class S>
     void init(const core::SystemContext<S>&) {
@@ -119,8 +119,7 @@ public:
     void update(const core::SystemContext<S>&) {
         if (sinks) sinks->update_call_count++;
     }
-    template<env::IsUserData U>
-    void apply(const env::RestrictedParticleRef<fields, U>&) const {
+    void apply(const auto&) const {
         if (sinks) sinks->apply_call_count++;
     }
 };
@@ -149,7 +148,7 @@ TEST_F(FieldTest, MultipleDifferentSpyFields) {
        .with_field(SpyField(&sinks1))
        .with_field(SpyField2(&sinks2));
 
-    auto system = build_system(env, DirectSumAoS());
+    auto system = build_system(env, DirectSum());
     VelocityVerlet(system).with_dt(0.01).for_steps(num_steps).run();
 
     // Check sinks for SpyField 1
@@ -179,7 +178,7 @@ TEST(FieldIntegrationTest, UniformFieldModifiesForce) {
        .with_extent(10,10,10)
        .with_field(UniformField(field_force));
 
-    auto system = build_system(env, DirectSumAoS());
+    auto system = build_system(env, DirectSum());
 
     VelocityVerlet(system).with_dt(0.01).for_steps(1).run();
 
@@ -200,7 +199,7 @@ TEST(FieldIntegrationTest, MultipleDifferentFieldsAreAdditive) {
     const vec3 uniform_force = {1.0, 1.0, 1.0};
     const vec3 local_force = {10.0, 0.0, 0.0};
 
-    env::Domain local_region;
+    Domain local_region;
     local_region.origin = {0,0,0};
     local_region.extent = {5,5,5};
 
@@ -218,7 +217,7 @@ TEST(FieldIntegrationTest, MultipleDifferentFieldsAreAdditive) {
        .with_field(LocalForceField(local_force, local_region, 0.0, 99.0));
 
     BuildInfo info;
-    auto system = build_system(env, DirectSumAoS(), &info);
+    auto system = build_system(env, DirectSum(), &info);
     VelocityVerlet(system).with_dt(0.01).for_steps(1).run(); // Runs step 0
 
     auto particles = export_particles(system);
@@ -237,3 +236,14 @@ TEST(FieldIntegrationTest, MultipleDifferentFieldsAreAdditive) {
     EXPECT_NEAR(p2.force.y, uniform_force.y, 1e-12);
     EXPECT_NEAR(p2.force.z, uniform_force.z, 1e-12);
 }
+
+
+
+
+
+
+
+
+
+
+

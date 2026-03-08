@@ -1,18 +1,17 @@
 #pragma once
 
-#include "april/particle/fields.hpp"
+
 #include "april/boundaries/boundary.hpp"
 
-namespace april::boundary {
-	struct Reflective : Boundary {
-		static constexpr env::FieldMask fields = env::Field::position | env::Field::old_position | env::Field::velocity;
+namespace april {
+	struct ReflectiveBoundary : boundary::Boundary {
+		static constexpr ParticleField fields = ParticleField::position | ParticleField::old_position | ParticleField::velocity;
 
-		Reflective(): Boundary(-1, false, false, true) {}
+		ReflectiveBoundary(): Boundary(-1, false, false, true) {}
 
-		template<env::FieldMask M, env::IsUserData U>
-		void apply(env::ParticleRef<M, U> & particle, const env::Box & domain_box, const Face face) const noexcept{
-			const int is_plus = face_sign_pos(face);
-			const int ax = axis_of_face(face);
+		void apply(auto && particle, const core::Box & domain_box, const DomainFace face) const noexcept{
+			const int is_plus = boundary::face_sign_pos(face);
+			const int ax = boundary::axis_of_face(face);
 
 			const vec3 diff = particle.position - particle.old_position;
 			vec3 diff_reflected = diff;
@@ -26,8 +25,22 @@ namespace april::boundary {
 			particle.velocity[ax] = - particle.velocity[ax];
 
 			AP_ASSERT(particle.position[ax] >= domain_box.min[ax] && particle.position[ax] <= domain_box.max[ax],
-				"particle outside of domain on reflected axis! \n\tface:"  + std::to_string(face_to_int(face)) +
+				"particle outside of domain on reflected axis! \n\tface:"  + std::to_string(boundary::face_to_int(face)) +
 				"\n\t" + particle.position.to_string() + "  old pos: " + particle.old_position.to_string() );
 		}
 	};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -9,13 +9,13 @@
 #include "april/monitors/monitor.hpp"
 
 
-namespace april::monitor {
+namespace april {
 
-	class BinaryOutput final : public Monitor {
+	class BinaryOutput final : public monitor::Monitor {
 	public:
-		static constexpr env::FieldMask fields = to_field_mask(env::Field::all);
+		static constexpr auto fields = ParticleField::all;
 		explicit BinaryOutput(
-			const shared::Trigger & trigger,
+			const Trigger & trigger,
 			std::string dir = "output",
 			std::string base_name = "output")
 		:
@@ -43,15 +43,17 @@ namespace april::monitor {
 			write_binary(out, format_flags);            // 4 bytes
 
 
-			sys.template for_each_particle_view<fields>([&](const auto & p) {
-				write_binary(out, static_cast<float>(p.position.x));
-				write_binary(out, static_cast<float>(p.position.y));
-				write_binary(out, static_cast<float>(p.position.z));
+			sys.for_each_particle_view(april::scalar_kernel<fields>(
+				[&](const auto & p) {
+					write_binary(out, static_cast<float>(p.position.x));
+					write_binary(out, static_cast<float>(p.position.y));
+					write_binary(out, static_cast<float>(p.position.z));
 
-				write_binary(out, static_cast<uint32_t>(p.type));
-				write_binary(out, static_cast<uint32_t>(p.id));
-				write_binary(out, static_cast<uint8_t>(p.state));
-			});
+					write_binary(out, static_cast<uint32_t>(p.type));
+					write_binary(out, static_cast<uint32_t>(p.id));
+					write_binary(out, static_cast<uint8_t>(p.state));
+				}
+			));
 		}
 
 		template<typename T> static void write_binary(std::ofstream& out, const T& value) {
@@ -68,3 +70,18 @@ namespace april::monitor {
 	};
 
 } // namespace april::core
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

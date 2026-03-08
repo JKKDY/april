@@ -2,17 +2,18 @@
 
 #include "april/controllers/controller.hpp"
 #include "april/math/statistics.hpp"
-namespace april::controller {
+namespace april {
 
+	// TODO get rid of this magic value
 	static constexpr double temperature_not_set = -1.0;
 
-	class VelocityScalingThermostat : public Controller {
-		static constexpr env::FieldMask mass_vel = env::Field::velocity | env::Field::mass;
-		static constexpr env::FieldMask vel = to_field_mask(env::Field::velocity);
+	class VelocityScalingThermostat : public controller::Controller {
+		static constexpr ParticleField mass_vel = ParticleField::velocity | ParticleField::mass;
+		static constexpr ParticleField vel = ParticleField::velocity;
 
 	public:
-		explicit VelocityScalingThermostat(const shared::Trigger & trig): Controller(trig) {}
-		VelocityScalingThermostat(const double init_T, const double target_T, const double max_dT, const shared::Trigger & trig)
+		explicit VelocityScalingThermostat(const Trigger & trig): Controller(trig) {}
+		VelocityScalingThermostat(const double init_T, const double target_T, const double max_dT, const Trigger & trig)
 		: Controller(trig),
 		 _init_temp(init_T),
 		 _target_temp(target_T),
@@ -122,6 +123,22 @@ namespace april::controller {
 	};
 
 } // namespace april::controller
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -12,14 +12,14 @@ namespace april::force::internal {
     struct InteractionProp {
         double cutoff = 0.0;
         bool is_active = false;
-        std::vector<std::pair<env::ParticleType, env::ParticleType>> used_by_types;
-        std::vector<std::pair<env::ParticleID, env::ParticleID>> used_by_ids;
+        std::vector<std::pair<ParticleType, ParticleType>> used_by_types;
+        std::vector<std::pair<ParticleID, ParticleID>> used_by_ids;
     };
 
 
     struct InteractionSchema {
-        const std::vector<env::ParticleType> types;
-        const std::vector<env::ParticleID> ids;
+        const std::vector<ParticleType> types;
+        const std::vector<ParticleID> ids;
 
         const std::vector<size_t> type_interaction_matrix; // i * types.size() + j -> index into interactions
         const std::vector<size_t> id_interaction_matrix; // i * id.size() + j -> index into interactions
@@ -33,8 +33,8 @@ namespace april::force::internal {
     class ForceTable {
         using Type_Interaction = TypeInteraction<ForceVariant>;
         using Id_Interaction = IdInteraction<ForceVariant>;
-        using IdMap = std::unordered_map<env::ParticleID, env::ParticleID>;
-        using TypeMap = std::unordered_map<env::ParticleType, env::ParticleType>;
+        using IdMap = std::unordered_map<ParticleID, ParticleID>;
+        using TypeMap = std::unordered_map<ParticleType, ParticleType>;
     public:
 
         ForceTable(
@@ -78,8 +78,8 @@ namespace april::force::internal {
             };
 
             // gather all types and ids in ascending order (types and ids are dense in [0,...])
-            std::vector<env::ParticleType> types(n_types);
-            std::vector<env::ParticleID> ids(n_ids);
+            std::vector<ParticleType> types(n_types);
+            std::vector<ParticleID> ids(n_ids);
 
             for (size_t i = 0; i < n_types; ++i) types[i] = i;
             for (size_t i = 0; i < n_ids; ++i) ids[i] = i;
@@ -97,15 +97,15 @@ namespace april::force::internal {
             for (const auto & force : all_forces) all_force_props.push_back(get_properties(force));
 
             // loop through all possible type pairs and register them in the properties of their interacting force
-            for (env::ParticleType i = 0; i < static_cast<env::ParticleType>(n_types); i++) {
-                for (env::ParticleType j = 0; j < static_cast<env::ParticleType>(n_types); j++) {
+            for (ParticleType i = 0; i < static_cast<ParticleType>(n_types); i++) {
+                for (ParticleType j = 0; j < static_cast<ParticleType>(n_types); j++) {
                     all_force_props[type_index(i, j)].used_by_types.emplace_back(i, j);
                 }
             }
 
             // loop through all possible (relevant) id pairs and register them in the properties of their interacting force
-            for (env::ParticleID i = 0; i < static_cast<env::ParticleID>(n_ids); i++) {
-                for (env::ParticleID j = i+1; j < static_cast<env::ParticleID>(n_ids); j++) {
+            for (ParticleID i = 0; i < static_cast<ParticleID>(n_ids); i++) {
+                for (ParticleID j = i+1; j < static_cast<ParticleID>(n_ids); j++) {
                     all_force_props[type_forces.size() + id_index(i, j)].used_by_ids.emplace_back(i, j);
                 }
             }
@@ -172,7 +172,7 @@ namespace april::force::internal {
 
 
         template<typename Func>
-        void dispatch(const env::ParticleType t1, const env::ParticleType t2, Func && func) const {
+        void dispatch(const ParticleType t1, const ParticleType t2, Func && func) const {
             const auto & variant = get_type_force(t1, t2);
             std::visit([&]<IsForce F>(const F & f) -> void {
                 if constexpr (!std::same_as<F, ForceSentinel> && !std::same_as<F, NoForce>) {
@@ -182,7 +182,7 @@ namespace april::force::internal {
         }
 
         template<typename Func>
-        void dispatch_id(const env::ParticleID id1, const env::ParticleID id2, Func && func) const {
+        void dispatch_id(const ParticleID id1, const ParticleID id2, Func && func) const {
             const auto & variant = get_id_force(id1, id2);
             std::visit([&]<IsForce F>(const F & f) -> void {
                 if constexpr (!std::same_as<F, ForceSentinel> && !std::same_as<F, NoForce>) {
@@ -192,23 +192,23 @@ namespace april::force::internal {
         }
 
 
-        [[nodiscard]] bool has_id_force(const env::ParticleID a, const env::ParticleID b) const noexcept{
+        [[nodiscard]] bool has_id_force(const ParticleID a, const ParticleID b) const noexcept{
             return a < n_ids && b < n_ids;
         }
 
-        ForceVariant & get_type_force(const env::ParticleType a, const env::ParticleType b) noexcept {
+        ForceVariant & get_type_force(const ParticleType a, const ParticleType b) noexcept {
             return type_forces[type_index(a, b)];
         }
 
-        ForceVariant & get_id_force(const env::ParticleID a, const env::ParticleID b) noexcept {
+        ForceVariant & get_id_force(const ParticleID a, const ParticleID b) noexcept {
             return id_forces[id_index(a, b)];
         }
 
-        const ForceVariant& get_type_force(const env::ParticleType a, const env::ParticleType b) const noexcept {
+        const ForceVariant& get_type_force(const ParticleType a, const ParticleType b) const noexcept {
             return type_forces[type_index(a,b)];
         }
 
-        const ForceVariant& get_id_force(const env::ParticleID a, const env::ParticleID b) const noexcept {
+        const ForceVariant& get_id_force(const ParticleID a, const ParticleID b) const noexcept {
             return id_forces[id_index(a,b)];
         }
 
@@ -221,11 +221,11 @@ namespace april::force::internal {
 
         double max_cutoff = 0;
 
-        [[nodiscard]] size_t type_index(const env::ParticleType a, const env::ParticleType b) const noexcept{
+        [[nodiscard]] size_t type_index(const ParticleType a, const ParticleType b) const noexcept{
             return n_types * a + b;
         }
 
-        [[nodiscard]] size_t id_index(const env::ParticleID a, const env::ParticleID b) const noexcept{
+        [[nodiscard]] size_t id_index(const ParticleID a, const ParticleID b) const noexcept{
             return n_ids * a + b;
         }
 
@@ -234,7 +234,7 @@ namespace april::force::internal {
         void build_type_forces(std::vector<Type_Interaction>& type_infos, const TypeMap & type_map)
         {
             // collect unique particle types to define types map size (implementation types are dense [0, N-1])
-            std::unordered_set<env::ParticleType> particle_types;
+            std::unordered_set<ParticleType> particle_types;
             for (auto& x : type_infos) {
                 particle_types.insert(type_map.at(x.type1));
                 particle_types.insert(type_map.at(x.type2));
@@ -278,7 +278,7 @@ namespace april::force::internal {
         void build_id_forces(std::vector<Id_Interaction>& id_infos, const IdMap & id_map)
         {
             // collect particle ids to define ids map size (implementation ids are dense [0, M-1])
-            std::unordered_set<env::ParticleID> ids;
+            std::unordered_set<ParticleID> ids;
             for (auto& x : id_infos) {
                 ids.insert(id_map.at(x.id1));
                 ids.insert(id_map.at(x.id2));
@@ -300,7 +300,7 @@ namespace april::force::internal {
                 for (size_t b = 0; b < n_ids; b++) {
                     auto & v = id_forces[id_index(a, b)];
                     if (a != b && std::holds_alternative<ForceSentinel>(v)) {
-                        v = NoForce();
+                        v = april::NoForce();
                     }
                 }
             }
@@ -328,6 +328,21 @@ namespace april::force::internal {
 
     };
 } // namespace april::env::impl
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

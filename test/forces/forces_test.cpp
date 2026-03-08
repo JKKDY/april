@@ -11,7 +11,8 @@
 #include "april/forces/force_table.hpp"
 
 using namespace april::force;
-using namespace april::env;
+using namespace april::particle;
+using namespace april::particle::internal;
 using namespace april;
 
 
@@ -21,9 +22,9 @@ struct ForceTestUserData {
 };
 
 
-static_assert(IsUserData<ForceTestUserData>, "Test data must satisfy IsUserData");
+static_assert(particle::IsParticleAttributes<ForceTestUserData>, "Test data must satisfy IsUserData");
 
-static constexpr FieldMask TestMask = Field::position | Field::mass | Field::user_data;
+static constexpr ParticleField TestMask = ParticleField::position | ParticleField::mass | ParticleField::attributes;
 
 class ForceTest : public testing::Test {
 protected:
@@ -33,7 +34,7 @@ protected:
 
     // B. The Source (The struct of pointers)
     // IsConst = false allows us to point to our mutable member variables
-    using SourceT = ParticleSource<TestMask, ForceTestUserData, false>;
+    using SourceT = particle::internal::ParticleSource<TestMask, TestMask, ForceTestUserData>;
     SourceT source1;
     SourceT source2;
 
@@ -54,19 +55,19 @@ protected:
         // Initialize Sources (Point to the data)
         source1.position  = &pos1;
         source1.mass      = &mass1;
-        source1.user_data = &data1;
+        source1.attributes = &data1;
 
         source2.position  = &pos2;
         source2.mass      = &mass2;
-        source2.user_data = &data2;
+        source2.attributes = &data2;
     }
 
     // Helper to generate the View expected by the Force operator
     [[nodiscard]] auto get_view1() const {
-        return ParticleView<TestMask, ForceTestUserData>(source1);
+        return ScalarParticleRef<TestMask, TestMask, ForceTestUserData>(source1);
     }
     [[nodiscard]] auto get_view2() const {
-        return ParticleView<TestMask, ForceTestUserData>(source2);
+        return ScalarParticleRef<TestMask, TestMask, ForceTestUserData>(source2);
     }
 };
 
@@ -248,3 +249,14 @@ TEST_F(ForceMixingTest, LennardJones_LorentzBerthelot) {
     // 4. Double check the public accessor we DO have (cutoff)
     EXPECT_DOUBLE_EQ(mixed.cutoff(), 12.0);
 }
+
+
+
+
+
+
+
+
+
+
+

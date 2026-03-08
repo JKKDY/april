@@ -2,10 +2,10 @@
 #include <any>
 
 #include "april/base/types.hpp"
-#include "april/particle/defs.hpp"
+#include "april/particle/particle_types.hpp"
 #include "april/particle/particle.hpp"
 
-namespace april::env {
+namespace april {
 
     inline const auto ZERO_THERMAL_V = [](const vec3&) {return vec3{}; };
 
@@ -84,6 +84,7 @@ namespace april::env {
                         p.user_data = user_data;
                         p.velocity += thermal_velocity(p.position);
 
+
                         particles.push_back(p);
                     }
                 }
@@ -160,9 +161,9 @@ namespace april::env {
             std::vector<Particle> particles;
             particles.reserve(static_cast<size_t>(ellipsoid_volume / (distance*distance*distance)));
 
-            for (int x = -static_cast<int>(eff_radii.x/distance); x < static_cast<int>(eff_radii.x/distance); ++x) {
-                for (int y = -static_cast<int>(eff_radii.y/distance); y < static_cast<int>(eff_radii.y/distance); ++y) {
-                    for (int z = -static_cast<int>(eff_radii.z/distance); z < static_cast<int>(eff_radii.z/distance); ++z) {
+            for (int x = -static_cast<int>(eff_radii.x/distance); x <= static_cast<int>(eff_radii.x/distance); ++x) {
+                for (int y = -static_cast<int>(eff_radii.y/distance); y <= static_cast<int>(eff_radii.y/distance); ++y) {
+                    for (int z = -static_cast<int>(eff_radii.z/distance); z <= static_cast<int>(eff_radii.z/distance); ++z) {
 
                         const vec3 pos = vec3{
                             static_cast<vec3::type>(x * distance),
@@ -198,3 +199,17 @@ namespace april::env {
 
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

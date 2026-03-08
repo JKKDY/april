@@ -1,9 +1,7 @@
 #include <april/april.hpp>
 #include <filesystem>
 
-#include "april/containers/direct_sum/ds_aos.hpp"
-#include "april/containers/direct_sum/ds_soa.hpp"
-#include "april/containers/direct_sum/ds_aosoa.hpp"
+#include "april/containers/direct_sum.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;
@@ -23,6 +21,8 @@ static constexpr double Lz = (NZ - 1) * a;
 
 int main() {
 	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/bench";
+	remove_all(dir_path);   // delete the directory and all contents
+	create_directory(dir_path); // recreate the empty directory
 	const vec3 box = {Lx, Ly, Lz};
 
 	ParticleCuboid grid = ParticleCuboid{}
@@ -37,23 +37,26 @@ int main() {
 	const vec3 extent = 1.5 * box;
 	const vec3 origin = - 0.5 * extent;
 
-	for (int i = 0; i < 5; i++) {
-		Environment env (forces<LennardJones>, boundaries<Reflective>);
+	std::cout << packed::size() << std::endl;
+
+	for (int i = 0; i < 1; i++) {
+		Environment env (forces<LennardJones>, boundaries<ReflectiveBoundary>);
 		env.add_particles(grid);
 		env.set_origin(origin);
 		env.set_extent(extent);
 		env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
-		env.set_boundaries(Reflective(), all_faces);
+		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
-		constexpr auto container = DirectSumAoS();
+		constexpr auto container = DirectSum<Layout::AoSoA<>>();
 		auto system = build_system(env, container);
 
 		constexpr double dt = 0.0002;
-		constexpr int steps  = 200;
+		constexpr int steps  = 1000;
 
-		VelocityVerlet integrator(system, monitors<Benchmark>);
+		VelocityVerlet integrator(system, monitors<Benchmark, BinaryOutput>);
 		integrator.add_monitor(Benchmark());
 		// integrator.add_monitor(ProgressBar(Trigger::every(200)));
+		integrator.add_monitor(BinaryOutput(Trigger::every(10), dir_path.string()));
 		integrator.run_for_steps(dt, steps);
 
 	}

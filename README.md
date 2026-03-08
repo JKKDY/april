@@ -37,7 +37,7 @@ int main() {
         .with_boundaries(Open(), all_faces); 
 
     // 2) Choose a container (force calculation strategy)
-    auto container = DirectSumAoS();
+    auto container = DirectSum();
     auto system = build_system(env, container); // "compilation step"
 
     // 3)  Integrate and write output
@@ -166,7 +166,7 @@ int main() {
 		.with_boundaries(Reflective(), all_faces);
 
 	// 3) Build the system (using Linked Cells for O(N) scaling)
-	auto container = LinkedCellsAoS();
+	auto container = LinkedCells();
 	auto system = build_system(env, container);
 
 	// 4) Run the simulation
@@ -339,7 +339,7 @@ struct MyForce : Force{
     // fields you want to access in the eval function must be explicitly
     // stated at compile time. if you try to access a field not stated here 
     // the compiler will complain
-    static constexpr env::FieldMask fields = env::Field::position | env::Field::velocity;
+    static constexpr env::Mask fields = env::Field::position | env::Field::velocity;
 
     // p1, p2 are particle views; hold const references to the actual data
     vec3 eval(auto p1, auto p2, const vec3& r) const noexcept {
@@ -408,6 +408,8 @@ To explore?
 - [ ] econophysics style simulations -->
 
 Note: when C++26 matures, April will likely switch to the newer standard for reflection and `std::simd` support.
+
+
 
 
 

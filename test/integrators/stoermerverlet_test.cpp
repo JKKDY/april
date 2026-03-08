@@ -2,12 +2,12 @@
 #include <gmock/gmock.h>
 
 #include "april/integrators/velocity_verlet.hpp"
+#include "april/containers/direct_sum.hpp"
 #include "orbit_monitor.h"
 #include "utils.h"
 
 using namespace april;
 
-constexpr env::FieldMask all_fields = to_field_mask(env::Field::all);
 
 TEST(StoermerVerletTest,ConstructionTest) {
 
@@ -18,14 +18,14 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
-	constexpr auto algo = DirectSumAoS();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	VelocityVerlet integrator(system);
 	integrator.run_for_steps(0.1, 10);
 
 	for (size_t i = 0; i < system.size(); i++) {
-		auto p = system.at<all_fields>(i);
+		auto p = system.at<ParticleField::all>(i);
 		EXPECT_EQ(p.position, vec3(0,0,0));
 		EXPECT_EQ(p.velocity, vec3(0,0,0));
 	}
@@ -39,7 +39,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
-	constexpr auto algo = DirectSumAoS();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	VelocityVerlet integrator(system);
@@ -71,7 +71,7 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
-	constexpr auto algo = DirectSumAoS();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	VelocityVerlet integrator(system);
@@ -118,10 +118,10 @@ TEST(StoermerVerletTest, OrbitTest) {
 	env.set_extent(vec3{R,R,R}*4);
 	env.set_origin(vec3{-R,-R,-R} * 2);
 
-	constexpr auto algo = DirectSumAoS();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
-	VelocityVerlet integrator(system, monitor::monitors<OrbitMonitor>);
+	VelocityVerlet integrator(system, monitors<OrbitMonitor>);
 	integrator.add_monitor(OrbitMonitor(v, R));
 	integrator.run_for_duration(0.001, T);
 
@@ -165,18 +165,18 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	env.set_extent(vec3{R,R,R}*4);
 	env.set_origin(vec3{-R,-R,-R} * 2);
 
-	constexpr auto algo = DirectSumAoS();
+	constexpr auto algo = DirectSum();
 	auto system = build_system(env, algo);
 
 	{
-		VelocityVerlet integrator(system, monitor::monitors<OrbitMonitor>);
+		VelocityVerlet integrator(system, monitors<OrbitMonitor>);
 		integrator.add_monitor(OrbitMonitor(v, R));
 		integrator.run_for_duration(0.001, T/2);
 		EXPECT_NEAR(system.time(), T/2, 0.005);
 	}
 
 	{
-		VelocityVerlet integrator(system, monitor::monitors<OrbitMonitor>);
+		VelocityVerlet integrator(system, monitors<OrbitMonitor>);
 		integrator.add_monitor(OrbitMonitor(v, R));
 		integrator.run_for_duration(0.001, T/2);
 		EXPECT_NEAR(system.time(), T, 0.005);
@@ -206,3 +206,15 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	EXPECT_NEAR(p2.velocity.y, 0, 2e-3);
 	EXPECT_NEAR(p2.velocity.z, 0, 2e-3);
 }
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,53 +1,26 @@
 #pragma once
-#include <cstdint>
 #include <concepts>
 
-#include "april/base/types.hpp"
-#include "april/particle/defs.hpp"
-#include "april/particle/access.hpp"
+#include "april/exec/policy.hpp"
+#include "april/particle/particle_types.hpp"
 
 
-namespace april::container {
-
-	//---------------
-	// BATCH POLICIES
-	//---------------
-	enum class ParallelPolicy : uint8_t {
-		None,       // Execute immediately on the current thread (Caller owns parallelism)
-	    Inner,		// System spawns threads for executing a single batch
-	};
-
-	enum class UpdatePolicy : uint8_t {
-		Serial,		// Standard '+='. Fastest. Assumes thread-safety (Serial or Coloring).
-		Serial_N3,	// Standard '+='. Fastest. Assumes thread-safety (Serial or Coloring). Uses newton 3 to update opposite particle as well
-		Atomic,		// Atomic CAS/Fetch-Add. Slower. Thread-safe for overlapping writes.
-		Atomic_N3,	// Standard '+='. Fastest. Assumes thread-safety (Serial or Coloring). Uses newton 3 to update opposite particle as well
-	};
-
-	enum class ComputePolicy : uint8_t { // for future use
-		Scalar,
-		Vector,
-	};
-
-	// missing: branchless, auto simd (e.g. omp simd), accumulate outside
+namespace april::container::batching {
 
 
 	//------------------------
 	// CONVENIENCE DEFINITIONS
 	//------------------------
-	template<ParallelPolicy parallelize, UpdatePolicy upd, ComputePolicy cmp>
+	template<exec::ParallelTrait P, exec::VectorTrait V>
 	struct BatchBase {
-		static constexpr auto parallel_policy = parallelize;
-		static constexpr auto update_policy = upd;
-		static constexpr auto compute_policy = cmp;
-		std::pair<env::ParticleType, env::ParticleType> types {};
+		static constexpr auto parallel_trait = P;
+		static constexpr auto vector_trait = V;
+		std::pair<ParticleType, ParticleType> types {};
 	};
 
-	using SerialBatch = BatchBase<ParallelPolicy::None, UpdatePolicy::Serial, ComputePolicy::Scalar>;
-
 	struct TopologyBatch {
-		env::ParticleID id1, id2;
-		std::vector<std::pair<env::ParticleID, env::ParticleID>> pairs;
+		ParticleID id1, id2;
+		std::vector<std::pair<ParticleID, ParticleID>> pairs;
 	};
 
 	//--------------
@@ -56,23 +29,24 @@ namespace april::container {
 	// base constraints common to all batches
 	template <typename T>
 	concept IsBatchBase = requires(const T& b) {
-		// must have static constexpr configuration flags
-		{ T::parallel_policy }	-> std::convertible_to<ParallelPolicy>;
-		{ T::update_policy }	-> std::convertible_to<UpdatePolicy>;
-		{ T::compute_policy }	-> std::convertible_to<ComputePolicy>;
+		// must have static constexpr trait flags
+		{ T::parallel_trait } -> std::convertible_to<exec::ParallelTrait>;
+		{ T::vector_trait }	-> std::convertible_to<exec::VectorTrait>;
 
 		// must have type pair
-		{ b.types } -> std::convertible_to<std::pair<env::ParticleType, env::ParticleType>>;
+		{ b.types } -> std::convertible_to<std::pair<ParticleType, ParticleType>>;
 	};
+
 
 	template<typename T>
 	concept IsBatchAtom = requires(const T& t) {
-		// callable must take in two particle views
-		{ t.template for_each_pair<+env::Field::all>(
-			[]<typename P0, typename P1>(P0&&, P1&&)
-			requires env::IsRestrictedRef<P0> && env::IsRestrictedRef<P1>
-			{}
-		) };
+		// must have vector trait exists
+		{ std::remove_cvref_t<T>::vector_trait } -> std::convertible_to<exec::VectorTrait>;
+
+		// must have a for_each_pair function
+		t.template for_each_pair<ParallelPolicy::Serial, exec::ExecutionMode::Hybrid>(
+			universal_kernel([](auto&&, auto&&) {})
+		);
 	};
 
 	template<typename T>
@@ -86,15 +60,35 @@ namespace april::container {
 	// BCP CONCEPT
 	//------------
 	template<typename F>
-	concept IsBCP = requires(const F& f, const vec3& v) {
+	concept IsBCP = requires(const F& f, const vec3& v, const pvec3& pv) {
+		// Must handle scalar vectors
 		{ f(v) } -> std::convertible_to<vec3>;
+
+		// Must handle packed SIMD vectors
+		{ f(pv) } -> std::convertible_to<pvec3>;
 	};
 
 	struct NoBatchBCP {
 		template <class T>
 		constexpr T operator()(T&& v) const noexcept {
-			return std::forward<T>(v); // identity; do nothing
+			// return std::forward<T>(v); // identity; do nothing
+			return v;
 		}
 	};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

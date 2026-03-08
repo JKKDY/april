@@ -1,12 +1,13 @@
 #pragma once
 #include <vector>
 #include "april/containers/container.hpp"
-#include "april/containers/batching/common.hpp"
 #include "april/particle/particle.hpp"
+#include "april/exec/policy.hpp"
+
 
 namespace april::container::layout {
 
-    template<typename UserData>
+    template<particle::IsParticleAttributes Attributes>
     struct SoAStorage {
         alignas(64) std::vector<vec3::type> pos_x, pos_y, pos_z;
         alignas(64) std::vector<vec3::type> vel_x, vel_y, vel_z;
@@ -14,10 +15,10 @@ namespace april::container::layout {
         alignas(64) std::vector<vec3::type> old_x, old_y, old_z;
 
         alignas(64) std::vector<double> mass;
-        alignas(64) std::vector<env::ParticleState> state;
-        alignas(64) std::vector<env::ParticleType> type;
-        alignas(64) std::vector<env::ParticleID> id;
-        alignas(64) std::vector<UserData> user_data;
+        alignas(64) std::vector<ParticleState> state;
+        alignas(64) std::vector<ParticleType> type;
+        alignas(64) std::vector<ParticleID> id;
+        alignas(64) std::vector<Attributes> attributes;
 
         vec3::type * AP_RESTRICT ptr_pos_x = nullptr;
         vec3::type * AP_RESTRICT ptr_pos_y = nullptr;
@@ -40,10 +41,13 @@ namespace april::container::layout {
 
         // Scalars
         double * AP_RESTRICT ptr_mass = nullptr;
-        env::ParticleState * AP_RESTRICT ptr_state = nullptr;
-        env::ParticleType  * AP_RESTRICT ptr_type  = nullptr;
-        env::ParticleID    * AP_RESTRICT ptr_id    = nullptr;
-        UserData * AP_RESTRICT ptr_user_data = nullptr;
+        ParticleState * AP_RESTRICT ptr_state = nullptr;
+        ParticleType  * AP_RESTRICT ptr_type  = nullptr;
+        ParticleID    * AP_RESTRICT ptr_id    = nullptr;
+        Attributes * AP_RESTRICT ptr_attributes = nullptr;
+
+        size_t capacity{};
+        size_t size{};
 
         void update_pointer_cache() {
             ptr_pos_x = pos_x.data(); ptr_pos_y = pos_y.data(); ptr_pos_z = pos_z.data();
@@ -55,16 +59,24 @@ namespace april::container::layout {
             ptr_state = state.data();
             ptr_type = type.data();
             ptr_id = id.data();
-            ptr_user_data = user_data.data();
+            ptr_attributes = attributes.data();
         }
 
         void resize(const size_t n) {
-            pos_x.resize(n); pos_y.resize(n); pos_z.resize(n);
-            vel_x.resize(n); vel_y.resize(n); vel_z.resize(n);
-            frc_x.resize(n); frc_y.resize(n); frc_z.resize(n);
-            old_x.resize(n); old_y.resize(n); old_z.resize(n);
-            mass.resize(n); state.resize(n); type.resize(n); id.resize(n);
-            user_data.resize(n);
+            capacity = n + packed::size();
+            size = n;
+
+            pos_x.resize(capacity); pos_y.resize(capacity); pos_z.resize(capacity);
+            vel_x.resize(capacity); vel_y.resize(capacity); vel_z.resize(capacity);
+            frc_x.resize(capacity); frc_y.resize(capacity); frc_z.resize(capacity);
+            old_x.resize(capacity); old_y.resize(capacity); old_z.resize(capacity);
+
+            mass.resize(capacity);
+            state.resize(capacity);
+            type.resize(capacity);
+            id.resize(capacity);
+            attributes.resize(capacity);
+
             update_pointer_cache();
         }
 
@@ -80,7 +92,7 @@ namespace april::container::layout {
             state[dest_i]     = src.state[src_i];
             type[dest_i]      = src.type[src_i];
             id[dest_i]        = src.id[src_i];
-            user_data[dest_i] = src.user_data[src_i];
+            attributes[dest_i] = src.attributes[src_i];
         }
 
         void swap(const size_t i, const size_t j) {
@@ -96,92 +108,55 @@ namespace april::container::layout {
             std::swap(state[i], state[j]);
             std::swap(type[i], type[j]);
             std::swap(id[i], id[j]);
-            std::swap(user_data[i], user_data[j]);
+            std::swap(attributes[i], attributes[j]);
         }
     };
 
 
 
-    template<typename Config, env::IsUserData U>
-    class SoA : public Container<Config, U> {
+    template<typename Config, particle::IsParticleAttributes Attributes>
+    class SoA : public Container<Config, Attributes> {
     public:
-        using Base = Container<Config, U>;
+        using Base = Container<Config, Attributes>;
         using Base::force_schema;
         using Base::Base;
         friend Base;
 
-        SoA(const Config & config, const internal::ContainerCreateInfo & info)
-            : Base(config, info)
-        {
-            // precompute topology batches (id based batches)
-            for (size_t i = 0; i < force_schema.interactions.size(); ++i) {
-                const auto& prop = force_schema.interactions[i];
-
-                if (!prop.used_by_ids.empty() && prop.is_active) {
-                    TopologyBatch batch;
-                    batch.id1 = prop.used_by_ids[0].first;
-                    batch.id2 = prop.used_by_ids[0].second;
-                    batch.pairs = prop.used_by_ids;
-
-                    topology_batches.push_back(std::move(batch));
-                }
-            }
-        }
-
-        template<typename Func>
-        void for_each_topology_batch(Func && func) {
-            for (const auto & batch : topology_batches) {
-                func(batch);
-            }
-        }
-
-        template<env::FieldMask M, ExecutionPolicy Policy, bool is_const, typename Kernel>
-        void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
-            for (size_t i = start; i < end; i++) {
-                if constexpr (is_const) {
-                    kernel(i, self.template view<M>(i));
-                } else {
-                    kernel(i, self.template at<M>(i));
-                }
-            }
-        }
-
-
         // INDEXING
-        [[nodiscard]] size_t id_to_index(const env::ParticleID id) const {
+        [[nodiscard]] size_t id_to_index(const ParticleID id) const {
             return id_to_index_map[static_cast<size_t>(id)];
         }
-        [[nodiscard]] env::ParticleID min_id() const {
+        [[nodiscard]] ParticleID min_id() const {
             return 0;
         }
-        [[nodiscard]] env::ParticleID max_id() const {
-            return static_cast<env::ParticleID>(id_to_index_map.size());
+        [[nodiscard]] ParticleID max_id() const {
+            return static_cast<ParticleID>(id_to_index_map.size());
         }
         [[nodiscard]] bool index_is_valid(const size_t index) const {
             return index < particle_count();
         }
-        [[nodiscard]] bool contains_id(const env::ParticleID id) const {
+        [[nodiscard]] bool contains_id(const ParticleID id) const {
             return id <= max_id();
         }
 
 
         // QUERIES
         [[nodiscard]] size_t capacity() const {
-            return particle_count();
+            return data.capacity;
         }
         [[nodiscard]] size_t particle_count() const {
-            return data.pos_x.size();
+            return data.size;
         }
 
     protected:
-        SoAStorage<U> tmp;
-        SoAStorage<U> data;
+        SoAStorage<Attributes> tmp;
+        SoAStorage<Attributes> data;
         std::vector<size_t> bin_starts; // first particle index of each bin
         std::vector<size_t> bin_sizes; // number of particles in each bin
         std::vector<uint32_t> id_to_index_map;
 
         // explode AoS input into SoA vectors
-        void build_storage(const std::vector<env::internal::ParticleRecord<U>>& particles) {
+        void build_storage(const std::vector<particle::ParticleRecord<Attributes>>& particles) {
             size_t n = particles.size();
             data.resize(n);
             id_to_index_map.resize(n);
@@ -191,7 +166,7 @@ namespace april::container::layout {
             bin_starts.push_back(0);
             bin_sizes.push_back(particles.size());
 
-            for (size_t i = 0; i < n; ++i) {
+            for (size_t i = 0; i < particle_count(); ++i) {
                 const auto& p = particles[i];
 
                 // Vectors
@@ -205,11 +180,20 @@ namespace april::container::layout {
                 data.state[i] = p.state;
                 data.type[i] = p.type;
                 data.id[i] = p.id;
-                data.user_data[i] = p.user_data;
+                data.attributes[i] = p.attributes;
 
                 // ID Map
                 id_to_index_map[static_cast<size_t>(p.id)] = i;
             }
+
+             for (size_t i = particle_count(); i < capacity(); ++i) {
+                 data.pos_x[i] = 1e50;
+                 data.pos_y[i] = 1e50;
+                 data.pos_z[i] = 1e50;
+                 data.mass[i] = 1.0;
+                 data.id[i] = -1;
+                 data.state[i] = ParticleState::INVALID;
+             }
 
             tmp.resize(n);
         }
@@ -239,7 +223,7 @@ namespace april::container::layout {
             tmp.update_pointer_cache();
 
             // rebuild iD Map
-            for (size_t i = 0; i < data.id.size(); i++) {
+            for (size_t i = 0; i < particle_count(); i++) {
                 const auto id = data.id[i];
                 if (static_cast<size_t>(id) >= id_to_index_map.size()) {
                     id_to_index_map.resize(static_cast<size_t>(id) + 1, std::numeric_limits<uint32_t>::max());
@@ -253,25 +237,89 @@ namespace april::container::layout {
             return {start, start + bin_sizes[type]};
         }
 
-        template<env::Field F>
+        template<ParticleField F>
         auto get_field_ptr(this auto&& self, size_t i) {
-            if constexpr (F == env::Field::position)
+            if constexpr (F == ParticleField::position)
                 return math::Vec3Ptr { self.data.ptr_pos_x + i, self.data.ptr_pos_y + i, self.data.ptr_pos_z + i };
-            else if constexpr (F == env::Field::velocity)
+            else if constexpr (F == ParticleField::velocity)
                 return math::Vec3Ptr { self.data.ptr_vel_x + i, self.data.ptr_vel_y + i, self.data.ptr_vel_z + i };
-            else if constexpr (F == env::Field::force)
+            else if constexpr (F == ParticleField::force)
                 return math::Vec3Ptr { self.data.ptr_frc_x + i, self.data.ptr_frc_y + i, self.data.ptr_frc_z + i };
-            else if constexpr (F == env::Field::old_position)
+            else if constexpr (F == ParticleField::old_position)
                 return math::Vec3Ptr { self.data.ptr_old_x + i, self.data.ptr_old_y + i, self.data.ptr_old_z + i };
 
-            else if constexpr (F == env::Field::mass)      return self.data.ptr_mass + i;
-            else if constexpr (F == env::Field::state)     return self.data.ptr_state + i;
-            else if constexpr (F == env::Field::type)      return self.data.ptr_type + i;
-            else if constexpr (F == env::Field::id)        return self.data.ptr_id + i;
-            else if constexpr (F == env::Field::user_data) return self.data.ptr_user_data + i;
+            else if constexpr (F == ParticleField::mass)      return self.data.ptr_mass + i;
+            else if constexpr (F == ParticleField::state)     return self.data.ptr_state + i;
+            else if constexpr (F == ParticleField::type)      return self.data.ptr_type + i;
+            else if constexpr (F == ParticleField::id)        return self.data.ptr_id + i;
+            else if constexpr (F == ParticleField::attributes) return self.data.ptr_attributes + i;
         }
 
-    private:
-        std::vector<TopologyBatch> topology_batches;
+
+        template<ParallelPolicy P, exec::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
+        void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+            using K = std::remove_cvref_t<Kernel>;
+
+            if constexpr (E == exec::ExecutionMode::Scalar) {
+                for (size_t i = start; i < end; i++) {
+                    if constexpr (is_const) {
+                        kernel(i, self.template view<K::Read>(i));
+                    } else {
+                        kernel(i, self.template at<K::Read, K::Write>(i));
+                    }
+                }
+            }
+
+            else if constexpr (E == exec::ExecutionMode::Vector) {
+                for (size_t i = start; i < end; i+=packed::size()) {
+                    AP_ASSERT(start % packed::size() == 0, "In vectorized execution start must be aligned to the packed type");
+                    if constexpr (is_const) {
+                        kernel(i, self.template view_packed<K::Read>(i));
+                    } else {
+                        kernel(i, self.template at_packed<K::Read, K::Write>(i));
+                    }
+                }
+            }
+
+            else if constexpr (E == exec::ExecutionMode::Hybrid) {
+                // head
+                constexpr size_t vector_size = packed::size();
+                const size_t remainder = start % vector_size;
+                const size_t head_end = (remainder == 0) ? start : std::min(end, start + (vector_size - remainder));
+
+                for (size_t i = start; i < head_end; ++i) {
+                    if constexpr (is_const) {
+                        kernel(i, self.template view<K::Read>(i));
+                    } else {
+                        kernel(i, self.template at<K::Read, K::Write>(i));
+                    }
+                }
+
+                // body
+                const size_t body_start = head_end;
+                const size_t body_end = body_start + ((end - body_start) / vector_size) * vector_size;
+
+                for (size_t i = body_start; i < body_end; i += vector_size) {
+                    // i is now guaranteed to be aligned
+                    AP_ASSERT(i % packed::size() == 0, "In vectorized execution, index must be aligned");
+                    if constexpr (is_const) {
+                        kernel(i, self.template view_packed<K::Read>(i));
+                    } else {
+                        kernel(i, self.template at_packed<K::Read, K::Write>(i));
+                    }
+                }
+
+                // tail
+                for (size_t i = body_end; i < end; ++i) {
+                    if constexpr (is_const) {
+                        kernel(i, self.template view<K::Read>(i));
+                    } else {
+                        kernel(i, self.template at<K::Read, K::Write>(i));
+                    }
+                }
+            }
+        }
     };
 }
+
+

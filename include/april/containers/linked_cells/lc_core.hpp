@@ -5,11 +5,14 @@
 #include <algorithm>
 #include <utility>
 #include <functional>
+#include <limits>
 
 #include "april/base/types.hpp"
-#include "april/particle/defs.hpp"
-#include "april/env/domain.hpp"
-#include "april/particle/fields.hpp"
+#include "april/particle/particle_types.hpp"
+#include "april/core/domain.hpp"
+#include "april/exec/particle_kernel.hpp"
+#include "april/containers/batching/common.hpp"
+
 
 namespace april::container::internal {
 	template <class ContainerBase>
@@ -41,6 +44,7 @@ namespace april::container::internal {
 		using typename ContainerBase::ParticleRecord;
 
 		void build (this auto&& self, const std::vector<ParticleRecord>& particles) {
+			self.setup_topology_batches();
 			self.setup_cell_grid();
 			self.init_cell_order();
 			self.create_neighbor_stencil();
@@ -48,6 +52,13 @@ namespace april::container::internal {
 			self.build_storage(particles);
 			self.pre_allocate_assignment_bins();
 			self.rebuild_structure();
+		}
+
+		template<typename Func>
+		void for_each_topology_batch(Func && func) {
+			for (const auto & batch : topology_batches) {
+				func(batch);
+			}
 		}
 
 		void rebuild_structure(this auto&& self) {
@@ -60,20 +71,21 @@ namespace april::container::internal {
 			for (size_t i = 0; i < self.bin_sizes.size(); i++) {
 				size_t start = self.bin_starts[i];
 				size_t end = start + self.bin_sizes[i];
-				self.template for_each_particle_view <env::Field::type | env::Field::position>(start, end,
+				self.for_each_particle(start, end,
+					scalar_kernel<ParticleField::type | ParticleField::position>(
 					[&](const size_t idx, const auto & p) {
 						const size_t cid = self.cell_index_from_position(p.position);
 						const size_t bin = self.bin_index(cid, p.type);
 						self.bin_assignments[bin].push_back(idx);
 					}
-				);
+				));
 			}
 
 			self.reorder_storage(self.bin_assignments);
 		}
 
-		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const env::Box & region) {
-			std::vector<cell_index_t> cells = self.get_cells_in_region(region);
+		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const core::Box & region) {
+			const std::vector<cell_index_t> cells = self.get_cells_in_region(region);
 			std::vector<size_t> ret;
 
 			// heuristic: reserve space for the expected average number of particles per cell
@@ -85,13 +97,14 @@ namespace april::container::internal {
 				const auto [start_idx, end_idx] = self.cell_index_range(cid);
 				if (start_idx == end_idx) continue;
 
-				self.template for_each_particle_view<env::Field::position | env::Field::state>(start_idx, end_idx,
+				self.for_each_particle(start_idx, end_idx,
+					scalar_kernel<ParticleField::position | ParticleField::state>(
 					[&](const size_t i, const auto & particle) {
-						if (static_cast<uint8_t>(particle.state & env::ParticleState::ALIVE) &&
+						if (static_cast<uint8_t>(particle.state & ParticleState::ALIVE) &&
 							region.contains(particle.position)) {
 							ret.push_back(i);
 						}
-					}
+					})
 				);
 			}
 
@@ -120,6 +133,22 @@ namespace april::container::internal {
 		//------
 		// SETUP
 		//------
+		void setup_topology_batches(this auto && self) {
+			// precompute topology batches (id based batches)
+			for (size_t i = 0; i < self.force_schema.interactions.size(); ++i) {
+				const auto& prop = self.force_schema.interactions[i];
+
+				if (!prop.used_by_ids.empty() && prop.is_active) {
+					batching::TopologyBatch batch;
+					batch.id1 = prop.used_by_ids[0].first;
+					batch.id2 = prop.used_by_ids[0].second;
+					batch.pairs = prop.used_by_ids;
+
+					self.topology_batches.push_back(std::move(batch));
+				}
+			}
+		}
+
 		void setup_cell_grid(this auto&& self) {
 			// determine the physical cutoff (max_rc) from interactions
 			double max_cutoff = 0;
@@ -131,9 +160,14 @@ namespace april::container::internal {
 
 			// handle edge cases (no interactions or cutoff > domain)
 			// ensure at least a 2x2x2 grid (before applying cell size factor (CSF))
-			if (max_cutoff <= 0 || max_cutoff > self.domain.extent.min()) {
+			const vec3::type min_dim = vec3 {
+				self.domain.extent.x == 0 ? std::numeric_limits<double>::max() : self.domain.extent.x,
+				self.domain.extent.y == 0 ? std::numeric_limits<double>::max() : self.domain.extent.y,
+				self.domain.extent.z == 0 ? std::numeric_limits<double>::max() : self.domain.extent.z
+			}.min();
+			if (max_cutoff <= 0 || max_cutoff > min_dim / 2.0) {
 				// TODO log warning
-				max_cutoff = self.domain.extent.min() / 2.0;
+				max_cutoff = min_dim / 2.0;
 			}
 
 			double target_cell_size = self.config.get_width(max_cutoff);
@@ -141,9 +175,9 @@ namespace april::container::internal {
 
 			// compute number of cells along each axis
 			// std::floor ensures that the resulting cells are larger than or equal to target_cell_size
-			const auto num_x = static_cast<cell_index_t>(std::max(1.0, std::floor(self.domain.extent.x / target_cell_size)));
-			const auto num_y = static_cast<cell_index_t>(std::max(1.0, std::floor(self.domain.extent.y / target_cell_size)));
-			const auto num_z = static_cast<cell_index_t>(std::max(1.0, std::floor(self.domain.extent.z / target_cell_size)));
+			const auto num_x = static_cast<cell_index_t>(std::max(2.0, std::floor(self.domain.extent.x / target_cell_size)));
+			const auto num_y = static_cast<cell_index_t>(std::max(2.0, std::floor(self.domain.extent.y / target_cell_size)));
+			const auto num_z = static_cast<cell_index_t>(std::max(2.0, std::floor(self.domain.extent.z / target_cell_size)));
 
 			// calculate cell size along (stretches to fit domain exactly)
 			self.cell_size = {
@@ -391,7 +425,7 @@ namespace april::container::internal {
 			if (this->wrapped_cell_pairs.empty()) return;
 
 			for (const auto& pair : this->wrapped_cell_pairs) {
-				auto bcp = [&pair](const vec3& diff) { return diff + pair.shift; };
+				auto bcp = [&pair](const auto& diff) { return diff + pair.shift; };
 
 				for (size_t t1 = 0; t1 < this->n_types; ++t1) {
 					auto range1 = get_indices(pair.c1, t1);
@@ -412,7 +446,7 @@ namespace april::container::internal {
 		//----------
 		// UTILITIES
 		//----------
-		[[nodiscard]] AP_FORCE_INLINE size_t get_neighbor_idx(size_t x, size_t y, size_t z, int3 offset) const {
+		[[nodiscard]] AP_FORCE_INLINE size_t get_neighbor_idx(const size_t x, const size_t y, const size_t z, const int3 offset) const {
 			const int nx = static_cast<int>(x) + offset.x;
 			const int ny = static_cast<int>(y) + offset.y;
 			const int nz = static_cast<int>(z) + offset.z;
@@ -429,7 +463,7 @@ namespace april::container::internal {
 		}
 
 		// gather all cell ids whose cells have an intersection with the box region
-		[[nodiscard]] std::vector<cell_index_t> get_cells_in_region(this const auto& self, const env::Box & box) {
+		[[nodiscard]] std::vector<cell_index_t> get_cells_in_region(this const auto& self, const core::Box & box) {
 			//  Convert world coords to cell coords (relative to domain origin)
 			const vec3d min = (box.min - self.domain.min) * self.inv_cell_size;
 			const vec3d max = (box.max - self.domain.min) * self.inv_cell_size;
@@ -480,7 +514,7 @@ namespace april::container::internal {
 			return cells;
 		}
 
-		[[nodiscard]] size_t bin_index(const size_t cell_id, const env::ParticleType type = 0) const {
+		[[nodiscard]] size_t bin_index(const size_t cell_id, const ParticleType type = 0) const {
 			return cell_id * n_types + static_cast<size_t>(type);
 		}
 
@@ -515,5 +549,22 @@ namespace april::container::internal {
 
 			return self.cell_pos_to_idx(x, y, z);
 		}
+	private:
+		std::vector<batching::TopologyBatch> topology_batches;
 	};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

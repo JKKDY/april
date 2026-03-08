@@ -6,8 +6,8 @@ using namespace april;
 
 
 template<core::IsSystem System>
-typename System::ParticleRec get_particle(System& sys, size_t index) {
-	constexpr auto all_fields = to_field_mask(env::Field::all);
+System::ParticleRec get_particle(System& sys, size_t index) {
+	constexpr auto all_fields = ParticleField::all;
 
 	auto p_ref = sys.template at<all_fields>(index);
 
@@ -20,16 +20,16 @@ typename System::ParticleRec get_particle(System& sys, size_t index) {
 	rec.old_position = p_ref.old_position;
 	rec.state       = p_ref.state;
 	rec.mass        = p_ref.mass;
-	rec.user_data   = p_ref.user_data;
+	rec.attributes   = p_ref.attributes;
 
 	return rec;
 }
 
 template<core::IsSystem System>
-typename System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
-	constexpr auto all_fields = to_field_mask(env::Field::all);
+System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
+	constexpr auto all_fields = ParticleField::all;
 
-	auto p_ref = sys.template at_id<all_fields>(id);
+	auto p_ref = sys.template view_id<all_fields>(id);
 
 	typename System::ParticleRec rec;
 	rec.id          = p_ref.id;
@@ -40,7 +40,7 @@ typename System::ParticleRec get_particle_by_id(System& sys, ParticleID id) {
 	rec.old_position = p_ref.old_position;
 	rec.state       = p_ref.state;
 	rec.mass        = p_ref.mass;
-	rec.user_data   = p_ref.user_data;
+	rec.attributes   = p_ref.attributes;
 
 	return rec;
 }
@@ -50,9 +50,11 @@ std::vector<typename System::ParticleRec> export_particles(System& sys) {
 	std::vector<typename System::ParticleRec> records;
 	records.reserve(sys.size());
 
-	sys.template for_each_particle<+env::Field::none>([&](size_t idx, auto &&) {
-		records.push_back(get_particle(sys, idx));
-	});
+	sys.for_each_particle(april::scalar_kernel<ParticleField::none>(
+		[&](size_t idx, auto &&) {
+			records.push_back(get_particle(sys, idx));
+		}
+	));
 
 	return records;
 }
@@ -61,11 +63,11 @@ std::vector<typename System::ParticleRec> export_particles(System& sys) {
 
 template<core::IsSystem System>
 void simulate_single_step(System& sys) {
-	constexpr env::FieldMask edit_fields = env::Field::old_position | env::Field::position | env::Field::velocity;
+	constexpr ParticleField edit_fields = ParticleField::old_position | ParticleField::position | ParticleField::velocity;
 
 	for (size_t pid = sys.min_id(); pid < sys.max_id(); ++pid) {
 		if (!sys.contains_id(pid)) continue;
-		auto p = sys.template at<edit_fields>(pid);
+		auto p = sys.template at_id<edit_fields>(pid);
 		p.old_position = p.position;
 		p.position = p.old_position + p.velocity; // simulate one step
 	}
@@ -85,3 +87,6 @@ inline Particle make_particle(
 	p.id = id;
 	return p;
 }
+
+
+

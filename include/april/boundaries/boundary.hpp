@@ -2,41 +2,46 @@
 
 #include <cstdint>
 #include <concepts>
+#include <vector>
+#include <variant>
 
-#include "april/particle/defs.hpp"
-#include "april/particle/access.hpp"
-#include "april/env/domain.hpp"
+#include "april/base/traits.hpp"
+#include "april/particle/particle_types.hpp"
+#include "april/particle/scalar_access.hpp"
+#include "april/core/domain.hpp"
 
-namespace april::boundary {
 
-	struct Open;
+namespace april {
+	struct OpenBoundary;
 
-	enum class Face : uint8_t {
+	// TODO apply bitmask enum
+	enum class DomainFace : uint8_t {
 		XMinus = 0, XPlus = 1,
 		YMinus = 2, YPlus = 3,
 		ZMinus = 4, ZPlus = 5,
 	};
 
 	const std::vector all_faces = {
-		Face::XMinus, Face::XPlus,
-		Face::YMinus, Face::YPlus,
-		Face::ZMinus, Face::ZPlus
+		DomainFace::XMinus, DomainFace::XPlus,
+		DomainFace::YMinus, DomainFace::YPlus,
+		DomainFace::ZMinus, DomainFace::ZPlus
 	};
+}
 
-
-	inline int face_to_int(Face f) noexcept {
+namespace april::boundary {
+	inline int face_to_int(DomainFace f) noexcept {
 		return static_cast<int>(f);
 	}
 
-	inline uint8_t axis_of_face(const Face f) {
+	inline uint8_t axis_of_face(const DomainFace f) {
 		return face_to_int(f) / 2;
 	}
 
-	inline bool face_sign_pos(const Face f) {
+	inline bool face_sign_pos(const DomainFace f) {
 		return (face_to_int(f) & 1) != 0;
 	}
 
-	inline std::pair<uint8_t, uint8_t> non_face_axis(const Face f) {
+	inline std::pair<uint8_t, uint8_t> non_face_axis(const DomainFace f) {
 		switch (axis_of_face(f)) {
 		case 0: return {1,2};
 		case 1: return {0,2};
@@ -66,7 +71,7 @@ namespace april::boundary {
 		// (e.g. periodic boundaries: X- and X+ must both be periodic).
 		bool couples_axis;
 
-		// If true, this boundary changes iteration behaviour in the container
+		// If true, this boundary changes iteration behavior in the container
 		// (e.g. periodic: requires min-image / ghost cells).
 		// Otherwise, only particle dynamics are affected.
 		bool force_wrap;
@@ -83,9 +88,9 @@ namespace april::boundary {
 			topology(thickness, couples_axis, force_wrap, may_change_particle_pos)
 		{}
 
-		// TODO make this bindable to R-Values
-		template<env::FieldMask IncomingMask, env::IsUserData U>
-		void invoke_apply(this const auto & self,env::ParticleRef<IncomingMask, U> & particle, const env::Box & domain_box, Face face) noexcept {
+		// TODO: replace ScalarParticle ref with auto
+		template<ParticleField IncomingMask, ParticleField M, particle::IsParticleAttributes U>
+		void invoke_apply(this const auto & self, particle::internal::ScalarParticleRef<IncomingMask, M, U> & particle, const core::Box & domain_box, DomainFace face) noexcept {
 			static_assert(
 			   requires { { self.apply(particle, domain_box, face) } -> std::same_as<void>; },
 			   "BoundaryCondition subclass must implement: void dispatch_apply(particle)"
@@ -96,10 +101,10 @@ namespace april::boundary {
 			// check for fields requirements
 			static_assert(
 				requires { Derived::fields; },
-				"Force subclass must define 'static constexpr env::FieldMask fields'"
+				"Force subclass must define 'static constexpr env::Field fields'"
 			);
 
-			constexpr env::FieldMask Required = Derived::fields;
+			constexpr ParticleField Required = Derived::fields;
 
 			static_assert(
 			  (IncomingMask & Required) == Required,
@@ -118,37 +123,39 @@ namespace april::boundary {
 	template <class BC>
 	concept IsBoundary = std::derived_from<BC, Boundary>;
 
-	// define boundary pack
-	template<IsBoundary... BCs>
-	struct BoundaryPack {
-	};
+	namespace internal {
+		// define boundary pack
+		template<IsBoundary... BCs>
+		struct BoundaryPack {
+		};
+	}
+}
+
+namespace april {
 
 	// constrained variable template
 	template<class... BCs>
-	requires (IsBoundary<BCs> && ...)
-	inline constexpr BoundaryPack<BCs...> boundaries {};
+	requires (boundary::IsBoundary<BCs> && ...)
+	inline constexpr boundary::internal::BoundaryPack<BCs...> boundaries {};
 
 
-	// Concept to check if a type T is a ControllerPack
-	template<typename T>
-	inline constexpr bool is_boundary_pack_v = false; // Default
+	namespace boundary::internal {
+		// Concept to check if a type T is a ControllerPack
+		template<typename T>
+		inline constexpr bool is_boundary_pack_v = false; // Default
 
-	template<IsBoundary... BCs>
-	inline constexpr bool is_boundary_pack_v<BoundaryPack<BCs...>> = true; // Specialization
+		template<IsBoundary... BCs>
+		inline constexpr bool is_boundary_pack_v<BoundaryPack<BCs...>> = true; // Specialization
 
-	template<typename T>
-	concept IsBoundaryPack = is_boundary_pack_v<std::remove_cvref_t<T>>;
-
-
-	namespace internal {
+		template<typename T>
+		concept IsBoundaryPack = is_boundary_pack_v<std::remove_cvref_t<T>>;
 
 		struct BoundarySentinel : Boundary {
-			static constexpr env::FieldMask fields = +env::Field::none;
+			static constexpr ParticleField fields = ParticleField::none;
 
 			BoundarySentinel(): Boundary(-1, false, false, false) {}
 
-			template<env::FieldMask IncomingMask, env::IsUserData U>
-			void apply(env::ParticleRef<IncomingMask, U> &, const env::Box &, const Face) const noexcept {
+			void apply(auto, const core::Box &, const DomainFace) const noexcept {
 				AP_ASSERT(false, "apply called on null boundary! this should never happen");
 			}
 		};
@@ -165,11 +172,11 @@ namespace april::boundary {
 
 		template<class... BCs>
 		struct VariantType {
-			static constexpr bool has_absorb = same_as_any<Open, BCs...>;
+			static constexpr bool has_absorb = same_as_any<OpenBoundary, BCs...>;
 			using type = std::conditional_t<
 				has_absorb,
 				std::variant<BoundarySentinel, BCs...>,
-				std::variant<BoundarySentinel, Open, BCs...>
+				std::variant<BoundarySentinel, OpenBoundary, BCs...>
 			>;
 		};
 
@@ -177,5 +184,20 @@ namespace april::boundary {
 		using VariantType_t = typename VariantType<BCs...>::type;
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

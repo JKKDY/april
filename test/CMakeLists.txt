@@ -36,6 +36,13 @@ add_executable(test_april
         particle/particle_generators_test.cpp
         forces/forces_test.cpp
         math/range_test.cpp
+        math/simd_test.cpp
+        math/vec3_test.cpp
+        math/simd_ref_test.cpp
+        math/vec3_ref_test.cpp
+        math/simd_vec3_ref_tests.cpp
+        particle/packed_fields_test.cpp
+        forces/simd_forces_test.cpp
 )
 
 target_include_directories(test_april PRIVATE
@@ -59,3 +66,6 @@ enable_coverage(test_april)
 include(GoogleTest)
 gtest_discover_tests(test_april)
 set_target_properties(test_april PROPERTIES GTEST_DISCOVER_TESTS_MODE PRE_TEST)
+
+
+

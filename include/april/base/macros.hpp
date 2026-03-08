@@ -42,3 +42,26 @@
 	#define AP_PREFETCH_NTA(addr)
 #endif
 
+
+#if defined(__clang__)
+	#define AP_PRAGMA(x) _Pragma(#x)
+	#define AP_UNROLL_LOOP() AP_PRAGMA(unroll)
+	#define AP_UNROLL_LOOP_N(N) AP_PRAGMA(unroll N)
+#else
+	// not clang: no-op
+	#define AP_UNROLL_LOOP()
+	#define AP_UNROLL_LOOP_N(N)
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+

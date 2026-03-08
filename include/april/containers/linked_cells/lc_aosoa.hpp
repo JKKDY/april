@@ -3,7 +3,7 @@
 #include "april/containers/linked_cells/lc_core.hpp"
 #include "april/containers/layout/aosoa.hpp"
 #include "april/math/range.hpp"
-#include "april/containers/batching/chunked.hpp"
+#include "april/containers/batching/chunked_batch.hpp"
 #include "april/containers/linked_cells/lc_batching.hpp"
 #include "april/containers/linked_cells/lc_config.hpp"
 
@@ -13,16 +13,14 @@ namespace april::container::internal {
     class LinkedCellsAoSoAImpl : public LinkedCellsCore<layout::AoSoA<Config, U, ChunkSize>> {
     public:
     	using Base = LinkedCellsCore<layout::AoSoA<Config, U, ChunkSize>>;
-		using AsymBatch = AsymmetricChunkedBatch<LinkedCellsAoSoAImpl, typename Base::ChunkT>;
-    	using SymBatch = SymmetricChunkedBatch<LinkedCellsAoSoAImpl, typename Base::ChunkT>;
+		using AsymBatch = batching::AsymmetricChunkedBatch<LinkedCellsAoSoAImpl, typename Base::ChunkT>;
+    	using SymBatch = batching::SymmetricChunkedBatch<LinkedCellsAoSoAImpl, typename Base::ChunkT>;
 
     	using Base::Base;
     	friend Base;
 
     	template<typename F>
 		void for_each_interaction_batch(this auto && self, F && func) {
-		    // const uint3 block_dim = self.config.block_size;
-
     		struct BinRange {
     			math::Range range_chunks;
     			size_t tail{};
@@ -70,7 +68,7 @@ namespace april::container::internal {
 				self.for_each_type_pair([&](const size_t t1, const size_t t2) {
 					// init batch
 					self.batch.clear();
-					self.batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
+					self.batch.types = {static_cast<ParticleType>(t1), static_cast<ParticleType>(t2)};
 
 					// fill the batch
 					self.for_each_cell_in_block(bx, by, bz, [&](size_t x, size_t y, size_t z) {
@@ -80,7 +78,7 @@ namespace april::container::internal {
 
 					// dispatch if work exists
 					if (!self.batch.empty()) {
-						func(self.batch, NoBatchBCP{});
+						func(self.batch, batching::NoBatchBCP{});
 					}
 				});
 			});
@@ -89,7 +87,7 @@ namespace april::container::internal {
     		auto process_wrapped = [&](auto&& f, const BinRange& r1, const BinRange& r2, size_t t1, size_t t2, auto&& bcp) {
     			AsymBatch wrapped_batch(self, self.ptr_chunks);
 
-    			wrapped_batch.types = {static_cast<env::ParticleType>(t1), static_cast<env::ParticleType>(t2)};
+    			wrapped_batch.types = {static_cast<ParticleType>(t1), static_cast<ParticleType>(t2)};
     			wrapped_batch.range1_chunks = r1.range_chunks;
     			wrapped_batch.range1_tail   = r1.tail;
     			wrapped_batch.range2_chunks = r2.range_chunks;
@@ -109,18 +107,25 @@ namespace april::container::internal {
 
 namespace april::container {
 
+	template<size_t ChunkSize>
     struct LinkedCellsAoSoA : internal::LinkedCellsConfig{
         using ConfigT = LinkedCellsAoSoA;
 
         template <class U>
-        using impl = internal::LinkedCellsAoSoAImpl<ConfigT, U, 8>;
+        using impl = internal::LinkedCellsAoSoAImpl<ConfigT, U, ChunkSize>;
     };
-
-	template<size_t ChunkSize>
-	struct LinkedCellsAoSoA_withChunkSize : internal::LinkedCellsConfig{
-		using ConfigT = LinkedCellsAoSoA_withChunkSize;
-
-		template <class U>
-		using impl = internal::LinkedCellsAoSoAImpl<ConfigT, U, ChunkSize>;
-	};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

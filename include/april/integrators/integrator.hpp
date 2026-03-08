@@ -1,9 +1,10 @@
 #pragma once
 #include <concepts>
 
-#include "april/system/system.hpp"
+#include "april/core/system.hpp"
 #include "april/monitors/monitor.hpp"
 #include "april/base/types.hpp"
+#include "april/base/traits.hpp"
 
 #include "april/utility/pack_storage.hpp"
 
@@ -12,14 +13,14 @@ namespace april::integrator {
 	template<core::IsSystem Sys, class Pack> class Integrator;  // primary template
 
 	template <core::IsSystem Sys, class... TMonitors>  // partial specialization
-	class Integrator<Sys, monitor::MonitorPack<TMonitors...>> {
+	class Integrator<Sys, monitor::internal::MonitorPack<TMonitors...>> {
 	public:
 
 		explicit Integrator(Sys& sys_ref)
 			: sys(sys_ref)
 		{}
 
-		explicit Integrator(Sys& s, monitor::MonitorPack<TMonitors...>) : sys(s) {}
+		explicit Integrator(Sys& s, monitor::internal::MonitorPack<TMonitors...>) : sys(s) {}
 
 		template<typename T> requires same_as_any<T, TMonitors...>
 		void add_monitor(T monitor) {
@@ -133,7 +134,7 @@ namespace april::integrator {
 		};
 		MostRecentlySet most_recently_set = NONE;
 
-		shared::internal::PackStorage<TMonitors...> monitors;
+		utility::internal::PackStorage<TMonitors...> monitors;
 
 		void init_monitors() {
 			monitors.for_each_item([&](auto& mon){mon.init(dt, 0, duration, num_steps); } );
@@ -170,3 +171,17 @@ namespace april::integrator {
 	};
 
 } // namespace april::core
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -7,7 +7,6 @@
 #include "april/particle/particle.hpp"
 #include "april/particle/generators.hpp"
 
-using namespace april::env;
 using namespace april;
 
 
@@ -189,3 +188,14 @@ TEST(ParticleGeneratorTest, ThermalVelocity) {
     EXPECT_EQ(p_thermal.position, vec3(5, 5, 5));
     EXPECT_EQ(p_thermal.velocity, vec3(6, 6, 6));
 }
+
+
+
+
+
+
+
+
+
+
+

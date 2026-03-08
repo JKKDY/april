@@ -3,15 +3,15 @@
 #include <utility>
 
 #include "april/utility/trigger.hpp"
-#include "april/system/context.hpp"
+#include "april/core/context.hpp"
 
 namespace april::controller  {
 
 	class Controller {
 	public:
-		explicit Controller(shared::Trigger trig) : trigger(std::move(trig)) {}
+		explicit Controller(Trigger trig) : trigger(std::move(trig)) {}
 
-		[[nodiscard]] bool should_trigger(const shared::TriggerContext & sys) const {
+		[[nodiscard]] bool should_trigger(const utility::internal::TriggerContext & sys) const {
 			return trigger(sys);
 		}
 
@@ -24,8 +24,8 @@ namespace april::controller  {
 
 		template<class S>
 		void dispatch_update(this auto&& self, const core::SystemContext<S> & sys) {
-			if constexpr ( requires { self.update(sys); }) {
-				self.update(sys);
+			if constexpr ( requires { self.Write(sys); }) {
+				self.Write(sys);
 			}
 		}
 
@@ -39,33 +39,52 @@ namespace april::controller  {
 		}
 
 	private:
-		shared::Trigger trigger;
+		Trigger trigger;
 	};
-
 
 
 
 	template <class C>
 	concept IsController = std::derived_from<C, Controller>;
 
-	// define controller Pack
-	template<IsController...>
-	struct ControllerPack {};
 
+	namespace internal {
+		// define controller Pack
+		template<IsController...>
+		struct ControllerPack {};
+
+		// Concept to check if a type T is a ControllerPack
+		template<typename T>
+		inline constexpr bool is_controller_pack_v = false; // Default
+
+		template<IsController... Cs>
+		inline constexpr bool is_controller_pack_v<ControllerPack<Cs...>> = true; // Specialization
+
+		template<typename T>
+		concept IsControllerPack = internal::is_controller_pack_v<std::remove_cvref_t<T>>;
+	}
+} // namespace april::controller
+
+
+namespace april {
 	// constrained variable template
 	template<class... Cs>
-	requires (IsController<Cs> && ...)
-	inline constexpr ControllerPack<Cs...> controllers {};
+	requires (controller::IsController<Cs> && ...)
+	inline constexpr controller::internal::ControllerPack<Cs...> controllers {};
+}
 
 
-	// Concept to check if a type T is a ControllerPack
-	template<typename T>
-	inline constexpr bool is_controller_pack_v = false; // Default
 
-	template<IsController... Cs>
-	inline constexpr bool is_controller_pack_v<ControllerPack<Cs...>> = true; // Specialization
 
-	template<typename T>
-	concept IsControllerPack = is_controller_pack_v<std::remove_cvref_t<T>>;
 
-} // namespace april::controller
+
+
+
+
+
+
+
+
+
+
+

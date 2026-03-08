@@ -91,19 +91,19 @@ int main() {
 	auto force = LennardJones(epsilon, sigma, force::no_cutoff);
 
 	{
-		Environment env (forces<LennardJones>, boundaries<Reflective>);
+		Environment env (forces<LennardJones>, boundaries<ReflectiveBoundary>);
 		env.add_force(force, to_type(0));
-		env.set_boundaries(Reflective(), all_faces);
+		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 		for (size_t i = 0; i < N; i++) {
 			auto p = Particle().at(static_cast<double>(i),0,0).with_mass(1);
 			env.add_particle(p);
 		}
 
-		constexpr auto container = DirectSumAoS();
+		constexpr auto container = DirectSum<Layout::AoS>();
 		auto system = build_system(env, container);
 
-		monitor::BenchmarkResult bench_results{};
+		Benchmark::BenchmarkResult bench_results{};
 		VelocityVerlet integrator(system, monitors<Benchmark>);
 		integrator.add_monitor(Benchmark(&bench_results));
 		integrator.run_for_steps(dt, steps);
@@ -117,16 +117,16 @@ int main() {
 	}
 
 	{
-		Environment env (forces<LennardJones>, boundaries<Reflective>);
+		Environment env (forces<LennardJones>, boundaries<ReflectiveBoundary>);
 		env.add_force(force, to_type(0));
-		env.set_boundaries(Reflective(), all_faces);
+		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 		for (size_t i = 0; i < N; i++) {
 			auto p = Particle().at(static_cast<double>(i),0,0).with_mass(1);
 			env.add_particle(p);
 		}
 
-		constexpr auto container = DirectSumAoS();
+		constexpr auto container = DirectSum<Layout::AoS>();
 		auto system = build_system(env, container);
 
 		double total_f_time = 0.0;

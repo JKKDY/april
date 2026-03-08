@@ -8,6 +8,7 @@
 #include <gmock/gmock.h>
 
 #include "april/april.hpp"
+#include "april/containers/linked_cells.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;
@@ -21,7 +22,7 @@ template<typename T> static T read_binary(std::ifstream& in) {
 }
 
 // helper to create dummy particle
-using ParticleRec =  env::internal::ParticleRecord<env::NoUserData>;
+using ParticleRec =  particle::ParticleRecord<NoParticleAttributes>;
 static ParticleRec make_particle_rec(const ParticleType type, const ParticleID id,
 	const vec3& pos={0,0,0}, const ParticleState state= ParticleState::ALIVE) {
 	ParticleRec rec;
@@ -35,14 +36,13 @@ static ParticleRec make_particle_rec(const ParticleType type, const ParticleID i
 }
 
 using namespace april;
-using namespace april::env;
+using namespace april::core;
 
 class DummySystem {
 public:
-	using user_data_t = NoUserData;
-	template<FieldMask M> using ParticleRef         = ParticleRef<M, user_data_t>;
-	template<FieldMask M> using ParticleView        = ParticleView<M, user_data_t>;
-	template<FieldMask M> using RestrictedParticleRef = RestrictedParticleRef<M, user_data_t>;
+	using user_data_t = NoParticleAttributes;
+	template<ParticleField M> using ParticleRef         = particle::internal::ScalarParticleRef<M, M, user_data_t>;
+	template<ParticleField M> using ParticleView         = particle::internal::ScalarParticleRef<M, ParticleField::none, user_data_t>;
 
 	explicit DummySystem(
 		const size_t step,
@@ -63,32 +63,33 @@ public:
 	[[nodiscard]] double time() const noexcept { return time_; }
 	[[nodiscard]] Box box() const noexcept { return sim_box; }
 
-	template<env::FieldMask M,  ExecutionPolicy Policy = ExecutionPolicy::Seq, typename Func>
-		void for_each_particle_view(Func && func, env::ParticleState = env::ParticleState::ALL) const {
+	template<ParallelPolicy P = ParallelPolicy::Serial, VectorPolicy V = VectorPolicy::Auto, typename Kernel>
+		void for_each_particle_view(Kernel && func, ParticleState = ParticleState::ALL) const {
+		using K = std::remove_cvref_t<Kernel>;
 		for (size_t i = 0; i < size(); i++) {
-			const auto & p = view<M>(i);
+			const auto & p = view<K::Read>(i);
 			func(p);
 		}
 	}
 
-	template<FieldMask M>
-	[[nodiscard]] ParticleView<M> view(const size_t index) const noexcept {
+	template<ParticleField M>
+	[[nodiscard]] auto view(const size_t index) const noexcept {
 		// 1. Get reference to storage
 		const ParticleRec& record = particles.at(index);
 
 		// 2. Create Source (IsConst = true)
 		// We map the requested fields M to the record's members
-		ParticleSource<M, user_data_t, true> src;
+		particle::internal::ParticleSource<M, ParticleField::none, user_data_t> src;
 
-		if constexpr (env::has_field_v<M, Field::position>)     src.position     = &record.position;
-		if constexpr (env::has_field_v<M, Field::velocity>)     src.velocity     = &record.velocity;
-		if constexpr (env::has_field_v<M, Field::force>)        src.force        = &record.force;
-		if constexpr (env::has_field_v<M, Field::old_position>) src.old_position = &record.old_position;
-		if constexpr (env::has_field_v<M, Field::mass>)         src.mass         = &record.mass;
-		if constexpr (env::has_field_v<M, Field::state>)        src.state        = &record.state;
-		if constexpr (env::has_field_v<M, Field::type>)         src.type         = &record.type;
-		if constexpr (env::has_field_v<M, Field::id>)           src.id           = &record.id;
-		if constexpr (env::has_field_v<M, Field::user_data>)    src.user_data    = &record.user_data;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::position>)     src.position     = &record.position;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::velocity>)     src.velocity     = &record.velocity;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::force>)        src.force        = &record.force;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::old_position>) src.old_position = &record.old_position;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::mass>)         src.mass         = &record.mass;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::state>)        src.state        = &record.state;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::type>)         src.type         = &record.type;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::id>)           src.id           = &record.id;
+		if constexpr (particle::internal::has_field_v<M, ParticleField::attributes>)    src.attributes    = &record.attributes;
 
 		// 3. Construct View
 		return ParticleView<M>(src);
@@ -219,13 +220,13 @@ TEST(BenchmarkTest, Integration_CapturesStatistics) {
 	auto p1 = make_particle(0, {0,0,0}, {0,0,0}, 1.0);
 	auto p2 = make_particle(0, {1.5,0,0}, {0,0,0}, 1.0);
 
-	auto env = Environment(forces<LennardJones>, boundaries<Reflective>)
+	auto env = Environment(forces<LennardJones>, boundaries<ReflectiveBoundary>)
 	   .with_particles({p1, p2})
 	   .with_extent(10, 10, 10)
 	   .with_force(LennardJones(1, 1), to_type(0));
 
 	// Using AoS for simplicity
-	auto container = LinkedCellsAoS();
+	auto container = LinkedCells();
 	auto system = build_system(env, container);
 
 	testing::internal::CaptureStdout();
@@ -256,13 +257,13 @@ TEST(TerminalOutputTest, terminal_test) {
 	auto p1 = make_particle(0, {0,0,0}, {0,0,0}, 1.0);
 	auto p2 = make_particle(0, {1.5,0,0}, {0,0,0}, 1.0);
 
-	auto env = Environment(forces<LennardJones>, boundaries<Reflective>)
+	auto env = Environment(forces<LennardJones>, boundaries<ReflectiveBoundary>)
 	   .with_particles({p1, p2})
 	   .with_extent(10, 10, 10)
 	   .with_force(LennardJones(1, 1), to_type(0));
 
 	// Using AoS for simplicity
-	auto container = LinkedCellsAoS();
+	auto container = LinkedCells();
 	auto system = build_system(env, container);
 
 	testing::internal::CaptureStdout();
@@ -296,3 +297,14 @@ TEST(TerminalOutputTest, terminal_test) {
 	// So 4 calls = 8 occurrences of the string
 	EXPECT_EQ(count, 8);
 }
+
+
+
+
+
+
+
+
+
+
+

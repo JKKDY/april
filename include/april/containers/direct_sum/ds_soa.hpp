@@ -1,8 +1,8 @@
 #pragma once
-#include "april/particle/defs.hpp"
+#include "april/particle/particle_types.hpp"
 #include "april/containers/layout/soa.hpp"
 #include "april/containers/direct_sum/ds_core.hpp"
-#include "april/containers/batching/scalar.hpp"
+#include "april/containers/batching/scalar_batch.hpp"
 
 namespace april::container::internal {
 
@@ -10,16 +10,18 @@ namespace april::container::internal {
     class DirectSumSoAImpl : public DirectSumCore<layout::SoA<Config, U>> {
     public:
         using Base = DirectSumCore<layout::SoA<Config, U>>;
-        using SymmetricBatch = SymmetricScalarBatch<DirectSumSoAImpl>;
-        using AsymmetricBatch = AsymmetricScalarBatch<DirectSumSoAImpl>;
+        using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumSoAImpl>;
+        using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumSoAImpl>;
 
         using Base::Base;
         friend Base;
 
         void generate_batches() {
-            const auto n_types = static_cast<env::ParticleType>(this->bin_starts.size());
-            for (env::ParticleType type = 0; type < n_types; type++) {
-                auto [start, end] = this->get_physical_bin_range(type);
+            const auto n_types = static_cast<ParticleType>(this->bin_starts.size());
+
+            // create batches for interacting particles of the same type
+            for (ParticleType type = 0; type < n_types; type++) {
+                auto [start, end, step] = this->get_physical_bin_range(type);
                 if (end - start <= 1) continue;
 
                 SymmetricBatch batch (*this);
@@ -28,10 +30,11 @@ namespace april::container::internal {
                 symmetric_batches.push_back(batch);
             }
 
-            for (env::ParticleType t1 = 0; t1 < n_types; t1++) {
-                for (env::ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
-                    auto [start1, end1] = this->get_physical_bin_range(t1);
-                    auto [start2, end2] = this->get_physical_bin_range(t2);
+            // create batches for interacting particles of different types
+            for (ParticleType t1 = 0; t1 < n_types; t1++) {
+                for (ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
+                    auto [start1, end1, step1] = this->get_physical_bin_range(t1);
+                    auto [start2, end2, step2] = this->get_physical_bin_range(t2);
                     if (start1 == end1 || start2 == end2) continue;
 
                     AsymmetricBatch batch (*this);
@@ -56,3 +59,17 @@ namespace april::container {
         using impl = internal::DirectSumSoAImpl<ConfigT, U>;
     };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

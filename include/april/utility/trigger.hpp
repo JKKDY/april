@@ -3,18 +3,17 @@
 #include <cstddef>
 
 #include <functional>
-#include "april/system/context.hpp"
+#include "april/core/context.hpp"
 
-namespace april::shared {
-
+namespace april::utility::internal {
 	struct TriggerContext {
 		virtual ~TriggerContext() = default;
 
-		[[nodiscard]] virtual env::Box box() const noexcept = 0;
+		[[nodiscard]] virtual core::Box box() const noexcept = 0;
 		[[nodiscard]] virtual double time() const noexcept = 0;
 		[[nodiscard]] virtual size_t step() const noexcept = 0;
 		[[nodiscard]] virtual size_t size() const noexcept = 0;
-		[[nodiscard]] virtual size_t size(env::ParticleState state) const noexcept = 0;
+		[[nodiscard]] virtual size_t size(ParticleState state) const noexcept = 0;
 
 		// Todo: add more accessors
 	};
@@ -23,30 +22,34 @@ namespace april::shared {
 	struct TriggerContextImpl final : TriggerContext {
 		explicit TriggerContextImpl(const System & sys): system(sys) {}
 
-		[[nodiscard]] env::Box box() const noexcept override { return system.box(); }
+		[[nodiscard]] core::Box box() const noexcept override { return system.box(); }
 		[[nodiscard]] double time() const noexcept override { return system.time(); }
 		[[nodiscard]] size_t step() const noexcept override { return system.step(); }
 		[[nodiscard]] size_t size() const noexcept override {
-			return system.size(env::ParticleState::ALL);
+			return system.size(ParticleState::ALL);
 		}
-		[[nodiscard]] size_t size(env::ParticleState state) const noexcept override {
+		[[nodiscard]] size_t size(ParticleState state) const noexcept override {
 			return system.size(state);
 		}
 
 	private:
 		const System& system;
 	};
+}
 
+namespace april{
 	struct Trigger {
-		using TriggerFn = std::function<bool(const TriggerContext&)>;
+	private:
+		using TriggerContext = utility::internal::TriggerContext;
+	public:
+		using TriggerFn = std::function<bool(const utility::internal::TriggerContext&)>;
 
-		bool operator()(const TriggerContext& sys) const {
+		bool operator()(const utility::internal::TriggerContext& sys) const {
 			return fn_(sys);
 		}
 
 		explicit Trigger(TriggerFn fn) : fn_(std::move(fn)) {}
 
-		// ---- convenience constructors ----
 
 		// step based triggers:
 		// trigger every N steps
@@ -119,7 +122,7 @@ namespace april::shared {
 
 
 
-		// ---- Chaining operators ----
+		// Chaining operators:
 		// Logical AND
 		friend Trigger operator&&(Trigger lhs, Trigger rhs) {
 			return Trigger{[lhs = std::move(lhs), rhs = std::move(rhs)]
@@ -148,4 +151,6 @@ namespace april::shared {
 	};
 }
 
-// Todo: implement optional CRTP based triggers for more performance
+
+
+

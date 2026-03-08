@@ -27,3 +27,17 @@ namespace april::math {
 	}
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

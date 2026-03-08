@@ -3,125 +3,115 @@
 #include <iterator>
 #include <utility>
 #include <algorithm>
+#include <type_traits>
 
 namespace april::math {
 
     struct Range {
         struct Iterator {
-            // Essential for STL algorithms
-            using iterator_category = std::random_access_iterator_tag;
+            // C++20 compliant tags for iterators returning by value
+            using iterator_concept  = std::random_access_iterator_tag;
+            using iterator_category = std::input_iterator_tag;
             using difference_type   = std::ptrdiff_t;
             using value_type        = size_t;
-            using pointer           = const size_t*;  // "Proxy" pointer
-            using reference         = const size_t;   // Value is returned by copy usually, but const ref is ok
+            using pointer           = void;
+            using reference         = size_t;
 
             size_t current;
+            size_t step;
 
-            constexpr Iterator() : current(0) {}
-            constexpr explicit Iterator(const size_t c) : current(c) {}
-
+            constexpr Iterator() : current(0), step(1) {}
+            constexpr explicit Iterator(const size_t c, const size_t s) : current(c), step(s) {}
 
             // Increment/Decrement
             constexpr Iterator& operator++() noexcept {
-                ++current; return *this;
+                current += step; return *this;
             }
             constexpr Iterator operator++(int) noexcept {
-                const Iterator tmp = *this; ++current; return tmp;
+                const Iterator tmp = *this; current += step; return tmp;
             }
             constexpr Iterator& operator--() noexcept {
-                --current; return *this;
+                current -= step; return *this;
             }
             constexpr Iterator operator--(int) noexcept {
-                const Iterator tmp = *this; --current; return tmp;
+                const Iterator tmp = *this; current -= step; return tmp;
             }
 
-            // arithmetic
+            // Safe Arithmetic
             constexpr Iterator& operator+=(const difference_type n) noexcept {
-                current += n; return *this;
+                if (n >= 0) current += static_cast<size_t>(n) * step;
+                else        current -= static_cast<size_t>(-n) * step;
+                return *this;
             }
             constexpr Iterator& operator-=(const difference_type n) noexcept {
-                current -= n; return *this;
+                return *this += -n;
             }
             constexpr difference_type operator-(const Iterator& other) const noexcept {
-                return static_cast<difference_type>(current) - static_cast<difference_type>(other.current);
+                if (current >= other.current) {
+                    return static_cast<difference_type>((current - other.current) / step);
+                } else {
+                    return -static_cast<difference_type>((other.current - current) / step);
+                }
             }
-            friend constexpr Iterator operator+(const difference_type n, const Iterator& it) noexcept {
-                return Iterator{ it.current + static_cast<size_t>(n) };
+            friend constexpr Iterator operator+(const difference_type n, Iterator it) noexcept {
+                it += n; return it;
             }
-            friend constexpr Iterator operator+(const Iterator& it, difference_type n) noexcept {
-                return Iterator{ it.current + static_cast<size_t>(n) };
+            friend constexpr Iterator operator+(Iterator it, const difference_type n) noexcept {
+                it += n; return it;
             }
-            friend constexpr Iterator operator-(const Iterator& it, difference_type n) noexcept {
-                return Iterator{ it.current - static_cast<size_t>(n) };
+            friend constexpr Iterator operator-(Iterator it, const difference_type n) noexcept {
+                it -= n; return it;
             }
 
-            // access
+            // Access
             constexpr size_t operator*() const noexcept { return current; }
-            constexpr size_t operator[](const difference_type n) const noexcept { return current + n; }
+            constexpr size_t operator[](const difference_type n) const noexcept {
+                return *(*this + n);
+            }
 
-            // ordering & equality
+            // Ordering & Equality
             constexpr auto operator<=>(const Iterator&) const noexcept = default;
             constexpr bool operator==(const Iterator&) const noexcept = default;
-
         };
 
         // Constructors
         constexpr Range() = default;
 
-        // initialize from explicit [start, stop) range
-        constexpr Range(const size_t start, const size_t stop) :
-            start(start), stop(std::max(start, stop)) {}
+        // Initialize from [start, stop) range with optional step
+        constexpr Range(const size_t start, const size_t stop, const size_t step = 1) :
+            start(start), stop(std::max(start, stop)), step(step > 0 ? step : 1) {}
 
-        // initialize from a pair of integers
+        // Initialize from a pair of integers
         template<std::integral I>
         constexpr explicit Range(const std::pair<I, I>& p)
             : Range(static_cast<size_t>(p.first), static_cast<size_t>(p.second)) {}
 
-        // initialize from generic range (e.g. std::views::iota) using the ranges first element + size
-        template<std::ranges::range R>
-        requires std::convertible_to<std::ranges::range_value_t<R>, size_t>
-              && std::ranges::sized_range<R>  // enforce O(1) size
-              && (!std::same_as<std::remove_cvref_t<R>, Range>) // prevent eating Copy Ctor
-        constexpr explicit Range(R&& r) {
-            if (std::ranges::empty(r)) {
-                start = stop = 0;
-            } else {
-                start = static_cast<size_t>(*std::ranges::begin(r));
-                stop  = start + std::ranges::size(r);
-            }
-        }
-
-
-        // Accessors & utility
+        // Accessors & Utility
         [[nodiscard]] constexpr size_t size() const noexcept {
-            return stop - start;
+            if (stop <= start) return 0;
+            return (stop - start - 1) / step + 1;
         }
         [[nodiscard]] constexpr bool empty() const noexcept {
-            return start == stop;
+            return size() == 0;
         }
         [[nodiscard]] constexpr bool contains(const size_t val) const noexcept {
-            return val >= start && val < stop;
-        }
-        [[nodiscard]] constexpr bool intersects(const Range& other) const noexcept {
-            return (start < other.stop) && (stop > other.start);
-        }
-        [[nodiscard]] constexpr Range intersection(const Range& other) const noexcept {
-            const size_t s = std::max(start, other.start);
-            const size_t e = std::min(stop, other.stop);
-            return {s, e};
+            return val >= start && val < stop && ((val - start) % step == 0);
         }
 
-        // standard iterator interface
-        [[nodiscard]] constexpr Iterator begin() const noexcept { return Iterator{start}; }
-        [[nodiscard]] constexpr Iterator end()   const noexcept { return Iterator{stop}; }
+        // Standard iterator interface
+        [[nodiscard]] constexpr Iterator begin() const noexcept { return Iterator{start, step}; }
+        [[nodiscard]] constexpr Iterator end()   const noexcept {
+            return Iterator{start + size() * step, step};
+        }
 
         // Allow array-like access to the range conceptual values
         [[nodiscard]] constexpr size_t operator[](const size_t index) const noexcept {
-            return start + index;
+            return start + index * step;
         }
 
         size_t start{0};
         size_t stop{0};
+        size_t step{1};
     };
 
     // Validation
@@ -129,3 +119,4 @@ namespace april::math {
     static_assert(std::ranges::sized_range<Range>);
     static_assert(std::is_trivially_copyable_v<Range>);
 }
+

@@ -1,15 +1,16 @@
 #pragma once
 
 #include <cmath>
+#include "april/forces/force.hpp"
 #include "april/base/types.hpp"
-#include "april/particle/fields.hpp"
 
 
-namespace april::force {
+
+namespace april {
 
 	// Lennard-Jones potential (12-6). epsilon: well depth; sigma: zero-cross distance.
-	struct LennardJones : Force{
-		static constexpr env::FieldMask fields = +env::Field::none;
+	struct LennardJones : force::Force {
+		static constexpr auto fields = ParticleField::none;
 
 		LennardJones(const double epsilon, const double sigma, const double cutoff = -1.0)
 		: Force(cutoff < 0.0 ? 3.0 * sigma : cutoff), epsilon_(epsilon), sigma_(sigma) {
@@ -28,13 +29,12 @@ namespace april::force {
 			return *this;
 		}
 
-		vec3 eval(auto, auto, const vec3& r) const noexcept {
-			const vec3::type inv_r2 = static_cast<vec3::type>(1.0) / (r.x*r.x + r.y*r.y + r.z * r.z);
-			const vec3::type inv_r6 = inv_r2 * inv_r2 * inv_r2;
-			const vec3::type magnitude = (c12_force * inv_r6 - c6_force) * inv_r6 * inv_r2;
+		auto eval(auto, auto, const auto& r) const noexcept {
+			const auto inv_r2 = static_cast<vec3::type>(1.0) / (r.x*r.x + r.y*r.y + r.z * r.z);
+			const auto inv_r6 = inv_r2 * inv_r2 * inv_r2;
+			const auto magnitude = (c12_force * inv_r6 - c6_force) * inv_r6 * inv_r2;
 
-			// Force vector pointing along -r
-			return -magnitude * r;
+			return -magnitude * r; // Force vector pointing along -r
 		}
 
 		[[nodiscard]] LennardJones mix(LennardJones const& other) const noexcept {
@@ -65,3 +65,17 @@ namespace april::force {
 		double sigma_; // Distance at which potential is zero
 	};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

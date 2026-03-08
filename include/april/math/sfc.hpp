@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <vector>
 #include <stdexcept>
 
 #include "april/math/vec3.hpp"
@@ -113,3 +112,18 @@ namespace april::math::sfc {
         return bin;
     }
 } // namespace april::math::sfc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

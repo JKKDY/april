@@ -10,53 +10,55 @@
 
 #include "april/monitors/monitor.hpp"
 
-namespace april::monitor {
+namespace april {
 
-    struct BenchmarkResult {
-        size_t steps;
-        uint64_t total_updates;
-        double wall_time_sec;
-        double integration_time_s;
-        double its_per_sec;
-        double mups; // million updates per second
-        double avg_step_sec;
-        double median_step_sec;
-        double min_step_sec;
-        double max_step_sec;
-        double std_dev_sec;
 
-        void print_report() const {
-            std::cout << "\n" << std::string(40, '-') << "\n";
-            std::cout << " [APRIL BENCHMARK REPORT] \n";
-            std::cout << std::string(40, '-') << "\n";
-
-            std::cout << std::fixed << std::setprecision(5);
-            std::cout << "  Steps processed:    " << steps << "\n";
-            std::cout << "  Particles processed: " << total_updates << "\n";
-            std::cout << "  Wall time (total):  " << wall_time_sec << " s\n";
-            std::cout << "  Integration time:   " << integration_time_s << " s\n";
-            std::cout << std::string(40, '-') << "\n";
-
-            std::cout << std::setprecision(2);
-            // Reverting to your original labels: Throughput and Performance
-            std::cout << "  Throughput:         " << its_per_sec << " it/s\n";
-            std::cout << "  Performance:        " << mups << " MUPS\n";
-            std::cout << std::string(40, '-') << "\n";
-
-            std::cout << std::setprecision(6);
-            std::cout << "  Avg step time:      " << avg_step_sec << " s\n";
-            std::cout << "  Median step time:   " << median_step_sec << " s\n";
-            std::cout << "  Min step time:      " << min_step_sec << " s\n";
-            std::cout << "  Max step time:      " << max_step_sec << " s\n";
-            std::cout << "  Std Deviation:      " << std_dev_sec << " s\n";
-            std::cout << std::string(40, '-') << "\n\n";
-        }
-    };
-
-    class Benchmark : public Monitor {
+    class Benchmark : public monitor::Monitor {
     public:
-       Benchmark() : Monitor(shared::Trigger::always()) {}
-       explicit Benchmark(BenchmarkResult * res) : Monitor(shared::Trigger::always()), result(res) {}
+
+       struct BenchmarkResult {
+          size_t steps;
+          uint64_t total_updates;
+          double wall_time_sec;
+          double integration_time_s;
+          double its_per_sec;
+          double mups; // million updates per second
+          double avg_step_sec;
+          double median_step_sec;
+          double min_step_sec;
+          double max_step_sec;
+          double std_dev_sec;
+
+          void print_report() const {
+             std::cout << "\n" << std::string(40, '-') << "\n";
+             std::cout << " [APRIL BENCHMARK REPORT] \n";
+             std::cout << std::string(40, '-') << "\n";
+
+             std::cout << std::fixed << std::setprecision(5);
+             std::cout << "  Steps processed:    " << steps << "\n";
+             std::cout << "  Particles processed: " << total_updates << "\n";
+             std::cout << "  Wall time (total):  " << wall_time_sec << " s\n";
+             std::cout << "  Integration time:   " << integration_time_s << " s\n";
+             std::cout << std::string(40, '-') << "\n";
+
+             std::cout << std::setprecision(2);
+             // Reverting to your original labels: Throughput and Performance
+             std::cout << "  Throughput:         " << its_per_sec << " it/s\n";
+             std::cout << "  Performance:        " << mups << " MUPS\n";
+             std::cout << std::string(40, '-') << "\n";
+
+             std::cout << std::setprecision(6);
+             std::cout << "  Avg step time:      " << avg_step_sec << " s\n";
+             std::cout << "  Median step time:   " << median_step_sec << " s\n";
+             std::cout << "  Min step time:      " << min_step_sec << " s\n";
+             std::cout << "  Max step time:      " << max_step_sec << " s\n";
+             std::cout << "  Std Deviation:      " << std_dev_sec << " s\n";
+             std::cout << std::string(40, '-') << "\n\n";
+          }
+       };
+
+       Benchmark() : Monitor(Trigger::always()) {}
+       explicit Benchmark(BenchmarkResult * res) : Monitor(Trigger::always()), result(res) {}
 
        void initialize() {
           glob_start_time = std::chrono::steady_clock::now();
@@ -128,3 +130,18 @@ namespace april::monitor {
        BenchmarkResult * result = nullptr;
     };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

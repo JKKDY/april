@@ -40,7 +40,7 @@ protected:
     void VerifyGrid(uint3 dims) {
 
         const size_t N = dims.x * dims.y * dims.z;
-        const std::vector<uint32_t> ranking = container::hilbert_order(dims);
+        const std::vector<uint32_t> ranking = hilbert_order(dims);
 
         // 1. check Result Size
         ASSERT_EQ(ranking.size(), N) << "Result vector size mismatch";
@@ -206,7 +206,7 @@ protected:
 
     void VerifyGrid(uint3 dims) {
         const size_t N = dims.x * dims.y * dims.z;
-        const std::vector<uint32_t> ranking = container::morton_order(dims);
+        const std::vector<uint32_t> ranking = morton_order(dims);
 
         ASSERT_EQ(ranking.size(), N) << "Result vector size mismatch";
 
@@ -272,7 +272,7 @@ TEST_F(MortonTest, SimpleCube_2x2x2) {
     // If our loops are:
     // for z { for y { for x ... } }
     // Then Linear Index IS Morton Index for 2x2x2.
-    auto result = container::morton_order({2,2,2});
+    auto result = morton_order({2,2,2});
     for(size_t i=0; i<8; ++i) {
         EXPECT_EQ(result[i], i) << "For 2x2x2, Morton order should match Linear order";
     }
@@ -307,3 +307,14 @@ TEST_F(MortonTest, Flat_Plate_10x10x1) {
 TEST_F(MortonTest, Prime_Dimensions_13x7x5) {
     VerifyGrid({13, 7, 5});
 }
+
+
+
+
+
+
+
+
+
+
+

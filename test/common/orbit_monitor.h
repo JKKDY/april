@@ -6,20 +6,20 @@
 using namespace april;
 
 
-class OrbitMonitor final : public Monitor {
+class OrbitMonitor final : public monitor::Monitor {
 public:
 	OrbitMonitor(): Monitor(Trigger::always()) {}
 	explicit OrbitMonitor(const double v, const double r): Monitor(Trigger::always()), v(v), r(r) {}
 
-	static constexpr env::FieldMask fields = to_field_mask(env::Field::all);
+	static constexpr auto fields = ParticleField::all;
 
 	template<class S>
-	void record(const SystemContext<S> & sys) const {
+	void record(const core::SystemContext<S> & sys) const {
 		EXPECT_EQ(sys.size(), 2u);
 		const ParticleID id1 = sys.min_id();
 		const ParticleID id2 = sys.max_id() - 1;
-		const ParticleView p = sys.template view_id<fields>(id1).mass < 1 ?
-			sys.template view_id<fields>(id1) : sys.template view_id<fields>(id2);
+		const auto p =
+			sys.template view_id<fields>(id1).mass < 1 ? sys.template view_id<fields>(id1) : sys.template view_id<fields>(id2);
 
 		EXPECT_NEAR(p.velocity.norm(), v, 1e-3);
 		EXPECT_NEAR(p.position.norm(), r, 1e-3);
@@ -28,3 +28,6 @@ public:
 	double v{};
 	double r{};
 };
+
+
+

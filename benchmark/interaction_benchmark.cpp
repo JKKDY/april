@@ -56,12 +56,12 @@ int main() {
 
 	for (int i = 0; i < 10; i ++) {
 
-		Environment env (forces<LJNoCutoff>, boundaries<Reflective>);
+		Environment env (forces<LJNoCutoff>, boundaries<ReflectiveBoundary>);
 		env.add_particles(grid);
 		env.set_origin(origin);
 		env.set_extent(extent);
 		env.add_force(LJNoCutoff(epsilon, sigma, r_cut), to_type(0));
-		env.set_boundaries(Reflective(), all_faces);
+		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 		const auto container = container::LinkedCellsAoS()
 			// .with_cell_size(container::CellSize::Cutoff)
@@ -77,18 +77,18 @@ int main() {
 		constexpr double dt = 0.000001;
 		constexpr int steps  = 25;
 
-		monitor::BenchmarkResult bench;
+		Benchmark::BenchmarkResult bench;
 		VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 		integrator.add_monitor(Benchmark(&bench));
 		integrator.run_for_steps(dt, steps);
 
 
 		n_interactions = 0;
-		system.for_each_interaction_pair<+env::Field::position>(
-			[&](auto, auto, auto) {
+		system.for_each_interaction_pair(scalar_kernel(
+			[&](auto, auto) {
 				n_interactions++;
 			}
-		);
+		));
 		std::cout << "#interactions: " << n_interactions * steps << std::endl;
 		std::cout << "ns / interaction: " << bench.integration_time_s / (n_interactions * steps) * 1e9 << std::endl;
 	}

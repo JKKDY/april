@@ -6,10 +6,13 @@
 #include <utility>
 
 #include "april/base/types.hpp"
-#include "april/particle/defs.hpp"
-#include "april/env/domain.hpp"
+#include "april/particle/particle_types.hpp"
+#include "april/core/domain.hpp"
+#include "april/exec/particle_kernel.hpp"
+#include "april/containers/batching/common.hpp"
 
 namespace april::container::internal {
+
 	template <class ContainerBase>
 	class DirectSumCore : public ContainerBase {
 	public:
@@ -18,8 +21,29 @@ namespace april::container::internal {
 		using typename ContainerBase::ParticleRecord;
 
 		void build(this auto&& self, const std::vector<ParticleRecord>& particles) {
+			// precompute topology batches (id based batches)
+			for (size_t i = 0; i < self.force_schema.interactions.size(); ++i) {
+				const auto& prop = self.force_schema.interactions[i];
+
+				if (!prop.used_by_ids.empty() && prop.is_active) {
+					batching::TopologyBatch batch;
+					batch.id1 = prop.used_by_ids[0].first;
+					batch.id2 = prop.used_by_ids[0].second;
+					batch.pairs = prop.used_by_ids;
+
+					self.topology_batches.push_back(std::move(batch));
+				}
+			}
+
 			self.build_storage(particles);
 			self.build_batches();
+		}
+
+		template<typename Func>
+		void for_each_topology_batch(Func && func) {
+			for (const auto & batch : topology_batches) {
+				func(batch);
+			}
 		}
 
 		template<typename F>
@@ -31,14 +55,22 @@ namespace april::container::internal {
 
 			// trampoline lambda
 			auto run_with_mode = [&] <bool PX, bool PY, bool PZ>() {
-				auto bcp = [L=self.domain.extent](const vec3& dr) {
-				return minimum_image<PX, PY, PZ>(dr, L);
-			};
+				auto bcp = [L=self.domain.extent]<typename T>(const math::Vec3<T>& dr) {
+					if constexpr (!std::is_floating_point_v<T>) {
+						auto res = dr;
+						if constexpr (PX) res.x -= L.x * round(dr.x / L.x);
+						if constexpr (PY) res.y -= L.y * round(dr.y / L.y);
+						if constexpr (PZ) res.z -= L.z * round(dr.z / L.z);
+						return res;
+					} else {
+						return minimum_image<PX, PY, PZ>(dr, L);
+					}
+				};
 
-			// subclass is responsible for populating these vectors via generate_batches
-			for (const auto & batch : self.symmetric_batches) f(batch, bcp);
-			for (const auto & batch : self.asymmetric_batches) f(batch, bcp);
-		};
+				// subclass is responsible for populating these vectors via generate_batches
+				for (const auto & batch : self.symmetric_batches) f(batch, bcp);
+				for (const auto & batch : self.asymmetric_batches) f(batch, bcp);
+			};
 
 			// jump table
 			switch(mode) {
@@ -54,7 +86,7 @@ namespace april::container::internal {
 			}
 		}
 
-		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const env::Box & region) {
+		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const core::Box & region) {
 			std::vector<size_t> ret;
 			const double domain_vol = self.domain.volume();
 			const auto intersection = self.domain.intersection(region);
@@ -67,13 +99,14 @@ namespace april::container::internal {
 			}
 
 			// gather particles
-			self.template for_each_particle_view<+env::Field::position>(
-				[&](const size_t i, const auto & particle) {
-					if (region.contains(particle.position)) {
-						ret.push_back(i);
-					}
-				},
-				env::ParticleState::ALIVE
+			self.for_each_particle(
+				april::scalar_kernel<ParticleField::position>(
+					[&](const size_t i, const auto & particle) {
+						if (region.contains(particle.position)) {
+							ret.push_back(i);
+						}
+					}),
+				ParticleState::ALIVE
 			);
 
 			return ret;
@@ -82,12 +115,14 @@ namespace april::container::internal {
 		void rebuild_structure() {}
 
 	private:
+		std::vector<batching::TopologyBatch> topology_batches;
+
 		void build_batches(this auto&& self) {
 			// calculate the buckets for bucket sorting the particles by types
 			// outer vector holds buckets, inner vectors hold physical indexes to particles belonging to that bucket
 			std::vector<std::vector<size_t>> buckets;
 
-			self.template for_each_particle_view<+env::Field::type>(
+			self.for_each_particle(april::scalar_kernel<ParticleField::type>(
 				[&](const size_t i, const auto& p) {
 					const auto type_idx = static_cast<size_t>(p.type);
 					if (type_idx >= buckets.size()) {
@@ -95,7 +130,7 @@ namespace april::container::internal {
 					}
 					buckets[type_idx].push_back(i);
 				}
-			);
+			));
 
 			// reorder into type-buckets
 			static_assert(requires {self.reorder_storage(buckets); }, "void rebuild_storage(bins) is not implemented");
@@ -114,5 +149,6 @@ namespace april::container::internal {
 			return dr;
 		}
 	};
-
 }
+
+

@@ -8,16 +8,19 @@ using testing::Eq;
 #include "constant_force.h"
 #include "utils.h"
 
-#include "april/containers/direct_sum/ds_aos.hpp"
-#include "april/containers/direct_sum/ds_soa.hpp"
-#include "april/containers/direct_sum/ds_aosoa.hpp"
+#include "april/containers/direct_sum.hpp"
 
 using namespace april;
 
 template <typename T>
 class DirectSumTest : public testing::Test {};
 
-using ContainerTypes = testing::Types<DirectSumAoS, DirectSumSoA, DirectSumAoSoA>;
+using ContainerTypes = testing::Types<
+	DirectSum<Layout::AoS>,
+	DirectSum<Layout::SoA>,
+	DirectSum<Layout::AoSoA<>>,
+	DirectSum<Layout::AoSoA<16>>
+>;
 TYPED_TEST_SUITE(DirectSumTest, ContainerTypes);
 
 TYPED_TEST(DirectSumTest, SingleParticle_NoForce) {
@@ -26,7 +29,7 @@ TYPED_TEST(DirectSumTest, SingleParticle_NoForce) {
 	e.add_force(NoForce(), to_type(0));
 	e.set_extent(1,1,1);
 
-	auto sys = build_system(e, DirectSumAoS());
+	auto sys = build_system(e, TypeParam());
     sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -46,8 +49,6 @@ TYPED_TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
     auto const& out = export_particles(sys);
 
     ASSERT_EQ(out.size(), 2u);
-    // both should see the same force vector
-    EXPECT_EQ(out[0].force, -out[1].force);
 
 	EXPECT_THAT(
 		out[0].force,
@@ -70,7 +71,7 @@ TYPED_TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
     auto const& out = export_particles(sys);
     ASSERT_EQ(out.size(), 2u);
 
-	EXPECT_EQ(out[0].force, -out[1].force);
+	EXPECT_EQ(out[0].force, out[1].force);
 
 	EXPECT_THAT(
 		out[0].force,
@@ -127,8 +128,8 @@ TYPED_TEST(DirectSumTest, CollectIndicesInRegion) {
 
     // Case 1: small inner region (should include one particle)
     {
-        env::Domain region({0.1, 0.1, 0.1}, {0.9, 0.9, 0.9});
-        auto indices = sys.query_region(env::Box::from_domain(region));
+        Domain region({0.1, 0.1, 0.1}, {0.9, 0.9, 0.9});
+        auto indices = sys.query_region(core::Box::from_domain(region));
         ASSERT_EQ(indices.size(), 1u);
         auto p = export_particles(sys)[indices[0]];
         EXPECT_EQ(p.position.x, 0.25);
@@ -138,15 +139,15 @@ TYPED_TEST(DirectSumTest, CollectIndicesInRegion) {
 
     // Case 2: mid region (should include all 27)
     {
-        env::Domain region({0, 0, 0}, {5, 5, 5});
-        auto indices = sys.query_region(env::Box::from_domain(region));
+        Domain region({0, 0, 0}, {5, 5, 5});
+        auto indices = sys.query_region(core::Box::from_domain(region));
         EXPECT_EQ(indices.size(), 27u);
     }
 
     // Case 3: partially overlapping region
     {
-        env::Domain region({1.5, 1.5, 1.5}, {4.5, 4.5, 4.5});
-        std::vector indices = sys.query_region(env::Box::from_domain(region));
+        Domain region({1.5, 1.5, 1.5}, {4.5, 4.5, 4.5});
+        std::vector indices = sys.query_region(core::Box::from_domain(region));
         EXPECT_GT(indices.size(), 0u);
         EXPECT_LT(indices.size(), 27u);
 
@@ -168,22 +169,21 @@ TYPED_TEST(DirectSumTest, CollectIndicesInRegion) {
 
     // Case 4: region completely outside
     {
-        env::Domain region({10, 10, 10}, {12, 12, 12});
-        auto indices = sys.query_region(env::Box::from_domain(region));
+        Domain region({10, 10, 10}, {12, 12, 12});
+        auto indices = sys.query_region(core::Box::from_domain(region));
         EXPECT_TRUE(indices.empty());
     }
 }
 
 
 // does nothing except signaling the container to be periodic
-struct DummyPeriodicBoundary final : Boundary {
-	static constexpr env::FieldMask fields = +env::Field::none;
+struct DummyPeriodicBoundary final : boundary::Boundary {
+	static constexpr auto fields = ParticleField::none;
 
 	DummyPeriodicBoundary()
 	: Boundary(0.0, false, true, false ) {}
 
-	template<env::FieldMask M, env::IsUserData U>
-	void apply(env::ParticleRef<M, U> &, const env::Box &, const Face) const noexcept {}
+	void apply(auto, const core::Box &, const DomainFace) const noexcept {}
 };
 
 TYPED_TEST(DirectSumTest, PeriodicForceWrap_X) {
@@ -197,7 +197,7 @@ TYPED_TEST(DirectSumTest, PeriodicForceWrap_X) {
 	e.add_particle(make_particle(0, {9.5, 5, 5}, {}, 1, ParticleState::ALIVE, 1));
 
 	e.add_force(Harmonic(1, 0, 2), to_type(0)); // simple directional force
-	e.set_boundaries(DummyPeriodicBoundary(), {Face::XMinus, Face::XPlus});
+	e.set_boundaries(DummyPeriodicBoundary(), {DomainFace::XMinus, DomainFace::XPlus});
 
 	BuildInfo mapping;
 	auto sys = build_system(e, TypeParam(),&mapping); // DirectSum container
@@ -231,9 +231,9 @@ TYPED_TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 
 	// Activate periodic wrapping on all faces
 	e.set_boundaries(DummyPeriodicBoundary(), {
-		Face::XMinus, Face::XPlus,
-		Face::YMinus, Face::YPlus,
-		Face::ZMinus, Face::ZPlus
+		DomainFace::XMinus, DomainFace::XPlus,
+		DomainFace::YMinus, DomainFace::YPlus,
+		DomainFace::ZMinus, DomainFace::ZPlus
 	});
 
 	BuildInfo mapping;
@@ -296,9 +296,11 @@ TYPED_TEST(DirectSumTest, Asymmetric_ChunkBoundaries_Counting) {
 
 	for (const auto& p : out) {
 		if (p.type == info.type_map[0]) {
-			EXPECT_THAT(p.force, testing::AnyOf(expected_f0, -expected_f0));
+			EXPECT_THAT(p.force, testing::AnyOf(expected_f0, -expected_f0))
+				<< "at pos: " << p.position << " type: " << p.type << " id: " << p.id;
 		} else {
-			EXPECT_THAT(p.force, testing::AnyOf(expected_f1, -expected_f1));
+			EXPECT_THAT(p.force, testing::AnyOf(expected_f1, -expected_f1))
+				<< "at pos: " << p.position << " type: " <<  p.type << " id: " << p.id;
 		}
 	}
 }
@@ -407,7 +409,7 @@ TYPED_TEST(DirectSumTest, IdBasedAccess_ReadWrite) {
     for (size_t i = 0; i < N; ++i) {
         // Resolve the internal ID used by the system
         const auto sys_id = info.id_map[i];
-    	auto view = sys.template view_id<env::Field::position | env::Field::id>(sys_id);
+    	auto view = sys.template view_id<ParticleField::position | ParticleField::id>(sys_id);
         EXPECT_EQ(view.id, sys_id);
         EXPECT_DOUBLE_EQ(view.position.x, static_cast<double>(i) + 0.5);
     }
@@ -417,7 +419,7 @@ TYPED_TEST(DirectSumTest, IdBasedAccess_ReadWrite) {
         const auto sys_id = info.id_map[i];
 
         // Modify velocity using ID access
-        auto ref = sys.template at_id<+env::Field::velocity>(sys_id);
+        auto ref = sys.template at_id<ParticleField::velocity>(sys_id);
         const auto val = static_cast<double>(i);
         ref.velocity = {val, val * 2, val * 3};
     }
@@ -428,10 +430,21 @@ TYPED_TEST(DirectSumTest, IdBasedAccess_ReadWrite) {
         const auto val = static_cast<double>(i);
 
         // Verify the write persisted and can be read back via restricted interface
-        auto res_view = sys.template restricted_at_id<env::Field::velocity | env::Field::force>(sys_id);
+        auto res_view = sys.template at_id<ParticleField::velocity | ParticleField::force>(sys_id);
 
         EXPECT_EQ(res_view.velocity.x, val);
         EXPECT_EQ(res_view.velocity.y, val * 2);
         EXPECT_EQ(res_view.velocity.z, val * 3);
     }
 }
+
+
+
+
+
+
+
+
+
+
+

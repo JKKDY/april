@@ -2,10 +2,9 @@
 #include <tuple>
 #include <vector>
 
-#include "april/base/types.hpp"
+#include "april/base/traits.hpp"
 
-
-namespace april::shared::internal {
+namespace april::utility::internal {
 
 
 	template<class... Ts>
@@ -68,3 +67,18 @@ namespace april::shared::internal {
 		std::tuple<std::vector<Ts>...> components{};
 	};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

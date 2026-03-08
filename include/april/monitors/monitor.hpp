@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include "april/system/context.hpp"
+#include "april/core/context.hpp"
 #include "april/utility/trigger.hpp"
 
 namespace april::monitor {
@@ -10,9 +10,9 @@ namespace april::monitor {
 
 	class Monitor {
 	public:
-		explicit Monitor(shared::Trigger  trig) : trigger(std::move(trig)) {}
+		explicit Monitor(Trigger  trig) : trigger(std::move(trig)) {}
 
-		[[nodiscard]] bool should_trigger(const shared::TriggerContext & sys) const {
+		[[nodiscard]] bool should_trigger(const utility::internal::TriggerContext & sys) const {
 			return trigger(sys);
 		}
 
@@ -61,14 +61,44 @@ namespace april::monitor {
 		double start_time{};
 		double end_time{};
 		size_t num_steps{};
-		shared::Trigger trigger;
+		Trigger trigger;
 	};
 
 
 	template <class M> concept IsMonitor = std::derived_from<M, Monitor>;
 
-	template<IsMonitor... Ms> struct MonitorPack {};
+	namespace internal {
+		template<IsMonitor... Ms> struct MonitorPack {};
 
-	template<class... Ms> inline constexpr MonitorPack<Ms...> monitors{};
+		// check if type is monitor pack
+		template<typename T>
+		inline constexpr bool is_monitor_pack_v = false;
 
+		template<IsMonitor... Ms>
+		inline constexpr bool is_monitor_pack_v<MonitorPack<Ms...>> = true;
+
+		template<typename T>
+		concept IsMonitorPack = is_monitor_pack_v<std::remove_cvref_t<T>>;
+
+	}
 }
+
+namespace april {
+	template<class... Ms> inline constexpr monitor::internal::MonitorPack<Ms...> monitors{};
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

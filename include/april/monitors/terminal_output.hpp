@@ -4,14 +4,15 @@
 #include <sstream>
 
 #include <iostream>
-#include "april/system/context.hpp"
+#include "april/core/context.hpp"
 #include "april/monitors/monitor.hpp"
+#include "april/exec/particle_kernel.hpp"
 
-namespace april::monitor {
+namespace april {
 
-	class TerminalOutput final : public Monitor {
+	class TerminalOutput final : public monitor::Monitor {
 	public:
-		static constexpr env::FieldMask fields = +env::Field::all;
+		static constexpr auto fields = ParticleField::all;
 
 		using Monitor::Monitor;
 
@@ -33,9 +34,24 @@ namespace april::monitor {
 		void record(const core::SystemContext<S> & sys) {
 			std::cout << "\n ##########  step: " << sys.step() <<  "  ########## \n";
 
-			sys.template for_each_particle_view<fields>([&](const auto & p) {
+			sys.for_each_particle_view(scalar_kernel<fields>(
+				[&](const auto & p) {
 				std::cout << particle_to_string(p) << "\n";
-			});
+			}));
 		}
 	};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

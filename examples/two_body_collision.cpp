@@ -2,6 +2,8 @@
 #include <april/april.hpp>
 #include <filesystem>
 
+#include "april/containers/linked_cells.hpp"
+
 using namespace april;
 namespace fs = std::filesystem;
 
@@ -26,15 +28,15 @@ int main() {
 		.spacing(1.1225)
 		.type(0);
 
-	auto env = Environment(forces<LennardJones>, boundaries<Reflective>)
+	auto env = Environment(forces<LennardJones>, boundaries<ReflectiveBoundary>)
 	   .with_particles(cuboid1)
 	   .with_particles(cuboid2)
 	   .with_extent(100,80,40)
 	   .with_origin(-20,-20,-20)
 	   .with_force(LennardJones(5, 1), to_type(0))
-	   .with_boundaries(Reflective(), all_faces);
+	   .with_boundaries(ReflectiveBoundary(), all_faces);
 
-	auto container = LinkedCellsAoS();
+	auto container = LinkedCells<Layout::SoA>();
 	auto system = build_system(env, container);
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)

@@ -5,7 +5,6 @@
 #include "april/base/types.hpp"
 #include "april/particle/particle.hpp"
 
-using namespace april::env;
 using namespace april;
 
 TEST(ParticleTest, FluentSettersAndChaining) {
@@ -67,5 +66,17 @@ TEST(ParticleTest, SetterOverloads) {
     EXPECT_EQ(p.position, expected_pos);
     EXPECT_EQ(p.velocity, expected_vel);
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 

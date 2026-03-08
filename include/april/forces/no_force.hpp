@@ -1,20 +1,19 @@
 #pragma once
 
-#include "april/base/types.hpp"
-#include "april/particle/fields.hpp"
 #include "april/forces/force.hpp"
 
 
-namespace april::force {
+namespace april {
 	// No-op force: always returns zero vector and mixes to itself.
-	struct NoForce : Force{
-		static constexpr env::FieldMask fields = +env::Field::none;
+	struct NoForce : force::Force{
+		static constexpr auto fields = ParticleField::none;
 
 		NoForce(): Force(0) {}
 
 
-		vec3 eval(auto, auto, const vec3&) const noexcept {
-			return vec3{0.0, 0.0, 0.0};
+		auto eval(auto, auto, const auto& r) const noexcept {
+			using v = std::remove_cvref_t<decltype(r)>;
+			return v{0, 0, 0};
 		}
 
 		[[nodiscard]] NoForce mix(NoForce const&) const noexcept {
@@ -24,3 +23,17 @@ namespace april::force {
 		bool operator==(const NoForce&) const = default;
 	};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

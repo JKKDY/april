@@ -1,3 +1,6 @@
+//  SPDX-License-Identifier: AGPL-3.0-only WITH ${PROJECT_NAME}-Commercial-Use-Exception-1.0
+//  Copyright (c) ${YEAR} Julian Deller-Yee
+
 #pragma once
 
 
@@ -6,26 +9,25 @@
 #include <array>
 
 #include "april/base/types.hpp"
-#include "april/env/domain.hpp"
+#include "april/core/domain.hpp"
 #include "april/forces/force.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/controllers/controller.hpp"
 #include "april/fields/field.hpp"
 #include "april/particle/generators.hpp"
 
-namespace april::env {
-    template<force::IsForcePack FPack,
-            boundary::IsBoundaryPack BPack,
-            controller::IsControllerPack CPack,
-            field::IsFieldPack FFPack,
-    	    IsUserData ParticleData>
-    class Environment;
 
-    struct ParticleCuboid;
-    struct ParticleSphere;
+namespace april {
+    template<
+       force::internal::IsForcePack FPack,
+       boundary::internal::IsBoundaryPack BPack,
+       controller::internal::IsControllerPack CPack,
+       field::internal::IsFieldPack FFPack,
+       particle::IsParticleAttributes ParticleData>
+   class Environment;
 }
 
-namespace april::env::internal {
+namespace april::core::internal {
 
     // A data transfer object (DTO) to easily export environment data while preventing the user from directly
     // touching the environment internals
@@ -57,13 +59,26 @@ namespace april::env::internal {
 
     // friend function of environment to access the environment data
     template<
-    force::IsForcePack FPack,
-    boundary::IsBoundaryPack BPack,
-    controller::IsControllerPack CPack,
-    field::IsFieldPack FFPack,
-    IsUserData ParticleData
-    >
+        force::internal::IsForcePack FPack,
+        boundary::internal::IsBoundaryPack BPack,
+        controller::internal::IsControllerPack CPack,
+        field::internal::IsFieldPack FFPack,
+        particle::IsParticleAttributes ParticleData>
     auto get_env_data(const Environment<FPack, BPack, CPack, FFPack, ParticleData>& env) {
         return env.data;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

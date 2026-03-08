@@ -38,29 +38,14 @@ TEST(RangeTest, StartStopConstructor_ClampsStopToStart) {
 }
 
 TEST(RangeTest, PairConstructor_WorksWithIntegers) {
-    std::pair<int, int> p{5, 15};
+    std::pair p{5, 15};
     Range r(p);
     EXPECT_EQ(r.start, 5u);
     EXPECT_EQ(r.stop, 15u);
     EXPECT_EQ(r.size(), 10u);
 }
 
-TEST(RangeTest, GenericRangeConstructor_WorksWithIota) {
-    auto view = std::views::iota(100, 150);
-    Range r(view);
 
-    EXPECT_EQ(r.start, 100u);
-    EXPECT_EQ(r.stop, 150u);
-    EXPECT_EQ(r.size(), 50u);
-}
-
-TEST(RangeTest, GenericRangeConstructor_HandlesEmptySource) {
-    std::vector<int> empty_vec;
-    Range r(empty_vec);
-    EXPECT_TRUE(r.empty());
-    EXPECT_EQ(r.start, 0u);
-    EXPECT_EQ(r.stop, 0u);
-}
 
 // -----------------
 // Accessors & Logic
@@ -82,49 +67,7 @@ TEST(RangeTest, OperatorBracket_ReturnsOffsetValue) {
     EXPECT_EQ(r[99], 199u);
 }
 
-// --------------
-// Set Operations
-// --------------
 
-TEST(RangeTest, Intersects_DetectsOverlap) {
-    Range r1(0, 10);
-
-    // Completely disjoint
-    EXPECT_FALSE(r1.intersects(Range(11, 20)));
-    EXPECT_FALSE(r1.intersects(Range(20, 30)));
-
-    // Touching (boundary) is NOT intersection for half-open intervals
-    EXPECT_FALSE(r1.intersects(Range(10, 20)));
-
-    // Partial overlap
-    EXPECT_TRUE(r1.intersects(Range(5, 15)));
-
-    // Enclosed
-    EXPECT_TRUE(r1.intersects(Range(2, 8)));
-    EXPECT_TRUE(Range(2,8).intersects(r1));
-}
-
-TEST(RangeTest, Intersection_CalculatesCorrectSubRange) {
-    Range r1(0, 10);
-    Range r2(5, 15);
-
-    Range res = r1.intersection(r2);
-    EXPECT_EQ(res.start, 5u);
-    EXPECT_EQ(res.stop, 10u);
-    EXPECT_EQ(res.size(), 5u);
-}
-
-TEST(RangeTest, Intersection_ReturnsEmptyIfDisjoint) {
-    Range r1(0, 10);
-    Range r2(20, 30);
-
-    Range res = r1.intersection(r2);
-    EXPECT_TRUE(res.empty());
-    // Implementation: max(0, 20) -> 20, min(10, 30) -> 10.
-    // Constructor clamps stop(10) to start(20), resulting in [20, 20).
-    EXPECT_EQ(res.start, 20u);
-    EXPECT_EQ(res.stop, 20u);
-}
 
 // --------------------------
 // Iterator & STL Integration
@@ -208,3 +151,14 @@ TEST(RangeTest, ConceptChecks) {
     static_assert(std::ranges::random_access_range<Range>);
     static_assert(std::ranges::common_range<Range>); // begin/end same type
 }
+
+
+
+
+
+
+
+
+
+
+

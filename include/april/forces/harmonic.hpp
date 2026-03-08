@@ -1,25 +1,24 @@
 #pragma once
 
-#include "april/base/types.hpp"
-#include "april/particle/fields.hpp"
+
 #include "april/forces/force.hpp"
 
 
-namespace april::force {
+namespace april {
 	// Harmonic spring force (Hooke's law). k: spring constant; r0: equilibrium distance.
-	struct Harmonic : Force{
-		static constexpr env::FieldMask fields = +env::Field::none;
+	struct Harmonic : force::Force {
+		static constexpr auto fields = ParticleField::none;
 
 		double k; // Spring constant
 		double r0; // Equilibrium distance
 
-		Harmonic(const double strength, const double equilibrium, const double cutoff = no_cutoff)
+		Harmonic(const double strength, const double equilibrium, const double cutoff = force::no_cutoff)
 		: Force(cutoff), k(strength), r0(equilibrium) {}
 
 
-		vec3 eval(auto, auto, const vec3& r) const noexcept {
-			const double dist = r.norm();
-			const double magnitude = k * (dist - r0) / dist; // F = k * (dist - r0) * (r / dist)
+		auto eval(auto, auto, const auto& r) const noexcept {
+			const auto dist = r.norm();
+			const auto magnitude = k * (dist - r0) / dist; // F = k * (dist - r0) * (r / dist)
 			return magnitude * r;
 		}
 
@@ -35,3 +34,17 @@ namespace april::force {
 		bool operator==(const Harmonic&) const = default;
 	};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

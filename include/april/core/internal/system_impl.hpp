@@ -14,6 +14,7 @@ namespace april {
 		ContainerDecl, Traits>
 	template <ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
 	void System<ContainerDecl, Traits>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
+		using namespace april::exec;
 		using namespace april::exec::internal;
 		constexpr VectorTrait batch_traits = std::remove_cvref_t<Batch>::vector_trait;
 		constexpr ExecutionMode kernel_modes = std::remove_cvref_t<Kernel>::Mode;
@@ -65,7 +66,7 @@ namespace april {
 						auto outside  = r.norm_squared() > force.cutoff2();
 						if (all(outside )) return;
 
-						if constexpr (ForceT::symmetry == force::ForceSymmetry::Nonsymmetric) {
+						if constexpr (ForceT::Symmetry == force::ForceSymmetry::Nonsymmetric) {
 							auto f1 = force(p1, p2, r);
 							auto f2 = force(p2, p1, -r);
 
@@ -87,10 +88,10 @@ namespace april {
 								select(outside , packed(0), f.y),
 								select(outside , packed(0), f.z)
 							};
-							if constexpr (ForceT::symmetry == force::ForceSymmetry::Antisymmetric) {
+							if constexpr (ForceT::Symmetry == force::ForceSymmetry::Antisymmetric) {
 								p1.force += f_masked;
 								p2.force -= f_masked;
-							} else if constexpr (ForceT::symmetry == force::ForceSymmetry::Symmetric) {
+							} else if constexpr (ForceT::Symmetry == force::ForceSymmetry::Symmetric) {
 								p1.force += f_masked;
 								p2.force += f_masked;
 							}
@@ -99,15 +100,15 @@ namespace april {
 						if (r.norm_squared() > force.cutoff2()) {
 							return;
 						}
-						if constexpr (ForceT::symmetry == force::ForceSymmetry::Antisymmetric) {
+						if constexpr (ForceT::Symmetry == force::ForceSymmetry::Antisymmetric) {
 							vec3 f = force(p1.to_view(), p2.to_view(), r);
 							p1.force += f;
 							p2.force -= f;
-						}  else if constexpr (ForceT::symmetry == force::ForceSymmetry::Symmetric) {
+						}  else if constexpr (ForceT::Symmetry == force::ForceSymmetry::Symmetric) {
 							vec3 f = force(p1.to_view(), p2.to_view(), r);
 							p1.force += f;
 							p2.force += f;
-						}  else if constexpr (ForceT::symmetry == force::ForceSymmetry::Nonsymmetric) {
+						}  else if constexpr (ForceT::Symmetry == force::ForceSymmetry::Nonsymmetric) {
 							p1.force += force(p1.to_view(), p2.to_view(), r);
 							p2.force += force(p2.to_view(), p1.to_view(), -r);
 						}
@@ -117,7 +118,7 @@ namespace april {
 
 				constexpr bool force_scalar =
 					(static_cast<bool>(M & ParticleField::attributes) && !particle::IsVectorizable<ParticleAttributes>)
-					|| ForceT::VectorMode == exec::internal::ExecutionMode::Scalar;
+					|| ForceT::VectorMode == exec::ExecutionMode::Scalar;
 				constexpr VectorPolicy vp = force_scalar ? VectorPolicy::Scalar : VectorPolicy::Auto;
 				execute_batch_kernel<ParallelPolicy::Serial, vp>(batch, april::universal_kernel<M, ParticleField::force>(kernel));
 			};
@@ -148,15 +149,15 @@ namespace april {
 
 					vec3 r = p2.position - p1.position;
 
-					if constexpr (ForceT::symmetry == force::ForceSymmetry::Antisymmetric) {
+					if constexpr (ForceT::Symmetry == force::ForceSymmetry::Antisymmetric) {
 						vec3 f = force(p1.to_view(), p2.to_view(), r);
 						p1.force += f;
 						p2.force -= f;
-					}  else if constexpr (ForceT::symmetry == force::ForceSymmetry::Symmetric) {
+					}  else if constexpr (ForceT::Symmetry == force::ForceSymmetry::Symmetric) {
 						vec3 f = force(p1.to_view(), p2.to_view(), r);
 						p1.force += f;
 						p2.force += f;
-					}  else if constexpr (ForceT::symmetry == force::ForceSymmetry::Nonsymmetric) {
+					}  else if constexpr (ForceT::Symmetry == force::ForceSymmetry::Nonsymmetric) {
 						p1.force += force(p1.to_view(), p2.to_view(), r);
 						p2.force += force(p2.to_view(), p1.to_view(), -r);
 					}
@@ -288,6 +289,7 @@ namespace april {
 		});
 	}
 }
+
 
 
 

@@ -16,19 +16,19 @@ namespace april::container::batching {
     // ASYMMETRIC BATCH
     //-----------------
     template <typename Container, typename ChunkPtr>
-    struct AsymmetricChunkedBatch : BatchBase<exec::internal::ParallelTrait::None,
-        exec::internal::VectorTrait::ScalarPath | exec::internal::VectorTrait::VectorPath> {
+    struct AsymmetricChunkedBatch : BatchBase<exec::ParallelTrait::None,
+        exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath> {
         explicit
         AsymmetricChunkedBatch(Container& container, ChunkPtr* chunks) : container(container), chunks(chunks) {
             for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
         }
 
-        template <ParallelPolicy P, exec::internal::ExecutionMode E, exec::IsKernel Func>
+        template <ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Func>
         void for_each_pair(Func&& f) const {
             // skip empty range
             if (range1_chunks.start == range1_chunks.stop || range2_chunks.start == range2_chunks.stop) return;
 
-            if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
+            if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector)) {
                 for_each_pair_packed<P>(f);
             } else {
                 for_each_pair_scalar<P>(f);
@@ -345,17 +345,17 @@ namespace april::container::batching {
     //----------------
     //================
     template <typename Container, typename ChunkPtr>
-    struct SymmetricChunkedBatch : BatchBase<exec::internal::ParallelTrait::None,
-        exec::internal::VectorTrait::ScalarPath | exec::internal::VectorTrait::VectorPath> {
+    struct SymmetricChunkedBatch : BatchBase<exec::ParallelTrait::None,
+        exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath> {
         explicit SymmetricChunkedBatch(Container& container, ChunkPtr* chunks) : container(container), chunks(chunks) {
             for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
         }
 
-        template <ParallelPolicy P, exec::internal::ExecutionMode E, exec::IsKernel Func>
+        template <ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Func>
         void for_each_pair(Func&& f) const {
             if (range_chunks.start == range_chunks.stop) return;
 
-            if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
+            if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector)) {
                 for_each_pair_packed<P>(f);
             } else {
                 for_each_pair_scalar<P>(f);
@@ -654,3 +654,4 @@ namespace april::container::batching {
 
 #undef get_scalar
 #undef get_packed
+

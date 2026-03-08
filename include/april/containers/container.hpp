@@ -539,3 +539,5 @@ namespace april::container {
 		&& IsContainer<typename ContainerDecl::template impl<typename Traits::particle_attributes_t>>;
 
 } // namespace april::container
+
+

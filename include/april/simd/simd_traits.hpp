@@ -194,3 +194,5 @@ namespace april::simd {
     template<typename T>
     concept IsSimdType = IsSimdTypeImpl<std::remove_cvref_t<T>>;
 }
+
+

@@ -10,18 +10,18 @@
 namespace april::container::batching {
 
 	template<typename Container,
-		exec::internal::VectorTrait Traits = exec::internal::VectorTrait::ScalarPath | exec::internal::VectorTrait::VectorPath>
+		exec::VectorTrait Traits = exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath>
 	struct AsymmetricScalarBatch :
-		BatchBase<exec::internal::ParallelTrait::None, Traits> {
+		BatchBase<exec::ParallelTrait::None, Traits> {
 		explicit AsymmetricScalarBatch(Container & container) : container(container) {
 			for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
 		}
 
-		template<ParallelPolicy P, exec::internal::ExecutionMode E, exec::IsKernel Kernel>
+		template<ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Kernel>
 		AP_FORCE_INLINE void for_each_pair(Kernel && f) const {
 			if (range1.start == range1.stop || range2.start == range2.stop) return;
 
-			if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
+			if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector)) {
 				for_each_pair_packed<P>(std::forward<Kernel>(f));
 			} else {
 				for_each_pair_scalar<P>(std::forward<Kernel>(f));
@@ -155,17 +155,17 @@ namespace april::container::batching {
 	// SYMMETRIC BATCH
 	//----------------
 	template<typename Container,
-		exec::internal::VectorTrait Traits = exec::internal::VectorTrait::ScalarPath | exec::internal::VectorTrait::VectorPath>
-	struct SymmetricScalarBatch : BatchBase<exec::internal::ParallelTrait::None, Traits> {
+		exec::VectorTrait Traits = exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath>
+	struct SymmetricScalarBatch : BatchBase<exec::ParallelTrait::None, Traits> {
 		explicit SymmetricScalarBatch(Container & container) : container(container) {
 			for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
 		}
 
-		template<ParallelPolicy P, exec::internal::ExecutionMode E, exec::IsKernel Kernel>
+		template<ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Kernel>
 		AP_FORCE_INLINE void for_each_pair(Kernel && f) const {
 			if (range.start == range.stop) return;
 
-			if constexpr (static_cast<bool>(E & exec::internal::ExecutionMode::Vector)) {
+			if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector)) {
 				for_each_pair_packed<P>(std::forward<Kernel>(f));
 			} else {
 				for_each_pair_scalar<P>(std::forward<Kernel>(f));
@@ -291,6 +291,8 @@ namespace april::container::batching {
 		}
 	};
 }
+
+
 
 
 

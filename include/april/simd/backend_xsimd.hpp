@@ -322,3 +322,5 @@ namespace april::simd::internal::xsimd {
     static_assert(IsSimdType<Packed<uint64_t>>);
     static_assert(IsSimdMask<Mask<uint64_t>>);
 }
+
+

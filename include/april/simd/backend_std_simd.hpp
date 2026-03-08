@@ -408,3 +408,5 @@ namespace april::simd::internal::std_simd {
     static_assert(IsSimdMask<Mask<uint64_t>>);
 
 }
+
+

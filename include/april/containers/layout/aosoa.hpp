@@ -387,15 +387,15 @@ namespace april::container::layout {
             return src;
         }
 
-        template <ParallelPolicy P, exec::internal::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
+        template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
-            if constexpr (V == exec::internal::ExecutionMode::Scalar) {
+            if constexpr (V == exec::ExecutionMode::Scalar) {
                 self.template iterate_range_scalar<P, is_const>(std::forward<Kernel>(kernel), start, end);
             }
-            else if constexpr (V == exec::internal::ExecutionMode::Vector) {
+            else if constexpr (V == exec::ExecutionMode::Vector) {
                 self.template iterate_range_vector<P, is_const>(std::forward<Kernel>(kernel), start, end);
             }
-            else if constexpr (V == exec::internal::ExecutionMode::Hybrid) {
+            else if constexpr (V == exec::ExecutionMode::Hybrid) {
                 self.template iterate_range_hybrid<P, is_const>(std::forward<Kernel>(kernel), start, end);
             }
         }
@@ -572,3 +572,5 @@ namespace april::container::layout {
         }
     };
 }
+
+

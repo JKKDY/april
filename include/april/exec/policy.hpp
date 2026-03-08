@@ -18,7 +18,7 @@ namespace april {
     };
 
 
-	namespace exec::internal {
+	namespace exec {
 		// describes the structural execution path(s) offered by the dispatcher
 		enum class VectorTrait : uint8_t {
 			ScalarPath = 1 << 0,   // dispatcher provides a scalar execution path -> kernel must support Scalar
@@ -42,8 +42,9 @@ namespace april {
 			Hybrid = Scalar | Vector // supports both scalar and vector execution
 		};
 		AP_ENABLE_BITMASK_OPERATORS(ExecutionMode)
+	}
 
-
+	namespace exec::internal {
 		// given a policy and execution mode(s), return a valid mode
 		template <VectorPolicy Policy, ExecutionMode Mode>
 		constexpr ExecutionMode valid_execution_modes() {
@@ -100,6 +101,8 @@ namespace april {
 	}
 
 }
+
+
 
 
 

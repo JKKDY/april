@@ -119,3 +119,4 @@ namespace april::math {
     static_assert(std::ranges::sized_range<Range>);
     static_assert(std::is_trivially_copyable_v<Range>);
 }
+

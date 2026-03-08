@@ -11,7 +11,7 @@ namespace april::container::batching {
 	//------------------------
 	// CONVENIENCE DEFINITIONS
 	//------------------------
-	template<exec::internal::ParallelTrait P, exec::internal::VectorTrait V>
+	template<exec::ParallelTrait P, exec::VectorTrait V>
 	struct BatchBase {
 		static constexpr auto parallel_trait = P;
 		static constexpr auto vector_trait = V;
@@ -30,8 +30,8 @@ namespace april::container::batching {
 	template <typename T>
 	concept IsBatchBase = requires(const T& b) {
 		// must have static constexpr trait flags
-		{ T::parallel_trait } -> std::convertible_to<exec::internal::ParallelTrait>;
-		{ T::vector_trait }	-> std::convertible_to<exec::internal::VectorTrait>;
+		{ T::parallel_trait } -> std::convertible_to<exec::ParallelTrait>;
+		{ T::vector_trait }	-> std::convertible_to<exec::VectorTrait>;
 
 		// must have type pair
 		{ b.types } -> std::convertible_to<std::pair<ParticleType, ParticleType>>;
@@ -41,10 +41,10 @@ namespace april::container::batching {
 	template<typename T>
 	concept IsBatchAtom = requires(const T& t) {
 		// must have vector trait exists
-		{ std::remove_cvref_t<T>::vector_trait } -> std::convertible_to<exec::internal::VectorTrait>;
+		{ std::remove_cvref_t<T>::vector_trait } -> std::convertible_to<exec::VectorTrait>;
 
 		// must have a for_each_pair function
-		t.template for_each_pair<ParallelPolicy::Serial, exec::internal::ExecutionMode::Hybrid>(
+		t.template for_each_pair<ParallelPolicy::Serial, exec::ExecutionMode::Hybrid>(
 			universal_kernel([](auto&&, auto&&) {})
 		);
 	};
@@ -76,6 +76,8 @@ namespace april::container::batching {
 		}
 	};
 }
+
+
 
 
 

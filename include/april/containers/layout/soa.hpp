@@ -256,11 +256,11 @@ namespace april::container::layout {
         }
 
 
-        template<ParallelPolicy P, exec::internal::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
+        template<ParallelPolicy P, exec::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
             using K = std::remove_cvref_t<Kernel>;
 
-            if constexpr (E == exec::internal::ExecutionMode::Scalar) {
+            if constexpr (E == exec::ExecutionMode::Scalar) {
                 for (size_t i = start; i < end; i++) {
                     if constexpr (is_const) {
                         kernel(i, self.template view<K::Read>(i));
@@ -270,7 +270,7 @@ namespace april::container::layout {
                 }
             }
 
-            else if constexpr (E == exec::internal::ExecutionMode::Vector) {
+            else if constexpr (E == exec::ExecutionMode::Vector) {
                 for (size_t i = start; i < end; i+=packed::size()) {
                     AP_ASSERT(start % packed::size() == 0, "In vectorized execution start must be aligned to the packed type");
                     if constexpr (is_const) {
@@ -281,7 +281,7 @@ namespace april::container::layout {
                 }
             }
 
-            else if constexpr (E == exec::internal::ExecutionMode::Hybrid) {
+            else if constexpr (E == exec::ExecutionMode::Hybrid) {
                 // head
                 constexpr size_t vector_size = packed::size();
                 const size_t remainder = start % vector_size;
@@ -321,3 +321,5 @@ namespace april::container::layout {
         }
     };
 }
+
+

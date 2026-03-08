@@ -24,8 +24,8 @@ namespace april::force {
     };
 
     struct Force {
-        static constexpr auto symmetry = ForceSymmetry::Antisymmetric;
-        static constexpr auto VectorMode = exec::internal::ExecutionMode::Hybrid; // scalar only must be a deliberate opt-out
+        static constexpr auto Symmetry = ForceSymmetry::Antisymmetric;
+        static constexpr auto VectorMode = exec::ExecutionMode::Hybrid; // scalar only must be a deliberate opt-out
 
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
@@ -238,6 +238,8 @@ namespace april {
     // define Force pack
     template<class... Fs> inline constexpr force::internal::ForcePack<Fs...> forces{};
 }
+
+
 
 
 

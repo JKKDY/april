@@ -10,8 +10,8 @@ namespace april::container::internal {
     class DirectSumAoSImpl : public DirectSumCore<layout::AoS<Config, U>> {
     public:
         using Base = DirectSumCore<layout::AoS<Config, U>>;
-        using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumAoSImpl, exec::internal::VectorTrait::ScalarPath>;
-        using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumAoSImpl, exec::internal::VectorTrait::ScalarPath>;
+        using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumAoSImpl, exec::VectorTrait::ScalarPath>;
+        using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumAoSImpl, exec::VectorTrait::ScalarPath>;
 
         using Base::Base;
         friend Base;
@@ -57,6 +57,8 @@ namespace april::container {
         using impl = internal::DirectSumAoSImpl<ConfigT, U>;
     };
 }
+
+
 
 
 

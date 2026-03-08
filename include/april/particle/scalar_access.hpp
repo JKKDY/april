@@ -27,7 +27,7 @@ namespace april::particle::internal {
 	template<ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes>
     struct ScalarParticleRef {
 		static constexpr ParticleField ReadAccess  = ReadMask;
-		static constexpr ParticleField WriteAccess = WriteMask & ~ParticleField::id;
+		static constexpr ParticleField WriteAccess = WriteMask & ~ParticleField::id; // soft restriction so user does not need to zero out the id specifically when using ParticleField::all
     private:
        // Helper alias to pass the mutable type, the const type, and the field type
        template <typename MutT, typename ConstT, ParticleField F>

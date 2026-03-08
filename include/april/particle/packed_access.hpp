@@ -155,7 +155,7 @@ namespace april::particle::internal {
         template <ParticleField F>
         using packed_int_t = buffer_field_t<packedu, F>;
 
-        // ==== STOP GAP SOLUTION ====
+        // ==== STOP GAP SOLUTION ==== (will be replaced in C++26 with reflection)
         static_assert(!has_field_v<ReadMask | WriteMask, ParticleField::attributes> || IsTriviallyVectorizable<Attributes>,
             "Vectorization of non trivial attributes not possible");
         // traits case for scalar extraction
@@ -173,7 +173,7 @@ namespace april::particle::internal {
 
     public:
         static constexpr ParticleField ReadAccess  = ReadMask;
-        static constexpr ParticleField WriteAccess = WriteMask;
+        static constexpr ParticleField WriteAccess = WriteMask & ~ParticleField::id; // soft restriction so user does not need to zero out the id specifically when using ParticleField::all
 
         static constexpr ParticleField RWMask = ReadMask & WriteMask;  // read & write
         static constexpr ParticleField WOMask = WriteMask & ~ReadMask; // write only
@@ -219,7 +219,9 @@ namespace april::particle::internal {
             if constexpr (has_field_v<WOMask, ParticleField::force>) force = pvec3(0.0);
             if constexpr (has_field_v<WOMask, ParticleField::mass>) mass = 0.0;
 
-            if constexpr (has_field_v<WOMask, ParticleField::attributes>) { attributes = 0.0; }
+            if constexpr (has_field_v<WOMask, ParticleField::attributes>) {
+                attributes = decltype(attributes)(0);
+            }
         }
 
         // broadcast
@@ -620,7 +622,7 @@ namespace april::particle::internal {
         using Buffer = PackedParticleBuffer<ReadMask, WriteMask, Attributes>;
 
 
-        // ==== STOP GAP SOLUTION ====
+        // ==== STOP GAP SOLUTION ==== (will be replaced in C++26 with reflection)
         template <typename T>
         struct extract_attr_vector { using type = void; /*Fallback*/ };
 

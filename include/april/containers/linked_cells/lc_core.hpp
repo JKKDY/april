@@ -71,7 +71,7 @@ namespace april::container::internal {
 			for (size_t i = 0; i < self.bin_sizes.size(); i++) {
 				size_t start = self.bin_starts[i];
 				size_t end = start + self.bin_sizes[i];
-				self.for_each_particle_view(start, end,
+				self.for_each_particle(start, end,
 					scalar_kernel<ParticleField::type | ParticleField::position>(
 					[&](const size_t idx, const auto & p) {
 						const size_t cid = self.cell_index_from_position(p.position);
@@ -97,7 +97,7 @@ namespace april::container::internal {
 				const auto [start_idx, end_idx] = self.cell_index_range(cid);
 				if (start_idx == end_idx) continue;
 
-				self.for_each_particle_view(start_idx, end_idx,
+				self.for_each_particle(start_idx, end_idx,
 					scalar_kernel<ParticleField::position | ParticleField::state>(
 					[&](const size_t i, const auto & particle) {
 						if (static_cast<uint8_t>(particle.state & ParticleState::ALIVE) &&

@@ -299,7 +299,7 @@ namespace april::simd::internal::xsimd {
 
     private:
         template<typename PtrT, size_t... Is>
-        static Packed gather_impl(const PtrT* const AP_RESTRICT * pointers, std::index_sequence<Is...>) {
+        static Packed gather_impl(const PtrT* const * pointers, std::index_sequence<Is...>) {
             if constexpr (sizeof(PtrT) < sizeof(value_type)) {
                 alignas(alignof(native_type)) value_type temp[size()];
                 // Fold expression to unpack the pointers

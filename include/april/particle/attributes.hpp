@@ -40,22 +40,22 @@ namespace april::particle {
 
     template <typename T>
     concept IsTriviallyVectorizable = HasTrivialVectorLayout<T> && requires {
-        // The underlying type must be arithmetic for SIMD math
+        // 1. The underlying type must be arithmetic
         requires std::is_arithmetic_v<typename T::VectorLayout::ScalarType>;
 
-        // The outer struct must be exactly the size of the scalar (e.g., 8 bytes for double)
-        // This guarantees no hidden fields or padding
-        requires sizeof(T) == sizeof(T::VectorLayout::ScalarType);
+        // 2. The outer struct (Scalar/AoS) must be exactly the size of one scalar
+        // This is the 8-byte check for a double.
+        requires sizeof(T) == sizeof(typename T::VectorLayout::ScalarType);
 
-        // The layout struct must be exactly the size of one SIMD register
-        // This guarantees they didn't add multiple packed registers to the layout
-        requires sizeof(T::VectorLayout) == sizeof(simd::Packed<typename T::VectorLayout::ScalarType>);
+        // 3. The inner VectorLayout struct must be exactly the size of one SIMD register
+        // This is the 32-byte check for AVX.
+        requires sizeof(typename T::VectorLayout) == sizeof(typename simd::Packed<typename T::VectorLayout::ScalarType>);
 
-        // Must be standard layout for safe reinterpret_cast
+        // 4. Standard layout requirements for pointer interconvertibility
         requires std::is_standard_layout_v<T>;
         requires std::is_trivially_copyable_v<T>;
         requires std::is_standard_layout_v<typename T::VectorLayout>;
-    };
+  };
     // ==== STOP GAP SOLUTION END ====
 
     template <typename T>

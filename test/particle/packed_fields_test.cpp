@@ -404,6 +404,181 @@ TEST_F(PackedParticleViewsTest, BufferBroadcastFromScalar) {
 }
 
 
+// ---------------------
+// BUFFER AND VIEW TESTS
+// ---------------------
+
+// Unmasked update_into (Write-Back)
+// Verifies that modifying a buffer and calling update_into correctly flushes
+// registers back to memory across all lanes.
+TEST_F(PackedParticleViewsTest, BufferUpdateIntoUnmasked) {
+    const auto src = get_source();
+    PackedParticleRef<TestMask, TestMask, NoParticleAttributes> ref(src);
+
+    auto buffer = ref.load_buffer();
+
+    // Modify buffer registers
+    buffer.position += pvec3(5.0);
+    buffer.force = pvec3(100.0);
+
+    // Flush back to memory
+    buffer.update_into(ref);
+
+    constexpr size_t Width = packed::size();
+    for (size_t i = 0; i < Width; ++i) {
+        // Original pos was 'i', should now be 'i + 5.0'
+        EXPECT_DOUBLE_EQ(pos_x[i], static_cast<double>(i) + 5.0);
+        // Force should be overwritten to 100.0
+        EXPECT_DOUBLE_EQ(force_x[i], 100.0);
+    }
+}
+
+// Masked update_into (Tail Chunk Safety)
+// Verifies that update_into respects SIMD masks, preventing memory corruption
+// in lanes that are outside the active bounds.
+TEST_F(PackedParticleViewsTest, BufferUpdateIntoMasked) {
+    const auto src = get_source();
+    PackedParticleRef<TestMask, TestMask, NoParticleAttributes> ref(src);
+
+    auto buffer = ref.load_buffer();
+
+    // Modify buffer registers
+    buffer.position += pvec3(50.0);
+
+    // Create a mask that is only TRUE for the first 2 lanes
+    constexpr size_t Width = packed::size();
+    std::vector<double> seq(Width);
+    for(size_t i = 0; i < Width; ++i) seq[i] = static_cast<double>(i);
+
+    packed indices = packed::load_unaligned(seq.data());
+    auto mask = (indices < 2.0);
+
+    // Masked flush
+    buffer.update_into(ref, mask);
+
+    for (size_t i = 0; i < Width; ++i) {
+        if (i < 2) {
+            // First two lanes should be updated
+            EXPECT_DOUBLE_EQ(pos_x[i], static_cast<double>(i) + 50.0);
+        } else {
+            // Remaining lanes MUST remain untouched
+            EXPECT_DOUBLE_EQ(pos_x[i], static_cast<double>(i));
+        }
+    }
+}
+
+// Buffer to View Const-Correctness
+// Verifies that to_view() correctly maps read-only fields and exposes them
+// without allowing assignment.
+TEST_F(PackedParticleViewsTest, BufferToView) {
+    const auto src = get_source();
+    PackedParticleRef<TestMask, ParticleField::none, NoParticleAttributes> ref(src);
+
+    auto buffer = ref.load_buffer();
+    auto view = buffer.to_view();
+
+    // 1. Reading is allowed
+    const auto v_x = view.position.x;
+    EXPECT_DOUBLE_EQ(v_x.to_array()[0], 0.0);
+
+    // 2. Writing must fail to compile
+    // We check if we can assign a 'packed' register to the view's position.x
+    static_assert(!std::is_assignable_v<decltype((view.position.x)), packed>,
+        "FATAL: BufferView is allowing mutable assignments to its fields!");
+}
+
+// Masked Reduce Into (Scalar Write-Back)
+// Verifies that a pure Write-Only buffer can horizontally reduce its SIMD lanes
+// into a single scalar particle (used during Newton's 3rd Law / Cell sorting)
+TEST(PackedParticleReductionTest, MaskedReduceIntoScalar) {
+    // Setup a pure Write-Only target
+    constexpr auto ROMask = ParticleField::position;
+    constexpr auto WOMask = ParticleField::force;
+
+    // Single scalar particle to receive the reduced forces
+    double s_frc_x = 0.0, s_frc_y = 0.0, s_frc_z = 0.0;
+    ParticleSource<ROMask, WOMask, NoParticleAttributes> s_src;
+    s_src.force.x = &s_frc_x;
+    s_src.force.y = &s_frc_y;
+    s_src.force.z = &s_frc_z;
+    ScalarParticleRef<ROMask, WOMask, NoParticleAttributes> scalar_ref(s_src);
+
+    // Create a dummy buffer and accumulate some forces into it
+    PackedParticleBuffer<ROMask, WOMask, NoParticleAttributes> buffer;
+    buffer.force = pvec3(1.0, 2.0, 3.0); // Every lane has {1, 2, 3}
+
+    // Create a mask that is only TRUE for the first 3 lanes
+    constexpr size_t Width = packed::size();
+    std::vector<double> seq(Width);
+    for(size_t i = 0; i < Width; ++i) seq[i] = static_cast<double>(i);
+
+    packed indices = packed::load_unaligned(seq.data());
+    auto mask = (indices < 2.0);
+
+    // Reduce
+    buffer.reduce_into(scalar_ref, mask);
+
+    // Expected: 2 lanes * 1.0 = 3.0
+    EXPECT_DOUBLE_EQ(s_frc_x, 2.0);
+    EXPECT_DOUBLE_EQ(s_frc_y, 4.0);
+    EXPECT_DOUBLE_EQ(s_frc_z, 6.0);
+}
+
+
+//----------------
+// ATTRIBUTE TESTS
+//----------------
+struct TestCharge {
+    APRIL_TRIVIAL_ATTRIBUTE(double, q);
+};
+
+// Trivial SIMD Attributes Lifecycle
+// Verifies the engine correctly casts and vectorizes custom user structs
+TEST(PackedParticleAttributesTest, SIMDAttributeLifecycle) {
+    constexpr size_t Count = packed::size();
+
+    // Memory setup
+    std::vector<double> pos_x(Count, 0.0);
+    std::vector<double> pos_y(Count, 0.0);
+    std::vector<double> pos_z(Count, 0.0);
+    std::vector<TestCharge> charges(Count);
+    for(size_t i=0; i<Count; ++i) {
+        charges[i].q = static_cast<double>(i) * 2.0; // 0.0, 2.0, 4.0, ...
+    }
+
+    constexpr auto Mask = ParticleField::position | ParticleField::attributes;
+    ParticleSource<Mask, Mask, TestCharge> src;
+    src.position.x = pos_x.data();
+    src.position.y = pos_y.data();
+    src.position.z = pos_z.data();
+
+    src.attributes = charges.data();
+
+    // Load
+    PackedParticleRef<Mask, Mask, TestCharge> ref(src);
+    auto buffer = ref.load_buffer();
+
+    // Verify Read (Via View mapping)
+    auto view = buffer.to_view();
+    auto q_vals = view.attributes.q.to_array(); // Beautiful user syntax
+
+    for(size_t i=0; i<Count; ++i) {
+        EXPECT_DOUBLE_EQ(q_vals[i], static_cast<double>(i) * 2.0);
+    }
+
+    // Modify & Write-back
+    view.attributes.q += view.attributes.q; // Double the charges
+    buffer.update_into(ref);
+
+    for(size_t i=0; i<Count; ++i) {
+        EXPECT_DOUBLE_EQ(buffer.attributes.to_array()[i], static_cast<double>(i) * 4.0);
+    }
+
+    // Verify Memory
+    for(size_t i=0; i<Count; ++i) {
+        EXPECT_DOUBLE_EQ(charges[i].q, static_cast<double>(i) * 4.0);
+    }
+}
 
 
 

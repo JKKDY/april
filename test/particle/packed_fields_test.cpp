@@ -492,7 +492,7 @@ TEST_F(PackedParticleViewsTest, BufferToView) {
 // into a single scalar particle (used during Newton's 3rd Law / Cell sorting)
 TEST(PackedParticleReductionTest, MaskedReduceIntoScalar) {
     // Setup a pure Write-Only target
-    constexpr auto ROMask = ParticleField::position;
+    constexpr auto ROMask = ParticleField::none;
     constexpr auto WOMask = ParticleField::force;
 
     // Single scalar particle to receive the reduced forces

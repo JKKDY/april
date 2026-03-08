@@ -121,16 +121,6 @@ namespace april::container {
 			self.template invoke_iterate_state<P, V, false>(func, state);
 		}
 
-		// view variant (const)
-		// TODO: remove for_each_particle_view
-		template<
-			ParallelPolicy P = ParallelPolicy::Serial,
-			VectorPolicy V = VectorPolicy::Auto,
-			exec::IsKernel Kernel>
-		void for_each_particle_view(this const auto& self, Kernel && func, ParticleState state = ParticleState::ALL) {
-			self.template invoke_iterate_state<P, V, true>(func, state);
-		}
-
 		// direct range based access (fast & branchless but unsafe; will not perform any checks)
 		template<
 			ParallelPolicy P = ParallelPolicy::Serial,
@@ -142,20 +132,6 @@ namespace april::container {
 			AP_ASSERT(start <= stop, "Invalid range: start > stop");
 
 			self.template invoke_iterate_range<P, V, false>(func, start, stop);
-		}
-
-		// view variant (const)
-		// TODO: remove for_each_particle_view
-		template<
-			ParallelPolicy P = ParallelPolicy::Serial,
-			VectorPolicy V = VectorPolicy::Auto,
-			exec::IsKernel Kernel>
-		void for_each_particle_view(this const auto& self, size_t start, size_t stop, Kernel && func) {
-			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
-			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
-			AP_ASSERT(start <= stop, "Invalid range");
-
-			self.template invoke_iterate_range<P, V, true>(func, start, stop);
 		}
 
 
@@ -206,7 +182,7 @@ namespace april::container {
 		// ---------------
 		// BATCH ITERATION
 		// ---------------
-		template<typename Func> // TODO restrict callable Func (invoke_for_each_batch)
+		template<typename Func>
 		void invoke_for_each_interaction_batch(this auto&& self, Func && func) {
 			self.for_each_interaction_batch(std::forward<Func>(func));
 		}

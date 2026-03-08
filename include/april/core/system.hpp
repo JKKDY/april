@@ -152,7 +152,11 @@ namespace april {
 			VectorPolicy V=VectorPolicy::Auto,
 			exec::IsKernel Kernel>
 		void for_each_particle_view(Kernel && func, ParticleState state = ParticleState::ALL) const {
-			particle_container.template for_each_particle_view<P, V, Kernel>(std::forward<Kernel>(func), state);
+			static_assert(std::remove_cvref_t<Kernel>::Write == ParticleField::none,
+				"[APRIL] System: Kernel in for_each_particle_view must not have "
+				"mutable fields (Kernel::Write must equal ParticleField::none"
+			);
+			particle_container.template for_each_particle<P, V, Kernel>(std::forward<Kernel>(func), state);
 		}
 
 		// TODO implement and fix

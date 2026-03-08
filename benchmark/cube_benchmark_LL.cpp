@@ -43,10 +43,10 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(ReflectiveBoundary(), all_faces);
 
-	const auto container = LinkedCells<Layout::AoS>()
+	const auto container = LinkedCells<Layout::AoSoA<>>()
 		.with_cell_size(container::CellSize::Cutoff)
 		.with_cell_ordering(hilbert_order)
-		.with_block_size(4);
+		.with_block_size(2);
 
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;

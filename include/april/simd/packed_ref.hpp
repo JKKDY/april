@@ -63,7 +63,6 @@ namespace april::simd {
     // i.e. trivially convertable or narrower types e.g. loading floats from memory into a simd double register
     template <typename T, IsSimdType PackedT = Packed<std::remove_const_t<T>>>
     struct PackedRef {
-        // TODO rename to camel case
         using memory_type = std::remove_const_t<T>;
         using value_type = PackedT::value_type;
         using mask_type  = decltype(PackedT() == PackedT());

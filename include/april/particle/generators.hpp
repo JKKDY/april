@@ -84,6 +84,7 @@ namespace april {
                         p.user_data = user_data;
                         p.velocity += thermal_velocity(p.position);
 
+
                         particles.push_back(p);
                     }
                 }
@@ -160,9 +161,9 @@ namespace april {
             std::vector<Particle> particles;
             particles.reserve(static_cast<size_t>(ellipsoid_volume / (distance*distance*distance)));
 
-            for (int x = -static_cast<int>(eff_radii.x/distance); x < static_cast<int>(eff_radii.x/distance); ++x) {
-                for (int y = -static_cast<int>(eff_radii.y/distance); y < static_cast<int>(eff_radii.y/distance); ++y) {
-                    for (int z = -static_cast<int>(eff_radii.z/distance); z < static_cast<int>(eff_radii.z/distance); ++z) {
+            for (int x = -static_cast<int>(eff_radii.x/distance); x <= static_cast<int>(eff_radii.x/distance); ++x) {
+                for (int y = -static_cast<int>(eff_radii.y/distance); y <= static_cast<int>(eff_radii.y/distance); ++y) {
+                    for (int z = -static_cast<int>(eff_radii.z/distance); z <= static_cast<int>(eff_radii.z/distance); ++z) {
 
                         const vec3 pos = vec3{
                             static_cast<vec3::type>(x * distance),

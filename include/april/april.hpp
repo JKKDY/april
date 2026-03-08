@@ -31,7 +31,7 @@
 #include "april/integrators/yoshida4.hpp"
 
 // Core
-#include "core/environment.hpp"
+#include "april/core/environment.hpp"
 #include "april/core/build.hpp"
 
 // Monitors

@@ -44,6 +44,7 @@ namespace april {
 		AP_ENABLE_BITMASK_OPERATORS(ExecutionMode)
 	}
 
+
 	namespace exec::internal {
 		// given a policy and execution mode(s), return a valid mode
 		template <VectorPolicy Policy, ExecutionMode Mode>

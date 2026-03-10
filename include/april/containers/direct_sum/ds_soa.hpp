@@ -3,6 +3,8 @@
 #include "april/containers/layout/soa.hpp"
 #include "april/containers/direct_sum/ds_core.hpp"
 #include "april/containers/batching/scalar_batch.hpp"
+#include "april/exec/concurrency.hpp"
+#include "april/containers/direct_sum/ds_batching.hpp"
 
 namespace april::container::internal {
 
@@ -10,7 +12,11 @@ namespace april::container::internal {
     class DirectSumSoAImpl : public DirectSumCore<layout::SoA<Config, U>> {
     public:
         using Base = DirectSumCore<layout::SoA<Config, U>>;
-        using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumSoAImpl>;
+        using SymmetricBatch = SymmetricParalleldBatch<
+            DirectSumSoAImpl,
+            batching::SymmetricScalarBatch<DirectSumSoAImpl>,
+            batching::AsymmetricScalarBatch<DirectSumSoAImpl>
+        >;
         using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumSoAImpl>;
 
         using Base::Base;
@@ -26,7 +32,8 @@ namespace april::container::internal {
 
                 SymmetricBatch batch (*this);
                 batch.types = {type, type};
-                batch.range = {start, end};
+                // batch.range = {start, end};
+                batch.set_range({start,end});
                 symmetric_batches.push_back(batch);
             }
 

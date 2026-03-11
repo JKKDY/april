@@ -35,7 +35,7 @@ namespace april::container::internal {
 
 
         void set_range(const math::Range& range, const size_t oversubscription = 4) {
-            const size_t n_threads = exec::n_threads;
+            const size_t n_threads = exec::N_CPU_THREADS;
             constexpr size_t target_chunk_size = 256;
             size_t B = std::max<size_t>(1, range.size() / target_chunk_size);
 
@@ -122,7 +122,6 @@ namespace april::container::internal {
 
 
 
-
     template <typename Container, typename AsymmetricBatch, exec::IsExecutor Executor>
     struct AsymmetricParallelBatch : batching::BatchBase<exec::ParallelTrait::IntraBatch, AsymmetricBatch::vector_trait> {
 
@@ -141,7 +140,7 @@ namespace april::container::internal {
         }
 
         void set_range(const math::Range& range1, const math::Range& range2, const size_t oversubscription = 4) {
-            const size_t n_threads = exec::n_threads;
+            const size_t n_threads = exec::N_CPU_THREADS;
             constexpr size_t target_chunk_size = 256;
 
             // Use the larger range to determine block count

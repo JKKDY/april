@@ -2,6 +2,7 @@
 #include <vector>
 #include "april/containers/container.hpp"
 #include "../../exec/executors/omp_executor.hpp"
+#include "april/exec/parallel_utils.hpp"
 #include "april/particle/particle.hpp"
 #include "april/exec/policy.hpp"
 
@@ -328,48 +329,18 @@ namespace april::container::layout {
                 process_chunk(start, end);
             }
             else if constexpr (P == ParallelPolicy::Threaded) {
-                const size_t total_elements = end - start;
-                if (total_elements == 0) return;
+                exec::BlockConfig config;
+                config.num_threads = self.thread_executor.num_threads();
 
-                constexpr size_t v_size = packed::size();
-                const size_t total_packed = total_elements / v_size;
+                // Generate chunks
+                const auto blocks = exec::partition_work(
+                    math::Range{start, end},
+                    config
+                );
 
-                // Determine block count (2x oversubscription)
-                size_t B = self.thread_executor.num_threads() * 2;
-                if (B == 0) B = 1;
-
-                // number chunks should not be more then number packed
-                if (total_packed < B) {
-                    B = std::max<size_t>(1, total_packed);
-                }
-
-                if (B <= 1) {
-                    process_chunk(start, end);
-                    return;
-                }
-
-                const size_t vectors_per_block = total_packed / B;
-                const size_t remainder_vectors = total_packed % B;
-
-                std::vector<math::Range> blocks(B);
-                size_t current = start;
-
-                for (size_t i = 0; i < B; ++i) {
-                    const size_t v_count = vectors_per_block + (i < remainder_vectors ? 1 : 0);
-                    size_t size = v_count * v_size;
-
-                    if (i == B - 1) {
-                        size += total_elements % v_size; // attach scalar tail
-                    }
-
-                    blocks[i] = {current, current + size};
-                    current += size;
-                }
-
-                self.thread_executor.execute(B, [&](const size_t i) {
-                    if (blocks[i].start < blocks[i].stop) {
-                        process_chunk(blocks[i].start, blocks[i].stop);
-                    }
+                // Execute
+                self.thread_executor.execute(blocks.size(), [&](const size_t i) {
+                    process_chunk(blocks[i].start, blocks[i].stop);
                 });
             }
         }

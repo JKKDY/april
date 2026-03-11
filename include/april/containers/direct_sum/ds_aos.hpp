@@ -3,6 +3,7 @@
 #include "april/containers/layout/aos.hpp"
 #include "april/containers/direct_sum/ds_core.hpp"
 #include "april/containers/batching/scalar_batch.hpp"
+#include "april/containers/direct_sum/ds_batching.hpp"
 
 namespace april::container::internal {
 
@@ -10,8 +11,18 @@ namespace april::container::internal {
     class DirectSumAoSImpl : public DirectSumCore<layout::AoS<Config, U>> {
     public:
         using Base = DirectSumCore<layout::AoS<Config, U>>;
-        using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumAoSImpl, exec::VectorTrait::ScalarPath>;
-        using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumAoSImpl, exec::VectorTrait::ScalarPath>;
+        using SymmetricBatch = SymmetricParallelBatch<
+            DirectSumAoSImpl,
+            batching::AsymmetricScalarBatch<DirectSumAoSImpl, exec::VectorTrait::ScalarPath>,
+            batching::SymmetricScalarBatch<DirectSumAoSImpl, exec::VectorTrait::ScalarPath>,
+            exec::Executor
+        >;
+        using AsymmetricBatch =
+            AsymmetricParallelBatch<
+            DirectSumAoSImpl,
+            batching::AsymmetricScalarBatch<DirectSumAoSImpl, exec::VectorTrait::ScalarPath>,
+            exec::Executor
+        >;
 
         using Base::Base;
         friend Base;
@@ -22,9 +33,9 @@ namespace april::container::internal {
                 auto range = this->get_physical_bin_range(type);
                 if (range.size() <= 1) continue;
 
-                SymmetricBatch batch (*this);
+                SymmetricBatch batch (*this, this->thread_executor);
                 batch.types = {type, type};
-                batch.range = range;
+                batch.set_range(range);
                 symmetric_batches.push_back(batch);
             }
 
@@ -34,10 +45,10 @@ namespace april::container::internal {
                     auto range2 = this->get_physical_bin_range(t2);
                     if (range1.empty() || range2.empty()) continue;
 
-                    AsymmetricBatch batch (*this);
+                    AsymmetricBatch batch (*this, this->thread_executor);
                     batch.types = {t1, t2};
-                    batch.range1 = range1;
-                    batch.range2 = range2;
+                    batch.set_range(range1, range2);
+
                     asymmetric_batches.push_back(batch);
                 }
             }

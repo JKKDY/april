@@ -65,7 +65,7 @@ namespace april::exec {
     }
 
 
-    // partition an stl container into a bunch of equal sized chunks
+    // partition a stl container into a bunch of equal sized chunks
     template <std::ranges::contiguous_range R>
     [[nodiscard]] auto partition_work(
         R&& container,

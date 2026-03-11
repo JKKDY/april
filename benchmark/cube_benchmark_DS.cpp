@@ -47,7 +47,7 @@ int main() {
 		env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
-		constexpr auto container = DirectSum<Layout::SoA>();
+		constexpr auto container = DirectSum<Layout::AoS>();
 		auto system = build_system(env, container);
 
 		constexpr double dt = 0.0002;

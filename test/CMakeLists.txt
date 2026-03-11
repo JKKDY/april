@@ -1,5 +1,7 @@
 #enable_testing()
 
+find_package(OpenMP REQUIRED)
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -55,7 +57,9 @@ target_link_libraries(test_april PRIVATE
         GTest::gtest_main
         GTest::gmock
         GTest::gmock_main
+        OpenMP::OpenMP_CXX
 )
+
 
 set_target_build_flags(test_april)
 enable_sanitizer_if_dbg(test_april)

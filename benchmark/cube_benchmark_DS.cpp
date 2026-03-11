@@ -7,7 +7,7 @@ using namespace april;
 namespace fs = std::filesystem;
 
 
-static constexpr int NX = 40, NY = 40, NZ = 40;
+static constexpr int NX = 30, NY = 30, NZ = 30;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;

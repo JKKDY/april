@@ -7,26 +7,24 @@
 #include "april/exec/particle_kernel.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
-#include "april/exec/concurrency.hpp"
+#include "april/exec/info.hpp"
 #include "april/exec/executor.hpp"
-#include "april/exec/native_executioner.hpp"
+#include "april/exec/native_executer.hpp"
 #include "april/exec/sequential_executor.hpp"
 #include "april/exec/omp_executor.hpp"
 
+#include <iostream>
+
 namespace april::container::internal {
+    inline exec::OmpExecutor executor;
 
-    inline exec::NativeExecutor executor;
+    template <typename Container, typename AsymmetricBatch, typename SymmetricBatch>
+    struct SymmetricParallelBatch : batching::BatchBase<exec::ParallelTrait::IntraBatch,
+                                                         AsymmetricBatch::vector_trait & SymmetricBatch::vector_trait> {
+        explicit SymmetricParallelBatch(Container& container) : container(container) {}
 
-    template<typename Container, typename AsymmetricBatch, typename SymmetricBatch>
-    struct SymmetricParalleldBatch : batching::BatchBase<exec::ParallelTrait::IntraBatch,
-        AsymmetricBatch::vector_trait & SymmetricBatch::vector_trait>
-    {
-        explicit SymmetricParalleldBatch(Container & container) : container(container) {
-
-        }
-
-        template<ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Func>
-        void for_each_pair (Func && f) const {
+        template <ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Func>
+        void for_each_pair(Func&& f) const {
             executor.execute(diagonal_phase.size(), [&](size_t i) {
                 diagonal_phase[i].template for_each_pair<P, E>(f);
             });
@@ -39,7 +37,7 @@ namespace april::container::internal {
         }
 
 
-        void set_range(const math::Range & range, const size_t oversubscription = 4) {
+        void set_range(const math::Range& range, const size_t oversubscription = 4) {
             const size_t n_threads = exec::n_threads;
             constexpr size_t target_chunk_size = 256;
             size_t B = std::max<size_t>(1, range.size() / target_chunk_size);
@@ -51,14 +49,24 @@ namespace april::container::internal {
             const size_t min_B = n_threads * oversubscription;
             if (B < min_B) B = (min_B % 2 == 0) ? min_B : min_B + 1;
 
-            // Partition the range into B blocks
+            // Partition the range into B blocks with strict SIMD alignment
+            constexpr size_t v_size = packed::size();
+            const size_t total_vectors = range.size() / v_size;
+            const size_t vectors_per_block = total_vectors / B;
+            const size_t remainder_vectors = total_vectors % B;
+
             std::vector<math::Range> blocks(B);
-            const size_t chunk_size = range.size() / B;
-            const size_t remainder = range.size() % B;
             size_t current_idx = range.start;
 
             for (size_t i = 0; i < B; ++i) {
-                const size_t size = chunk_size + (i < remainder ? 1 : 0);
+                const size_t v_count = vectors_per_block + (i < remainder_vectors ? 1 : 0);
+                size_t size = v_count * v_size;
+
+                // The final block picks up any trailing scalar elements
+                if (i == B - 1) {
+                    size += range.size() % v_size;
+                }
+
                 blocks[i] = {current_idx, current_idx + size};
                 current_idx += size;
             }
@@ -89,7 +97,8 @@ namespace april::container::internal {
 
                     // if empty skip
                     if (blocks[idx1].start == blocks[idx1].stop ||
-                        blocks[idx2].start == blocks[idx2].stop) continue;
+                        blocks[idx2].start == blocks[idx2].stop)
+                        continue;
 
                     AsymmetricBatch asym(container);
                     asym.types = this->types;
@@ -108,23 +117,95 @@ namespace april::container::internal {
         }
 
     private:
-        Container & container;
+        Container& container;
         std::vector<SymmetricBatch> diagonal_phase;
         std::vector<std::vector<AsymmetricBatch>> off_diagonal_phases;
     };
+
+
+
+
+    template <typename Container, typename AsymmetricBatch>
+    struct AsymmetricParallelBatch : batching::BatchBase<exec::ParallelTrait::IntraBatch, AsymmetricBatch::vector_trait> {
+
+        explicit AsymmetricParallelBatch(Container& container) : container(container) {}
+
+        template <ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Func>
+        void for_each_pair(Func&& f) const {
+            // The asymmetric case is strictly bipartite, so all phases are structurally
+            // identical. There is no separate diagonal phase to handle.
+            for (const auto& phase : phases) {
+                executor.execute(phase.size(), [&](size_t i) {
+                    phase[i].template for_each_pair<P, E>(f);
+                });
+            }
+        }
+
+        void set_range(const math::Range& range1, const math::Range& range2, const size_t oversubscription = 4) {
+            const size_t n_threads = exec::n_threads;
+            constexpr size_t target_chunk_size = 256;
+
+            // Use the larger range to determine block count
+            const size_t max_range = std::max(range1.size(), range2.size());
+            size_t B = std::max<size_t>(1, max_range / target_chunk_size);
+
+            const size_t min_B = n_threads * oversubscription;
+            if (B < min_B) B = min_B;
+
+            // Partition BOTH ranges using SIMD-aligned boundaries
+            std::vector<math::Range> blocks1 = partition_range(range1, B);
+            std::vector<math::Range> blocks2 = partition_range(range2, B);
+
+            // 3. Schedule using Cyclic Diagonals
+            phases.resize(B);
+            for (size_t p = 0; p < B; ++p) {
+                for (size_t i = 0; i < B; ++i) {
+                    // Modulo shift ensures no column overlap within the phase
+                    const size_t j = (i + p) % B;
+
+                    // Skip if either block ended up empty (e.g., if B > total particles)
+                    if (blocks1[i].start == blocks1[i].stop ||
+                        blocks2[j].start == blocks2[j].stop) {
+                        continue;
+                    }
+
+                    AsymmetricBatch asym(container);
+                    asym.types = this->types;
+                    asym.range1 = blocks1[i];
+                    asym.range2 = blocks2[j];
+                    phases[p].push_back(asym);
+                }
+            }
+        }
+
+        std::vector<std::vector<AsymmetricBatch>> phases;
+
+    private:
+        Container& container;
+
+        // Helper to divide a range into exactly B chunks, distributing the remainder
+        static std::vector<math::Range> partition_range(const math::Range& r, const size_t num_blocks) {
+            constexpr size_t v_size = packed::size();
+            const size_t total_vectors = r.size() / v_size;
+            const size_t vectors_per_block = total_vectors / num_blocks;
+            const size_t remainder_vectors = total_vectors % num_blocks;
+
+            std::vector<math::Range> blocks(num_blocks);
+            size_t current = r.start;
+
+            for (size_t i = 0; i < num_blocks; ++i) {
+                const size_t v_count = vectors_per_block + (i < remainder_vectors ? 1 : 0);
+                size_t size = v_count * v_size;
+
+                // The final block picks up any trailing scalar elements
+                if (i == num_blocks - 1) {
+                    size += r.size() % v_size;
+                }
+
+                blocks[i] = {current, current + size};
+                current += size;
+            }
+            return blocks;
+        }
+    };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

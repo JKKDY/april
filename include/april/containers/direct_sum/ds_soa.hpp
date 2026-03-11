@@ -12,12 +12,16 @@ namespace april::container::internal {
     class DirectSumSoAImpl : public DirectSumCore<layout::SoA<Config, U>> {
     public:
         using Base = DirectSumCore<layout::SoA<Config, U>>;
-        using SymmetricBatch = SymmetricParalleldBatch<
+        using SymmetricBatch = SymmetricParallelBatch<
             DirectSumSoAImpl,
             batching::AsymmetricScalarBatch<DirectSumSoAImpl>,
             batching::SymmetricScalarBatch<DirectSumSoAImpl>
         >;
-        using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumSoAImpl>;
+        using AsymmetricBatch =
+            AsymmetricParallelBatch<
+            DirectSumSoAImpl,
+            batching::AsymmetricScalarBatch<DirectSumSoAImpl>
+        >;
 
         using Base::Base;
         friend Base;
@@ -46,8 +50,9 @@ namespace april::container::internal {
 
                     AsymmetricBatch batch (*this);
                     batch.types = {t1, t2};
-                    batch.range1 = {start1, end1};
-                    batch.range2 = {start2, end2};
+                    // batch.range1 = {start1, end1};
+                    // batch.range2 = {start2, end2};
+                    batch.set_range({start1, end1}, {start2, end2});
                     asymmetric_batches.push_back(batch);
                 }
             }

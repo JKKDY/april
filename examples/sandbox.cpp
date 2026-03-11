@@ -15,7 +15,7 @@ int main() {
 	auto cuboid1 = ParticleCuboid{}
 		.at({0, 0, 0})
 		.velocity({0, 0, 0})
-		.count({40, 8, 1})
+		.count({40, 8, 5})
 		.mass(1.0)
 		.spacing(1.1225)
 		.type(0);
@@ -23,7 +23,7 @@ int main() {
 	auto cuboid2 = ParticleCuboid{}
 		.at({15, 15, 0})
 		.velocity({0, -20, 0})
-		.count({8, 8, 1})
+		.count({8, 8, 5})
 		.mass(1.0)
 		.spacing(1.1225)
 		.type(0);

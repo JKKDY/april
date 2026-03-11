@@ -112,6 +112,7 @@ function(set_target_build_flags target_name)
 #                 -funroll-loops         # Loop unrolling
                 -fno-plt                 # Avoid procedure linkage table, improves direct calls
                 -Wno-psabi  # make apple gcc shut up about xsimd
+                -fopenmp
             >
 
             # MSVC

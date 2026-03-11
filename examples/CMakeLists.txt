@@ -1,4 +1,9 @@
-
+#
+#if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+#    link_directories(/usr/lib/llvm-18/lib)
+#endif()
+#
+find_package(OpenMP REQUIRED)
 
 function(add_example target_name source_file folder_name)
     add_executable(${target_name} ${source_file})
@@ -6,6 +11,8 @@ function(add_example target_name source_file folder_name)
     set_target_properties(${target_name} PROPERTIES FOLDER "examples/${folder_name}")
 
     target_link_libraries(${target_name} PRIVATE April)
+    target_link_libraries(${target_name} PRIVATE OpenMP::OpenMP_CXX)
+
     set_target_build_flags(${target_name})
     enable_sanitizer_if_dbg(${target_name})
 endfunction()

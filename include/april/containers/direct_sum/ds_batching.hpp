@@ -1,5 +1,6 @@
 #pragma once
 
+#include <barrier>
 #include <vector>
 
 #include "april/exec/policy.hpp"
@@ -7,32 +8,48 @@
 #include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
 #include "april/exec/concurrency.hpp"
+#include "april/exec/executor.hpp"
+#include "april/exec/native_executioner.hpp"
+#include "april/exec/sequential_executor.hpp"
+#include "april/exec/omp_executor.hpp"
 
 namespace april::container::internal {
+
+    inline exec::NativeExecutor executor;
 
     template<typename Container, typename AsymmetricBatch, typename SymmetricBatch>
     struct SymmetricParalleldBatch : batching::BatchBase<exec::ParallelTrait::IntraBatch,
         AsymmetricBatch::vector_trait & SymmetricBatch::vector_trait>
     {
-        explicit SymmetricParalleldBatch(Container & container) : container(container) {}
+        explicit SymmetricParalleldBatch(Container & container) : container(container) {
+
+        }
 
         template<ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Func>
         void for_each_pair (Func && f) const {
-            for (auto & block : diagonal_phase) {
-                block.template for_each_pair<P, E>(f);
-            }
+            executor.execute(diagonal_phase.size(), [&](size_t i) {
+                diagonal_phase[i].template for_each_pair<P, E>(f);
+            });
 
-            for (auto & phase : off_diagonal_phases) {
-                for (auto & block : phase) {
-                    block.template for_each_pair<P, E>(f);
-                }
+            for (auto& phase : off_diagonal_phases) {
+                executor.execute(phase.size(), [&](size_t i) {
+                    phase[i].template for_each_pair<P, E>(f);
+                });
             }
         }
 
-        void set_range(const math::Range & range, const size_t oversubscription = 2) {
-            const size_t n_threads = exec::CPU_THREADS;
-            size_t B = std::max<size_t>(1, n_threads * oversubscription);
+
+        void set_range(const math::Range & range, const size_t oversubscription = 4) {
+            const size_t n_threads = exec::n_threads;
+            constexpr size_t target_chunk_size = 256;
+            size_t B = std::max<size_t>(1, range.size() / target_chunk_size);
+
+            // Make sure B is even for the tournament math
             if (B % 2 != 0) B++;
+
+            // Also ensure B is large enough to keep threads busy (oversubscription check)
+            const size_t min_B = n_threads * oversubscription;
+            if (B < min_B) B = (min_B % 2 == 0) ? min_B : min_B + 1;
 
             // Partition the range into B blocks
             std::vector<math::Range> blocks(B);

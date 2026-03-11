@@ -7,7 +7,7 @@ using namespace april;
 namespace fs = std::filesystem;
 
 
-static constexpr int NX = 20, NY = 20, NZ = 20;
+static constexpr int NX = 40, NY = 40, NZ = 40;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
@@ -47,16 +47,16 @@ int main() {
 		env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
-		constexpr auto container = DirectSum<Layout::AoSoA<>>();
+		constexpr auto container = DirectSum<Layout::SoA>();
 		auto system = build_system(env, container);
 
 		constexpr double dt = 0.0002;
-		constexpr int steps  = 1000;
+		constexpr int steps  = 50;
 
-		VelocityVerlet integrator(system, monitors<Benchmark, BinaryOutput>);
+		VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar>);
 		integrator.add_monitor(Benchmark());
-		// integrator.add_monitor(ProgressBar(Trigger::every(200)));
-		integrator.add_monitor(BinaryOutput(Trigger::every(10), dir_path.string()));
+		integrator.add_monitor(ProgressBar(Trigger::every(1)));
+		// integrator.add_monitor(BinaryOutput(Trigger::every(10), dir_path.string()));
 		integrator.run_for_steps(dt, steps);
 
 	}

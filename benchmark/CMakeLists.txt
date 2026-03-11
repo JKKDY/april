@@ -1,7 +1,11 @@
+find_package(OpenMP REQUIRED)
+
+
 function(add_benchmark target_name source_file folder_name)
     add_executable(${target_name} ${source_file})
     target_compile_definitions(${target_name} PRIVATE PROJECT_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     set_target_properties(${target_name} PROPERTIES FOLDER "benchmark/${folder_name}")
+    target_link_libraries(${target_name} PRIVATE OpenMP::OpenMP_CXX)
 
     set_target_build_flags(${target_name})
     target_link_libraries(${target_name} PRIVATE April)

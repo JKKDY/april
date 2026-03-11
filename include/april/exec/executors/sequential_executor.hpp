@@ -1,6 +1,6 @@
 #pragma once
 
-#include "april/exec/executor.hpp"
+#include "april/exec/executors/executor_traits.hpp"
 
 namespace april::exec {
     struct SequentialExecutor {

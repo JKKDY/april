@@ -1,7 +1,7 @@
 #pragma once
 
 #include <omp.h>
-#include "april/exec/executor.hpp"
+#include "april/exec/executors/executor_traits.hpp"
 
 namespace april::exec {
     struct OmpExecutor {

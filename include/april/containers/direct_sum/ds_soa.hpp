@@ -3,7 +3,6 @@
 #include "april/containers/layout/soa.hpp"
 #include "april/containers/direct_sum/ds_core.hpp"
 #include "april/containers/batching/scalar_batch.hpp"
-#include "april/exec/info.hpp"
 #include "april/containers/direct_sum/ds_batching.hpp"
 
 namespace april::container::internal {
@@ -15,12 +14,14 @@ namespace april::container::internal {
         using SymmetricBatch = SymmetricParallelBatch<
             DirectSumSoAImpl,
             batching::AsymmetricScalarBatch<DirectSumSoAImpl>,
-            batching::SymmetricScalarBatch<DirectSumSoAImpl>
+            batching::SymmetricScalarBatch<DirectSumSoAImpl>,
+            exec::Executor
         >;
         using AsymmetricBatch =
             AsymmetricParallelBatch<
             DirectSumSoAImpl,
-            batching::AsymmetricScalarBatch<DirectSumSoAImpl>
+            batching::AsymmetricScalarBatch<DirectSumSoAImpl>,
+            exec::Executor
         >;
 
         using Base::Base;
@@ -34,7 +35,7 @@ namespace april::container::internal {
                 auto [start, end, step] = this->get_physical_bin_range(type);
                 if (end - start <= 1) continue;
 
-                SymmetricBatch batch (*this);
+                SymmetricBatch batch (*this, this->thread_executor);
                 batch.types = {type, type};
                 // batch.range = {start, end};
                 batch.set_range({start,end});
@@ -48,7 +49,7 @@ namespace april::container::internal {
                     auto [start2, end2, step2] = this->get_physical_bin_range(t2);
                     if (start1 == end1 || start2 == end2) continue;
 
-                    AsymmetricBatch batch (*this);
+                    AsymmetricBatch batch (*this, this->thread_executor);
                     batch.types = {t1, t2};
                     // batch.range1 = {start1, end1};
                     // batch.range2 = {start2, end2};

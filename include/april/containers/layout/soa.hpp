@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include "april/containers/container.hpp"
+#include "../../exec/executors/omp_executor.hpp"
 #include "april/particle/particle.hpp"
 #include "april/exec/policy.hpp"
 
@@ -255,13 +256,12 @@ namespace april::container::layout {
             else if constexpr (F == ParticleField::attributes) return self.data.ptr_attributes + i;
         }
 
-
-        template<ParallelPolicy P, exec::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
-        void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+        template<exec::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
+        void iterate_chunk(this auto&& self, Kernel && kernel, const size_t c_start, const size_t c_end) {
             using K = std::remove_cvref_t<Kernel>;
 
-            if constexpr (E == exec::ExecutionMode::Scalar) {
-                for (size_t i = start; i < end; i++) {
+             if constexpr (E == exec::ExecutionMode::Scalar) {
+                for (size_t i = c_start; i < c_end; i++) {
                     if constexpr (is_const) {
                         kernel(i, self.template view<K::Read>(i));
                     } else {
@@ -269,10 +269,9 @@ namespace april::container::layout {
                     }
                 }
             }
-
             else if constexpr (E == exec::ExecutionMode::Vector) {
-                for (size_t i = start; i < end; i+=packed::size()) {
-                    AP_ASSERT(start % packed::size() == 0, "In vectorized execution start must be aligned to the packed type");
+                for (size_t i = c_start; i < c_end; i += packed::size()) {
+                    AP_ASSERT(i % packed::size() == 0, "In vectorized execution start must be aligned to the packed type");
                     if constexpr (is_const) {
                         kernel(i, self.template view_packed<K::Read>(i));
                     } else {
@@ -280,14 +279,13 @@ namespace april::container::layout {
                     }
                 }
             }
-
             else if constexpr (E == exec::ExecutionMode::Hybrid) {
                 // head
                 constexpr size_t vector_size = packed::size();
-                const size_t remainder = start % vector_size;
-                const size_t head_end = (remainder == 0) ? start : std::min(end, start + (vector_size - remainder));
+                const size_t remainder = c_start % vector_size;
+                const size_t head_end = (remainder == 0) ? c_start : std::min(c_end, c_start + (vector_size - remainder));
 
-                for (size_t i = start; i < head_end; ++i) {
+                for (size_t i = c_start; i < head_end; ++i) {
                     if constexpr (is_const) {
                         kernel(i, self.template view<K::Read>(i));
                     } else {
@@ -297,10 +295,9 @@ namespace april::container::layout {
 
                 // body
                 const size_t body_start = head_end;
-                const size_t body_end = body_start + ((end - body_start) / vector_size) * vector_size;
+                const size_t body_end = body_start + ((c_end - body_start) / vector_size) * vector_size;
 
                 for (size_t i = body_start; i < body_end; i += vector_size) {
-                    // i is now guaranteed to be aligned
                     AP_ASSERT(i % packed::size() == 0, "In vectorized execution, index must be aligned");
                     if constexpr (is_const) {
                         kernel(i, self.template view_packed<K::Read>(i));
@@ -310,13 +307,70 @@ namespace april::container::layout {
                 }
 
                 // tail
-                for (size_t i = body_end; i < end; ++i) {
+                for (size_t i = body_end; i < c_end; ++i) {
                     if constexpr (is_const) {
                         kernel(i, self.template view<K::Read>(i));
                     } else {
                         kernel(i, self.template at<K::Read, K::Write>(i));
                     }
                 }
+            }
+        }
+
+        template<ParallelPolicy P, exec::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
+        void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
+            auto process_chunk = [&](const size_t c_start, const size_t c_end) {
+                self.template iterate_chunk<E, is_const>(kernel, c_start, c_end);
+            };
+
+            // Dispatch based on ParallelPolicy
+            if constexpr (P == ParallelPolicy::Serial) {
+                process_chunk(start, end);
+            }
+            else if constexpr (P == ParallelPolicy::Threaded) {
+                const size_t total_elements = end - start;
+                if (total_elements == 0) return;
+
+                constexpr size_t v_size = packed::size();
+                const size_t total_packed = total_elements / v_size;
+
+                // Determine block count (2x oversubscription)
+                size_t B = self.thread_executor.num_threads() * 2;
+                if (B == 0) B = 1;
+
+                // number chunks should not be more then number packed
+                if (total_packed < B) {
+                    B = std::max<size_t>(1, total_packed);
+                }
+
+                if (B <= 1) {
+                    process_chunk(start, end);
+                    return;
+                }
+
+                const size_t vectors_per_block = total_packed / B;
+                const size_t remainder_vectors = total_packed % B;
+
+                std::vector<math::Range> blocks(B);
+                size_t current = start;
+
+                for (size_t i = 0; i < B; ++i) {
+                    const size_t v_count = vectors_per_block + (i < remainder_vectors ? 1 : 0);
+                    size_t size = v_count * v_size;
+
+                    if (i == B - 1) {
+                        size += total_elements % v_size; // attach scalar tail
+                    }
+
+                    blocks[i] = {current, current + size};
+                    current += size;
+                }
+
+                self.thread_executor.execute(B, [&](const size_t i) {
+                    if (blocks[i].start < blocks[i].stop) {
+                        process_chunk(blocks[i].start, blocks[i].stop);
+                    }
+                });
             }
         }
     };

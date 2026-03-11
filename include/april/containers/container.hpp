@@ -5,6 +5,7 @@
 
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
+#include "april/exec/executor.hpp"
 
 #include "april/math/range.hpp"
 
@@ -14,6 +15,8 @@
 
 #include "april/particle/scalar_access.hpp"
 #include "april/particle/packed_access.hpp"
+
+
 
 namespace april::container {
 
@@ -50,8 +53,13 @@ namespace april::container {
 		using ParticleAttributes = Attributes;
 		using Config = C;
 
-		Container(const Config & config, const internal::ContainerCreateInfo & info):
-			config(config), flags(info.flags), hints(info.hints), force_schema(info.force_schema), domain(info.domain)
+		Container(const Config & config, const internal::ContainerCreateInfo & info, const exec::Executor & executor):
+			config(config),
+			flags(info.flags),
+			hints(info.hints),
+			force_schema(info.force_schema),
+			domain(info.domain),
+			thread_executor(executor)
 		{}
 
 		void invoke_build(this auto&& self, const std::vector<ParticleRecord>& particles) {
@@ -267,6 +275,7 @@ namespace april::container {
 		const internal::ContainerHints hints;
 		const force::internal::InteractionSchema force_schema;
 		const core::Box domain; // Note: in the future this may be adjustable during run time
+		const exec::Executor & thread_executor;
 
 		template<exec::IsKernel Kernel>
 		static auto adapt_indexed_kernel(Kernel && kernel) {

@@ -1,16 +1,29 @@
 #pragma once
 
-#include <concepts>
-#include <stddef.h>
+
+#define AP_EXECUTOR_BACKEND_OMP
+
+
+
+#if defined(AP_EXECUTOR_BACKEND_OMP)
+#include "april/exec/executors/omp_executor.hpp"
+
 namespace april::exec {
+    using Executor = OmpExecutor;
+}
 
-    template<typename F>
-    concept IsWorkAtom = std::invocable<F, size_t>;
+#elif defined(AP_EXECUTOR_BACKEND_NATIVE)
+namespace april::exec {
+    using Executor = NativeExecutor;
+}
+#elif defined(AP_EXECUTOR_BACKEND_SEQUENTIAL)
+#include "executors/sequential_executor.hpp"
+namespace april::exec {
+    using Executor = ::april::exec::SequentialExecutor;
+}
+#endif
 
-    template<typename T>
-    concept IsExecutor = requires(T exec, size_t count) {
-        // use a dummy lambda to check if the execute method exists and is templated
-        { exec.execute(count, [](size_t){}) } -> std::same_as<void>;
-    };
 
-} // namespace april::exec
+static_assert(april::exec::IsExecutor<april::exec::Executor>);
+
+

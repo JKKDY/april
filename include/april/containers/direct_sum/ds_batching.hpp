@@ -8,20 +8,17 @@
 #include "april/containers/batching/common.hpp"
 #include "april/math/range.hpp"
 #include "april/exec/info.hpp"
-#include "april/exec/executor.hpp"
-#include "april/exec/native_executer.hpp"
-#include "april/exec/sequential_executor.hpp"
-#include "april/exec/omp_executor.hpp"
 
-#include <iostream>
+#include "april/exec/executors/executor_traits.hpp"
+
 
 namespace april::container::internal {
-    inline exec::OmpExecutor executor;
 
-    template <typename Container, typename AsymmetricBatch, typename SymmetricBatch>
+    template <typename Container, typename AsymmetricBatch, typename SymmetricBatch, exec::IsExecutor Executor>
     struct SymmetricParallelBatch : batching::BatchBase<exec::ParallelTrait::IntraBatch,
                                                          AsymmetricBatch::vector_trait & SymmetricBatch::vector_trait> {
-        explicit SymmetricParallelBatch(Container& container) : container(container) {}
+        explicit SymmetricParallelBatch(Container& container,const Executor & executor)
+            : container(container), executor(executor) {}
 
         template <ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Func>
         void for_each_pair(Func&& f) const {
@@ -117,7 +114,8 @@ namespace april::container::internal {
         }
 
     private:
-        Container& container;
+        Container & container;
+        const Executor & executor;
         std::vector<SymmetricBatch> diagonal_phase;
         std::vector<std::vector<AsymmetricBatch>> off_diagonal_phases;
     };
@@ -125,10 +123,11 @@ namespace april::container::internal {
 
 
 
-    template <typename Container, typename AsymmetricBatch>
+    template <typename Container, typename AsymmetricBatch, exec::IsExecutor Executor>
     struct AsymmetricParallelBatch : batching::BatchBase<exec::ParallelTrait::IntraBatch, AsymmetricBatch::vector_trait> {
 
-        explicit AsymmetricParallelBatch(Container& container) : container(container) {}
+        explicit AsymmetricParallelBatch(Container& container, const Executor & executor)
+            : container(container), executor(executor) {}
 
         template <ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Func>
         void for_each_pair(Func&& f) const {
@@ -182,6 +181,7 @@ namespace april::container::internal {
 
     private:
         Container& container;
+        const Executor & executor;
 
         // Helper to divide a range into exactly B chunks, distributing the remainder
         static std::vector<math::Range> partition_range(const math::Range& r, const size_t num_blocks) {

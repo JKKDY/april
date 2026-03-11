@@ -6,6 +6,8 @@
 #include <type_traits>
 #include <algorithm>
 
+#include "april/exec/executors/executor_traits.hpp"
+
 namespace april::exec {
     class NativeExecutor {
     public:
@@ -23,7 +25,7 @@ namespace april::exec {
             start_sync.arrive_and_wait();
         }
 
-        template <typename F>
+        template <IsWorkAtom F>
         void execute(const size_t batch_count, F&& task) {
             if (batch_count == 0) return;
 

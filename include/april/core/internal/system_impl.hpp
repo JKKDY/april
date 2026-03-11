@@ -115,7 +115,6 @@ namespace april {
 					}
 				};
 
-
 				constexpr bool force_scalar =
 					(static_cast<bool>(M & ParticleField::attributes) && !particle::IsVectorizable<ParticleAttributes>)
 					|| ForceT::vector_mode == exec::ExecutionMode::Scalar;
@@ -127,7 +126,7 @@ namespace april {
 			force_table.dispatch(t1, t2, apply_batch_update);
 		};
 
-		particle_container.for_each_particle(
+		for_each_particle<ParallelPolicy::Threaded>(
 			april::universal_kernel<ParticleField::force, ParticleField::force>(
 				[](auto && p) { p.force = {}; } // reset forces
 			)
@@ -266,7 +265,7 @@ namespace april {
 	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::apply_force_fields() {
 		fields.for_each_item([&]<typename F>(F & field) {
-			for_each_particle(scalar_kernel<F::fields, ParticleField::force>(
+			for_each_particle<ParallelPolicy::Threaded>(scalar_kernel<F::fields, ParticleField::force>(
 				[&](auto && p) {
 					field.dispatch_apply(p);
 				})

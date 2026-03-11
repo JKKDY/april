@@ -7,6 +7,7 @@
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
 #include "april/core/context.hpp"
+#include "april/exec/executor.hpp"
 
 namespace april {
 	struct BuildInfo;
@@ -272,11 +273,13 @@ namespace april {
 
 	private:
 		core::Box simulation_box; // TODO rename to domain
+		exec::Executor thread_executor;
 		BoundaryTable boundary_table;
 		ForceTable force_table;
 		ControllerStorage controllers;
 		FieldStorage fields;
 		Container particle_container;
+
 
 		std::vector<size_t> particles_to_update_buffer;
 
@@ -299,11 +302,12 @@ namespace april {
 			const FieldStorage& fields_in
 		)
 			: simulation_box(domain_in),
+			  thread_executor(exec::Executor()), // init stub incase we want to pass args in the future
 			  boundary_table(boundaries_in),
 			  force_table(forces_in),
 			  controllers(controllers_in),
 			  fields(fields_in),
-			  particle_container(Container(container_cfg, container_info)),
+			  particle_container(Container(container_cfg, container_info, thread_executor)),
 			  system_context(*this),
 			  trig_context(*this)
 		{

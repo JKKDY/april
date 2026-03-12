@@ -88,7 +88,9 @@ Users can implement custom components by satisfying the corresponding interface.
 April is built around static configuration and strict separation between simulation logic and data layout.
 
 * **Compile-Time Configuration**: All usable component types and possible execution paths are visible to the compiler through templates and static polymorphism. Configuration and compatibility errors are caught early at compile time in a readable way via Concepts.
+
 * **Run-Time Flexibility**: Predeclare multiple component types at compile time, then assign and configure specific components at runtime; full flexibility without losing performance.
+
 * **Zero-Cost Memory Abstraction**: The library operates on lightweight accessor structs that reference particle data and behave like standard AoS objects. These abstractions inline to direct memory accesses, allowing for full decoupling of library logic from memory layout with no abstraction overhead.
 
 

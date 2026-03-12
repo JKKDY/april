@@ -14,6 +14,20 @@ namespace april::container::internal {
         using SymmetricBatch = batching::SymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>;
         using AsymmetricBatch = batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>;
 
+       //  using SymmetricBatch = SymmetricParallelBatch<
+       //     DirectSumAoSoAImpl,
+       //     batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>,
+       //     batching::SymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>,
+       //     exec::Executor
+       // >;
+       //  using AsymmetricBatch =
+       //      AsymmetricParallelBatch<
+       //      DirectSumAoSoAImpl,
+       //      batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl,  typename Base::ChunkT>,
+       //      exec::Executor
+       //  >;
+
+
         using Base::Base;
         friend Base;
 

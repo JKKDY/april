@@ -284,8 +284,12 @@ namespace april::math {
         T x, y, z;
 
         Vec3() : x(0), y(0), z(0) {}
-        Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
+        template <typename U> requires std::convertible_to<U, T>
+        Vec3(U x, U y, U z) : x(x), y(y), z(z) {}
         explicit Vec3(T v) : x(v), y(v), z(v) {}
+
+        Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
+
 
         template <IsVectorLike Other>
         Vec3(const Other& p) : x(static_cast<T>(p.x)), y(static_cast<T>(p.y)), z(static_cast<T>(p.z)) {}

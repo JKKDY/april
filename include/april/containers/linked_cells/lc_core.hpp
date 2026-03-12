@@ -52,6 +52,7 @@ namespace april::container::internal {
 			self.build_storage(particles);
 			self.pre_allocate_assignment_bins();
 			self.rebuild_structure();
+			self.schedule_phases();
 		}
 
 		template<typename Func>
@@ -128,6 +129,8 @@ namespace april::container::internal {
 		// cell pair info
 		std::vector<int3> neighbor_stencil;
 		std::vector<WrappedCellPair> wrapped_cell_pairs;
+		std::array<std::vector<uint3>, 8> phase_schedule; // for c08 coloring scheme
+
 
 
 		//------
@@ -270,7 +273,6 @@ namespace april::container::internal {
 				return static_cast<CellWrapFlag>(1 << ax); // maps axis to appropriate CellWrap flag
 			};
 
-
 			for (unsigned int z = 0; z < self.cells_per_axis.z; z++) {
 				for (unsigned int y = 0; y < self.cells_per_axis.y; y++) {
 					for (unsigned int x = 0; x < self.cells_per_axis.x; x++) {
@@ -324,6 +326,20 @@ namespace april::container::internal {
 			}
 		}
 
+		void schedule_phases() {
+			const auto& batch_dim = this->config.block_size;
+
+			for_each_block([&](size_t bx, size_t by, size_t bz) {
+				const size_t logical_x = bx / batch_dim.x;
+				const size_t logical_y = by / batch_dim.y;
+				const size_t logical_z = bz / batch_dim.z;
+
+				const size_t color = (logical_x % 2) + ((logical_y % 2) << 1) + ((logical_z % 2) << 2);
+
+				phase_schedule[color].push_back(uint3{bx, by, bz});
+			});
+		}
+
 
         // -----------------
         // LOOP ABSTRACTIONS
@@ -331,10 +347,10 @@ namespace april::container::internal {
         // Iterates over spatial blocks (cache blocking)
         template <typename Func>
         AP_FORCE_INLINE void for_each_block(Func&& fn) const {
-            const auto& bdim = this->config.block_size;
-            for (size_t bz = 0; bz < cells_per_axis.z; bz += bdim.z)
-                for (size_t by = 0; by < cells_per_axis.y; by += bdim.y)
-                    for (size_t bx = 0; bx < cells_per_axis.x; bx += bdim.x)
+            const auto& batch_dim = this->config.block_size;
+            for (size_t bz = 0; bz < cells_per_axis.z; bz += batch_dim.z)
+                for (size_t by = 0; by < cells_per_axis.y; by += batch_dim.y)
+                    for (size_t bx = 0; bx < cells_per_axis.x; bx += batch_dim.x)
                         fn(bx, by, bz);
         }
 
@@ -392,7 +408,7 @@ namespace april::container::internal {
 			// For mixed types (T1!=T2), we continue because we need the reverse check (Neighbor(T1) vs Cell(T2)).
 			if (range1.empty() && (t1 == t2)) return;
 
-			// inter-cell: process forces between particles of neighbouring cells
+			// inter-cell: process forces between particles of neighboring cells
 			for (auto offset : this->neighbor_stencil) {
 				size_t c_n = this->get_neighbor_idx(x, y, z, offset);
 				if (c_n == this->outside_cell_id) continue;

@@ -339,11 +339,9 @@ namespace april::container::batching {
 
 
 
-    //================
     //----------------
     // SYMMETRIC BATCH
     //----------------
-    //================
     template <typename Container, typename ChunkPtr>
     struct SymmetricChunkedBatch : BatchBase<exec::ParallelTrait::None,
         exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath> {

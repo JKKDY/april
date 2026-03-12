@@ -193,8 +193,8 @@ TYPED_TEST(DirectSumTest, PeriodicForceWrap_X) {
 	e.set_extent({10,10,10}); // domain box 10x10x10
 
 	// Two particles, near opposite faces along x
-	e.add_particle(make_particle(0, {0.5, 5, 5}, {}, 1, ParticleState::ALIVE, 0));
-	e.add_particle(make_particle(0, {9.5, 5, 5}, {}, 1, ParticleState::ALIVE, 1));
+	e.add_particle(make_particle(0, vec3{0.5, 5, 5}, {}, 1, ParticleState::ALIVE, 0));
+	e.add_particle(make_particle(0, vec3{9.5, 5, 5}, {}, 1, ParticleState::ALIVE, 1));
 
 	e.add_force(Harmonic(1, 0, 2), to_type(0)); // simple directional force
 	e.set_boundaries(DummyPeriodicBoundary(), {DomainFace::XMinus, DomainFace::XPlus});

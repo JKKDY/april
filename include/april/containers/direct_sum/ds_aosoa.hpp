@@ -5,27 +5,25 @@
 #include "april/containers/batching/chunked_batch.hpp"
 
 namespace april::container::internal {
-
     template <class Config, class U, size_t ChunkSize>
     class DirectSumAoSoAImpl : public DirectSumCore<layout::AoSoA<Config, U, ChunkSize>> {
     public:
         using Base = DirectSumCore<layout::AoSoA<Config, U, ChunkSize>>;
         using Base::chunk_size;
-        using SymmetricBatch = batching::SymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>;
-        using AsymmetricBatch = batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>;
 
-       //  using SymmetricBatch = SymmetricParallelBatch<
-       //     DirectSumAoSoAImpl,
-       //     batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>,
-       //     batching::SymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>,
-       //     exec::Executor
-       // >;
-       //  using AsymmetricBatch =
-       //      AsymmetricParallelBatch<
-       //      DirectSumAoSoAImpl,
-       //      batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl,  typename Base::ChunkT>,
-       //      exec::Executor
-       //  >;
+        using SymmetricBatch = SymmetricParallelChunkedBatch<
+            DirectSumAoSoAImpl,
+            batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>,
+            batching::SymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>,
+            typename Base::ChunkT,
+            exec::Executor
+        >;
+        using AsymmetricBatch = AsymmetricParallelChunkedBatch<
+            DirectSumAoSoAImpl,
+            batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>,
+            typename Base::ChunkT,
+            exec::Executor
+        >;
 
 
         using Base::Base;
@@ -42,15 +40,18 @@ namespace april::container::internal {
 
             for (ParticleType type = 0; type < n_types; type++) {
                 const size_t start = bin_starts[type];
-                const size_t end = bin_starts[type+1];
+                const size_t end = bin_starts[type + 1];
                 const size_t size = bin_sizes[type];
 
                 if (size <= 1) continue;
 
-                SymmetricBatch batch (*this,  this->ptr_chunks);
+                math::Range range = {start >> chunk_shift, end >> chunk_shift};
+                size_t tail = size & chunk_mask;
+
+                SymmetricBatch batch(*this, this->ptr_chunks, this->thread_executor);
                 batch.types = {type, type};
-                batch.range_chunks = {start >> chunk_shift, end >> chunk_shift};
-                batch.range_tail = size & chunk_mask;
+
+                batch.set_range(range, tail);
 
                 symmetric_batches.push_back(batch);
             }
@@ -60,20 +61,23 @@ namespace april::container::internal {
                 for (ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
                     const size_t start1 = bin_starts[t1];
                     const size_t size1 = bin_sizes[t1];
-                    const size_t end1 = bin_starts[t1+1];
+                    const size_t end1 = bin_starts[t1 + 1];
 
                     const size_t start2 = bin_starts[t2];
                     const size_t size2 = bin_sizes[t2];
-                    const size_t end2 = bin_starts[t2+1];
+                    const size_t end2 = bin_starts[t2 + 1];
 
-                    if (size1==0 || size2==0) continue;
+                    if (size1 == 0 || size2 == 0) continue;
 
-                    AsymmetricBatch batch (*this, this->ptr_chunks);
+                    const math::Range range1 = {start1 >> chunk_shift, end1 >> chunk_shift};
+                    const size_t tail1 = size1 & chunk_mask;
+
+                    const math::Range range2 = {start2 >> chunk_shift, end2 >> chunk_shift};
+                    const size_t tail2 = size2 & chunk_mask;
+
+                    AsymmetricBatch batch(*this, this->ptr_chunks, this->thread_executor);
                     batch.types = {t1, t2};
-                    batch.range1_chunks = {start1 >> chunk_shift, end1 >> chunk_shift};
-                    batch.range2_chunks = {start2 >> chunk_shift, end2 >> chunk_shift};
-                    batch.range1_tail = size1 & chunk_mask;
-                    batch.range2_tail = size2 & chunk_mask;
+                    batch.set_range(range1, tail1, range2, tail2);
 
                     asymmetric_batches.push_back(batch);
                 }
@@ -87,8 +91,7 @@ namespace april::container::internal {
 
 
 namespace april::container {
-
-    template<size_t ChunkSize>
+    template <size_t ChunkSize>
     struct DirectSumAoSoA {
         using ConfigT = DirectSumAoSoA;
 
@@ -96,17 +99,3 @@ namespace april::container {
         using impl = internal::DirectSumAoSoAImpl<ConfigT, U, ChunkSize>;
     };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

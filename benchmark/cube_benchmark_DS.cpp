@@ -11,7 +11,7 @@ static constexpr int NX = 30, NY = 30, NZ = 30;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
-static constexpr double r_cut = 3 * sigma;
+static constexpr double r_cut = 300 * sigma;
 
 // Grid physical span
 static constexpr double Lx = (NX - 1) * a;
@@ -47,7 +47,7 @@ int main() {
 		env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
-		constexpr auto container = DirectSum<Layout::AoS>();
+		constexpr auto container = DirectSum<Layout::AoSoA<>>();
 		auto system = build_system(env, container);
 
 		constexpr double dt = 0.0002;

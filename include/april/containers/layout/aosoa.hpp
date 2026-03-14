@@ -68,6 +68,15 @@ namespace april::container::layout {
         using Base::at;
         using Base::access_particle;
 
+        AoSoA(const Config & config, const internal::ContainerCreateInfo & info, const exec::Executor & executor):
+           Base(config, info, executor)
+        {
+            this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
+            this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);
+            this->pair_schedule_config.alignment = chunk_size;
+            this->linear_schedule_config.alignment = chunk_size;
+        }
+
 
         // ACCESSORS (chunk based)
         template <ParticleField Read, ParticleField Write>

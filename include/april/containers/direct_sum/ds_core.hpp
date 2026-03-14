@@ -181,12 +181,10 @@ namespace april::container::internal {
             using Derived = std::remove_cvref_t<decltype(self)>;
             using SymGroup = Derived::SymTaskGroup;
 
-            exec::BlockConfig config;
-
             auto range = self.get_physical_bin_range(type);
             if (range.size() <= 1) return;
 
-            auto schedule = exec::make_symmetric_schedule(range, config);
+            auto schedule = exec::make_symmetric_schedule(range, self.pair_schedule_config);
             SymGroup group;
 
             // diagonals
@@ -210,13 +208,11 @@ namespace april::container::internal {
             using Derived = std::remove_cvref_t<decltype(self)>;
             using AsymGroup = Derived::AsymTaskGroup;
 
-            exec::BlockConfig config;
-
             auto range1 = self.get_physical_bin_range(type1);
             auto range2 = self.get_physical_bin_range(type2);
             if (range1.empty() || range2.empty()) return;
 
-            auto schedule = exec::make_bipartite_schedule(range1, range2, config);
+            auto schedule = exec::make_bipartite_schedule(range1, range2, self.pair_schedule_config);
             AsymGroup group;
             group.phases.resize(schedule.phases.size());
 

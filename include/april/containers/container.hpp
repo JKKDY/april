@@ -12,6 +12,7 @@
 #include "april/forces/force_table.hpp"
 #include "april/core/domain.hpp"
 #include "april/core/internal/environment_traits.hpp"
+#include "april/exec/parallel_utils.hpp"
 
 #include "april/particle/scalar_access.hpp"
 #include "april/particle/packed_access.hpp"
@@ -225,14 +226,17 @@ namespace april::container {
 		// MODIFIERS
 		// ---------
 		void invoke_add_particle(this auto&& self, const ParticleRecord & record) {
+			// TODO implement add particle
 			AP_ASSERT(false, "add_particle not supported yet");
 			self.add_particle(record);
 		}
 		void invoke_remove_particle(this auto&& self, const ParticleID id) {
+			// TODO implement remove particle
 			AP_ASSERT(false, "remove_particle not supported yet");
 			self.remove_particle(id);
 		}
 		void invoke_resize_domain(this auto&& self, const core::Box & new_domain) {
+			// TODO implement resize domain
 			AP_ASSERT(false, "resize_domain not supported yet");
 			self.resize_domain(new_domain);
 		}
@@ -254,6 +258,7 @@ namespace april::container {
 			return self.particle_count();
 		}
 		[[nodiscard]] std::vector<size_t> invoke_collect_indices_in_region(this const auto& self, const core::Box & region) {
+			// TODO add tests for collect_indices_in_region
 			if constexpr (requires { self.collect_indices_in_region(region); }) {
 				return self.collect_indices_in_region(region);
 			} else {
@@ -268,6 +273,14 @@ namespace april::container {
 			return self.collect_indices_in_region(region, buffer);
 		}
 
+		void set_linear_schedule_config(const exec::BlockConfig & schedule_config) {
+			linear_schedule_config = schedule_config;
+		}
+
+		void set_pair_schedule_config(const exec::BlockConfig & schedule_config) {
+			pair_schedule_config = schedule_config;
+		}
+
 
 	protected:
 		const Config config;
@@ -276,6 +289,9 @@ namespace april::container {
 		const force::internal::InteractionSchema force_schema;
 		const core::Box domain; // Note: in the future this may be adjustable during run time
 		const exec::Executor & thread_executor;
+
+		exec::BlockConfig pair_schedule_config;
+		exec::BlockConfig linear_schedule_config;
 
 		template<exec::IsKernel Kernel>
 		static auto adapt_indexed_kernel(Kernel && kernel) {
@@ -474,6 +490,7 @@ namespace april::container {
 	    const particle::ParticleRecord<typename C::ParticleAttributes>& p,
 	    const std::vector<particle::ParticleRecord<typename C::ParticleAttributes>>& particles
 	) {
+		// minimal implemented interface (except get_field_ptr since that is not part of the public API)
 	    { c.build(particles) };
 	    { c.rebuild_structure() };
 
@@ -490,10 +507,6 @@ namespace april::container {
 
 	    { c.for_each_interaction_batch([](auto&&){}) };
 		{ c.for_each_topology_batch([](auto&&){}) };
-
-		// for future use
-		// { c.add_particle(p) };
-		// { c.remove_particle(id) };
 	};
 
 

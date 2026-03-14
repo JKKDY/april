@@ -116,13 +116,20 @@ namespace april::container::layout {
 
 
 
+
     template<typename Config, particle::IsParticleAttributes Attributes>
     class SoA : public Container<Config, Attributes> {
     public:
         using Base = Container<Config, Attributes>;
         using Base::force_schema;
-        using Base::Base;
         friend Base;
+
+        SoA(const Config & config, const internal::ContainerCreateInfo & info, const exec::Executor & executor):
+         Base(config, info, executor)
+        {
+            this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
+            this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);
+        }
 
         // INDEXING
         [[nodiscard]] size_t id_to_index(const ParticleID id) const {
@@ -329,12 +336,10 @@ namespace april::container::layout {
                 process_chunk(start, end);
             }
             else if constexpr (P == ParallelPolicy::Threaded) {
-                const exec::BlockConfig config(self.thread_executor.num_threads(), 8);
-
                 // Generate chunks
                 const auto blocks = exec::make_linear_schedule(
                     math::Range{start, end},
-                    config
+                    self.linear_schedule_config
                 );
 
                 // Execute

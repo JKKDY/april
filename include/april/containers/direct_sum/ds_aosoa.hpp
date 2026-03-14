@@ -17,7 +17,6 @@ namespace april::container::internal {
         using SymTaskGroup = SymTaskGroup<SymmetricBatch, AsymmetricBatch>;
         using AsymTaskGroup = AsymTaskGroup<AsymmetricBatch>;
 
-
         using Base::Base;
         friend Base;
 
@@ -26,57 +25,6 @@ namespace april::container::internal {
         using Base::bin_sizes;
         using Base::chunk_shift; // log_2(chunk_size) e.g. chunk_size = 8 -> chunk_shift = 0b100
         using Base::chunk_mask; // chunk_size -1 e.g. chunk_size = 8 -> chunk_mask = 0b111
-
-        void generate_symmetric_group(this auto && self, ParticleType type) {
-            using Derived = std::remove_cvref_t<decltype(self)>;
-            using SymGroup = Derived::SymTaskGroup;
-
-            auto range = self.get_physical_bin_range(type);
-            if (range.size() <= 1) return;
-
-            exec::BlockConfig config;
-            config.alignment = self.chunk_size;
-
-            auto schedule = exec::make_symmetric_schedule(range, config);
-            SymGroup group;
-
-            group.diagonals.reserve(schedule.diagonals.size());
-            for (const auto& r : schedule.diagonals) {
-                group.diagonals.push_back(self.create_symmetric_batch(type, r));
-            }
-
-            group.off_diagonals.resize(schedule.off_diagonals.size());
-            for (size_t phase = 0; phase < schedule.off_diagonals.size(); ++phase) {
-                for (const auto& [r1, r2] : schedule.off_diagonals[phase]) {
-                    group.off_diagonals[phase].push_back(self.create_asymmetric_batch(type, r1, type, r2));
-                }
-            }
-
-            self.sym_groups.push_back(std::move(group));
-        }
-
-        void generate_asymmetric_group(this auto && self, ParticleType type1, ParticleType type2) {
-            using Derived = std::remove_cvref_t<decltype(self)>;
-            using AsymGroup = Derived::AsymTaskGroup;
-
-            auto range1 = self.get_physical_bin_range(type1);
-            auto range2 = self.get_physical_bin_range(type2);
-            if (range1.empty() || range2.empty()) return;
-
-            exec::BlockConfig config;
-            config.alignment = self.chunk_size;
-
-            auto schedule = exec::make_bipartite_schedule(range1, range2, config);
-            AsymGroup group;
-            group.phases.resize(schedule.phases.size());
-
-            for (size_t p = 0; p < schedule.phases.size(); ++p) {
-                for (const auto& [r1, r2] : schedule.phases[p]) {
-                    group.phases[p].push_back(self.create_asymmetric_batch(type1, r1, type2, r2));
-                }
-            }
-            self.asym_groups.push_back(std::move(group));
-        }
 
         auto create_symmetric_batch(ParticleType type, const math::Range& r) {
             const size_t c_start = r.start >> chunk_shift;

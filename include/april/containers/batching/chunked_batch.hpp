@@ -18,8 +18,9 @@ namespace april::container::batching {
     template <typename Container, typename ChunkPtr>
     struct AsymmetricChunkedBatch : BatchBase<exec::ParallelTrait::None,
         exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath> {
-        explicit
-        AsymmetricChunkedBatch(Container& container, ChunkPtr* chunks) : container(container), chunks(chunks) {
+
+        explicit AsymmetricChunkedBatch(Container& container, ChunkPtr* chunks)
+          : container(container), chunks(chunks) {
             for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
         }
 
@@ -49,7 +50,7 @@ namespace april::container::batching {
         static constexpr size_t packed_size = packed::size();
         static constexpr size_t iter_chunks = chunk_size / packed_size;
 
-        alignas(64) packed::value_type idx_arr[packed_size];
+        alignas(64) packed::value_type idx_arr[packed_size]{};
 
 
         //----------------
@@ -310,7 +311,7 @@ namespace april::container::batching {
             if (partial_tail1.start != partial_tail1.stop && partial_tail2.start != partial_tail2.stop) {
                 // initialize mask for the valid lanes in partial_tail1
                 const auto lane_indices = packed::load_aligned(idx_arr);
-                const double valid_lanes = static_cast<double>(partial_tail1.stop - partial_tail1.start);
+                const auto valid_lanes = static_cast<double>(partial_tail1.stop - partial_tail1.start);
                 const auto mask = lane_indices < valid_lanes;
 
                 // load the single SIMD block containing partial_tail1
@@ -343,8 +344,10 @@ namespace april::container::batching {
     // SYMMETRIC BATCH
     //----------------
     template <typename Container, typename ChunkPtr>
-    struct SymmetricChunkedBatch : BatchBase<exec::ParallelTrait::None,
-        exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath> {
+    struct SymmetricChunkedBatch :
+        BatchBase<exec::ParallelTrait::None, exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath>
+    {
+
         explicit SymmetricChunkedBatch(Container& container, ChunkPtr* chunks) : container(container), chunks(chunks) {
             for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
         }
@@ -371,7 +374,7 @@ namespace april::container::batching {
         static constexpr size_t packed_size = packed::size();
         static constexpr size_t iter_chunks = chunk_size / packed_size;
 
-        alignas(64) packed::value_type idx_arr[packed_size];
+        alignas(64) packed::value_type idx_arr[packed_size]{};
 
 
         //----------------

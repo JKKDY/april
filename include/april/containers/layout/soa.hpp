@@ -329,11 +329,10 @@ namespace april::container::layout {
                 process_chunk(start, end);
             }
             else if constexpr (P == ParallelPolicy::Threaded) {
-                exec::BlockConfig config;
-                config.num_threads = self.thread_executor.num_threads();
+                const exec::BlockConfig config(self.thread_executor.num_threads(), 8);
 
                 // Generate chunks
-                const auto blocks = exec::partition_work(
+                const auto blocks = exec::make_linear_schedule(
                     math::Range{start, end},
                     config
                 );

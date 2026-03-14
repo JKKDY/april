@@ -10,6 +10,7 @@
 #include "april/core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
 #include "april/containers/batching/common.hpp"
+#include "april/exec/parallel_utils.hpp"
 
 namespace april::container::internal {
 
@@ -67,9 +68,28 @@ namespace april::container::internal {
 					}
 				};
 
-				// subclass is responsible for populating these vectors via generate_batches
-				for (const auto & batch : self.symmetric_batches) f(batch, bcp);
-				for (const auto & batch : self.asymmetric_batches) f(batch, bcp);
+				// subclass is responsible for populating groups via generate_batches
+
+				// process symmetric groups
+				for (const auto & sym_group : self.sym_groups) {
+					self.thread_executor.execute(sym_group.diagonals.size(), [&](size_t i) {
+						f(sym_group.diagonals[i], bcp);
+					});
+					for (const auto & off_diag : sym_group.off_diagonals) {
+						self.thread_executor.execute(off_diag.size(), [&](size_t i) {
+							f(off_diag[i], bcp);
+						});
+					}
+				}
+
+				// process asymmetric groups
+				for (const auto & asym_group : self.asym_groups) {
+					for (const auto & phase : asym_group.phases) {
+						self.thread_executor.execute(phase.size(), [&](size_t i) {
+							f(phase[i], bcp);
+						});
+					}
+				}
 			};
 
 			// jump table
@@ -137,9 +157,77 @@ namespace april::container::internal {
 			self.reorder_storage(buckets);
 
 			// build bucket sorted storage and create batches
-			static_assert(requires {self.generate_batches(); }, "void generate_batches(ranges) is not implemented");
 			self.generate_batches();
 		}
+
+		 void generate_batches(this auto && self) {
+			// if (self.bin_starts.empty()) return;
+			const auto n_types = static_cast<ParticleType>(self.force_schema.types.size());
+
+            // symmetric batches
+            for (ParticleType type = 0; type < n_types; type++) {
+                self.generate_symmetric_group(type);
+            }
+
+            // asymmetric batches
+            for (ParticleType t1 = 0; t1 < n_types; t1++) {
+                for (ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
+                    self.generate_asymmetric_group(t1, t2);
+                }
+            }
+        }
+
+        void generate_symmetric_group(this auto && self, ParticleType type) {
+            using Derived = std::remove_cvref_t<decltype(self)>;
+            using SymGroup = Derived::SymTaskGroup;
+
+            exec::BlockConfig config;
+
+            auto range = self.get_physical_bin_range(type);
+            if (range.size() <= 1) return;
+
+            auto schedule = exec::make_symmetric_schedule(range, config);
+            SymGroup group;
+
+            // diagonals
+            group.diagonals.reserve(schedule.diagonals.size());
+            for (const auto& r : schedule.diagonals) {
+                group.diagonals.push_back(self.create_symmetric_batch(type, r));
+            }
+
+            // off diagonals
+            group.off_diagonals.resize(schedule.off_diagonals.size());
+            for (size_t phase = 0; phase < schedule.off_diagonals.size(); ++phase) {
+                for (const auto& [r1, r2] : schedule.off_diagonals[phase]) {
+                    group.off_diagonals[phase].push_back(self.create_asymmetric_batch(type, r1, type, r2));
+                }
+            }
+
+            self.sym_groups.push_back(std::move(group));
+        }
+
+        void generate_asymmetric_group(this auto && self, ParticleType type1, ParticleType type2) {
+            using Derived = std::remove_cvref_t<decltype(self)>;
+            using AsymGroup = Derived::AsymTaskGroup;
+
+            exec::BlockConfig config;
+
+            auto range1 = self.get_physical_bin_range(type1);
+            auto range2 = self.get_physical_bin_range(type2);
+            if (range1.empty() || range2.empty()) return;
+
+            auto schedule = exec::make_bipartite_schedule(range1, range2, config);
+            AsymGroup group;
+            group.phases.resize(schedule.phases.size());
+
+            for (size_t p = 0; p < schedule.phases.size(); ++p) {
+                for (const auto& [r1, r2] : schedule.phases[p]) {
+                    group.phases[p].push_back(self.create_asymmetric_batch(type1, r1, type2, r2));
+                }
+            }
+            self.asym_groups.push_back(std::move(group));
+        }
+
 
 		template<bool PX, bool PY, bool PZ>
 		static vec3 minimum_image(vec3 dr, const vec3& L) noexcept {

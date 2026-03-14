@@ -11,19 +11,11 @@ namespace april::container::internal {
         using Base = DirectSumCore<layout::AoSoA<Config, U, ChunkSize>>;
         using Base::chunk_size;
 
-        using SymmetricBatch = SymmetricParallelChunkedBatch<
-            DirectSumAoSoAImpl,
-            batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>,
-            batching::SymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>,
-            typename Base::ChunkT,
-            exec::Executor
-        >;
-        using AsymmetricBatch = AsymmetricParallelChunkedBatch<
-            DirectSumAoSoAImpl,
-            batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>,
-            typename Base::ChunkT,
-            exec::Executor
-        >;
+        using SymmetricBatch = batching::SymmetricChunkedBatch<DirectSumAoSoAImpl,  typename Base::ChunkT>;
+        using AsymmetricBatch = batching::AsymmetricChunkedBatch<DirectSumAoSoAImpl, typename Base::ChunkT>;
+
+        using SymTaskGroup = SymTaskGroup<SymmetricBatch, AsymmetricBatch>;
+        using AsymTaskGroup = AsymTaskGroup<AsymmetricBatch>;
 
 
         using Base::Base;
@@ -32,60 +24,85 @@ namespace april::container::internal {
     private:
         using Base::bin_starts;
         using Base::bin_sizes;
-        using Base::chunk_shift;
-        using Base::chunk_mask;
+        using Base::chunk_shift; // log_2(chunk_size) e.g. chunk_size = 8 -> chunk_shift = 0b100
+        using Base::chunk_mask; // chunk_size -1 e.g. chunk_size = 8 -> chunk_mask = 0b111
 
-        void generate_batches() {
-            const auto n_types = static_cast<ParticleType>(bin_starts.size() - 1); // bin_starts has N+1 entries
+        void generate_symmetric_group(this auto && self, ParticleType type) {
+            using Derived = std::remove_cvref_t<decltype(self)>;
+            using SymGroup = Derived::SymTaskGroup;
 
-            for (ParticleType type = 0; type < n_types; type++) {
-                const size_t start = bin_starts[type];
-                const size_t end = bin_starts[type + 1];
-                const size_t size = bin_sizes[type];
+            auto range = self.get_physical_bin_range(type);
+            if (range.size() <= 1) return;
 
-                if (size <= 1) continue;
+            exec::BlockConfig config;
+            config.alignment = self.chunk_size;
 
-                math::Range range = {start >> chunk_shift, end >> chunk_shift};
-                size_t tail = size & chunk_mask;
+            auto schedule = exec::make_symmetric_schedule(range, config);
+            SymGroup group;
 
-                SymmetricBatch batch(*this, this->ptr_chunks, this->thread_executor);
-                batch.types = {type, type};
-
-                batch.set_range(range, tail);
-
-                symmetric_batches.push_back(batch);
+            group.diagonals.reserve(schedule.diagonals.size());
+            for (const auto& r : schedule.diagonals) {
+                group.diagonals.push_back(self.create_symmetric_batch(type, r));
             }
 
-            // build asymmetric batches
-            for (ParticleType t1 = 0; t1 < n_types; t1++) {
-                for (ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
-                    const size_t start1 = bin_starts[t1];
-                    const size_t size1 = bin_sizes[t1];
-                    const size_t end1 = bin_starts[t1 + 1];
-
-                    const size_t start2 = bin_starts[t2];
-                    const size_t size2 = bin_sizes[t2];
-                    const size_t end2 = bin_starts[t2 + 1];
-
-                    if (size1 == 0 || size2 == 0) continue;
-
-                    const math::Range range1 = {start1 >> chunk_shift, end1 >> chunk_shift};
-                    const size_t tail1 = size1 & chunk_mask;
-
-                    const math::Range range2 = {start2 >> chunk_shift, end2 >> chunk_shift};
-                    const size_t tail2 = size2 & chunk_mask;
-
-                    AsymmetricBatch batch(*this, this->ptr_chunks, this->thread_executor);
-                    batch.types = {t1, t2};
-                    batch.set_range(range1, tail1, range2, tail2);
-
-                    asymmetric_batches.push_back(batch);
+            group.off_diagonals.resize(schedule.off_diagonals.size());
+            for (size_t phase = 0; phase < schedule.off_diagonals.size(); ++phase) {
+                for (const auto& [r1, r2] : schedule.off_diagonals[phase]) {
+                    group.off_diagonals[phase].push_back(self.create_asymmetric_batch(type, r1, type, r2));
                 }
             }
+
+            self.sym_groups.push_back(std::move(group));
         }
 
-        std::vector<SymmetricBatch> symmetric_batches;
-        std::vector<AsymmetricBatch> asymmetric_batches;
+        void generate_asymmetric_group(this auto && self, ParticleType type1, ParticleType type2) {
+            using Derived = std::remove_cvref_t<decltype(self)>;
+            using AsymGroup = Derived::AsymTaskGroup;
+
+            auto range1 = self.get_physical_bin_range(type1);
+            auto range2 = self.get_physical_bin_range(type2);
+            if (range1.empty() || range2.empty()) return;
+
+            exec::BlockConfig config;
+            config.alignment = self.chunk_size;
+
+            auto schedule = exec::make_bipartite_schedule(range1, range2, config);
+            AsymGroup group;
+            group.phases.resize(schedule.phases.size());
+
+            for (size_t p = 0; p < schedule.phases.size(); ++p) {
+                for (const auto& [r1, r2] : schedule.phases[p]) {
+                    group.phases[p].push_back(self.create_asymmetric_batch(type1, r1, type2, r2));
+                }
+            }
+            self.asym_groups.push_back(std::move(group));
+        }
+
+        auto create_symmetric_batch(ParticleType type, const math::Range& r) {
+            const size_t c_start = r.start >> chunk_shift;
+            const size_t c_stop  = (r.stop + chunk_size - 1) >> chunk_shift;
+
+            SymmetricBatch batch(*this, this->ptr_chunks);
+            batch.types = {type, type};
+            batch.range_chunks = { c_start, c_stop };
+            batch.range_tail = r.stop & chunk_mask;
+
+            return batch;
+        }
+
+        auto create_asymmetric_batch(ParticleType t1, const math::Range& r1, ParticleType t2, const math::Range& r2) {
+            AsymmetricBatch batch(*this, this->ptr_chunks);
+            batch.types = {t1, t2};
+            batch.range1_chunks = { r1.start >> chunk_shift, (r1.stop + chunk_size - 1) >> chunk_shift };
+            batch.range2_chunks = { r2.start >> chunk_shift, (r2.stop + chunk_size - 1) >> chunk_shift };
+            batch.range1_tail = r1.stop & chunk_mask;
+            batch.range2_tail = r2.stop & chunk_mask;
+
+            return batch;
+        }
+
+        std::vector<SymTaskGroup> sym_groups;
+        std::vector<AsymTaskGroup> asym_groups;
     };
 }
 

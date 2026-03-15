@@ -12,7 +12,7 @@ namespace april::math::sfc {
     // -----------------------------
 
 
-    [[nodiscard]] AP_FORCE_INLINE uint64_t split_by_3(const uint32_t a) {
+    [[nodiscard]] AP_FORCE_INLINE inline uint64_t split_by_3(const uint32_t a) {
         uint64_t x = a & 0x1fffff; // mask to 21 bits
         x = (x | x << 32) & 0x1f00000000ffff;
         x = (x | x << 16) & 0x1f0000ff0000ff;
@@ -22,11 +22,11 @@ namespace april::math::sfc {
         return x;
     }
 
-    [[nodiscard]] AP_FORCE_INLINE uint64_t morton_key(const uint32_t x, const uint32_t y, const uint32_t z) {
+    [[nodiscard]] AP_FORCE_INLINE inline uint64_t morton_key(const uint32_t x, const uint32_t y, const uint32_t z) {
         return split_by_3(x) | (split_by_3(y) << 1) | (split_by_3(z) << 2);
     }
 
-    [[nodiscard]] AP_FORCE_INLINE uint64_t morton_key(const Vec3<uint32_t>& v) {
+    [[nodiscard]] AP_FORCE_INLINE inline uint64_t morton_key(const Vec3<uint32_t>& v) {
         return morton_key(v.x, v.y, v.z);
     }
 

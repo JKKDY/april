@@ -14,7 +14,8 @@ namespace april::particle::internal {
     struct PackedBufferView;
     template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes>
     struct PackedParticleRef;
-
+    template <typename Ref, typename Mask>
+    struct MaskedPackedParticleRef;
 
     //--------------------
     // PACKED PARTICLE REF
@@ -116,6 +117,12 @@ namespace april::particle::internal {
             return PackedParticleBuffer<ReadAccess, WriteAccess, Attributes>(*this);
         }
 
+        template<typename Mask>
+        auto mask_with(const Mask & mask) {
+            return MaskedPackedParticleRef<std::remove_cvref_t<decltype(*this)>, Mask>(*this, mask);
+        }
+
+        // TODO make these member private and make buffer a friend
         // Data members with strict const-correctness
         AP_NO_UNIQUE_ADDRESS vec3_field_t<ParticleField::force> force;
         AP_NO_UNIQUE_ADDRESS vec3_field_t<ParticleField::position> position;
@@ -129,6 +136,19 @@ namespace april::particle::internal {
 
         AP_NO_UNIQUE_ADDRESS Ptr<Attributes,    ParticleField::attributes> attributes;
     };
+
+    template <typename Ref, typename Mask>
+    struct MaskedPackedParticleRef : Ref {
+        Mask mask;
+
+        explicit MaskedPackedParticleRef(const Ref& r, const Mask& m) noexcept
+            : Ref(r), mask(m) {}
+
+        auto mask_with(const Mask & m) const noexcept {
+            return MaskedPackedParticleRef{static_cast<const Ref&>(*this), mask & m};
+        }
+    };
+
 
 
     //-----------------------
@@ -515,6 +535,11 @@ namespace april::particle::internal {
             }
         }
 
+        template <typename Ref, typename Mask>
+        AP_FORCE_INLINE void update_into(MaskedPackedParticleRef<Ref, Mask>& masked_ref) const {
+            update_into(masked_ref, masked_ref.mask);
+        }
+
         // Unmasked Scalar Reduction (For Broadcast Buffers)
         template <typename ScalarAccessor>
         requires april::particle::IsScalarParticleAccessor<ScalarAccessor>
@@ -697,6 +722,9 @@ namespace april::particle::internal {
 
     template <ParticleField RM, ParticleField WM, typename U>
     struct is_packed_ref_impl<PackedParticleRef<RM, WM, U>> : std::true_type {};
+
+    template <typename Ref, typename Mask>
+    struct is_packed_ref_impl<MaskedPackedParticleRef<Ref, Mask>> : std::true_type {};
 
     template <ParticleField RM, ParticleField WM, class Attributes>
     struct is_buffer_view_impl<PackedBufferView<RM, WM, Attributes>> : std::true_type {};

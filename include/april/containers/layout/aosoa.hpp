@@ -398,6 +398,7 @@ namespace april::container::layout {
 
         template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
+            // TODO parallelise
             if constexpr (V == exec::ExecutionMode::Scalar) {
                 self.template iterate_range_scalar<P, is_const>(std::forward<Kernel>(kernel), start, end);
             }
@@ -469,6 +470,7 @@ namespace april::container::layout {
             constexpr size_t simd_width = packed::size();
 
             auto exec_vector = [&](size_t c, size_t i) {
+                // TODO do not pass packed ref to kernel. Pass (buffer) view
                 if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::Read>(c, i));
                 else kernel(curr_idx, self.template at_packed<K::Read, K::Write>(c, i));
                 curr_idx += simd_width;
@@ -520,6 +522,8 @@ namespace april::container::layout {
             constexpr size_t simd_width = packed::size();
 
             // scoped macros to make code DRY but ensure inlining
+            // TODO do not pass packed ref to kernel. Pass (buffer) view
+            // TODO eliminate macros for cleaner code
             #define EXEC_SCALAR(c, i) \
                 if constexpr (is_const) kernel(curr_idx++, self.template view<K::Read>(c, i)); \
                 else kernel(curr_idx++, self.template at<K::Read, K::Write>(c, i))

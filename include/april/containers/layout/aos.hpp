@@ -130,16 +130,29 @@ namespace april::container::layout {
 			else if constexpr (F == ParticleField::attributes)		return &self.particles[i].attributes;
 		}
 
+
 		template<ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
 		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
 			static_assert(V != exec::ExecutionMode::Vector, "AoS cannot be vectorized. Change the vector policy to scalar or auto.");
-			for (size_t i = start; i < end; i++) {
+
+			auto run_kernel = [&](size_t i) AP_FORCE_INLINE {
 				using K = std::remove_cvref_t<Kernel>;
 				if constexpr (is_const) {
 					kernel(i, self.template view<K::Read>(i));
 				} else {
 					kernel(i, self.template at<K::Read, K::Write>(i));
 				}
+			};
+
+			math::Range full_range = {start, end};
+			if constexpr (P == ParallelPolicy::Threaded) {
+				auto schedule = exec::make_linear_schedule(full_range, self.linear_schedule_config);
+
+				self.thread_executor.execute(schedule.size(), [&](size_t i) {
+					for (size_t j : schedule[i]) run_kernel(j);
+				});
+			} else {
+				for (size_t j : full_range) run_kernel(j);
 			}
 		}
 	};

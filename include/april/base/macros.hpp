@@ -2,11 +2,11 @@
 
 /// Cross-compiler force-inline
 #if defined(_MSC_VER)
-#   define AP_FORCE_INLINE __forceinline
+#   define AP_FORCE_INLINE [[msvc::forceinline]]
 #elif defined(__GNUC__) || defined(__clang__)
-#   define AP_FORCE_INLINE inline __attribute__((always_inline))
+#   define AP_FORCE_INLINE __attribute__((always_inline))
 #else
-#   define AP_FORCE_INLINE inline
+#   define AP_FORCE_INLINE
 #endif
 
 

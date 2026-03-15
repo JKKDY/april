@@ -129,6 +129,7 @@ namespace april::container::layout {
         {
             this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
             this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);
+            for (size_t k = 0; k < packed::size(); ++k) idx_arr[k] = static_cast<double>(k);
         }
 
         // INDEXING
@@ -264,90 +265,70 @@ namespace april::container::layout {
             else if constexpr (F == ParticleField::attributes) return self.data.ptr_attributes + i;
         }
 
-        template<exec::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
-        void iterate_chunk(this auto&& self, Kernel && kernel, const size_t c_start, const size_t c_end) {
-            using K = std::remove_cvref_t<Kernel>;
-
-             if constexpr (E == exec::ExecutionMode::Scalar) {
-                for (size_t i = c_start; i < c_end; i++) {
-                    if constexpr (is_const) {
-                        kernel(i, self.template view<K::Read>(i));
-                    } else {
-                        kernel(i, self.template at<K::Read, K::Write>(i));
-                    }
-                }
-            }
-            else if constexpr (E == exec::ExecutionMode::Vector) {
-                for (size_t i = c_start; i < c_end; i += packed::size()) {
-                    AP_ASSERT(i % packed::size() == 0, "In vectorized execution start must be aligned to the packed type");
-                    if constexpr (is_const) {
-                        kernel(i, self.template view_packed<K::Read>(i));
-                    } else {
-                        kernel(i, self.template at_packed<K::Read, K::Write>(i));
-                    }
-                }
-            }
-            else if constexpr (E == exec::ExecutionMode::Hybrid) {
-                // head
-                constexpr size_t vector_size = packed::size();
-                const size_t remainder = c_start % vector_size;
-                const size_t head_end = (remainder == 0) ? c_start : std::min(c_end, c_start + (vector_size - remainder));
-
-                for (size_t i = c_start; i < head_end; ++i) {
-                    if constexpr (is_const) {
-                        kernel(i, self.template view<K::Read>(i));
-                    } else {
-                        kernel(i, self.template at<K::Read, K::Write>(i));
-                    }
-                }
-
-                // body
-                const size_t body_start = head_end;
-                const size_t body_end = body_start + ((c_end - body_start) / vector_size) * vector_size;
-
-                for (size_t i = body_start; i < body_end; i += vector_size) {
-                    AP_ASSERT(i % packed::size() == 0, "In vectorized execution, index must be aligned");
-                    if constexpr (is_const) {
-                        kernel(i, self.template view_packed<K::Read>(i));
-                    } else {
-                        kernel(i, self.template at_packed<K::Read, K::Write>(i));
-                    }
-                }
-
-                // tail
-                for (size_t i = body_end; i < c_end; ++i) {
-                    if constexpr (is_const) {
-                        kernel(i, self.template view<K::Read>(i));
-                    } else {
-                        kernel(i, self.template at<K::Read, K::Write>(i));
-                    }
-                }
-            }
-        }
 
         template<ParallelPolicy P, exec::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
-            auto process_chunk = [&](const size_t c_start, const size_t c_end) {
-                self.template iterate_chunk<E, is_const>(kernel, c_start, c_end);
+            using K = std::remove_cvref_t<Kernel>;
+            math::Range range = {start, end};
+
+
+            auto get_scalar = [&](size_t i) AP_FORCE_INLINE {
+                if constexpr (is_const) return self.template view<K::Read>(i);
+                else return self.template at<K::Read, K::Write>(i);
             };
 
-            // Dispatch based on ParallelPolicy
+            auto get_vector_ref = [&](size_t i) AP_FORCE_INLINE {
+                if constexpr (is_const) return self.template view_packed<K::Read>(i);
+                else return self.template at_packed<K::Read, K::Write>(i);
+            };
+
+
+            // scalar/vector routing
+            auto process_chunk = [&](const math::Range & chunk) {
+                // process a chunk of work in scalar mode
+                if constexpr (E == exec::ExecutionMode::Scalar) {
+                    for (size_t i : chunk) {
+                        kernel(i, get_scalar(i));
+                    }
+                }
+
+                // process a chunk of work in vector mode
+                else if constexpr (E == exec::ExecutionMode::Vector || E == exec::ExecutionMode::Hybrid) {
+                    const size_t body = chunk.size() / packed::size();
+                    const size_t tail = chunk.size() % packed::size();
+
+                    //body (loads are unaligned so no need for a head)
+                    for (size_t i = 0; i < body; i++) {
+                        size_t idx = chunk.start + i * packed::size();
+                        kernel(idx, get_vector_ref(idx));
+                    }
+
+                    // tail (with mask)
+                    if (tail > 0) {
+                        const auto lane_indices = packed::load_aligned(self.idx_arr);
+                        const auto mask = lane_indices < static_cast<packed::value_type>(tail);
+
+                        const size_t tail_idx = chunk.start + body * packed::size();
+                        auto ref = get_vector_ref(tail_idx);
+                        kernel(tail_idx, ref.mask_with(mask));
+                    }
+                } else static_assert(false, "Execution mode must be a valid value (Scalar, Vector, Hybrid)");
+            };
+
+            // serial/multi-threaded routing
             if constexpr (P == ParallelPolicy::Serial) {
-                process_chunk(start, end);
+                process_chunk(range);
             }
             else if constexpr (P == ParallelPolicy::Threaded) {
-                // Generate chunks
-                const auto blocks = exec::make_linear_schedule(
-                    math::Range{start, end},
-                    self.linear_schedule_config
-                );
+                const auto blocks = exec::make_linear_schedule(range, self.linear_schedule_config);
 
-                // Execute
                 self.thread_executor.execute(blocks.size(), [&](const size_t i) {
-                    process_chunk(blocks[i].start, blocks[i].stop);
+                    process_chunk(blocks[i]);
                 });
             }
         }
+    private:
+        alignas(64) packed::value_type idx_arr[packed::size()]{};
     };
 }
 

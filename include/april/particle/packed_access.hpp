@@ -129,12 +129,12 @@ namespace april::particle::internal {
         AP_NO_UNIQUE_ADDRESS vec3_field_t<ParticleField::velocity> velocity;
         AP_NO_UNIQUE_ADDRESS vec3_field_t<ParticleField::old_position> old_position;
 
-        AP_NO_UNIQUE_ADDRESS packed_field_t<double,        ParticleField::mass> mass;
+        AP_NO_UNIQUE_ADDRESS packed_field_t<double, ParticleField::mass> mass;
         AP_NO_UNIQUE_ADDRESS packed_field_t<std::underlying_type_t<ParticleState>, ParticleField::state> state;
-        AP_NO_UNIQUE_ADDRESS packed_field_t<ParticleType,  ParticleField::type> type;
-        AP_NO_UNIQUE_ADDRESS packed_field_t<ParticleID,    ParticleField::id> id;
+        AP_NO_UNIQUE_ADDRESS packed_field_t<ParticleType, ParticleField::type> type;
+        AP_NO_UNIQUE_ADDRESS packed_field_t<ParticleID, ParticleField::id> id;
 
-        AP_NO_UNIQUE_ADDRESS Ptr<Attributes,    ParticleField::attributes> attributes;
+        AP_NO_UNIQUE_ADDRESS Ptr<Attributes, ParticleField::attributes> attributes;
     };
 
     template <typename Ref, typename Mask>
@@ -177,7 +177,7 @@ namespace april::particle::internal {
 
         // ==== STOP GAP SOLUTION ==== (will be replaced in C++26 with reflection)
         static_assert(!has_field_v<ReadMask | WriteMask, ParticleField::attributes> || IsTriviallyVectorizable<Attributes>,
-            "Vectorization of non trivial attributes not possible");
+            "Vectorization of non trivial attributes not possible yet");
         // traits case for scalar extraction
         template <typename T>
         struct extract_attr_scalar { using type = double; /*Fallback*/ };
@@ -248,38 +248,20 @@ namespace april::particle::internal {
         template <typename ScalarAccessor>
             requires april::particle::IsScalarParticleAccessor<ScalarAccessor>
         explicit PackedParticleBuffer(const ScalarAccessor& scalar) {
-            if constexpr (has_field_v<ReadMask, ParticleField::position>) {
-                position.x = scalar.position.x;
-                position.y = scalar.position.y;
-                position.z = scalar.position.z;
-            }
-            else if constexpr (has_field_v<WOMask, ParticleField::position>) {
-                position = pvec3(0.0);
-            }
+            auto broad_cast_vec = [&]<ParticleField field>(auto && packed_vec, auto && scalar_vec) AP_FORCE_INLINE {
+                if constexpr (has_field_v<ReadMask, field>) {
+                    packed_vec.x = scalar_vec.x;
+                    packed_vec.y = scalar_vec.y;
+                    packed_vec.z = scalar_vec.z;
+                } else if constexpr (has_field_v<WOMask, field>) {
+                    packed_vec = pvec3(0.0);
+                }
+            };
 
-            if constexpr (has_field_v<ReadMask, ParticleField::old_position>) {
-                old_position.x = scalar.old_position.x;
-                old_position.y = scalar.old_position.y;
-                old_position.z = scalar.old_position.z;
-            } else if constexpr (has_field_v<WOMask, ParticleField::old_position>) {
-                old_position = pvec3(0.0);
-            }
-
-            if constexpr (has_field_v<ReadMask, ParticleField::velocity>) {
-                velocity.x = scalar.velocity.x;
-                velocity.y = scalar.velocity.y;
-                velocity.z = scalar.velocity.z;
-            } else if constexpr (has_field_v<WOMask, ParticleField::velocity>) {
-                velocity = pvec3(0.0);
-            }
-
-            if constexpr (has_field_v<ReadMask, ParticleField::force>) {
-                force.x = scalar.force.x;
-                force.y = scalar.force.y;
-                force.z = scalar.force.z;
-            } else if constexpr (has_field_v<WOMask, ParticleField::force>) {
-                force = pvec3(0.0);
-            }
+            broad_cast_vec.template operator()<ParticleField::position>(position, scalar.position);
+            broad_cast_vec.template operator()<ParticleField::old_position>(old_position, scalar.old_position);
+            broad_cast_vec.template operator()<ParticleField::velocity>(velocity, scalar.velocity);
+            broad_cast_vec.template operator()<ParticleField::force>(force, scalar.force);
 
             if constexpr (has_field_v<ReadMask, ParticleField::mass>) {
                 mass = scalar.mass;
@@ -287,17 +269,9 @@ namespace april::particle::internal {
                 mass = 0.0;
             }
 
-            if constexpr (has_field_v<ReadMask, ParticleField::state>) {
-                state = scalar.state;
-            }
-
-            if constexpr (has_field_v<ReadMask, ParticleField::type>) {
-                type = scalar.type;
-            }
-
-            if constexpr (has_field_v<ReadMask, ParticleField::id>) {
-                id = scalar.id;
-            }
+            if constexpr (has_field_v<ReadMask, ParticleField::state>) state = scalar.state;
+            if constexpr (has_field_v<ReadMask, ParticleField::type>) type = scalar.type;
+            if constexpr (has_field_v<ReadMask, ParticleField::id>) id = scalar.id;
 
             if constexpr (has_field_v<ReadMask, ParticleField::attributes>) {
                 auto ptr = reinterpret_cast<const attr_scalar_t*>(&scalar.attributes);
@@ -313,128 +287,88 @@ namespace april::particle::internal {
         // Trivial in-place rotations
         template <unsigned K = 1>
         AP_FORCE_INLINE void rotate_left() {
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::position>) {
-                position.x = position.x.template rotate_left<K>();
-                position.y = position.y.template rotate_left<K>();
-                position.z = position.z.template rotate_left<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::old_position>) {
-                old_position.x = old_position.x.template rotate_left<K>();
-                old_position.y = old_position.y.template rotate_left<K>();
-                old_position.z = old_position.z.template rotate_left<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::velocity>) {
-                velocity.x = velocity.x.template rotate_left<K>();
-                velocity.y = velocity.y.template rotate_left<K>();
-                velocity.z = velocity.z.template rotate_left<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::force>) {
-                force.x = force.x.template rotate_left<K>();
-                force.y = force.y.template rotate_left<K>();
-                force.z = force.z.template rotate_left<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::mass>) {
-                mass = mass.template rotate_left<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::state>) {
-                state = state.template rotate_left<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::type>) {
-                type = type.template rotate_left<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::id>) {
-                id = id.template rotate_left<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::attributes>) {
-                attributes = attributes.template rotate_left<K>();
-            }
+            auto rotate_vec = [&]<ParticleField field>(auto && vec) AP_FORCE_INLINE {
+                if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, field>) {
+                    vec.x = vec.x.template rotate_left<K>();
+                    vec.y = vec.y.template rotate_left<K>();
+                    vec.z = vec.z.template rotate_left<K>();
+                }
+            };
+
+            auto rotate_scalar = [&]<ParticleField field>(auto && scalar) AP_FORCE_INLINE {
+                if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, field>) {
+                    scalar = scalar.template rotate_left<K>();
+                }
+            };
+
+            rotate_vec.template operator()<ParticleField::position>(position);
+            rotate_vec.template operator()<ParticleField::old_position>(old_position);
+            rotate_vec.template operator()<ParticleField::velocity>(velocity);
+            rotate_vec.template operator()<ParticleField::force>(force);
+
+            rotate_scalar.template operator()<ParticleField::mass>(mass);
+            rotate_scalar.template operator()<ParticleField::state>(state);
+            rotate_scalar.template operator()<ParticleField::type>(type);
+            rotate_scalar.template operator()<ParticleField::id>(id);
+            rotate_scalar.template operator()<ParticleField::attributes>(attributes);
         }
 
         template <unsigned K = 1>
         AP_FORCE_INLINE void rotate_right() {
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::position>) {
-                position.x = position.x.template rotate_right<K>();
-                position.y = position.y.template rotate_right<K>();
-                position.z = position.z.template rotate_right<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::old_position>) {
-                old_position.x = old_position.x.template rotate_right<K>();
-                old_position.y = old_position.y.template rotate_right<K>();
-                old_position.z = old_position.z.template rotate_right<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::velocity>) {
-                velocity.x = velocity.x.template rotate_right<K>();
-                velocity.y = velocity.y.template rotate_right<K>();
-                velocity.z = velocity.z.template rotate_right<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::force>) {
-                force.x = force.x.template rotate_right<K>();
-                force.y = force.y.template rotate_right<K>();
-                force.z = force.z.template rotate_right<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::mass>) {
-                mass = mass.template rotate_right<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::type>) {
-                type = type.template rotate_right<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::state>) {
-                state = state.template rotate_right<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::id>) {
-                id = id.template rotate_right<K>();
-            }
-            if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, ParticleField::attributes>) {
-                attributes = attributes.template rotate_right<K>();
-            }
+            auto rotate_vec = [&]<ParticleField field>(auto && vec) AP_FORCE_INLINE {
+                if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, field>) {
+                    vec.x = vec.x.template rotate_right<K>();
+                    vec.y = vec.y.template rotate_right<K>();
+                    vec.z = vec.z.template rotate_right<K>();
+                }
+            };
+
+            auto rotate_scalar = [&]<ParticleField field>(auto && scalar) AP_FORCE_INLINE {
+                if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, field>) {
+                    scalar = scalar.template rotate_right<K>();
+                }
+            };
+
+            rotate_vec.template operator()<ParticleField::position>(position);
+            rotate_vec.template operator()<ParticleField::old_position>(old_position);
+            rotate_vec.template operator()<ParticleField::velocity>(velocity);
+            rotate_vec.template operator()<ParticleField::force>(force);
+
+            rotate_scalar.template operator()<ParticleField::mass>(mass);
+            rotate_scalar.template operator()<ParticleField::state>(state);
+            rotate_scalar.template operator()<ParticleField::type>(type);
+            rotate_scalar.template operator()<ParticleField::id>(id);
+            rotate_scalar.template operator()<ParticleField::attributes>(attributes);
         }
 
         // Accumulate reciprocal deltas from another buffer (Write-Only fields strictly)
         AP_FORCE_INLINE void accumulate(const PackedParticleBuffer& other) {
-            if constexpr (has_field_v<WOMask, ParticleField::position>) {
-                position += other.position;
-            }
-            if constexpr (has_field_v<WOMask, ParticleField::old_position>) {
-                old_position += other.old_position;
-            }
-            if constexpr (has_field_v<WOMask, ParticleField::velocity>) {
-                velocity += other.velocity;
-            }
-            if constexpr (has_field_v<WOMask, ParticleField::force>) {
-                force += other.force;
-            }
-            if constexpr (has_field_v<WOMask, ParticleField::mass>) {
-                mass += other.mass;
-            }
-            if constexpr (has_field_v<WOMask, ParticleField::attributes>) {
-                attributes += other.attributes;
-            }
+            if constexpr (has_field_v<WOMask, ParticleField::position>) position += other.position;
+            if constexpr (has_field_v<WOMask, ParticleField::old_position>) old_position += other.old_position;
+            if constexpr (has_field_v<WOMask, ParticleField::velocity>) velocity += other.velocity;
+            if constexpr (has_field_v<WOMask, ParticleField::force>) force += other.force;
+            if constexpr (has_field_v<WOMask, ParticleField::mass>) mass += other.mass;
+            if constexpr (has_field_v<WOMask, ParticleField::attributes>) attributes += other.attributes;
         }
 
         // Masked accumulation
         template <typename MaskT>
         AP_FORCE_INLINE void accumulate(const PackedParticleBuffer& other, const MaskT& mask) {
             const packed null = 0.0;
-            if constexpr (has_field_v<WOMask, ParticleField::position>) {
-                position.x += select(mask, other.position.x, null);
-                position.y += select(mask, other.position.y, null);
-                position.z += select(mask, other.position.z, null);
-            }
-            if constexpr (has_field_v<WOMask, ParticleField::old_position>) {
-                old_position.x += select(mask, other.old_position.x, null);
-                old_position.y += select(mask, other.old_position.y, null);
-                old_position.z += select(mask, other.old_position.z, null);
-            }
-            if constexpr (has_field_v<WOMask, ParticleField::velocity>) {
-                velocity.x += select(mask, other.velocity.x, null);
-                velocity.y += select(mask, other.velocity.y, null);
-                velocity.z += select(mask, other.velocity.z, null);
-            }
-            if constexpr (has_field_v<WOMask, ParticleField::force>) {
-                force.x += select(mask, other.force.x, null);
-                force.y += select(mask, other.force.y, null);
-                force.z += select(mask, other.force.z, null);
-            }
+
+            auto accumulate_vec = [&]<ParticleField field>(auto && this_field, auto && other_field) AP_FORCE_INLINE {
+                if constexpr (has_field_v<WOMask, field>) {
+                    this_field.x += select(mask, other_field.x, packed(0));
+                    this_field.y += select(mask, other_field.y, packed(0));
+                    this_field.z += select(mask, other_field.z, packed(0));
+                }
+            };
+
+            accumulate_vec.template operator()<ParticleField::position>(position, other.position);
+            accumulate_vec.template operator()<ParticleField::old_position>(old_position, other.old_position);
+            accumulate_vec.template operator()<ParticleField::velocity>(velocity, other.velocity);
+            accumulate_vec.template operator()<ParticleField::force>(force, other.force);
+
             if constexpr (has_field_v<WOMask, ParticleField::mass>) {
                 mass += select(mask, other.mass, null);
             }
@@ -443,56 +377,27 @@ namespace april::particle::internal {
             }
         }
 
-
         // Unmasked SIMD Write-Back (For full chunks)
         template <typename Attr>
         AP_FORCE_INLINE void update_into(PackedParticleRef<ReadMask, WriteMask, Attr>& packed_ref) const {
             // Write-Only fields use additive accumulation (preserves base state)
 
-            // POSITION
-            if constexpr (has_field_v<WOMask, ParticleField::position>) {
-                packed_ref.position += position;
-            } else if constexpr (has_field_v<RWMask, ParticleField::position>) {
-                packed_ref.position = position;
-            }
+            auto update_field = [&]<ParticleField Field>(auto&& dest, auto&& src) {
+                if constexpr (has_field_v<WOMask, Field>) {
+                    dest += src;
+                } else if constexpr (has_field_v<RWMask, Field>) {
+                    dest = src;
+                }
+            };
 
-            // OLD POSITION
-            if constexpr (has_field_v<WOMask, ParticleField::old_position>) {
-                packed_ref.old_position += old_position;
-            } else if constexpr (has_field_v<RWMask, ParticleField::old_position>) {
-                packed_ref.old_position = old_position;
-            }
+            update_field.template operator()<ParticleField::position>(packed_ref.position, position);
+            update_field.template operator()<ParticleField::old_position>(packed_ref.old_position, old_position);
+            update_field.template operator()<ParticleField::velocity>(packed_ref.velocity, velocity);
+            update_field.template operator()<ParticleField::force>(packed_ref.force, force);
+            update_field.template operator()<ParticleField::mass>(packed_ref.mass, mass);
 
-            // VELOCITY
-            if constexpr (has_field_v<WOMask, ParticleField::velocity>) {
-                packed_ref.velocity += velocity;
-            } else if constexpr (has_field_v<RWMask, ParticleField::velocity>) {
-                packed_ref.velocity = velocity;
-            }
-
-            // FORCE
-            if constexpr (has_field_v<WOMask, ParticleField::force>) {
-                packed_ref.force += force;
-            } else if constexpr (has_field_v<RWMask, ParticleField::force>) {
-                packed_ref.force = force;
-            }
-
-            // MASS
-            if constexpr (has_field_v<WOMask, ParticleField::mass>) {
-                packed_ref.mass += mass;
-            } else if constexpr (has_field_v<RWMask, ParticleField::mass>) {
-                packed_ref.mass = mass;
-            }
-
-            // STATE
-            if constexpr (has_field_v<RWMask, ParticleField::state>) {
-                packed_ref.state = state;
-            }
-
-            // TYPE
-            if constexpr (has_field_v<RWMask, ParticleField::state>) {
-                packed_ref.type = type;
-            }
+            if constexpr (has_field_v<RWMask, ParticleField::state>) packed_ref.state = state;
+            if constexpr (has_field_v<RWMask, ParticleField::state>) packed_ref.type = type;
 
             // ATTRIBUTES
             if constexpr (has_field_v<WOMask, ParticleField::attributes>) {
@@ -507,7 +412,7 @@ namespace april::particle::internal {
             // id is not assignable
         }
 
-      // Masked SIMD Write-Back (For Tail Chunks)
+        // Masked SIMD Write-Back (For Tail Chunks)
         template <typename Attr, typename MaskT>
         AP_FORCE_INLINE void update_into(PackedParticleRef<ReadMask, WriteMask, Attr>& packed_ref, const MaskT & mask) const {
             update_vec_masked<ParticleField::position>(packed_ref.position, position, mask);
@@ -578,6 +483,7 @@ namespace april::particle::internal {
             else if constexpr (has_field_v<RWMask, ParticleField::mass>)
                 static_assert(sizeof(ScalarAccessor) == 0, "FATAL: Cannot masked reduce RW mass.");
 
+            // ATTRIBUTES
             if constexpr (has_field_v<WOMask, ParticleField::attributes>) {
                 auto ptr = reinterpret_cast<attr_scalar_t*>(&p.attributes);
                 *ptr += select(mask, attributes, decltype(attributes)(0)).reduce_add();

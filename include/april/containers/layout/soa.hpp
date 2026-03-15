@@ -271,7 +271,6 @@ namespace april::container::layout {
             using K = std::remove_cvref_t<Kernel>;
             math::Range range = {start, end};
 
-
             auto get_scalar = [&](size_t i) AP_FORCE_INLINE {
                 if constexpr (is_const) return self.template view<K::Read>(i);
                 else return self.template at<K::Read, K::Write>(i);
@@ -281,7 +280,6 @@ namespace april::container::layout {
                 if constexpr (is_const) return self.template view_packed<K::Read>(i);
                 else return self.template at_packed<K::Read, K::Write>(i);
             };
-
 
             // scalar/vector routing
             auto process_chunk = [&](const math::Range & chunk) {
@@ -312,7 +310,9 @@ namespace april::container::layout {
                         auto ref = get_vector_ref(tail_idx);
                         kernel(tail_idx, ref.mask_with(mask));
                     }
-                } else static_assert(false, "Execution mode must be a valid value (Scalar, Vector, Hybrid)");
+                } else {
+                    static_assert(false, "Execution mode must be a valid value (Scalar, Vector, Hybrid)");
+                }
             };
 
             // serial/multi-threaded routing

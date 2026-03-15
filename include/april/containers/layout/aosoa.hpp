@@ -62,8 +62,7 @@ namespace april::container::layout {
         using Base::Base; // Inherit constructors
         friend Base;
 
-        // make inherited accessors explicit.
-        // Otherwise the compiler cant find them due to existing overrides in this class
+        // make inherited accessors explicit otherwise the compiler cant find them due to existing overrides in this class
         using Base::view;
         using Base::at;
         using Base::access_particle;

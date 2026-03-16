@@ -32,6 +32,7 @@ int main() {
 	.spacing(a)
 	.type(0);
 
+
 	// Box with margin >= r_cut around grid (non-periodic)
 	const vec3 extent = 1.5 * box;
 	const vec3 origin = - 0.5 * extent;
@@ -52,10 +53,14 @@ int main() {
 	constexpr double dt = 0.0002;
 	constexpr int steps  = 20;
 
-	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
-	integrator.add_monitor(Benchmark());
-	// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
-	integrator.run_for_steps(dt, steps);
+	std::cout << "Particles: " << NX * NY * NZ << "\n"
+		 << "Steps: " << steps << "\n"
+		 << "dt: " << dt << "\n";
+
+	// VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
+	// integrator.add_monitor(Benchmark());
+	// // integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
+	// integrator.run_for_steps(dt, steps);
 
 
 	std::cout << "Particles: " << NX * NY * NZ << "\n"

@@ -85,30 +85,50 @@ namespace april::container::layout {
 			tmp.resize(particles.size());
 		}
 
-		void reorder_storage(const std::vector<std::vector<size_t>> & bins, const bool = false) {
+		void reorder_storage(const std::vector<std::vector<size_t>> & new_bins) {
 			bin_starts.clear();
 			bin_sizes.clear();
 
-			// scatter particles into bins
-			size_t current_idx = 0;
+			// calculate offset of each bin
+			std::vector<size_t> offsets(new_bins.size());
 			size_t current_offset = 0;
-			for (const auto& bin : bins) {
+
+			for (size_t i = 0; i < new_bins.size(); ++i) {
 				bin_starts.push_back(current_offset);
-				bin_sizes.push_back(bin.size());
-				current_offset += bin.size();
-
-				for (size_t old_idx : bin) {
-					tmp[current_idx++] = particles[old_idx];
-				}
+				bin_sizes.push_back(new_bins[i].size());
+				offsets[i] = current_offset;
+				current_offset += new_bins[i].size();
 			}
-			// and swap storages
+
+			// scatter particles from old bins into new bins and update id map
+			for (size_t bin_idx = 0; bin_idx < new_bins.size(); ++bin_idx) {
+				const auto& bin = new_bins[bin_idx];
+				if (bin.empty()) continue;
+
+				const size_t start_offset = offsets[bin_idx];
+
+				// Use our existing linear scheduler for load balancing
+				auto blocks = exec::make_linear_schedule(math::Range{0, bin.size()}, this->linear_schedule_config);
+
+				this->thread_executor.execute(blocks.size(), [&](const size_t b_idx) {
+					const auto& block = blocks[b_idx];
+
+					for (size_t i = block.start; i < block.stop; ++i) {
+						const size_t old_idx = bin[i];
+						const size_t new_idx = start_offset + i;
+
+						// copy particle
+						tmp[new_idx] = particles[old_idx];
+
+						// update id map (thread safe because IDs are unique)
+						const auto id = tmp[new_idx].id;
+						id_to_index_map[id] = new_idx;
+					}
+				});
+			}
+
+			// swap old and new storage
 			std::swap(particles, tmp);
-
-			// rebuild id map: we must update the look-up table because every particle moved
-			for (size_t i = 0; i < particles.size(); i++) {
-				const auto id = particles[i].id;
-				id_to_index_map[id] = i;
-			}
 		}
 
 		[[nodiscard]] math::Range get_physical_bin_range(const size_t type) const {

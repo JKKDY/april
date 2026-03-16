@@ -7,11 +7,11 @@ using namespace april;
 namespace fs = std::filesystem;
 
 
-static constexpr int NX = 20, NY = 20, NZ = 20;
+static constexpr int NX = 100, NY = 100, NZ = 100;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
-static constexpr double r_cut = 3 * sigma;
+static constexpr double r_cut = 0.0001 * sigma;
 
 // Grid physical span
 static constexpr double Lx = (NX - 1) * a;
@@ -46,11 +46,11 @@ int main() {
 	const auto container = LinkedCells<Layout::AoSoA<>>()
 		.with_cell_size(container::CellSize::Cutoff)
 		.with_cell_ordering(hilbert_order)
-		.with_block_size(1);
+		.with_block_size(2);
 
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;
-	constexpr int steps  = 10000;
+	constexpr int steps  = 100;
 
 	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
 	integrator.add_monitor(Benchmark());

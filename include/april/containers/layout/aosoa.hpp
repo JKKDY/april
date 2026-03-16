@@ -74,6 +74,8 @@ namespace april::container::layout {
             this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);
             this->pair_schedule_config.alignment = chunk_size;
             this->linear_schedule_config.alignment = chunk_size;
+
+            for (size_t k = 0; k < packed::size(); ++k) idx_arr[k] = static_cast<double>(k);
         }
 
 
@@ -360,12 +362,14 @@ namespace april::container::layout {
         }
 
     private:
+        alignas(64) packed::value_type idx_arr[packed::size()]{};
+
         template <ParticleField Read, ParticleField Write>
         [[nodiscard]] auto access_particle(this auto&& self, size_t chunk_idx, size_t lane_idx) {
             constexpr bool is_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 
             static_assert(!(is_const && Write != ParticleField::none),
-                          "APRIL ERROR: Cannot request write permissions (WriteMask != none) on a const Container. "
+                          "[APRIL] Cannot request write permissions (WriteMask != none) on a const Container. "
                           "Either drop the write mask or ensure the container is mutable.");
 
             particle::internal::ParticleSource<Read, Write, Attributes> src;
@@ -397,32 +401,43 @@ namespace april::container::layout {
 
         template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
-            // TODO parallelise
-            if constexpr (V == exec::ExecutionMode::Scalar) {
-                self.template iterate_range_scalar<P, is_const>(std::forward<Kernel>(kernel), start, end);
+            // route scalar/vector execution
+            auto process_sub_range = [&](const size_t r_start, const size_t r_end) AP_FORCE_INLINE {
+                if constexpr (V == exec::ExecutionMode::Scalar) {
+                    self.template iterate_range_scalar<P, is_const>(kernel, r_start, r_end);
+                } else if constexpr (V == exec::ExecutionMode::Vector || V == exec::ExecutionMode::Hybrid) {
+                    self.template iterate_range_vector<P, is_const>(kernel, r_start, r_end);
+                } else {
+                    static_assert(false,"[APRIL] invalid ExecutionMode in AoSoA::iterate_range");
+                }
+            };
+
+            // route serial/multithreading execution
+            if constexpr (P == ParallelPolicy::Serial) {
+                process_sub_range(start, end);
             }
-            else if constexpr (V == exec::ExecutionMode::Vector) {
-                self.template iterate_range_vector<P, is_const>(std::forward<Kernel>(kernel), start, end);
-            }
-            else if constexpr (V == exec::ExecutionMode::Hybrid) {
-                self.template iterate_range_hybrid<P, is_const>(std::forward<Kernel>(kernel), start, end);
+            else if constexpr (P == ParallelPolicy::Threaded) {
+                math::Range range = {start, end};
+                const auto blocks = exec::make_linear_schedule(range, self.linear_schedule_config);
+
+                self.thread_executor.execute(blocks.size(), [&](const size_t i) {
+                    process_sub_range(blocks[i].start, blocks[i].stop);
+                });
             }
         }
 
         template <ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
-        AP_FORCE_INLINE void iterate_range_scalar(this auto&& self, Kernel&& kernel, const size_t start,
-                                                  const size_t end) {
+        AP_FORCE_INLINE void iterate_range_scalar(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
             using K = std::remove_cvref_t<Kernel>;
             if (start >= end) return;
 
             const auto [start_chunk, start_idx] = self.locate(start);
             const auto [end_chunk, end_idx] = self.locate(end);
 
-            size_t curr_idx = start;
             auto* AP_RESTRICT chunks = self.ptr_chunks;
-            // constexpr size_t simd_width = packed::size();
 
-            auto exec_scalar = [&](size_t c, size_t i) {
+            size_t curr_idx = start;
+            auto exec_scalar = [&](size_t c, size_t i) AP_FORCE_INLINE {
                 if constexpr (is_const) kernel(curr_idx++, self.template view<K::Read>(c, i));
                 else kernel(curr_idx++, self.template at<K::Read, K::Write>(c, i));
             };
@@ -435,18 +450,20 @@ namespace april::container::layout {
             }
             else {
                 AP_PREFETCH(chunks + start_chunk);
-                if (start_chunk + 1 < end_chunk || end_idx > 0)
-                    AP_PREFETCH(chunks + start_chunk + 1);
+                if (start_chunk + 1 < end_chunk || end_idx > 0) AP_PREFETCH(chunks + start_chunk + 1);
 
+                // head
                 for (size_t i = start_idx; i < self.chunk_size; ++i) {
                     exec_scalar(start_chunk, i);
                 }
 
+                // body
                 for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
                     AP_PREFETCH(chunks + c + 1);
                     for (size_t i = 0; i < self.chunk_size; ++i) exec_scalar(c, i);
                 }
 
+                // tail
                 if (end_idx > 0) {
                     for (size_t i = 0; i < end_idx; ++i) {
                         exec_scalar(end_chunk, i);
@@ -456,42 +473,90 @@ namespace april::container::layout {
         }
 
         template <ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
-        AP_FORCE_INLINE void iterate_range_vector(this auto&& self, Kernel&& kernel, const size_t start,
-                                                  const size_t end) {
+        AP_FORCE_INLINE void iterate_range_vector(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
             using K = std::remove_cvref_t<Kernel>;
             if (start >= end) return;
 
+            // get the first and last chunks touched in the iteration
             const auto [start_chunk, start_idx] = self.locate(start);
             const auto [end_chunk, end_idx] = self.locate(end);
 
-            size_t curr_idx = start;
-            auto* AP_RESTRICT chunks = self.ptr_chunks;
             constexpr size_t simd_width = packed::size();
+            auto* AP_RESTRICT chunks = self.ptr_chunks;
 
-            auto exec_vector = [&](size_t c, size_t i) {
-                // TODO do not pass packed ref to kernel. Pass (buffer) view
-                if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::Read>(c, i));
-                else kernel(curr_idx, self.template at_packed<K::Read, K::Write>(c, i));
-                curr_idx += simd_width;
+            // Align backwards to the nearest vector boundary for head masking
+            const size_t head_offset = start_idx % simd_width;
+            const size_t aligned_start_idx = start_idx - head_offset;
+
+            // kernel expects the logical base index of the vector register
+            size_t curr_base_idx = start - head_offset;
+            const auto lane_indices = packed::load_aligned(self.idx_arr);
+
+            auto exec_vector = [&](size_t c, size_t i) AP_FORCE_INLINE {
+                if constexpr (is_const) kernel(curr_base_idx, self.template view_packed<K::Read>(c, i));
+                else kernel(curr_base_idx, self.template at_packed<K::Read, K::Write>(c, i));
+                curr_base_idx += simd_width;
             };
 
-            AP_ASSERT(start_idx % simd_width == 0, "Vector execution requires an aligned start index");
+            auto exec_vector_masked = [&](size_t c, size_t i, auto mask) AP_FORCE_INLINE {
+                if constexpr (is_const) {
+                    auto ref = self.template view_packed<K::Read>(c, i);
+                    kernel(curr_base_idx, ref.mask_with(mask));
+                } else {
+                    auto ref = self.template at_packed<K::Read, K::Write>(c, i);
+                    kernel(curr_base_idx, ref.mask_with(mask));
+                }
+                curr_base_idx += simd_width;
+            };
 
+            // Single Chunk iteration (start and end chunk are the same => only one chunk is touched)
             if (start_chunk == end_chunk) {
                 AP_PREFETCH(chunks + start_chunk);
-                for (size_t i = start_idx; i < end_idx; i += simd_width) {
+
+                // Edge Case: The entire range fits inside a single vector register
+                if (aligned_start_idx + simd_width >= end_idx) {
+                    const auto mask = (lane_indices >= static_cast<packed::value_type>(head_offset)) &&
+                                      (lane_indices < static_cast<packed::value_type>(end_idx - aligned_start_idx));
+                    exec_vector_masked(start_chunk, aligned_start_idx, mask);
+                    return;
+                }
+
+                // Head
+                if (head_offset > 0) {
+                    const auto mask = lane_indices >= static_cast<packed::value_type>(head_offset);
+                    exec_vector_masked(start_chunk, aligned_start_idx, mask);
+                }
+
+                // Body
+                const size_t body_start = head_offset > 0 ? aligned_start_idx + simd_width : aligned_start_idx;
+                const size_t body_end = end_idx - (end_idx % simd_width);
+                for (size_t i = body_start; i < body_end; i += simd_width) {
                     exec_vector(start_chunk, i);
+                }
+
+                // Tail
+                const size_t tail_count = end_idx % simd_width;
+                if (tail_count > 0) {
+                    const auto mask = lane_indices < static_cast<packed::value_type>(tail_count);
+                    exec_vector_masked(start_chunk, body_end, mask);
                 }
             }
+            // process multiple chunks
             else {
                 AP_PREFETCH(chunks + start_chunk);
-                if (start_chunk + 1 < end_chunk || end_idx > 0)
-                    AP_PREFETCH(chunks + start_chunk + 1);
+                if (start_chunk + 1 < end_chunk || end_idx > 0) AP_PREFETCH(chunks + start_chunk + 1);
 
-                for (size_t i = start_idx; i < self.chunk_size; i += simd_width) {
+                // Head Chunk
+                if (head_offset > 0) {
+                    const auto mask = lane_indices >= static_cast<packed::value_type>(head_offset);
+                    exec_vector_masked(start_chunk, aligned_start_idx, mask);
+                }
+                const size_t head_body_start = head_offset > 0 ? aligned_start_idx + simd_width : aligned_start_idx;
+                for (size_t i = head_body_start; i < self.chunk_size; i += simd_width) {
                     exec_vector(start_chunk, i);
                 }
 
+                // Body Chunks (Guaranteed Aligned)
                 for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
                     AP_PREFETCH(chunks + c + 1);
                     for (size_t i = 0; i < self.chunk_size; i += simd_width) {
@@ -499,88 +564,19 @@ namespace april::container::layout {
                     }
                 }
 
+                // Tail Chunk
                 if (end_idx > 0) {
-                    for (size_t i = 0; i < end_idx; i += simd_width) {
+                    const size_t tail_body_end = end_idx - (end_idx % simd_width);
+                    for (size_t i = 0; i < tail_body_end; i += simd_width) {
                         exec_vector(end_chunk, i);
+                    }
+                    const size_t tail_count = end_idx % simd_width;
+                    if (tail_count > 0) {
+                        const auto mask = lane_indices < static_cast<packed::value_type>(tail_count);
+                        exec_vector_masked(end_chunk, tail_body_end, mask);
                     }
                 }
             }
-        }
-
-        template <ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
-        AP_FORCE_INLINE void iterate_range_hybrid(this auto&& self, Kernel&& kernel, const size_t start,
-                                                  const size_t end) {
-            using K = std::remove_cvref_t<Kernel>;
-            if (start >= end) return;
-
-            const auto [start_chunk, start_idx] = self.locate(start);
-            const auto [end_chunk, end_idx] = self.locate(end);
-
-            size_t curr_idx = start;
-            auto* AP_RESTRICT chunks = self.ptr_chunks;
-            constexpr size_t simd_width = packed::size();
-
-            // scoped macros to make code DRY but ensure inlining
-            // TODO do not pass packed ref to kernel. Pass (buffer) view
-            // TODO eliminate macros for cleaner code
-            #define EXEC_SCALAR(c, i) \
-                if constexpr (is_const) kernel(curr_idx++, self.template view<K::Read>(c, i)); \
-                else kernel(curr_idx++, self.template at<K::Read, K::Write>(c, i))
-
-            #define EXEC_VECTOR(c, i) \
-                if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::Read>(c, i)); \
-                else { \
-                    auto packed = self.template at_packed<K::Read, K::Write>(c, i); \
-                    kernel(curr_idx, packed); \
-                } \
-                curr_idx += simd_width
-
-            // iterate a single chunk
-            if (start_chunk == end_chunk) {
-                AP_PREFETCH(chunks + start_chunk);
-
-                const size_t head_end = (start_idx % simd_width == 0)
-                                            ? start_idx
-                                            : std::min(end_idx, start_idx + (simd_width - (start_idx % simd_width)));
-                for (size_t i = start_idx; i < head_end; ++i) { EXEC_SCALAR(start_chunk, i); }
-
-                const size_t body_start = head_end;
-                const size_t body_end = body_start + ((end_idx - body_start) / simd_width) * simd_width;
-                for (size_t i = body_start; i < body_end; i += simd_width) { EXEC_VECTOR(start_chunk, i); }
-
-                for (size_t i = body_end; i < end_idx; ++i) { EXEC_SCALAR(start_chunk, i); }
-            }
-            // iterate multiple chunks
-            else {
-                AP_PREFETCH(chunks + start_chunk);
-                if (start_chunk + 1 < end_chunk || end_idx > 0)
-                    AP_PREFETCH(chunks + start_chunk + 1);
-
-                // handle head chunk
-                const size_t head_end = (start_idx % simd_width == 0)
-                                            ? start_idx
-                                            : (start_idx + (simd_width - (start_idx % simd_width)));
-
-                for (size_t i = start_idx; i < head_end; ++i) { EXEC_SCALAR(start_chunk, i); }
-                for (size_t i = head_end; i < self.chunk_size; i += simd_width) { EXEC_VECTOR(start_chunk, i); }
-
-                // body
-                for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
-                    AP_PREFETCH(chunks + c + 1);
-                    // Guaranteed aligned inside full body chunks
-                    for (size_t i = 0; i < self.chunk_size; i += simd_width) { EXEC_VECTOR(c, i); }
-                }
-
-                // handle tail
-                if (end_idx > 0) {
-                    const size_t tail_body_end = (end_idx / simd_width) * simd_width;
-                    for (size_t i = 0; i < tail_body_end; i += simd_width) { EXEC_VECTOR(end_chunk, i); }
-                    for (size_t i = tail_body_end; i < end_idx; ++i) { EXEC_SCALAR(end_chunk, i); }
-                }
-            }
-
-            #undef EXEC_SCALAR
-            #undef EXEC_VECTOR
         }
     };
 }

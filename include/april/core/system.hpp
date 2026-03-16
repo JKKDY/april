@@ -280,7 +280,8 @@ namespace april {
 		FieldStorage fields;
 		Container particle_container;
 
-
+		struct alignas(64) PaddedThreadBuffer { std::vector<size_t> buffer; };
+		std::vector<PaddedThreadBuffer> thread_update_buffers;
 		std::vector<size_t> particles_to_update_buffer;
 
 		double time_ = 0;

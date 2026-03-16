@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include "april/boundaries/boundary.hpp"
 #include "april/exec/policy.hpp"
 #include "april/forces/force.hpp"
@@ -51,7 +52,7 @@ namespace april {
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
 				constexpr ParticleField M = ForceT::fields | ParticleField::position;
 
-				auto kernel = [&]<bool is_packed>(auto && p1, auto && p2) {
+				auto kernel = [&]<bool is_packed>(auto && p1, auto && p2) AP_FORCE_INLINE {
 					auto diff = p2.position - p1.position;
 
 					const auto r = [&] {
@@ -176,73 +177,116 @@ namespace april {
 	//-----------------
 	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::apply_boundary_conditions() {
-		particles_to_update_buffer.clear();
+	    particles_to_update_buffer.clear();
+	    const core::Box domain_box = this->box();
 
-		const core::Box domain_box = this->box();
+		// loop through faces sequentially
+	    for (DomainFace face : all_faces) {
+	        const auto& compiled_boundary = boundary_table[face];
 
-		for (DomainFace face : all_faces) {
+	    	// fetch work
+	        std::vector<size_t> particle_ids = query_region(compiled_boundary.boundary_region);
+	        if (particle_ids.empty()) continue;
 
-			const auto& compiled_boundary = boundary_table[face];
+	    	// partition it for parallelization
+	        exec::BlockConfig config(thread_executor.num_threads());
+	        auto blocks = exec::make_linear_schedule(math::Range{0, particle_ids.size()}, config);
 
-			std::vector<size_t> particle_ids = particle_container.invoke_collect_indices_in_region(compiled_boundary.boundary_region);
+	        // resize persistent buffers if the block count increases
+	        if (thread_update_buffers.size() < blocks.size()) {
+	            thread_update_buffers.resize(blocks.size());
+	        }
 
-			auto boundary_condition_inside = [&]<typename B>(const B & bc) {
-				constexpr ParticleField M = std::decay_t<B>::fields;
+	        // clear local buffers for this face pass
+	        for (size_t i = 0; i < blocks.size(); ++i) {
+	            thread_update_buffers[i].buffer.clear();
+	        }
 
-				for (auto p_idx : particle_ids) {
-					auto p = at<M>(p_idx);
-					bc.apply(p, domain_box, face);
+	    	// if the particle is inside the domain
+	        auto boundary_condition_inside = [&]<typename B>(const B & bc) {
+	            constexpr ParticleField M = std::decay_t<B>::fields;
 
-					if (compiled_boundary.topology.may_change_particle_position) {
-						particles_to_update_buffer.push_back(p_idx);
-					}
-				}
-			};
+	            thread_executor.execute(blocks.size(), [&](const size_t b_idx) AP_FORCE_INLINE {
+	                const auto& block = blocks[b_idx];
+	                auto& local_buffer = thread_update_buffers[b_idx].buffer;
 
-			auto boundary_condition_outside = [&]<typename B>(const B & bc) {
-				static constexpr ParticleField detect_mask = ParticleField::position | ParticleField::old_position;
-				constexpr ParticleField M = std::decay_t<B>::fields | detect_mask;
+	                for (size_t i = block.start; i < block.stop; ++i) {
+	                    const size_t p_idx = particle_ids[i];
+	                    auto p = at<M>(p_idx);
 
-				for (auto p_idx : particle_ids) {
-					auto particle = at<M>(p_idx);
+	                    bc.apply(p, domain_box, face);
 
-					// make sure the particle exited through the current boundary face
-					// solve for intersection of the particles path with the boundary face
-					// with the equation y = t * diff + p where:
-					// diff is the path traveled, p is the particles starting position and y is the face
+	                    if (compiled_boundary.topology.may_change_particle_position) {
+	                        local_buffer.push_back(p_idx);
+	                    }
+	                }
+	            });
+	        };
 
-					// TODO Review for numerical robustness
-					const int ax = boundary::axis_of_face(face);
-					const vec3 diff = particle.position - particle.old_position;
-					const double y = diff[ax] < 0 ? domain_box.min[ax] : domain_box.max[ax];
-					const double t = (y - particle.old_position[ax]) / diff[ax];
+	    	// if the particle is outside the domain
+	        auto boundary_condition_outside = [&]<typename B>(const B & bc) {
+	            static constexpr ParticleField detect_mask = ParticleField::position | ParticleField::old_position;
+	            constexpr ParticleField Fields = std::remove_cvref_t<B>::fields | detect_mask;
 
-					const vec3 intersection = t * diff + particle.old_position;
+	            thread_executor.execute(blocks.size(), [&](const size_t b_idx) AP_FORCE_INLINE {
+	                const auto& block = blocks[b_idx];
+	                auto& local_buffer = thread_update_buffers[b_idx].buffer;
 
-					// and check if that point is on the domains surface
-					auto [ax1, ax2] = boundary::non_face_axis(face);
-					if (domain_box.max[ax1] >= intersection[ax1] && domain_box.min[ax1] <= intersection[ax1] &&
-						domain_box.max[ax2] >= intersection[ax2] && domain_box.min[ax2] <= intersection[ax2]) {
+	                for (size_t i = block.start; i < block.stop; ++i) {
+	                    const size_t p_idx = particle_ids[i];
+	                    auto particle = at<Fields>(p_idx);
 
-						bc.apply(particle, domain_box, face);
+	                    const int ax = boundary::axis_of_face(face);
+	                    const vec3 diff = particle.position - particle.old_position;
 
-						if (compiled_boundary.topology.may_change_particle_position) {
-							particles_to_update_buffer.push_back(p_idx);
-						}
-					}
-				}
-			};
+	                    if (std::abs(diff[ax]) < 1e-12) continue;
 
-			if (compiled_boundary.topology.boundary_thickness >= 0) {
-				compiled_boundary.dispatch(boundary_condition_inside);
-			} else {
-				compiled_boundary.dispatch(boundary_condition_outside);
-			}
-		}
+	                	// we check if the particle has crossed the current face in the last time step
+	                	// we solve for the intersection point via solving for t in y = t * diff + p where
+	                	// diff is the displacement, p is the particles starting position and y is the face coordinate
+	                    const double y = diff[ax] < 0 ? domain_box.min[ax] : domain_box.max[ax];
+	                    const double t = (y - particle.old_position[ax]) / diff[ax];
+	                    const vec3 intersection = t * diff + particle.old_position;
 
-		if (!particles_to_update_buffer.empty()) {
-			particle_container.invoke_notify_moved(particles_to_update_buffer);
-		}
+	                	// check if the intersection is part of the face
+	                    auto [ax1, ax2] = boundary::non_face_axis(face);
+	                    if (domain_box.max[ax1] >= intersection[ax1] && domain_box.min[ax1] <= intersection[ax1] &&
+	                        domain_box.max[ax2] >= intersection[ax2] && domain_box.min[ax2] <= intersection[ax2]) {
+
+	                        bc.apply(particle, domain_box, face);
+
+	                        if (compiled_boundary.topology.may_change_particle_position) {
+	                            local_buffer.push_back(p_idx);
+	                        }
+	                    }
+	                }
+	            });
+	        };
+
+	    	// TODO what if we have a boundary domain that is inside AND outside?
+	        if (compiled_boundary.topology.boundary_thickness >= 0) { // >0 implies the boundary region only applies to inside
+	            compiled_boundary.dispatch(boundary_condition_inside);
+	        } else {
+	            compiled_boundary.dispatch(boundary_condition_outside);
+	        }
+
+	        // merge local buffers sequentially
+	        if (compiled_boundary.topology.may_change_particle_position) {
+	            for (size_t i = 0; i < blocks.size(); ++i) {
+	                auto& local_buf = thread_update_buffers[i].buffer;
+	                particles_to_update_buffer.insert(
+	                    particles_to_update_buffer.end(),
+	                    local_buf.begin(),
+	                    local_buf.end()
+	                );
+	            }
+	        }
+	    }
+
+		// invoke structure update on the container
+	    if (!particles_to_update_buffer.empty()) {
+	        particle_container.invoke_notify_moved(particles_to_update_buffer);
+	    }
 	}
 
 

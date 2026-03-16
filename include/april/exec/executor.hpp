@@ -1,7 +1,7 @@
 #pragma once
 
 
-#define AP_EXECUTOR_BACKEND_OMP
+#define AP_EXECUTOR_BACKEND_SEQUENTIAL
 
 
 

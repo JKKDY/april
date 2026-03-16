@@ -7,7 +7,7 @@ namespace april::exec {
     struct OmpExecutor {
         template<IsWorkAtom F>
         void execute(const size_t batch_count, F&& task) const {
-            #pragma omp parallel for schedule(guided) num_threads(4)
+            #pragma omp parallel for schedule(guided) num_threads(1)
             for (size_t i = 0; i < batch_count; ++i) {
                 task(i);
             }

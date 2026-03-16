@@ -11,7 +11,7 @@ static constexpr int NX = 100, NY = 100, NZ = 100;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
-static constexpr double r_cut = 0.0001 * sigma;
+static constexpr double r_cut = 0.1 * sigma;
 
 // Grid physical span
 static constexpr double Lx = (NX - 1) * a;
@@ -50,7 +50,7 @@ int main() {
 
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;
-	constexpr int steps  = 100;
+	constexpr int steps  = 20;
 
 	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
 	integrator.add_monitor(Benchmark());

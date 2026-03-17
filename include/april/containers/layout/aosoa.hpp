@@ -435,11 +435,10 @@ namespace april::container::layout {
             const auto [end_chunk, end_idx] = self.locate(end);
 
             auto* AP_RESTRICT chunks = self.ptr_chunks;
-            // TODO curr_idx is currenlty useless because it sits in between physical and logical index: fix
-            size_t curr_idx = start;
             auto exec_scalar = [&](size_t c, size_t i) AP_FORCE_INLINE {
-                if constexpr (is_const) kernel(curr_idx++, self.template view<K::Read>(c, i));
-                else kernel(curr_idx++, self.template at<K::Read, K::Write>(c, i));
+                const size_t physical_idx = (c << chunk_shift) | i;
+                if constexpr (is_const) kernel(physical_idx, self.template view<K::Read>(c, i));
+                else kernel(physical_idx, self.template at<K::Read, K::Write>(c, i));
             };
 
             if (start_chunk == end_chunk) {
@@ -489,24 +488,23 @@ namespace april::container::layout {
             const size_t aligned_start_idx = start_idx - head_offset;
 
             // kernel expects the logical base index of the vector register
-            size_t curr_base_idx = start - head_offset;
             const auto lane_indices = packed::load_aligned(self.idx_arr);
 
             auto exec_vector = [&](size_t c, size_t i) AP_FORCE_INLINE {
-                if constexpr (is_const) kernel(curr_base_idx, self.template view_packed<K::Read>(c, i));
-                else kernel(curr_base_idx, self.template at_packed<K::Read, K::Write>(c, i));
-                curr_base_idx += simd_width;
+                const size_t physical_idx = (c << chunk_shift) | i;
+                if constexpr (is_const) kernel(physical_idx, self.template view_packed<K::Read>(c, i));
+                else kernel(physical_idx, self.template at_packed<K::Read, K::Write>(c, i));
             };
 
             auto exec_vector_masked = [&](size_t c, size_t i, auto mask) AP_FORCE_INLINE {
+                const size_t physical_idx = (c << chunk_shift) | i;
                 if constexpr (is_const) {
                     auto ref = self.template view_packed<K::Read>(c, i);
-                    kernel(curr_base_idx, ref.mask_with(mask));
+                    kernel(physical_idx, ref.mask_with(mask));
                 } else {
                     auto ref = self.template at_packed<K::Read, K::Write>(c, i);
-                    kernel(curr_base_idx, ref.mask_with(mask));
+                    kernel(physical_idx, ref.mask_with(mask));
                 }
-                curr_base_idx += simd_width;
             };
 
             // Single Chunk iteration (start and end chunk are the same => only one chunk is touched)

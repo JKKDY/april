@@ -55,7 +55,7 @@ namespace april::container::internal {
 			self.compute_wrapped_cell_pairs();
 			self.build_storage(particles);
 			self.pre_allocate_assignment_bins();
-			self.rebuild_structure2();
+			self.rebuild_structure_impl();
 			self.schedule_phases();
 
 			self.last_x.resize(particles.size()); // TODO STOP GAP MEASURE FIX!

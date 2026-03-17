@@ -177,31 +177,85 @@ namespace april::container::internal {
 		}
 
 		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const core::Box & region) {
-			const std::vector<cell_index_t> cells = self.get_cells_in_region(region);
-			std::vector<size_t> ret;
+		    const std::vector<cell_index_t> cells = self.get_cells_in_region(region);
 
-			// heuristic: reserve space for the expected average number of particles per cell
-			const size_t est_count = cells.empty() ? 0 : (self.particle_count() * cells.size() / self.n_cells);
-			ret.reserve(est_count);
+		    if (cells.empty()) return {};
 
-			// for each cell that intersects the region: for each particle in cell perform inclusion check
-			for (const size_t cid : cells) {
-				const auto [start_idx, end_idx] = self.cell_index_range(cid);
-				if (start_idx == end_idx) continue;
+		    // 1. Partition the interacting cells into parallel tasks
+		    auto blocks = exec::make_linear_schedule(math::Range{0, cells.size()}, self.linear_schedule_config);
+		    const size_t num_tasks = blocks.size();
 
-				self.for_each_particle(start_idx, end_idx,
-					scalar_kernel<ParticleField::position | ParticleField::state>(
-					[&](const size_t i, const auto & particle) {
-						if (static_cast<uint8_t>(particle.state & ParticleState::ALIVE) &&
-							region.contains(particle.position)) {
-							ret.push_back(i);
+		    // 2. Allocate independent thread-local buffers
+		    std::vector<std::vector<size_t>> local_results(num_tasks);
+
+		    // Heuristic: reserve space for expected average particles per cell for this task
+		    const size_t est_count_per_task = (self.particle_count() * cells.size() / self.n_cells) / num_tasks + 1;
+		    for (auto& loc : local_results) {
+		        loc.reserve(est_count_per_task);
+		    }
+
+		    // 3. Process the cells in parallel
+		    self.thread_executor.execute(num_tasks, [&](const size_t t_idx) {
+		        const auto& block = blocks[t_idx];
+		        auto& local_ret = local_results[t_idx];
+
+		        // Each task loops over its assigned chunk of cells
+		        for (size_t c = block.start; c < block.stop; ++c) {
+		            const size_t cid = cells[c];
+		            const auto [start_idx, end_idx] = self.cell_index_range(cid);
+
+		            if (start_idx == end_idx) continue;
+
+		        	auto find_particles_in_region = [&]<bool is_packed>(const size_t i, const auto & particle) AP_FORCE_INLINE {
+						if constexpr (is_packed) {
+							// Vectorized state and bounds check
+							auto contains_particle = region.contains(particle.position);
+							auto is_alive = (particle.state == +ParticleState::ALIVE);
+
+							// Combine and extract bitmask
+							auto valid_mask = contains_particle & is_alive;
+							uint64_t bitmask = valid_mask.to_bitmask();
+
+							// Branchless extraction
+							while (bitmask != 0) {
+								const uint32_t lane = std::countr_zero(bitmask);
+								local_ret.push_back(i + lane);
+								bitmask &= (bitmask - 1);
+							}
+						} else {
+							if (region.contains(particle.position) && particle.state == ParticleState::ALIVE) {
+								local_ret.push_back(i);
+							}
 						}
-					})
-				);
-			}
+					};
 
-			return ret;
+		            // Run the vectorized kernel over this specific cell's memory range
+		            self.for_each_particle(start_idx, end_idx,
+		            	// this is scalar because SoA layout is tightly packed resulting in spilling
+		            	// TODO: make this a universal kernel by propagating masks along with particle data
+		                april::scalar_kernel<ParticleField::position | ParticleField::state>(
+							find_particles_in_region
+		                )
+		            );
+		        }
+		    });
+
+		    // 4. Sequential merge of thread-local buffers
+		    size_t total_found = 0;
+		    for (const auto& loc : local_results) {
+		        total_found += loc.size();
+		    }
+
+		    std::vector<size_t> ret;
+		    ret.reserve(total_found);
+
+		    for (const auto& loc : local_results) {
+		        ret.insert(ret.end(), loc.begin(), loc.end());
+		    }
+
+		    return ret;
 		}
+
 
 	protected:
 		size_t outside_cell_id {};

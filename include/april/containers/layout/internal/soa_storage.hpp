@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <vector>
 #include "april/particle/particle.hpp"
 
@@ -85,7 +86,8 @@ namespace april::container::layout {
         }
 
         void resize(const size_t n) {
-            capacity = n + packed::size() + n % packed::size(); // pad with packed size then round up to next multiple of packed size
+            // pad with packed size then round up to next multiple of packed size
+            capacity = ((n + packed::size() - 1) / packed::size()) * packed::size() + packed::size();
             size = n;
 
             pos_x.resize(capacity); pos_y.resize(capacity); pos_z.resize(capacity);
@@ -99,6 +101,7 @@ namespace april::container::layout {
             id.resize(capacity);
             attributes.resize(capacity);
 
+            capacity -= packed::size();
             update_pointer_cache();
         }
 

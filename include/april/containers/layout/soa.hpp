@@ -226,6 +226,7 @@ namespace april::container::layout {
                 });
             }
         }
+
     private:
         alignas(64) packed::value_type idx_arr[packed::size()]{};
     };

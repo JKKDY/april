@@ -219,6 +219,10 @@ namespace april::container::layout {
                 data[c_idx].state[l_idx] = ParticleState::INVALID;
                 data[c_idx].id[l_idx] = std::numeric_limits<ParticleID>::max();
                 data[c_idx].type[l_idx] = std::numeric_limits<ParticleType>::max();
+                data[c_idx].pos_x[l_idx] = 1e50;
+                data[c_idx].pos_y[l_idx] = 1e50;
+                data[c_idx].pos_z[l_idx] = 1e50;
+                data[c_idx].mass[l_idx]  = 1.0;
             }
         }
 
@@ -226,7 +230,6 @@ namespace april::container::layout {
             bin_starts.clear();
             bin_sizes.clear();
 
-            // calculate offset of each bin using chunk-aligned boundaries
             std::vector<size_t> offsets(new_bins.size());
             size_t n_chunks = 0;
 
@@ -241,88 +244,81 @@ namespace april::container::layout {
                 }
             }
 
-            // allocate space and set global end sentinel
             particle_capacity = n_chunks * chunk_size;
             bin_starts.push_back(particle_capacity);
             tmp.resize(n_chunks);
 
-            // scatter particles from old bins into new bins and update id map
-            for (size_t bin_idx = 0; bin_idx < new_bins.size(); ++bin_idx) {
-                const auto& bin = new_bins[bin_idx];
-                if (bin.empty()) continue;
+            auto bin_blocks = exec::make_linear_schedule(math::Range{0, new_bins.size()}, this->linear_schedule_config);
 
-                const size_t start_offset = offsets[bin_idx];
+            this->thread_executor.execute(bin_blocks.size(), [&](const size_t b_idx) {
+                const auto& block = bin_blocks[b_idx];
 
-                // use linear scheduler for load balancing
-                auto blocks = exec::make_linear_schedule(math::Range{0, bin.size()}, this->linear_schedule_config);
+                for (size_t bin_idx = block.start; bin_idx < block.stop; ++bin_idx) {
+                    const auto& bin = new_bins[bin_idx];
+                    if (bin.empty()) continue;
 
-                this->thread_executor.execute(blocks.size(), [&](const size_t b_idx) {
-                    const auto& block = blocks[b_idx];
+                    const size_t start_offset = offsets[bin_idx];
 
-                    for (size_t i = block.start; i < block.stop; ++i) {
-                        const size_t old_idx = bin[i];
-                        const size_t new_idx = start_offset + i;
+                    size_t current_new_idx = start_offset;
+                    size_t dst_c = start_offset / chunk_size;
+                    size_t dst_l = 0;
 
-                        // compute chunk and lane coordinates
-                        const size_t dst_c = new_idx / chunk_size;
-                        const size_t dst_l = new_idx % chunk_size;
+                    for (const size_t old_idx : bin) {
                         auto [src_c, src_l] = locate(old_idx);
 
                         auto& src_chunk = data[src_c];
                         auto& dst_chunk = tmp[dst_c];
 
-                        // copy particle fields manually
+                        // Copy particle fields manually
                         dst_chunk.pos_x[dst_l] = src_chunk.pos_x[src_l];
                         dst_chunk.pos_y[dst_l] = src_chunk.pos_y[src_l];
                         dst_chunk.pos_z[dst_l] = src_chunk.pos_z[src_l];
-
                         dst_chunk.vel_x[dst_l] = src_chunk.vel_x[src_l];
                         dst_chunk.vel_y[dst_l] = src_chunk.vel_y[src_l];
                         dst_chunk.vel_z[dst_l] = src_chunk.vel_z[src_l];
-
                         dst_chunk.frc_x[dst_l] = src_chunk.frc_x[src_l];
                         dst_chunk.frc_y[dst_l] = src_chunk.frc_y[src_l];
                         dst_chunk.frc_z[dst_l] = src_chunk.frc_z[src_l];
-
                         dst_chunk.old_x[dst_l] = src_chunk.old_x[src_l];
                         dst_chunk.old_y[dst_l] = src_chunk.old_y[src_l];
                         dst_chunk.old_z[dst_l] = src_chunk.old_z[src_l];
-
                         dst_chunk.mass[dst_l]       = src_chunk.mass[src_l];
                         dst_chunk.state[dst_l]      = src_chunk.state[src_l];
                         dst_chunk.type[dst_l]       = src_chunk.type[src_l];
                         dst_chunk.id[dst_l]         = src_chunk.id[src_l];
                         dst_chunk.attributes[dst_l] = src_chunk.attributes[src_l];
 
-                        // update id map (thread safe because IDs are unique)
-                        const auto id = dst_chunk.id[dst_l];
-                        id_to_index_map[id] = new_idx;
+                        id_to_index_map[dst_chunk.id[dst_l]] = current_new_idx;
+
+                        ++current_new_idx;
+                        ++dst_l;
+                        if (dst_l == chunk_size) {
+                            dst_l = 0;
+                            ++dst_c;
+                        }
                     }
 
-                    // thread evaluating the last block applies sentinel padding to the remainder of the final chunk
-                    if (sentinel_pad && block.stop == bin.size()) {
+                    // Sentinel pad logic
+                    if (sentinel_pad) {
                         const size_t remainder = bin.size() % chunk_size;
                         if (remainder > 0) {
-                            const size_t dst_c = (start_offset + bin.size()) / chunk_size;
+                            // dst_c is already pointing at the correct final chunk
                             auto& dst_chunk = tmp[dst_c];
 
-                            for (size_t dst_l = remainder; dst_l < chunk_size; ++dst_l) {
-                                dst_chunk.state[dst_l] = ParticleState::INVALID;
-                                dst_chunk.pos_x[dst_l] = 1e50;
-                                dst_chunk.pos_y[dst_l] = 1e50;
-                                dst_chunk.pos_z[dst_l] = 1e50;
-                                dst_chunk.id[dst_l]    = std::numeric_limits<ParticleID>::max();
-                                dst_chunk.mass[dst_l]  = 1.0;
+                            for (size_t pad_l = remainder; pad_l < chunk_size; ++pad_l) {
+                                dst_chunk.state[pad_l] = ParticleState::INVALID;
+                                dst_chunk.pos_x[pad_l] = 1e50;
+                                dst_chunk.pos_y[pad_l] = 1e50;
+                                dst_chunk.pos_z[pad_l] = 1e50;
+                                dst_chunk.id[pad_l]    = std::numeric_limits<ParticleID>::max();
+                                dst_chunk.mass[pad_l]  = 1.0;
                             }
                         }
                     }
-                });
-            }
+                }
+            });
 
-            // swap old and new storage
             std::swap(data, tmp);
-
-            // update pointer caches to reflect the swap
             update_cache();
         }
 
@@ -439,7 +435,7 @@ namespace april::container::layout {
             const auto [end_chunk, end_idx] = self.locate(end);
 
             auto* AP_RESTRICT chunks = self.ptr_chunks;
-
+            // TODO curr_idx is currenlty useless because it sits in between physical and logical index: fix
             size_t curr_idx = start;
             auto exec_scalar = [&](size_t c, size_t i) AP_FORCE_INLINE {
                 if constexpr (is_const) kernel(curr_idx++, self.template view<K::Read>(c, i));

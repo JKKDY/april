@@ -65,7 +65,7 @@ namespace april::container::layout {
         }
 
         void resize(const size_t n) {
-            capacity = n + packed::size();
+            capacity = n + packed::size() + n % packed::size(); // pad with packed size then round up to next multiple of packed size
             size = n;
 
             pos_x.resize(capacity); pos_y.resize(capacity); pos_z.resize(capacity);
@@ -125,7 +125,7 @@ namespace april::container::layout {
         friend Base;
 
         SoA(const Config & config, const internal::ContainerCreateInfo & info, const exec::Executor & executor):
-         Base(config, info, executor)
+            Base(config, info, executor)
         {
             this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
             this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);
@@ -208,11 +208,12 @@ namespace april::container::layout {
             tmp.resize(n);
         }
 
+
         void reorder_storage(const std::vector<std::vector<size_t>>& new_bins) {
             bin_starts.clear();
             bin_sizes.clear();
 
-            // calculate offset of each bin
+            // calculate offset of each bin sequentially
             std::vector<size_t> offsets(new_bins.size());
             size_t current_offset = 0;
 
@@ -223,32 +224,32 @@ namespace april::container::layout {
                 current_offset += new_bins[i].size();
             }
 
-            // scatter particles from old bins into new bins and update id map
-            for (size_t bin_idx = 0; bin_idx < new_bins.size(); ++bin_idx) {
-                const auto& bin = new_bins[bin_idx];
-                if (bin.empty()) continue;
+            // schedule tasks over the bins rather than the particles inside them
+            auto blocks = exec::make_linear_schedule(math::Range{0, new_bins.size()}, this->linear_schedule_config);
 
-                const size_t start_offset = offsets[bin_idx];
+            // execute thread pool exactly once
+            this->thread_executor.execute(blocks.size(), [&](const size_t b_idx) {
+                const auto& block = blocks[b_idx];
 
-                // Use our existing linear scheduler for load balancing
-                auto blocks = exec::make_linear_schedule(math::Range{0, bin.size()}, this->linear_schedule_config);
+                for (size_t bin_idx = block.start; bin_idx < block.stop; ++bin_idx) {
+                    const auto& bin = new_bins[bin_idx];
+                    if (bin.empty()) continue;
 
-                this->thread_executor.execute(blocks.size(), [&](const size_t b_idx) {
-                    const auto& block = blocks[b_idx];
+                    const size_t start_offset = offsets[bin_idx];
 
-                    for (size_t i = block.start; i < block.stop; ++i) {
+                    for (size_t i = 0; i < bin.size(); ++i) {
                         const size_t old_idx = bin[i];
                         const size_t new_idx = start_offset + i;
 
-                        // copy particle (SoA specific copy)
+                        // copy particle
                         tmp.copy_from(new_idx, data, old_idx);
 
-                        // update id map (thread safe because IDs are unique)
+                        // update id map
                         const auto id = static_cast<size_t>(data.id[old_idx]);
                         id_to_index_map[id] = static_cast<uint32_t>(new_idx);
                     }
-                });
-            }
+                }
+            });
 
             // swap old and new storage
             std::swap(data, tmp);
@@ -257,7 +258,6 @@ namespace april::container::layout {
             data.update_pointer_cache();
             tmp.update_pointer_cache();
         }
-
 
 
         [[nodiscard]] math::Range get_physical_bin_range(const size_t type) const {

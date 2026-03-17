@@ -12,7 +12,11 @@
 #include "april/core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
 #include "april/containers/batching/common.hpp"
+#include "april/exec/parallel_utils.hpp"
 
+namespace april::math {
+	struct Range;
+}
 
 namespace april::container::internal {
 	template <class ContainerBase>
@@ -51,8 +55,20 @@ namespace april::container::internal {
 			self.compute_wrapped_cell_pairs();
 			self.build_storage(particles);
 			self.pre_allocate_assignment_bins();
-			self.rebuild_structure();
+			self.rebuild_structure2();
 			self.schedule_phases();
+
+			self.last_x.resize(16 * particles.size()); // TODO STOP GAP MEASURE FIX!
+			self.last_y.resize(16 * particles.size());
+			self.last_z.resize(16 * particles.size());
+
+			self.template for_each_particle<ParallelPolicy::Serial>(
+				scalar_kernel<ParticleField::position>([&](size_t i, auto && p) {
+					self.last_x[i] = p.position.x;
+					self.last_y[i] = p.position.y;
+					self.last_z[i] = p.position.z;
+				})
+			);
 		}
 
 		template<typename Func>
@@ -62,7 +78,7 @@ namespace april::container::internal {
 			}
 		}
 
-		void rebuild_structure(this auto&& self) {
+		void rebuild_structure2(this auto&& self) {
 			// reset assignment vector
 			for (auto& bin : self.bin_assignments) {
 				bin.clear();
@@ -82,6 +98,104 @@ namespace april::container::internal {
 				));
 			}
 
+			self.reorder_storage(self.bin_assignments);
+		}
+
+
+		struct alignas(64) PaddedThreadBuffer {
+			// Stores {bin_index, particle_index}
+			std::vector<std::pair<uint32_t, uint32_t>> records;
+		};
+
+		// Persistent member variable
+		std::vector<PaddedThreadBuffer> thread_local_buffers;
+
+		std::vector<vec3::type> last_x;
+		std::vector<vec3::type> last_y;
+		std::vector<vec3::type> last_z;
+
+		void rebuild_structure(this auto && self) {
+			std::atomic rebuild = false;
+
+			// check if a particle has moved further than the  skin thickness
+			self.template for_each_particle<ParallelPolicy::Threaded>(
+				scalar_kernel<ParticleField::position>([&](size_t i, auto && p) {
+					if (std::abs(self.last_x[i] - p.position.x) > self.verlet_skin / 2) rebuild = true;
+					if (std::abs(self.last_y[i] - p.position.y) > self.verlet_skin / 2) rebuild = true;
+					if (std::abs(self.last_z[i] - p.position.z) > self.verlet_skin / 2) rebuild = true;
+				})
+			);
+
+			if (rebuild) {
+				self.rebuild_structure_impl();
+
+				// cache current particles positions
+				self.template for_each_particle<ParallelPolicy::Threaded>(
+						scalar_kernel<ParticleField::position>([&](size_t i, auto && p) {
+						self.last_x[i] = p.position.x;
+						self.last_y[i] = p.position.y;
+						self.last_z[i] = p.position.z;
+					})
+				);
+			}
+		}
+
+		void rebuild_structure_impl(this auto&& self) {
+		    // clear previous bin assignments
+		    for (auto& bin : self.bin_assignments) {
+		        bin.clear();
+		    }
+
+		    // build a flat list of scheduled tasks across all valid particles
+		    std::vector<math::Range> tasks;
+		    for (size_t i = 0; i < self.bin_sizes.size(); i++) {
+		        if (self.bin_sizes[i] == 0) continue;
+
+		    	// tasks should align with bin boundaries
+		        const size_t start = self.bin_starts[i];
+		        const size_t size = self.bin_sizes[i];
+
+		        auto blocks = exec::make_linear_schedule(math::Range{start, start + size}, self.linear_schedule_config);
+		        tasks.insert(tasks.end(), blocks.begin(), blocks.end());
+		    }
+
+		    if (tasks.empty()) return;
+
+			// for every task allocate a local vector
+			if (self.thread_local_buffers.size() < tasks.size()) {
+				self.thread_local_buffers.resize(tasks.size());
+			}
+
+			for (size_t t = 0; t < tasks.size(); ++t) {
+				self.thread_local_buffers[t].records.clear();
+				// reserve approximate capacity to prevent mid-task reallocations
+				self.thread_local_buffers[t].records.reserve(tasks[t].size());
+			}
+
+			// parallel scattering of particles
+			self.thread_executor.execute(tasks.size(), [&](const size_t t_idx) {
+				const auto& block = tasks[t_idx];
+				auto& local_records = self.thread_local_buffers[t_idx].records;
+
+				self.for_each_particle(block.start, block.stop,
+					scalar_kernel<ParticleField::type | ParticleField::position>(
+					[&](const size_t idx, const auto & p) {
+						const size_t cid = self.cell_index_from_position(p.position);
+						const size_t bin = self.bin_index(cid, p.type);
+
+						local_records.push_back({static_cast<uint32_t>(bin), static_cast<uint32_t>(idx)});
+					}
+				));
+			});
+
+			// merge local assignments into global assignment vector
+			for (size_t t = 0; t < tasks.size(); ++t) {
+				for (const auto& record : self.thread_local_buffers[t].records) {
+					self.bin_assignments[record.first].push_back(record.second);
+				}
+			}
+
+			// rebuilt storage according to assignment vector
 			self.reorder_storage(self.bin_assignments);
 		}
 
@@ -118,10 +232,12 @@ namespace april::container::internal {
 		size_t n_cells {}; // total cells = grid + outside
 		size_t n_types {}; // types range from 0 ... n_types-1
 		double global_cutoff {}; // maximum force cutoff
+		double verlet_skin {};
 
 		vec3d cell_size; // side lengths of each cell
 		vec3d inv_cell_size; // cache the inverse of each size component to avoid divisions
 		uint3 cells_per_axis{}; // number of cells along each axis
+		uint3::type cell_per_axis_xy{}; // = cells_per_axis.x * cells_per_axis.y
 
 		std::vector<std::vector<size_t>> bin_assignments;
 		std::vector<cell_index_t> cell_ordering; // map x,y,z flat index (Nx*Ny*z+Nx*y+x) to ordering index
@@ -173,8 +289,14 @@ namespace april::container::internal {
 				max_cutoff = min_dim / 2.0;
 			}
 
+			// set target cell size and verlet skin
 			double target_cell_size = self.config.get_width(max_cutoff);
 			AP_ASSERT(target_cell_size > 0, "Calculated cell size must be > 0");
+
+			self.verlet_skin = self.config.get_skin(target_cell_size);
+			AP_ASSERT(target_cell_size >= 0, "Calculated cell size must be > 0");
+
+			target_cell_size += self.verlet_skin;
 
 			// compute number of cells along each axis
 			// std::floor ensures that the resulting cells are larger than or equal to target_cell_size
@@ -197,6 +319,7 @@ namespace april::container::internal {
 			  };
 
 			self.cells_per_axis = uint3{num_x, num_y, num_z};
+			self.cell_per_axis_xy = self.cells_per_axis.x * self.cells_per_axis.y;
 
 			// set scalars
 			self.n_types = self.force_schema.types.size();
@@ -538,20 +661,19 @@ namespace april::container::internal {
 			const size_t start_bin_idx = self.bin_index(cid);
 			size_t start = self.bin_starts[start_bin_idx];
 			size_t end = start_bin_idx + self.n_types >= self.bin_starts.size() ? self.capacity() : self.bin_starts[start_bin_idx + self.n_types];
-			// size_t end = self.bin_starts[start_bin_idx + self.n_types]
 			return {start, end};
 
 		}
 
 		[[nodiscard]] uint32_t cell_pos_to_idx(this const auto & self, const uint32_t x, const uint32_t y, const uint32_t z) noexcept{
-			const uint32_t flat_idx = z * self.cells_per_axis.x * self.cells_per_axis.y + y * self.cells_per_axis.x + x;
+			const uint32_t flat_idx = z * self.cell_per_axis_xy + y * self.cells_per_axis.x + x;
 			return self.cell_ordering.empty() ? flat_idx : self.cell_ordering[flat_idx];
 		}
 
 		uint32_t cell_index_from_position(this const auto & self, const vec3 & position) noexcept {
 			const vec3 pos = position - self.domain.min;
 
-			if (pos.x < 0 || pos.y < 0 || pos.z < 0) {
+			if ((pos.x < 0.0) | (pos.y < 0.0) | (pos.z < 0.0)) {
 				return self.outside_cell_id;
 			}
 
@@ -559,7 +681,7 @@ namespace april::container::internal {
 			const auto y = static_cast<uint32_t>(pos.y * self.inv_cell_size.y);
 			const auto z = static_cast<uint32_t>(pos.z * self.inv_cell_size.z);
 
-			if (x >= self.cells_per_axis.x || y >= self.cells_per_axis.y || z >= self.cells_per_axis.z) {
+			if ((x >= self.cells_per_axis.x) | (y >= self.cells_per_axis.y) | (z >= self.cells_per_axis.z)) {
 				return self.outside_cell_id;
 			}
 
@@ -569,18 +691,4 @@ namespace april::container::internal {
 		std::vector<batching::TopologyBatch> topology_batches;
 	};
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

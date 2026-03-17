@@ -44,7 +44,9 @@ struct TestConfig {
 	// Helper to initialize the container with size and ordering
 	static auto create(double cell_size) {
 		// Create container and set size
-		auto c = ContainerT{}.with_abs_cell_size(cell_size);
+		auto c = ContainerT{}
+			.with_abs_cell_size(cell_size)
+			.with_skin_factor(0.0);
 		// Apply the ordering strategy (Default, Morton, or Hilbert)
 		return OrderingT::apply(std::move(c));
 	}

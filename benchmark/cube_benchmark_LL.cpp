@@ -11,7 +11,7 @@ static constexpr int NX = 100, NY = 100, NZ = 100;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
-static constexpr double r_cut = 0.1 * sigma;
+static constexpr double r_cut = 3 * sigma;
 
 // Grid physical span
 static constexpr double Lx = (NX - 1) * a;
@@ -47,21 +47,18 @@ int main() {
 	const auto container = LinkedCells<Layout::AoSoA<>>()
 		.with_cell_size(container::CellSize::Cutoff)
 		.with_cell_ordering(hilbert_order)
-		.with_block_size(2);
+		.with_block_size(2)
+		.with_skin_factor(0.1);
 
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;
 	constexpr int steps  = 20;
 
-	std::cout << "Particles: " << NX * NY * NZ << "\n"
-		 << "Steps: " << steps << "\n"
-		 << "dt: " << dt << "\n";
-
-	// VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
-	// integrator.add_monitor(Benchmark());
-	// // integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
-	// integrator.run_for_steps(dt, steps);
-
+	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
+	integrator.add_monitor(Benchmark());
+	// integrator.add_monitor(ProgressBar(Trigger::always()));
+		// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
+	integrator.run_for_steps(dt, steps);
 
 	std::cout << "Particles: " << NX * NY * NZ << "\n"
 			 << "Steps: " << steps << "\n"

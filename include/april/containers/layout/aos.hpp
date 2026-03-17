@@ -6,176 +6,180 @@
 #include "april/exec/policy.hpp"
 
 namespace april::container::layout {
+    template <typename Config, particle::IsParticleAttributes A>
+    class AoS : public Container<Config, A> {
+    public:
+        using Base = Container<Config, A>;
+        using Base::force_schema;
+        friend Base;
 
-	template<typename Config, particle::IsParticleAttributes A>
-	class AoS : public Container<Config, A>{
-	public:
-		using Base = Container<Config, A>;
-		using Base::force_schema;
-		friend Base;
+        using Particle = particle::ParticleRecord<A>;
 
-		using Particle = particle::ParticleRecord<A>;
-
-		AoS(const Config & config, const internal::ContainerCreateInfo & info, const exec::Executor & executor):
-			Base(config, info, executor)
-		{
-			this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
-			this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);
-		}
+        AoS(const Config& config, const internal::ContainerCreateInfo& info, const exec::Executor& executor) :
+            Base(config, info, executor) {
+            this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
+            this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);
+        }
 
 
-		// INDEXING
-		[[nodiscard]] size_t id_to_index(const ParticleID id) const {
-			return id_to_index_map[static_cast<size_t>(id)];
-		}
-		[[nodiscard]] ParticleID min_id() const {
-			return 0;
-		}
-		[[nodiscard]] ParticleID max_id() const {
-			return static_cast<ParticleID>(particles.size());
-		}
-		[[nodiscard]] bool contains_id(const ParticleID id) const {
-			return id <= max_id();
-		}
-		[[nodiscard]] bool index_is_valid(const size_t index) const {
-			return index < particle_count();
-		}
+        // INDEXING
+        [[nodiscard]] size_t id_to_index(const ParticleID id) const {
+            return id_to_index_map[static_cast<size_t>(id)];
+        }
+
+        [[nodiscard]] ParticleID min_id() const {
+            return 0;
+        }
+
+        [[nodiscard]] ParticleID max_id() const {
+            return static_cast<ParticleID>(particles.size());
+        }
+
+        [[nodiscard]] bool contains_id(const ParticleID id) const {
+            return id <= max_id();
+        }
+
+        [[nodiscard]] bool index_is_valid(const size_t index) const {
+            return index < particle_count();
+        }
 
 
-		// QUERIES
-		[[nodiscard]] size_t capacity() const {
-			return particle_count();
-		}
-		[[nodiscard]] size_t particle_count() const {
-			return  particles.size();
-		}
+        // QUERIES
+        [[nodiscard]] size_t capacity() const {
+            return particle_count();
+        }
+
+        [[nodiscard]] size_t particle_count() const {
+            return particles.size();
+        }
 
 
-		// DISABLE PACKED ACCESS
-		template<ParticleField R, ParticleField W>
-		[[nodiscard]] auto at_packed(this auto&&, size_t) {
-			static_assert(false, "AoS does not support packed access");
-		}
+        // DISABLE PACKED ACCESS
+        template <ParticleField R, ParticleField W>
+        [[nodiscard]] auto at_packed(this auto&&, size_t) {
+            static_assert(false, "AoS does not support packed access");
+        }
 
-		template<ParticleField R>
-		[[nodiscard]] auto view_packed(this const auto&, size_t) {
-			static_assert(false, "AoS does not support packed access");
-		}
+        template <ParticleField R>
+        [[nodiscard]] auto view_packed(this const auto&, size_t) {
+            static_assert(false, "AoS does not support packed access");
+        }
 
+    protected:
+        std::vector<Particle> tmp = {};
+        std::vector<Particle> particles = {};
+        std::vector<size_t> bin_starts; // first particle index of each bin
+        std::vector<size_t> bin_sizes; // number of particles in each bin
+        std::vector<uint32_t> id_to_index_map; // map id to index
 
-	protected:
-		std::vector<Particle> tmp = {};
-		std::vector<Particle> particles = {};
-		std::vector<size_t> bin_starts; // first particle index of each bin
-		std::vector<size_t> bin_sizes; // number of particles in each bin
-		std::vector<uint32_t> id_to_index_map; // map id to index
+        void build_storage(const std::vector<Particle>& particles_in) {
+            particles = std::vector(particles_in);
+            bin_starts.clear();
+            bin_sizes.clear();
+            bin_starts.push_back(0);
+            bin_sizes.push_back(particles.size());
+            id_to_index_map.resize(particles.size());
+            for (size_t i = 0; i < particles.size(); i++) {
+                const auto id = static_cast<size_t>(particles[i].id);
+                id_to_index_map[id] = i;
+            }
 
-		void build_storage(const std::vector<Particle>& particles_in) {
-			particles = std::vector(particles_in);
-			bin_starts.clear();
-			bin_sizes.clear();
-			bin_starts.push_back(0);
-			bin_sizes.push_back(particles.size());
-			id_to_index_map.resize(particles.size());
-			for (size_t i = 0; i < particles.size(); i++) {
-				const auto id = static_cast<size_t>(particles[i].id);
-				id_to_index_map[id] = i;
-			}
-
-			tmp.resize(particles.size());
-		}
-
-		void reorder_storage(const std::vector<std::vector<size_t>> & new_bins) {
-			bin_starts.clear();
-			bin_sizes.clear();
-
-			// calculate offset of each bin
-			std::vector<size_t> offsets(new_bins.size());
-			size_t current_offset = 0;
-
-			for (size_t i = 0; i < new_bins.size(); ++i) {
-				bin_starts.push_back(current_offset);
-				bin_sizes.push_back(new_bins[i].size());
-				offsets[i] = current_offset;
-				current_offset += new_bins[i].size();
-			}
-
-			// scatter particles from old bins into new bins and update id map
-			for (size_t bin_idx = 0; bin_idx < new_bins.size(); ++bin_idx) {
-				const auto& bin = new_bins[bin_idx];
-				if (bin.empty()) continue;
-
-				const size_t start_offset = offsets[bin_idx];
-
-				// Use our existing linear scheduler for load balancing
-				auto blocks = exec::make_linear_schedule(math::Range{0, bin.size()}, this->linear_schedule_config);
-
-				this->thread_executor.execute(blocks.size(), [&](const size_t b_idx) {
-					const auto& block = blocks[b_idx];
-
-					for (size_t i = block.start; i < block.stop; ++i) {
-						const size_t old_idx = bin[i];
-						const size_t new_idx = start_offset + i;
-
-						// copy particle
-						tmp[new_idx] = particles[old_idx];
-
-						// update id map (thread safe because IDs are unique)
-						const auto id = tmp[new_idx].id;
-						id_to_index_map[id] = new_idx;
-					}
-				});
-			}
-
-			// swap old and new storage
-			std::swap(particles, tmp);
-		}
-
-		[[nodiscard]] math::Range get_physical_bin_range(const size_t type) const {
-			const size_t start = bin_starts[type];
-			return {start, start + bin_sizes[type]};
-		}
-
-		// Deducing 'this' automatically propagates constness to the return type
-		template<ParticleField F>
-		auto get_field_ptr(this auto&& self, size_t i) {
-			if constexpr (F == ParticleField::force)				return &self.particles[i].force;
-			else if constexpr (F == ParticleField::position)	  	return &self.particles[i].position;
-			else if constexpr (F == ParticleField::velocity)	  	return &self.particles[i].velocity;
-			else if constexpr (F == ParticleField::old_position) 	return &self.particles[i].old_position;
-			else if constexpr (F == ParticleField::mass)			return &self.particles[i].mass;
-			else if constexpr (F == ParticleField::state)			return &self.particles[i].state;
-			else if constexpr (F == ParticleField::type)			return &self.particles[i].type;
-			else if constexpr (F == ParticleField::id)				return &self.particles[i].id;
-			else if constexpr (F == ParticleField::attributes)		return &self.particles[i].attributes;
-		}
+            tmp.resize(particles.size());
+        }
 
 
-		template<ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
-		void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
-			static_assert(V != exec::ExecutionMode::Vector, "AoS cannot be vectorized. Change the vector policy to scalar or auto.");
+        void reorder_storage(const std::vector<std::vector<size_t>>& new_bins) {
+            bin_starts.clear();
+            bin_sizes.clear();
 
-			auto run_kernel = [&](size_t i) AP_FORCE_INLINE {
-				using K = std::remove_cvref_t<Kernel>;
-				if constexpr (is_const) {
-					kernel(i, self.template view<K::Read>(i));
-				} else {
-					kernel(i, self.template at<K::Read, K::Write>(i));
-				}
-			};
+            // calculate offset of each bin sequentially
+            std::vector<size_t> offsets(new_bins.size());
+            size_t current_offset = 0;
 
-			math::Range full_range = {start, end};
-			if constexpr (P == ParallelPolicy::Threaded) {
-				auto schedule = exec::make_linear_schedule(full_range, self.linear_schedule_config);
+            for (size_t i = 0; i < new_bins.size(); ++i) {
+                bin_starts.push_back(current_offset);
+                bin_sizes.push_back(new_bins[i].size());
+                offsets[i] = current_offset;
+                current_offset += new_bins[i].size();
+            }
 
-				self.thread_executor.execute(schedule.size(), [&](size_t i) {
-					for (size_t j : schedule[i]) run_kernel(j);
-				});
-			} else {
-				for (size_t j : full_range) run_kernel(j);
-			}
-		}
-	};
+            // Schedule tasks over the bins themselves
+            auto blocks = exec::make_linear_schedule(math::Range{0, new_bins.size()}, this->linear_schedule_config);
+
+            // Execute thread pool exactly ONCE
+            this->thread_executor.execute(blocks.size(), [&](const size_t b_idx) {
+                const auto& block = blocks[b_idx];
+
+                for (size_t bin_idx = block.start; bin_idx < block.stop; ++bin_idx) {
+                    const auto& bin = new_bins[bin_idx];
+                    if (bin.empty()) continue;
+
+                    const size_t start_offset = offsets[bin_idx];
+
+                    for (size_t i = 0; i < bin.size(); ++i) {
+                        const size_t old_idx = bin[i];
+                        const size_t new_idx = start_offset + i;
+
+                        // copy particle (AoS copy)
+                        tmp[new_idx] = particles[old_idx];
+
+                        // update id map (thread safe because IDs are unique)
+                        const auto id = tmp[new_idx].id;
+                        id_to_index_map[id] = new_idx;
+                    }
+                }
+            });
+
+            // swap old and new storage
+            std::swap(particles, tmp);
+        }
+
+        [[nodiscard]] math::Range get_physical_bin_range(const size_t type) const {
+            const size_t start = bin_starts[type];
+            return {start, start + bin_sizes[type]};
+        }
+
+        // Deducing 'this' automatically propagates constness to the return type
+        template <ParticleField F>
+        auto get_field_ptr(this auto&& self, size_t i) {
+            if constexpr (F == ParticleField::force) return &self.particles[i].force;
+            else if constexpr (F == ParticleField::position) return &self.particles[i].position;
+            else if constexpr (F == ParticleField::velocity) return &self.particles[i].velocity;
+            else if constexpr (F == ParticleField::old_position) return &self.particles[i].old_position;
+            else if constexpr (F == ParticleField::mass) return &self.particles[i].mass;
+            else if constexpr (F == ParticleField::state) return &self.particles[i].state;
+            else if constexpr (F == ParticleField::type) return &self.particles[i].type;
+            else if constexpr (F == ParticleField::id) return &self.particles[i].id;
+            else if constexpr (F == ParticleField::attributes) return &self.particles[i].attributes;
+        }
+
+
+        template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
+        void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
+            static_assert(V != exec::ExecutionMode::Vector,
+                          "AoS cannot be vectorized. Change the vector policy to scalar or auto.");
+
+            auto run_kernel = [&](size_t i) AP_FORCE_INLINE {
+                using K = std::remove_cvref_t<Kernel>;
+                if constexpr (is_const) {
+                    kernel(i, self.template view<K::Read>(i));
+                }
+                else {
+                    kernel(i, self.template at<K::Read, K::Write>(i));
+                }
+            };
+
+            math::Range full_range = {start, end};
+            if constexpr (P == ParallelPolicy::Threaded) {
+                auto schedule = exec::make_linear_schedule(full_range, self.linear_schedule_config);
+
+                self.thread_executor.execute(schedule.size(), [&](size_t i) {
+                    for (size_t j : schedule[i]) run_kernel(j);
+                });
+            }
+            else {
+                for (size_t j : full_range) run_kernel(j);
+            }
+        }
+    };
 }
-
-

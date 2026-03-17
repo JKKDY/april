@@ -12,6 +12,11 @@ namespace april::container {
 		ManualAbs,  // Custom value (absolute)
 		ManualFac   // Custom value (factor * rc)
 	};
+
+	enum class SkinSize {
+		Factor,
+		Absolute
+	 };
 }
 
 namespace april::container::internal {
@@ -22,6 +27,9 @@ namespace april::container::internal {
 	struct LinkedCellsConfig {
 		CellSize cell_size_strategy = CellSize::Cutoff;
 		std::optional<double> manual_cell_size;
+
+		SkinSize skin_strategy = SkinSize::Factor;
+		double skin_value = 0.1;
 
 		std::optional<std::function<std::vector<uint32_t>(uint3)>> cell_ordering_fn;
 		uint3 block_size = {2,2,2};
@@ -63,13 +71,35 @@ namespace april::container::internal {
 			return self;
 		}
 
-		[[nodiscard]] double get_width(const double rc) const {
+		auto with_skin_factor(this auto&& self, const double factor) {
+			// factor is a multiplier of rc
+			self.skin_value = factor;
+			self.skin_strategy = SkinSize::Factor;
+			return self;
+		}
+
+		auto with_absolute_skin(this auto&& self, const double skin) {
+			// absolute distance buffer
+			self.skin_value = skin;
+			self.skin_strategy = SkinSize::Absolute;
+			return self;
+		}
+
+		[[nodiscard]] double get_width(const double max_force_cutoff) const {
 			switch (cell_size_strategy) {
-			case CellSize::Cutoff: return rc;
-			case CellSize::Half:   return rc / 2.0;
-			case CellSize::Third:  return rc / 3.0;
+			case CellSize::Cutoff: return max_force_cutoff;
+			case CellSize::Half:   return max_force_cutoff / 2.0;
+			case CellSize::Third:  return max_force_cutoff / 3.0;
 			case CellSize::ManualAbs: return manual_cell_size.value();
-			case CellSize::ManualFac: return manual_cell_size.value() * rc;
+			case CellSize::ManualFac: return manual_cell_size.value() * max_force_cutoff;
+			default: std::unreachable();
+			}
+		}
+
+		[[nodiscard]] double get_skin(const double cell_size) const {
+			switch (skin_strategy) {
+			case SkinSize::Factor: return skin_value * cell_size;
+			case SkinSize::Absolute: return skin_value;
 			default: std::unreachable();
 			}
 		}

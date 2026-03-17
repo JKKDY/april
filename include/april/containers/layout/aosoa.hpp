@@ -10,46 +10,10 @@
 #include "april/particle/particle_types.hpp"
 #include "april/exec/policy.hpp"
 
+#include "april/containers/layout/internal/soa_chunk.hpp"
+
 
 namespace april::container::layout {
-    template <particle::IsParticleAttributes Attributes, size_t Size>
-    struct alignas(64) ParticleChunk {
-        // Enforce alignment requirements (Size 8 * double 8 bytes = 64 bytes = 1 AVX-512 Register)
-        static_assert(std::has_single_bit(Size),
-                      "Chunk Size must be a Power of 2 (e.g., 8, 16) for bitwise indexing optimizations.");
-        static_assert(Size * sizeof(vec3::type) >= 64,
-                      "Chunk Size must be at least 8 to fill a standard 64-byte Cache Line / AVX-512 register.");
-
-        static constexpr size_t size = Size;
-
-        // Position
-        alignas(64) std::array<vec3::type, Size> pos_x;
-        alignas(64) std::array<vec3::type, Size> pos_y;
-        alignas(64) std::array<vec3::type, Size> pos_z;
-
-        // Velocity
-        alignas(64) std::array<vec3::type, Size> vel_x;
-        alignas(64) std::array<vec3::type, Size> vel_y;
-        alignas(64) std::array<vec3::type, Size> vel_z;
-
-        // Force
-        alignas(64) std::array<vec3::type, Size> frc_x;
-        alignas(64) std::array<vec3::type, Size> frc_y;
-        alignas(64) std::array<vec3::type, Size> frc_z;
-
-        // Old Position
-        alignas(64) std::array<vec3::type, Size> old_x;
-        alignas(64) std::array<vec3::type, Size> old_y;
-        alignas(64) std::array<vec3::type, Size> old_z;
-
-        // Scalars
-        alignas(64) std::array<double, Size> mass;
-        alignas(64) std::array<ParticleState, Size> state;
-        alignas(64) std::array<ParticleType, Size> type;
-        alignas(64) std::array<ParticleID, Size> id;
-        alignas(64) std::array<Attributes, Size> attributes;
-    };
-
 
     template <typename Config, particle::IsParticleAttributes Attributes, size_t ChunkSize>
     class AoSoA : public Container<Config, Attributes> {
@@ -188,27 +152,7 @@ namespace april::container::layout {
                 auto& chunk = data[c_idx];
 
                 // fill chunk
-                chunk.pos_x[l_idx] = p.position.x;
-                chunk.pos_y[l_idx] = p.position.y;
-                chunk.pos_z[l_idx] = p.position.z;
-
-                chunk.vel_x[l_idx] = p.velocity.x;
-                chunk.vel_y[l_idx] = p.velocity.y;
-                chunk.vel_z[l_idx] = p.velocity.z;
-
-                chunk.frc_x[l_idx] = p.force.x;
-                chunk.frc_y[l_idx] = p.force.y;
-                chunk.frc_z[l_idx] = p.force.z;
-
-                chunk.old_x[l_idx] = p.old_position.x;
-                chunk.old_y[l_idx] = p.old_position.y;
-                chunk.old_z[l_idx] = p.old_position.z;
-
-                chunk.mass[l_idx] = p.mass;
-                chunk.state[l_idx] = p.state;
-                chunk.type[l_idx] = p.type;
-                chunk.id[l_idx] = p.id;
-                chunk.attributes[l_idx] = p.attributes;
+                chunk.insert_particle(l_idx, p);
 
                 // Map ID
                 id_to_index_map[static_cast<size_t>(p.id)] = i;
@@ -270,23 +214,7 @@ namespace april::container::layout {
                         auto& dst_chunk = tmp[dst_c];
 
                         // Copy particle fields manually
-                        dst_chunk.pos_x[dst_l] = src_chunk.pos_x[src_l];
-                        dst_chunk.pos_y[dst_l] = src_chunk.pos_y[src_l];
-                        dst_chunk.pos_z[dst_l] = src_chunk.pos_z[src_l];
-                        dst_chunk.vel_x[dst_l] = src_chunk.vel_x[src_l];
-                        dst_chunk.vel_y[dst_l] = src_chunk.vel_y[src_l];
-                        dst_chunk.vel_z[dst_l] = src_chunk.vel_z[src_l];
-                        dst_chunk.frc_x[dst_l] = src_chunk.frc_x[src_l];
-                        dst_chunk.frc_y[dst_l] = src_chunk.frc_y[src_l];
-                        dst_chunk.frc_z[dst_l] = src_chunk.frc_z[src_l];
-                        dst_chunk.old_x[dst_l] = src_chunk.old_x[src_l];
-                        dst_chunk.old_y[dst_l] = src_chunk.old_y[src_l];
-                        dst_chunk.old_z[dst_l] = src_chunk.old_z[src_l];
-                        dst_chunk.mass[dst_l]       = src_chunk.mass[src_l];
-                        dst_chunk.state[dst_l]      = src_chunk.state[src_l];
-                        dst_chunk.type[dst_l]       = src_chunk.type[src_l];
-                        dst_chunk.id[dst_l]         = src_chunk.id[src_l];
-                        dst_chunk.attributes[dst_l] = src_chunk.attributes[src_l];
+                        dst_chunk.copy_from(dst_l, src_l, src_chunk);
 
                         id_to_index_map[dst_chunk.id[dst_l]] = current_new_idx;
 

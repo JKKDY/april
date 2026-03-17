@@ -1,121 +1,14 @@
 #pragma once
 #include <vector>
 #include "april/containers/container.hpp"
-#include "../../exec/executors/omp_executor.hpp"
 #include "april/exec/parallel_utils.hpp"
 #include "april/particle/particle.hpp"
 #include "april/exec/policy.hpp"
 
+#include "april/containers/layout/internal/soa_storage.hpp"
+
 
 namespace april::container::layout {
-
-    template<particle::IsParticleAttributes Attributes>
-    struct SoAStorage {
-        alignas(64) std::vector<vec3::type> pos_x, pos_y, pos_z;
-        alignas(64) std::vector<vec3::type> vel_x, vel_y, vel_z;
-        alignas(64) std::vector<vec3::type> frc_x, frc_y, frc_z;
-        alignas(64) std::vector<vec3::type> old_x, old_y, old_z;
-
-        alignas(64) std::vector<double> mass;
-        alignas(64) std::vector<ParticleState> state;
-        alignas(64) std::vector<ParticleType> type;
-        alignas(64) std::vector<ParticleID> id;
-        alignas(64) std::vector<Attributes> attributes;
-
-        vec3::type * AP_RESTRICT ptr_pos_x = nullptr;
-        vec3::type * AP_RESTRICT ptr_pos_y = nullptr;
-        vec3::type * AP_RESTRICT ptr_pos_z = nullptr;
-
-        // Velocities
-        vec3::type * AP_RESTRICT ptr_vel_x = nullptr;
-        vec3::type * AP_RESTRICT ptr_vel_y = nullptr;
-        vec3::type * AP_RESTRICT ptr_vel_z = nullptr;
-
-        // Forces
-        vec3::type * AP_RESTRICT ptr_frc_x = nullptr;
-        vec3::type * AP_RESTRICT ptr_frc_y = nullptr;
-        vec3::type * AP_RESTRICT ptr_frc_z = nullptr;
-
-        // Old Position
-        vec3::type * AP_RESTRICT ptr_old_x = nullptr;
-        vec3::type * AP_RESTRICT ptr_old_y = nullptr;
-        vec3::type * AP_RESTRICT ptr_old_z = nullptr;
-
-        // Scalars
-        double * AP_RESTRICT ptr_mass = nullptr;
-        ParticleState * AP_RESTRICT ptr_state = nullptr;
-        ParticleType  * AP_RESTRICT ptr_type  = nullptr;
-        ParticleID    * AP_RESTRICT ptr_id    = nullptr;
-        Attributes * AP_RESTRICT ptr_attributes = nullptr;
-
-        size_t capacity{};
-        size_t size{};
-
-        void update_pointer_cache() {
-            ptr_pos_x = pos_x.data(); ptr_pos_y = pos_y.data(); ptr_pos_z = pos_z.data();
-            ptr_vel_x = vel_x.data(); ptr_vel_y = vel_y.data(); ptr_vel_z = vel_z.data();
-            ptr_frc_x = frc_x.data(); ptr_frc_y = frc_y.data(); ptr_frc_z = frc_z.data();
-            ptr_old_x = old_x.data(); ptr_old_y = old_y.data(); ptr_old_z = old_z.data();
-
-            ptr_mass = mass.data();
-            ptr_state = state.data();
-            ptr_type = type.data();
-            ptr_id = id.data();
-            ptr_attributes = attributes.data();
-        }
-
-        void resize(const size_t n) {
-            capacity = n + packed::size() + n % packed::size(); // pad with packed size then round up to next multiple of packed size
-            size = n;
-
-            pos_x.resize(capacity); pos_y.resize(capacity); pos_z.resize(capacity);
-            vel_x.resize(capacity); vel_y.resize(capacity); vel_z.resize(capacity);
-            frc_x.resize(capacity); frc_y.resize(capacity); frc_z.resize(capacity);
-            old_x.resize(capacity); old_y.resize(capacity); old_z.resize(capacity);
-
-            mass.resize(capacity);
-            state.resize(capacity);
-            type.resize(capacity);
-            id.resize(capacity);
-            attributes.resize(capacity);
-
-            update_pointer_cache();
-        }
-
-        // Copy particle data from source index to this index
-        // Used for rebuilding/sorting storage
-        void copy_from(const size_t dest_i, const SoAStorage& src, const size_t src_i) {
-            pos_x[dest_i] = src.pos_x[src_i]; pos_y[dest_i] = src.pos_y[src_i]; pos_z[dest_i] = src.pos_z[src_i];
-            vel_x[dest_i] = src.vel_x[src_i]; vel_y[dest_i] = src.vel_y[src_i]; vel_z[dest_i] = src.vel_z[src_i];
-            frc_x[dest_i] = src.frc_x[src_i]; frc_y[dest_i] = src.frc_y[src_i]; frc_z[dest_i] = src.frc_z[src_i];
-            old_x[dest_i] = src.old_x[src_i]; old_y[dest_i] = src.old_y[src_i]; old_z[dest_i] = src.old_z[src_i];
-
-            mass[dest_i]      = src.mass[src_i];
-            state[dest_i]     = src.state[src_i];
-            type[dest_i]      = src.type[src_i];
-            id[dest_i]        = src.id[src_i];
-            attributes[dest_i] = src.attributes[src_i];
-        }
-
-        void swap(const size_t i, const size_t j) {
-            if (i == j) return;
-
-            std::swap(pos_x[i], pos_x[j]); std::swap(pos_y[i], pos_y[j]); std::swap(pos_z[i], pos_z[j]);
-            std::swap(vel_x[i], vel_x[j]); std::swap(vel_y[i], vel_y[j]); std::swap(vel_z[i], vel_z[j]);
-            std::swap(frc_x[i], frc_x[j]); std::swap(frc_y[i], frc_y[j]); std::swap(frc_z[i], frc_z[j]);
-            std::swap(old_x[i], old_x[j]); std::swap(old_y[i], old_y[j]); std::swap(old_z[i], old_z[j]);
-
-            // Swap Scalars
-            std::swap(mass[i], mass[j]);
-            std::swap(state[i], state[j]);
-            std::swap(type[i], type[j]);
-            std::swap(id[i], id[j]);
-            std::swap(attributes[i], attributes[j]);
-        }
-    };
-
-
-
 
     template<typename Config, particle::IsParticleAttributes Attributes>
     class SoA : public Container<Config, Attributes> {
@@ -176,26 +69,14 @@ namespace april::container::layout {
             bin_starts.push_back(0);
             bin_sizes.push_back(particles.size());
 
+            // insert particles into storage
             for (size_t i = 0; i < particle_count(); ++i) {
                 const auto& p = particles[i];
-
-                // Vectors
-                data.pos_x[i] = p.position.x;        data.pos_y[i] = p.position.y;        data.pos_z[i] = p.position.z;
-                data.vel_x[i] = p.velocity.x;        data.vel_y[i] = p.velocity.y;        data.vel_z[i] = p.velocity.z;
-                data.frc_x[i] = p.force.x;           data.frc_y[i] = p.force.y;           data.frc_z[i] = p.force.z;
-                data.old_x[i] = p.old_position.x;    data.old_y[i] = p.old_position.y;    data.old_z[i] = p.old_position.z;
-
-                // Scalars
-                data.mass[i] = p.mass;
-                data.state[i] = p.state;
-                data.type[i] = p.type;
-                data.id[i] = p.id;
-                data.attributes[i] = p.attributes;
-
-                // ID Map
+                data.insert_particle(i, p);
                 id_to_index_map[static_cast<size_t>(p.id)] = i;
             }
 
+             // pad with garbage data
              for (size_t i = particle_count(); i < capacity(); ++i) {
                  data.pos_x[i] = 1e50;
                  data.pos_y[i] = 1e50;

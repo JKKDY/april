@@ -39,7 +39,7 @@ namespace april::math {
 
     // needed for ADL to work
     template<IsScalar T>
-    AP_FORCE_INLINE T rsqrt(T val) {
+    AP_FORCE_INLINE inline T rsqrt(T val) {
         return T(1) / std::sqrt(val);
     }
 

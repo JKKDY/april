@@ -23,6 +23,7 @@ namespace april::simd {
         { m.store_unaligned(ptr) } -> std::same_as<void>;
 
         // Exports
+        { m.to_bitmask() } -> std::same_as<uint64_t>;
         { m.to_array() }  -> std::same_as<std::array<bool, T::size()>>;
         { m.to_string() } -> std::same_as<std::string>;
 

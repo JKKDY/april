@@ -83,7 +83,7 @@ namespace april {
 			}
 
 
-			[[nodiscard]] bool contains(const vec3d & p) const noexcept{
+			[[nodiscard]] auto contains(const auto & p) const noexcept{
 				return (p.x >= min.x && p.x <= max.x) &&
 					  (p.y >= min.y && p.y <= max.y) &&
 					  (p.z >= min.z && p.z <= max.z);

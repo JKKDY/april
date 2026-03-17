@@ -16,34 +16,42 @@ FetchContent_MakeAvailable(googletest)
 add_executable(test_april
         test_april.cpp
         system_test.cpp
-        forces/interaction_test.cpp
+
         containers/directsum_test.cpp
         containers/linkedcells_test.cpp
         containers/cell_ordering_test.cpp
+
         output_test.cpp
         integrators/stoermerverlet_test.cpp
         integrators/yoshida_test.cpp
+
         boundaries/apply_boundary_test.cpp
         boundaries/absorb_test.cpp
         boundaries/periodic_test.cpp
         boundaries/repulsive_test.cpp
         boundaries/reflective_test.cpp
+
         controllers/apply_controller_test.cpp
         controllers/thermostat_test.cpp
+
         fields/uniform_field_test.cpp
         fields/local_field_test.cpp
         fields/apply_field_test.cpp
+
         particle/particle_test.cpp
         particle/particle_fields_test.cpp
         particle/particle_generators_test.cpp
-        forces/forces_test.cpp
+        particle/packed_fields_test.cpp
+
         math/range_test.cpp
         math/simd_test.cpp
         math/vec3_test.cpp
         math/simd_ref_test.cpp
         math/vec3_ref_test.cpp
         math/simd_vec3_ref_tests.cpp
-        particle/packed_fields_test.cpp
+
+        forces/interaction_test.cpp
+        forces/forces_test.cpp
         forces/simd_forces_test.cpp
 )
 

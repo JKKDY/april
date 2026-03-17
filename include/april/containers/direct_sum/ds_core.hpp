@@ -111,23 +111,70 @@ namespace april::container::internal {
 			const double domain_vol = self.domain.volume();
 			const auto intersection = self.domain.intersection(region);
 
-			// pre allocate buffer with heuristic:  1.1x safety factor * uniform distribution
+			// partition the entire particle range into independent blocks/tasks
+			auto blocks = exec::make_linear_schedule(math::Range{0, self.capacity()}, self.linear_schedule_config);
+			const size_t num_tasks = blocks.size();
+
+			// allocate buffers for each task
+			std::vector<std::vector<size_t>> local_results(num_tasks);
+
+			// preallocate storage with heuristic (assumes uniform distribution)
 			if (domain_vol > 1e-9 && intersection.has_value()) {
 				const double ratio = intersection->volume() / domain_vol;
-				const auto est = static_cast<size_t>(self.particle_count() * ratio * 1.1);
-				ret.reserve(std::min(est, self.particle_count()));
+				const auto est_total = static_cast<size_t>(self.particle_count() * ratio);
+				const size_t est_per_task = (est_total / num_tasks) + 1;
+
+				for (auto& loc : local_results) {
+					loc.reserve(est_per_task);
+				}
 			}
 
-			// gather particles
-			self.for_each_particle(
-				april::scalar_kernel<ParticleField::position>(
-					[&](const size_t i, const auto & particle) {
-						if (region.contains(particle.position)) {
-							ret.push_back(i);
-						}
-					}),
-				ParticleState::ALIVE
+			// process all tasks in parallel
+			self.thread_executor.execute(num_tasks, [&](const size_t t_idx) {
+				const auto& block = blocks[t_idx];
+				auto& local_ret = local_results[t_idx];
+
+				self.for_each_particle(block.start, block.stop,
+					april::universal_kernel<ParticleField::position | ParticleField::state>(
+						[&]<bool is_packed>(const size_t i, const auto & particle) {
+							if constexpr (is_packed) {
+								// vectorized state and contains check
+								auto contains_particle = region.contains(particle.position);
+								auto is_alive = (particle.state == +ParticleState::ALIVE);
+
+								// combine and export as integer bit mask
+								auto valid_mask = contains_particle & is_alive;
+								uint64_t bitmask = valid_mask.to_bitmask();
+
+								// extract exact lanes without branching
+								while (bitmask != 0) {
+									 const uint32_t lane = std::countr_zero(bitmask);
+									 local_ret.push_back(i + lane);
+									 bitmask &= (bitmask - 1); // clears the lowest set bit
+								}
+							} else {
+								if (region.contains(particle.position) && particle.state == ParticleState::ALIVE) {
+									local_ret.push_back(i);
+								}
+							}
+						})
+					);
+				}
 			);
+
+			// allocate storage for indices buffer
+			size_t total_found = 0;
+			for (const auto& loc : local_results) {
+				total_found += loc.size();
+			}
+
+			std::vector<size_t> indices;
+			ret.reserve(total_found);
+
+			// merge all local buffers into indices buffer
+			for (const auto& loc : local_results) {
+				ret.insert(ret.end(), loc.begin(), loc.end());
+			}
 
 			return ret;
 		}

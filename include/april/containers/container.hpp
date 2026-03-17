@@ -128,7 +128,7 @@ namespace april::container {
 			exec::IsKernel Kernel>
 		void for_each_particle(this auto&& self, Kernel && func, ParticleState state = ParticleState::ALL) {
 			self.template invoke_iterate_state<P, V, false>(func, state);
-		}
+		} // TODO add shortcuiting (if kernel returns a bool, stop when a true is encountered)
 
 		// direct range based access (fast & branchless but unsafe; will not perform any checks)
 		template<

@@ -204,15 +204,13 @@ namespace april {
 
 	    	// if the particle is inside the domain
 	        auto boundary_condition_inside = [&]<typename B>(const B & bc) {
-	            constexpr ParticleField M = std::decay_t<B>::fields;
-
 	            thread_executor.execute(blocks.size(), [&](const size_t b_idx) AP_FORCE_INLINE {
 	                const auto& block = blocks[b_idx];
 	                auto& local_buffer = thread_update_buffers[b_idx].buffer;
 
 	                for (size_t i = block.start; i < block.stop; ++i) {
 	                    const size_t p_idx = particle_ids[i];
-	                    auto p = at<M>(p_idx);
+	                    auto p = at<B::fields>(p_idx);
 
 	                    bc.apply(p, domain_box, face);
 
@@ -226,7 +224,6 @@ namespace april {
 	    	// if the particle is outside the domain
 	        auto boundary_condition_outside = [&]<typename B>(const B & bc) {
 	            static constexpr ParticleField detect_mask = ParticleField::position | ParticleField::old_position;
-	            constexpr ParticleField Fields = std::remove_cvref_t<B>::fields | detect_mask;
 
 	            thread_executor.execute(blocks.size(), [&](const size_t b_idx) AP_FORCE_INLINE {
 	                const auto& block = blocks[b_idx];
@@ -234,7 +231,7 @@ namespace april {
 
 	                for (size_t i = block.start; i < block.stop; ++i) {
 	                    const size_t p_idx = particle_ids[i];
-	                    auto particle = at<Fields>(p_idx);
+	                    auto particle = at<B::fields | detect_mask>(p_idx);
 
 	                    const int ax = boundary::axis_of_face(face);
 	                    const vec3 diff = particle.position - particle.old_position;

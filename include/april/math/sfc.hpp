@@ -44,7 +44,7 @@ namespace april::math::sfc {
     // (num steps along the hilbert curve)
     // Optimized to take Vec3<T> to avoid std::vector heap allocations.
     template <typename T>
-    [[nodiscard]] AP_FORCE_INLINE uint64_t hilbert_key(Vec3<T> coords, const int num_bits) {
+    [[nodiscard]] AP_FORCE_INLINE inline uint64_t hilbert_key(Vec3<T> coords, const int num_bits) {
         static_assert(std::is_integral_v<T>, "Hilbert coordinates must be integral");
 
         constexpr size_t num_dims = 3;

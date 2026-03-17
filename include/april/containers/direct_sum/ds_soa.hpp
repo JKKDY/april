@@ -15,8 +15,8 @@ namespace april::container::internal {
         using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumSoAImpl>;
         using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumSoAImpl>;
 
-        using SymTaskGroup = SymTaskGroup<SymmetricBatch, AsymmetricBatch>;
-        using AsymTaskGroup = AsymTaskGroup<AsymmetricBatch>;
+        using SymTaskGroup = SymmetricTaskGroup<SymmetricBatch, AsymmetricBatch>;
+        using AsymTaskGroup = AsymmetricTaskGroup<AsymmetricBatch>;
 
         using Base::Base;
         friend Base;

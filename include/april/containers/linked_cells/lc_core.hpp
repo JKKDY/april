@@ -58,15 +58,15 @@ namespace april::container::internal {
 			self.rebuild_structure2();
 			self.schedule_phases();
 
-			self.last_x.resize(16 * particles.size()); // TODO STOP GAP MEASURE FIX!
-			self.last_y.resize(16 * particles.size());
-			self.last_z.resize(16 * particles.size());
+			self.last_x.resize(particles.size()); // TODO STOP GAP MEASURE FIX!
+			self.last_y.resize(particles.size());
+			self.last_z.resize(particles.size());
 
 			self.template for_each_particle<ParallelPolicy::Serial>(
-				scalar_kernel<ParticleField::position>([&](size_t i, auto && p) {
-					self.last_x[i] = p.position.x;
-					self.last_y[i] = p.position.y;
-					self.last_z[i] = p.position.z;
+				scalar_kernel<ParticleField::position | ParticleField::id>([&](auto && p) {
+					self.last_x[p.id] = p.position.x;
+					self.last_y[p.id] = p.position.y;
+					self.last_z[p.id] = p.position.z;
 				})
 			);
 		}
@@ -76,29 +76,6 @@ namespace april::container::internal {
 			for (const auto & batch : topology_batches) {
 				func(batch);
 			}
-		}
-
-		void rebuild_structure2(this auto&& self) {
-			// reset assignment vector
-			for (auto& bin : self.bin_assignments) {
-				bin.clear();
-			}
-
-			// repopulate assignment vector
-			for (size_t i = 0; i < self.bin_sizes.size(); i++) {
-				size_t start = self.bin_starts[i];
-				size_t end = start + self.bin_sizes[i];
-				self.for_each_particle(start, end,
-					scalar_kernel<ParticleField::type | ParticleField::position>(
-					[&](const size_t idx, const auto & p) {
-						const size_t cid = self.cell_index_from_position(p.position);
-						const size_t bin = self.bin_index(cid, p.type);
-						self.bin_assignments[bin].push_back(idx);
-					}
-				));
-			}
-
-			self.reorder_storage(self.bin_assignments);
 		}
 
 
@@ -119,10 +96,10 @@ namespace april::container::internal {
 
 			// check if a particle has moved further than the  skin thickness
 			self.template for_each_particle<ParallelPolicy::Threaded>(
-				scalar_kernel<ParticleField::position>([&](size_t i, auto && p) {
-					if (std::abs(self.last_x[i] - p.position.x) > self.verlet_skin / 2) rebuild = true;
-					if (std::abs(self.last_y[i] - p.position.y) > self.verlet_skin / 2) rebuild = true;
-					if (std::abs(self.last_z[i] - p.position.z) > self.verlet_skin / 2) rebuild = true;
+				scalar_kernel<ParticleField::position| ParticleField::id>([&](auto && p) {
+					if (std::abs(self.last_x[p.id] - p.position.x) > self.verlet_skin / 2) rebuild = true;
+					if (std::abs(self.last_y[p.id] - p.position.y) > self.verlet_skin / 2) rebuild = true;
+					if (std::abs(self.last_z[p.id] - p.position.z) > self.verlet_skin / 2) rebuild = true;
 				})
 			);
 
@@ -130,11 +107,11 @@ namespace april::container::internal {
 				self.rebuild_structure_impl();
 
 				// cache current particles positions
-				self.template for_each_particle<ParallelPolicy::Threaded>(
-						scalar_kernel<ParticleField::position>([&](size_t i, auto && p) {
-						self.last_x[i] = p.position.x;
-						self.last_y[i] = p.position.y;
-						self.last_z[i] = p.position.z;
+				self.template for_each_particle<ParallelPolicy::Serial>(
+					scalar_kernel<ParticleField::position | ParticleField::id>([&](auto && p) {
+						self.last_x[p.id] = p.position.x;
+						self.last_y[p.id] = p.position.y;
+						self.last_z[p.id] = p.position.z;
 					})
 				);
 			}

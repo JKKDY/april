@@ -17,6 +17,8 @@ namespace april {
 	void System<ContainerDecl, Traits>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
 		using namespace april::exec;
 		using namespace april::exec::internal;
+
+		// check kernel compatibility with batch (in regard to scalar/vector mode)
 		constexpr VectorTrait batch_traits = std::remove_cvref_t<Batch>::vector_trait;
 		constexpr ExecutionMode kernel_modes = std::remove_cvref_t<Kernel>::Mode;
 
@@ -28,10 +30,10 @@ namespace april {
 
 		constexpr ExecutionMode exec_mode = resolve_execution_mode<valid_modes, required_modes>();
 
+		// run kernel on batches
 		if constexpr (container::batching::IsBatchAtom<Batch>) {
 			batch.template for_each_pair<P, exec_mode>(kernel);
-		}
-		else if constexpr (container::batching::IsBatchAtomRange<Batch>) {
+		} else if constexpr (container::batching::IsBatchAtomRange<Batch>) {
 			for (const auto& atom : batch) {
 				atom.template for_each_pair<P, exec_mode>(kernel);
 			}
@@ -46,8 +48,8 @@ namespace april {
 	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits>::update_forces() {
 
-		// batch update lambda. passed into container::for_each_interaction_batch
-		auto update_batch = [&]<container::batching::IsBatch Batch, container::batching::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
+		// handle pair wise (type-type) interactions
+		auto update_forces_batch = [&]<container::batching::IsBatch Batch, container::batching::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
 
 			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
 				constexpr ParticleField M = ForceT::fields | ParticleField::position;
@@ -127,26 +129,13 @@ namespace april {
 			force_table.dispatch(t1, t2, apply_batch_update);
 		};
 
-		for_each_particle<ParallelPolicy::Threaded>(
-			april::universal_kernel<ParticleField::force, ParticleField::force>(
-				[](auto && p) { p.force = {}; } // reset forces
-			)
-		);
-		particle_container.invoke_for_each_interaction_batch(update_batch);
-
-
-
-
-		// handle id interactions
-		auto update_global_batch = [&](const auto & batch) {
-
+		// handle id-id interactions
+		auto update_forces_topology_batch = [&](const container::batching::IsTopologyBatch auto & batch) {
 			auto apply_batch_update = [&] <force::IsForce ForceT> (const ForceT & force) {
-				constexpr ParticleField Read = ForceT::fields | ParticleField::force | ParticleField::position;
+				constexpr auto Read = ForceT::fields | ParticleField::position;
+				constexpr auto Write = ParticleField::force;
 
-				for (const auto & [id1, id2] : batch.pairs) {
-					auto && p1 = at_id<Read, ForceT::fields | ParticleField::force>(id1);
-					auto && p2 = at_id<Read, ForceT::fields | ParticleField::force>(id2);
-
+				auto kernel = [&](auto && p1, auto && p2) AP_FORCE_INLINE {
 					vec3 r = p2.position - p1.position;
 
 					if constexpr (ForceT::symmetry == force::ForceSymmetry::Antisymmetric) {
@@ -161,13 +150,22 @@ namespace april {
 						p1.force += force(p1.to_view(), p2.to_view(), r);
 						p2.force += force(p2.to_view(), p1.to_view(), -r);
 					}
-				}
+				};
+				batch.for_each_pair(april::scalar_kernel<Read, Write>(kernel));
 			};
 
-			force_table.dispatch_id(batch.id1, batch.id2, apply_batch_update);
+			force_table.dispatch_id(batch.representatives.first, batch.representatives.second, apply_batch_update);
 		};
 
-		particle_container.invoke_for_each_topology_batch(update_global_batch);
+		for_each_particle<ParallelPolicy::Threaded>(
+			april::universal_kernel<ParticleField::force, ParticleField::force>(
+				[](auto && p) { p.force = {}; } // reset forces
+			)
+		);
+
+		// TODO propagate parallel policy
+		particle_container.invoke_for_each_interaction_batch(update_forces_batch);
+		particle_container.invoke_for_each_topology_batch(update_forces_topology_batch);
 	}
 
 

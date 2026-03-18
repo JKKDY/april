@@ -18,10 +18,16 @@ namespace april::container::batching {
 		std::pair<ParticleType, ParticleType> types {};
 	};
 
-	struct TopologyBatch {
-		ParticleID id1, id2;
-		std::vector<std::pair<ParticleID, ParticleID>> pairs;
+	template <typename T>
+	concept IsTopologyBatch =
+	requires(T t) {
+		{ t.representatives } -> std::convertible_to<std::pair<ParticleType, ParticleType>>;
+
+		t.template for_each_pair<ParallelPolicy::Serial>(
+			scalar_kernel([](auto&&, auto&&) {})
+		);
 	};
+
 
 	//--------------
 	// BATCH CONCEPT

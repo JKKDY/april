@@ -7,11 +7,12 @@
 #include <functional>
 #include <limits>
 
+#include "lc_batching.hpp"
 #include "april/base/types.hpp"
+#include "april/containers/batching/topology_batch.hpp"
 #include "april/particle/particle_types.hpp"
 #include "april/core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
-#include "april/containers/batching/common.hpp"
 #include "april/exec/parallel_utils.hpp"
 
 namespace april::math {
@@ -72,9 +73,11 @@ namespace april::container::internal {
 		}
 
 		template<typename Func>
-		void for_each_topology_batch(Func && func) {
-			for (const auto & batch : topology_batches) {
-				func(batch);
+		void for_each_topology_batch(this auto&& self, Func && f) {
+			for (const auto& phase : self.topology_phases) {
+				self.thread_executor.execute(phase.size(), [&](size_t i) {
+					f(phase[i]);
+				});
 			}
 		}
 
@@ -181,66 +184,67 @@ namespace april::container::internal {
 
 		    if (cells.empty()) return {};
 
-		    // 1. Partition the interacting cells into parallel tasks
+			// partition the entire particle range into independent blocks/tasks
 		    auto blocks = exec::make_linear_schedule(math::Range{0, cells.size()}, self.linear_schedule_config);
 		    const size_t num_tasks = blocks.size();
 
-		    // 2. Allocate independent thread-local buffers
+			// allocate buffers for each task
 		    std::vector<std::vector<size_t>> local_results(num_tasks);
 
-		    // Heuristic: reserve space for expected average particles per cell for this task
+			// preallocate storage with heuristic (assumes uniform distribution)
 		    const size_t est_count_per_task = (self.particle_count() * cells.size() / self.n_cells) / num_tasks + 1;
 		    for (auto& loc : local_results) {
 		        loc.reserve(est_count_per_task);
 		    }
 
-		    // 3. Process the cells in parallel
+			// process all tasks in parallel
 		    self.thread_executor.execute(num_tasks, [&](const size_t t_idx) {
 		        const auto& block = blocks[t_idx];
 		        auto& local_ret = local_results[t_idx];
 
-		        // Each task loops over its assigned chunk of cells
+		        // each task loops over its assigned chunk of cells
 		        for (size_t c = block.start; c < block.stop; ++c) {
+		        	// get the search range (slice of particle data)
 		            const size_t cid = cells[c];
 		            const auto [start_idx, end_idx] = self.cell_index_range(cid);
 
+		        	// skip empty ranges
 		            if (start_idx == end_idx) continue;
 
-		        	auto find_particles_in_region = [&]<bool is_packed>(const size_t i, const auto & particle) AP_FORCE_INLINE {
-						if constexpr (is_packed) {
-							// Vectorized state and bounds check
-							auto contains_particle = region.contains(particle.position);
-							auto is_alive = (particle.state == +ParticleState::ALIVE);
+		        	// kernel checks if a particle is alive and inside the region
+		        	// this is scalar because SoA layout is tightly packed resulting in spilling
+		        	// TODO: make this a universal kernel by propagating masks along with particle data
+		        	auto kernel = april::scalar_kernel<ParticleField::position | ParticleField::state> (
+						[&]<bool is_packed>(const size_t i, const auto & particle) {
+							if constexpr (is_packed) {
+								// vectorized state and contains check
+								auto contains_particle = region.contains(particle.position);
+								auto is_alive = (particle.state == +ParticleState::ALIVE);
 
-							// Combine and extract bitmask
-							auto valid_mask = contains_particle & is_alive;
-							uint64_t bitmask = valid_mask.to_bitmask();
+								// combine and export as integer bit mask
+								auto valid_mask = contains_particle & is_alive;
+								uint64_t bitmask = valid_mask.to_bitmask();
 
-							// Branchless extraction
-							while (bitmask != 0) {
-								const uint32_t lane = std::countr_zero(bitmask);
-								local_ret.push_back(i + lane);
-								bitmask &= (bitmask - 1);
-							}
-						} else {
-							if (region.contains(particle.position) && particle.state == ParticleState::ALIVE) {
-								local_ret.push_back(i);
+								// extract exact lanes without branching
+								while (bitmask != 0) {
+									 const uint32_t lane = std::countr_zero(bitmask);
+									 local_ret.push_back(i + lane);
+									 bitmask &= (bitmask - 1); // clears the lowest set bit
+								}
+							} else {
+								if (region.contains(particle.position) && particle.state == ParticleState::ALIVE) {
+									local_ret.push_back(i);
+								}
 							}
 						}
-					};
+					);
 
-		            // Run the vectorized kernel over this specific cell's memory range
-		            self.for_each_particle(start_idx, end_idx,
-		            	// this is scalar because SoA layout is tightly packed resulting in spilling
-		            	// TODO: make this a universal kernel by propagating masks along with particle data
-		                april::scalar_kernel<ParticleField::position | ParticleField::state>(
-							find_particles_in_region
-		                )
-		            );
+		            // run the kernel
+		            self.for_each_particle(start_idx, end_idx, kernel);
 		        }
 		    });
 
-		    // 4. Sequential merge of thread-local buffers
+			// allocate storage for indices buffer
 		    size_t total_found = 0;
 		    for (const auto& loc : local_results) {
 		        total_found += loc.size();
@@ -249,6 +253,7 @@ namespace april::container::internal {
 		    std::vector<size_t> ret;
 		    ret.reserve(total_found);
 
+			// merge all local buffers into indices buffer
 		    for (const auto& loc : local_results) {
 		        ret.insert(ret.end(), loc.begin(), loc.end());
 		    }
@@ -284,19 +289,66 @@ namespace april::container::internal {
 		// SETUP
 		//------
 		void setup_topology_batches(this auto && self) {
-			// precompute topology batches (id based batches)
-			for (size_t i = 0; i < self.force_schema.interactions.size(); ++i) {
-				const auto& prop = self.force_schema.interactions[i];
+		    for (size_t i = 0; i < self.force_schema.interactions.size(); ++i) {
+		        const auto& prop = self.force_schema.interactions[i];
 
-				if (!prop.used_by_ids.empty() && prop.is_active) {
-					batching::TopologyBatch batch;
-					batch.id1 = prop.used_by_ids[0].first;
-					batch.id2 = prop.used_by_ids[0].second;
-					batch.pairs = prop.used_by_ids;
+		    	// skip empty batches or passive interactions (e.g. NoForce)
+		        if (prop.used_by_ids.empty() || !prop.is_active) continue;
 
-					self.topology_batches.push_back(std::move(batch));
-				}
-			}
+		    	// get a representative pair. This determines the type of interaction for the batch
+	            auto rep_types = std::make_pair(
+	                static_cast<ParticleType>(prop.used_by_ids[0].first),
+	                static_cast<ParticleType>(prop.used_by_ids[0].second)
+	            );
+
+	            // greedy coloring scheme: every pair conflicting with all phases gets a new pahse
+	            std::vector<std::vector<std::pair<ParticleID, ParticleID>>> raw_phases;
+	            for (const auto& pair : prop.used_by_ids) {
+	                bool placed = false;
+
+	            	// check if current pair would conflict with any other pair in any of the other phases
+	                for (auto& phase : raw_phases) {
+	                    bool conflict = false;
+	                    for (const auto& existing : phase) {
+	                        if (existing.first == pair.first || existing.second == pair.first ||
+	                            existing.first == pair.second || existing.second == pair.second) {
+	                            conflict = true; break;
+	                        }
+	                    }
+	                	// if no conflicts with current phase, add it
+	                    if (!conflict) { phase.push_back(pair); placed = true; break; }
+	                }
+	            	// if conflict with every other phase create a new phase
+	                if (!placed) raw_phases.push_back({pair});
+	            }
+
+	            // 2. Build the fully independent batches
+	            for (auto& raw_phase : raw_phases) {
+	                std::vector<batching::TopologyBatch<LinkedCellsCore>> current_phase_batches;
+
+	                auto blocks = exec::make_linear_schedule(
+	                    math::Range{0, raw_phase.size()},
+	                    self.linear_schedule_config
+	                );
+
+	                current_phase_batches.reserve(blocks.size());
+	                for (const auto& block : blocks) {
+	                    batching::TopologyBatch<LinkedCellsCore> batch;
+	                    batch.representatives = rep_types;
+	                    batch.container_ptr = &self;
+
+	                    // Copy the specific chunk into the batch's owned vector
+	                    batch.pairs = std::vector<std::pair<ParticleID, ParticleID>>(
+	                        raw_phase.begin() + block.start,
+	                        raw_phase.begin() + block.stop
+	                    );
+
+	                    current_phase_batches.push_back(std::move(batch));
+	                }
+
+	                self.topology_phases.push_back(current_phase_batches);
+		        }
+		    }
 		}
 
 		void setup_cell_grid(this auto&& self) {
@@ -719,7 +771,7 @@ namespace april::container::internal {
 			return self.cell_pos_to_idx(x, y, z);
 		}
 	private:
-		std::vector<batching::TopologyBatch> topology_batches;
+		std::vector<std::vector<batching::TopologyBatch<LinkedCellsCore>>> topology_phases;
 	};
 }
 

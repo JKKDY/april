@@ -2,7 +2,6 @@
 
 #include <vector>
 #include <algorithm>
-#include <ranges>
 #include <numeric>
 
 #include "april/base/types.hpp"

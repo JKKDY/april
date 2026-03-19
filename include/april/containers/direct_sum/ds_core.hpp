@@ -168,7 +168,7 @@ namespace april::container::internal {
 			return ret;
 		}
 
-		void rebuild_structure() { /*NoOp: nothing to rebuild for a direct sum implementation*/ }
+		void rebuild_structure() { /*NoOp: nothing to rebuild for direct sum*/ }
 
 	private:
 		std::vector<std::vector<batching::TopologyBatch<DirectSumCore>>> topology_phases;
@@ -186,7 +186,7 @@ namespace april::container::internal {
 	                static_cast<ParticleType>(prop.used_by_ids[0].second)
 	            );
 
-	            // greedy coloring scheme: every pair conflicting with all phases gets a new pahse
+	            // greedy coloring scheme: every pair conflicting with all phases gets a new phase
 	            std::vector<std::vector<std::pair<ParticleID, ParticleID>>> raw_phases;
 	            for (const auto& pair : prop.used_by_ids) {
 	                bool placed = false;
@@ -260,7 +260,7 @@ namespace april::container::internal {
 			self.generate_batches();
 		}
 
-		 void generate_batches(this auto && self) {
+		void generate_batches(this auto && self) {
 			// if (self.bin_starts.empty()) return;
 			const auto n_types = static_cast<ParticleType>(self.force_schema.types.size());
 

@@ -53,6 +53,8 @@ add_executable(test_april
         forces/interaction_test.cpp
         forces/forces_test.cpp
         forces/simd_forces_test.cpp
+
+        utility/graph_test.cpp
 )
 
 target_include_directories(test_april PRIVATE

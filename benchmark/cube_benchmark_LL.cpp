@@ -56,7 +56,7 @@ int main() {
 
 	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
 	integrator.add_monitor(Benchmark());
-	integrator.add_monitor(ProgressBar(Trigger::always()));
+	// integrator.add_monitor(ProgressBar(Trigger::always()));
 		// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
 	integrator.run_for_steps(dt, steps);
 

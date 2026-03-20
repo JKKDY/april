@@ -6,13 +6,15 @@
 #include <type_traits>
 #include <algorithm>
 
+
+#include "april/exec/info.hpp"
 #include "april/exec/executors/executor_traits.hpp"
 
 namespace april::exec {
     class NativeExecutor {
     public:
         // n-1 workers because the main thread does work too
-        explicit NativeExecutor(const unsigned int n = std::max<unsigned int>(1, n_threads - 1))
+        explicit NativeExecutor(const unsigned int n = std::max<unsigned int>(1, N_CPU_THREADS - 5))
             : start_sync(n + 1), end_sync(n + 1) {
             threads.reserve(n);
             for (unsigned int i = 0; i < n; ++i) {
@@ -25,8 +27,9 @@ namespace april::exec {
             start_sync.arrive_and_wait();
         }
 
+
         template <IsWorkAtom F>
-        void execute(const size_t batch_count, F&& task) {
+        void execute(const size_t batch_count, F&& task) const {
             if (batch_count == 0) return;
 
             // use type erasure to schedule task
@@ -57,20 +60,21 @@ namespace april::exec {
         std::vector<std::jthread> threads;
         std::atomic<bool> terminate{false};
 
-        // read only state
-        size_t total_tasks{0};
-        size_t chunk_size{1};
-        TaskWrapper active_task{};
+        // mutable read-only state for current task
+        mutable size_t total_tasks{0};
+        mutable size_t chunk_size{1};
+        mutable TaskWrapper active_task{};
 
-        // contended state (Isolated in its own cache line)
-        alignas(cache_line_size) std::atomic<size_t> current_idx{0};
+        // mutable contended state (Isolated in its own cache line)
+        alignas(CACHE_LINE_SIZE) mutable std::atomic<size_t> current_idx{0};
 
-        // barriers
-        alignas(cache_line_size) std::barrier<> start_sync;
-        alignas(cache_line_size) std::barrier<> end_sync;
+        // mutable barriers
+        alignas(CACHE_LINE_SIZE) mutable std::barrier<> start_sync;
+        alignas(CACHE_LINE_SIZE) mutable std::barrier<> end_sync;
+
 
         // The shared work loop for both workers and the main thread
-        void process_tasks() {
+        void process_tasks() const {
             while (true) {
                 const size_t start = current_idx.fetch_add(chunk_size, std::memory_order_relaxed);
                 if (start >= total_tasks) break;
@@ -83,7 +87,7 @@ namespace april::exec {
         }
 
         // thread function. processes tasks, then sleeps
-        void worker_loop() {
+        void worker_loop() const {
             while (true) {
                 start_sync.arrive_and_wait();
                 if (terminate.load(std::memory_order_relaxed)) return;

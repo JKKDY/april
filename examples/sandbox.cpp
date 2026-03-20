@@ -1,13 +1,13 @@
 
-#include <april/april.hpp>
+ #include <april/april.hpp>
 #include <filesystem>
 
-#include "april/containers/linked_cells.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;
 
 int main() {
+
 	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/sandbox";
 	remove_all(dir_path);   // delete the directory and all contents
 	create_directory(dir_path); // recreate the empty directory
@@ -43,6 +43,8 @@ int main() {
 		.with_monitor(Benchmark())
 		.with_monitor(BinaryOutput(Trigger::every(100), dir_path.string()))
 		.with_monitor(ProgressBar(Trigger::every(100)))
-		.run_for_duration(0.0002, 5);
+		.run_for_duration(0.0002, 0.1);
 }
+
+
 

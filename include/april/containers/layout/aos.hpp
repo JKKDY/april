@@ -18,7 +18,7 @@ namespace april::container::layout {
         AoS(const Config& config, const internal::ContainerCreateInfo& info, const exec::Executor& executor) :
             Base(config, info, executor) {
             this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
-            this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);
+            this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 4);
         }
 
 

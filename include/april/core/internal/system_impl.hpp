@@ -258,7 +258,6 @@ namespace april {
 	            });
 	        };
 
-	    	// TODO what if we have a boundary domain that is inside AND outside?
 	        if (compiled_boundary.topology.boundary_thickness >= 0) { // >0 implies the boundary region only applies to inside
 	            compiled_boundary.dispatch(boundary_condition_inside);
 	        } else {

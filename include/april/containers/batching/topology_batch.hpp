@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <utility>
+#include <numeric>
 
 #include "april/exec/policy.hpp"
 #include "april/particle/particle_types.hpp"

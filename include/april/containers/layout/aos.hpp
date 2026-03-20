@@ -163,8 +163,7 @@ namespace april::container::layout {
                 using K = std::remove_cvref_t<Kernel>;
                 if constexpr (is_const) {
                     kernel(i, self.template view<K::Read>(i));
-                }
-                else {
+                } else {
                     kernel(i, self.template at<K::Read, K::Write>(i));
                 }
             };

@@ -8,7 +8,7 @@ namespace april::exec {
     concept IsWorkAtom = std::invocable<F, size_t>;
 
     template<typename T>
-    concept IsExecutor = requires(T exec, size_t count) {
+    concept IsExecutor = requires(const T exec, size_t count) {
 
         // execute takes in the number of batches and a callable with the current index of the batch being processed
         { exec.execute(count, [](size_t){}) } -> std::same_as<void>;

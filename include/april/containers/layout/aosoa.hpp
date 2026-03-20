@@ -12,7 +12,6 @@
 
 #include "april/containers/layout/internal/soa_chunk.hpp"
 
-
 namespace april::container::layout {
 
     template <typename Config, particle::IsParticleAttributes Attributes, size_t ChunkSize>
@@ -340,7 +339,6 @@ namespace april::container::layout {
                 }
             };
 
-            // route serial/multithreading execution
             if constexpr (P == ParallelPolicy::Serial) {
                 process_sub_range(start, end);
             }

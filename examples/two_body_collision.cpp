@@ -36,12 +36,12 @@ int main() {
 	   .with_force(LennardJones(5, 1), to_type(0))
 	   .with_boundaries(ReflectiveBoundary(), all_faces);
 
-	auto container = DirectSum<Layout::AoS>();
+	auto container = LinkedCells<Layout::AoSoA<>>();
 	auto system = build_system(env, container);
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
 		.with_monitor(Benchmark())
-		.with_monitor(BinaryOutput(Trigger::every(100), dir_path.string()))
+		//.with_monitor(BinaryOutput(Trigger::every(100), dir_path.string()))
 		.with_monitor(ProgressBar(Trigger::every(100)))
 		.run_for_duration(0.0002, 5);
 }

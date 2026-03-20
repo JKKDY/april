@@ -11,18 +11,18 @@
 #include "april/exec/executors/executor_traits.hpp"
 
 namespace april::exec {
-    class NativeExecutor {
+    class NativeBarrierExecutor {
     public:
         // n-1 workers because the main thread does work too
-        explicit NativeExecutor(const unsigned int n = std::max<unsigned int>(1, N_CPU_THREADS - 5))
-            : start_sync(n + 1), end_sync(n + 1) {
-            threads.reserve(n);
-            for (unsigned int i = 0; i < n; ++i) {
-                threads.emplace_back(&NativeExecutor::worker_loop, this);
+        explicit NativeBarrierExecutor(const unsigned int n = N_CPU_THREADS)
+            : start_sync(n), end_sync(n) {
+            threads.reserve(n-1);
+            for (unsigned int i = 0; i < n-1; ++i) {
+                threads.emplace_back(&NativeBarrierExecutor::worker_loop, this);
             }
         }
 
-        ~NativeExecutor() {
+        ~NativeBarrierExecutor() {
             terminate.store(true, std::memory_order_relaxed);
             start_sync.arrive_and_wait();
         }

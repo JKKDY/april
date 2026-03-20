@@ -1,6 +1,6 @@
 #include "april/exec/executors/native_executor.hpp"
 #include "april/exec/executors/omp_executor.hpp"
-#include "../archive/performance_executor.hpp"
+#include "../include/april/exec/executors/performance_executor.hpp"
 
 #include <iostream>
 #include <vector>

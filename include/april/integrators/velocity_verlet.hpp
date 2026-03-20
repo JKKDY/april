@@ -23,9 +23,9 @@ namespace april {
 			ParticleField::state | ParticleField::velocity | ParticleField::force | ParticleField::mass;
 
 		void integration_step() const {
-			// sys.update_all_components();
+			sys.update_all_components();
 
-			sys.template for_each_particle<ParallelPolicy::Serial>(scalar_kernel<pos_upd_fields, pos_upd_fields>(
+			sys.template for_each_particle<ParallelPolicy::Threaded>(scalar_kernel<pos_upd_fields, pos_upd_fields>(
 				[&](auto p) {
 					p.old_position = p.position;
 					p.velocity += (dt / 2.0) * (p.force / p.mass);
@@ -36,15 +36,15 @@ namespace april {
 			sys.rebuild_structure();
 			sys.apply_boundary_conditions();
 			sys.update_forces();
-			// sys.apply_force_fields();
-			//
+			sys.apply_force_fields();
+
 			sys.template for_each_particle<ParallelPolicy::Threaded>(universal_kernel<vel_upd_fields, vel_upd_fields>(
 				[&](auto p) {
 					p.velocity += (dt / 2.0) * (p.force / p.mass);
 				}
 			), State::MOVABLE);
-			//
-			// sys.apply_controllers();
+
+			sys.apply_controllers();
 		}
 	};
 

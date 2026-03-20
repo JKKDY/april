@@ -1,7 +1,7 @@
 #pragma once
 
 
-#define AP_EXECUTOR_USE_NATIVE_SPIN
+#define AP_EXECUTOR_USE_NATIVE_BARRIER
 
 #if defined(AP_EXECUTOR_USE_OMP)
 #include "april/exec/executors/omp_executor.hpp"
@@ -12,7 +12,7 @@ namespace april::exec {
 
 #elif defined(AP_EXECUTOR_USE_NATIVE_BARRIER)
 
-#include "april/exec/executors/native_executor.hpp"
+#include "april/exec/executors/native_barrier_executor.hpp"
 
 namespace april::exec {
     using Executor = NativeBarrierExecutor;

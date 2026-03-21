@@ -21,22 +21,24 @@ namespace april {
 	};
 
 
-	template <class Container, core::IsEnvironment EnvT>
-	requires container::IsContainerDecl<Container, typename EnvT::traits>
-	System<Container, typename EnvT::traits> build_system(
-		const EnvT & environment,
-		const Container& container_config,
+	// constructs a system from an environment and a container.
+	template <class ContainerCfg, core::IsEnvironment Env, exec::IsExecutionConfig ExecCfg>
+	requires container::IsContainerDecl<ContainerCfg, typename Env::traits>
+	System<ContainerCfg, typename Env::traits, ExecCfg> build_system(
+		const Env & environment,
+		const ContainerCfg & container_config,
+		const ExecCfg & execution_config,
 		BuildInfo * build_info
 	) {
-		using BoundaryTable = EnvT::traits::boundary_table_t;
-		using ForceTable = EnvT::traits::force_table_t;
-		using ParticleRecord = EnvT::traits::particle_record_t;
+		using BoundaryTable = Env::traits::boundary_table_t;
+		using ForceTable = Env::traits::force_table_t;
+		using ParticleRecord = Env::traits::particle_record_t;
 
 		using EnvData = core::internal::EnvironmentData< // explicit type so the IDE can perform code completion
-			typename EnvT::traits::force_variant_t,
-			typename EnvT::traits::boundary_variant_t,
-			typename EnvT::traits::controller_storage_t,
-			typename EnvT::traits::field_storage_t>;
+			typename Env::traits::force_variant_t,
+			typename Env::traits::boundary_variant_t,
+			typename Env::traits::controller_storage_t,
+			typename Env::traits::field_storage_t>;
 
 		// get a copy of the environment data
 		EnvData env = core::internal::get_env_data(environment);
@@ -47,8 +49,8 @@ namespace april {
 			env.domain, particle_bbox, env.margin_abs, env.margin_fac);
 
 		// validate & create Particles
-		auto [type_pairs, id_pairs] = core::internal::extract_interaction_parameters(
-			env.type_interactions, env.id_interactions );
+		auto [type_pairs, id_pairs] =
+			core::internal::extract_interaction_parameters(env.type_interactions, env.id_interactions );
 
 		core::internal::assign_missing_particle_ids(env.particles, env.user_particle_ids);
 
@@ -61,7 +63,7 @@ namespace april {
 		);
 
 		const std::vector<ParticleRecord> particles =
-			core::internal::build_particles<typename EnvT::traits::particle_attributes_t>(env.particles, type_map, id_map);
+			core::internal::build_particles<typename Env::traits::particle_attributes_t>(env.particles, type_map, id_map);
 
 		// create boundary table
 		core::internal::set_default_boundaries(env.boundaries);
@@ -87,7 +89,8 @@ namespace april {
 			.domain = simulation_box
 		};
 
-		return System<Container, typename EnvT::traits> (
+		return System<ContainerCfg, typename Env::traits, ExecCfg> (
+			execution_config,
 			container_config,
 			container_info,
 			simulation_box,
@@ -97,6 +100,33 @@ namespace april {
 			env.controllers,
 			env.fields
 		);
+	}
+
+	// convenience overloads
+	template <class Container, core::IsEnvironment EnvT>
+	auto build_system(
+		const EnvT & environment,
+		const Container & container_config
+	) {
+		return build_system(environment, container_config, ExecutionConfig(), nullptr);
+	}
+
+	template <class Container, core::IsEnvironment EnvT>
+	auto build_system(
+		const EnvT & environment,
+		const Container & container_config,
+		BuildInfo * build_info
+	) {
+		return build_system(environment, container_config, ExecutionConfig(), build_info);
+	}
+
+	template <class Container, core::IsEnvironment EnvT>
+	auto build_system(
+		const EnvT & environment,
+		const Container & container_config,
+		const exec::IsExecutionConfig auto & execution_config
+	) {
+		return build_system(environment, container_config, execution_config, nullptr);
 	}
 }
 

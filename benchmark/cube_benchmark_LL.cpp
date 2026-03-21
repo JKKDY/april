@@ -50,9 +50,10 @@ int main() {
 		.with_block_size(2)
 		.with_skin_factor(0.1);
 
+	auto e = ExecutionConfig();
 	auto system = build_system(env, container);
 	constexpr double dt = 0.0002;
-	constexpr int steps  = 20;
+	constexpr int steps  = 100;
 
 	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
 	integrator.add_monitor(Benchmark());
@@ -60,8 +61,8 @@ int main() {
 		// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
 	integrator.run_for_steps(dt, steps);
 
-	std::cout << "Particles: " << NX * NY * NZ << "\n"
-			 << "Steps: " << steps << "\n"
-			 << "dt: " << dt << "\n";
+	// std::cout << "Particles: " << NX * NY * NZ << "\n"
+	// 		 << "Steps: " << steps << "\n"
+	// 		 << "dt: " << dt << "\n";
 }
 

@@ -128,7 +128,6 @@ function(set_target_build_flags target_name)
                 /Zc:inline          # Remove unreferenced COMDATs (shrinks binary/link time)
                 /cgthreads8         # Use 8 threads for compilation/codegen
                 /openmp:llvm
-                /LTCG
             >
 
             #---------------------------

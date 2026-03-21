@@ -7,25 +7,29 @@
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
 #include "april/core/context.hpp"
-#include "april/exec/executor.hpp"
+#include "april/exec/config.hpp"
 
 namespace april {
 	struct BuildInfo;
 
-	template <class C, core::internal::IsEnvironmentTraits Traits>
+	template <class C, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecCfg>
 	requires container::IsContainerDecl<C, Traits>
 	class System;
 
 
-	template <class Container, core::IsEnvironment EnvT>
-	requires container::IsContainerDecl<Container, typename EnvT::traits>
-	System<Container, typename EnvT::traits> build_system(
-		const EnvT & environment,
+	template <class Container, core::IsEnvironment Env, exec::IsExecutionConfig ExecCfg>
+	requires container::IsContainerDecl<Container, typename Env::traits>
+	System<Container, typename Env::traits, ExecCfg> build_system(
+		const Env & environment,
 		const Container & container_config,
-		BuildInfo * build_info = nullptr
+		const ExecCfg & execution_config,
+		BuildInfo * build_info
 	);
 
-	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits>
+
+
+
+	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
 	requires container::IsContainerDecl<ContainerDecl, Traits>
 	class System final {
 		// --------------
@@ -36,6 +40,7 @@ namespace april {
 		using ForceTable     	= Traits::force_table_t;
 		using BoundaryTable  	= Traits::boundary_table_t;
 		using ParticleAttributes= Traits::particle_attributes_t;
+		using ExecutionConfig   = ExecConfig;
 	public:
 
 		// ----------------
@@ -45,7 +50,6 @@ namespace april {
 		using TrigContext = utility::internal::TriggerContextImpl<System>;
 		using Container = ContainerDecl::template impl<ParticleAttributes>;
 		using ParticleRec = Traits::particle_record_t;
-
 
 		// -----------------
 		// LIFECYCLE & STATE
@@ -142,7 +146,7 @@ namespace april {
 		// --------------
 		template<
 			ParallelPolicy P=ParallelPolicy::Serial,
-			VectorPolicy V=VectorPolicy::Auto,
+			VectorPolicy V=ExecConfig::vector_policy,
 			exec::IsKernel Kernel>
 		void for_each_particle(Kernel && func, ParticleState state = ParticleState::ALL) {
 			particle_container.template for_each_particle<P, V, Kernel>(std::forward<Kernel>(func), state);
@@ -150,7 +154,7 @@ namespace april {
 
 		template<
 			ParallelPolicy P=ParallelPolicy::Serial,
-			VectorPolicy V=VectorPolicy::Auto,
+			VectorPolicy V=ExecConfig::vector_policy,
 			exec::IsKernel Kernel>
 		void for_each_particle_view(Kernel && func, ParticleState state = ParticleState::ALL) const {
 			static_assert(std::remove_cvref_t<Kernel>::Write == ParticleField::none,
@@ -211,7 +215,7 @@ namespace april {
 				};
 
 				auto kernel = exec::internal::KernelWrapper<K::Read, K::Write, K::Mode, decltype(bridge)>{bridge};
-				execute_batch_kernel<ParallelPolicy::Serial, VectorPolicy::Scalar>(batch, kernel);
+				execute_batch_kernel<ParallelPolicy::Serial, ExecConfig::vector_policy>(batch, kernel);
 			};
 
 			for_each_interaction_batch(update_batch);
@@ -246,6 +250,7 @@ namespace april {
 		// -------
 		// PHYSICS
 		// -------
+		// note: these methods will be eventually abstracted into compute stages which will be composable in a compute pipeline
 		void update_forces();
 		void apply_boundary_conditions();
 		void apply_controllers();
@@ -279,6 +284,7 @@ namespace april {
 		ControllerStorage controllers;
 		FieldStorage fields;
 		Container particle_container;
+		ExecConfig exec_config;
 
 		struct alignas(64) PaddedThreadBuffer { std::vector<size_t> buffer; };
 		std::vector<PaddedThreadBuffer> thread_update_buffers;
@@ -293,6 +299,7 @@ namespace april {
 
 		// private constructor since System should only be creatable through build_system(...)
 		System(
+			const ExecConfig& exec_config,
 			const ContainerDecl& container_cfg,
 			const container::internal::ContainerCreateInfo & container_info,
 			const core::Box& domain_in,
@@ -309,6 +316,7 @@ namespace april {
 			  controllers(controllers_in),
 			  fields(fields_in),
 			  particle_container(Container(container_cfg, container_info, thread_executor)),
+			  exec_config(exec_config),
 			  system_context(*this),
 			  trig_context(*this)
 		{
@@ -319,14 +327,11 @@ namespace april {
 
 		// Friend factory: only entry point for constructing a System
 		// Avoids exposing constructor internals publicly.
-		template <class Container, core::IsEnvironment EnvT>
-		requires container::IsContainerDecl<Container, typename EnvT::traits>
-		friend System<Container, typename EnvT::traits>
-		build_system(
-			 const EnvT & environment,
-			 const Container& container,
-			 BuildInfo * build_info
-		);
+		template <class C, core::IsEnvironment E, exec::IsExecutionConfig EC>
+	    requires container::IsContainerDecl<C, typename E::traits>
+	    friend System<C, typename E::traits, EC> build_system(
+		    const E&, const C&, const EC&, BuildInfo*
+	    );
 
 		template<ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel);
@@ -338,9 +343,9 @@ namespace april {
 			template<typename>
 			inline constexpr bool is_system_v = false;
 
-			// template specialization: mark all System<C, Env> instantiations as true
-			template<class C, IsEnvironmentTraits Traits>
-			inline constexpr bool is_system_v<System<C, Traits>> = true;
+			// mark all System<C, Env, ExecCfg> instantiations as true (template specialization
+			template<class C, IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecCfg>
+			inline constexpr bool is_system_v<System<C, Traits, ExecCfg>> = true;
 		}
 
 		template<typename T>
@@ -350,15 +355,4 @@ namespace april {
 } // namespace april::core
 
 #include "april/core/internal/system_impl.hpp"
-
-
-
-
-
-
-
-
-
-
-
 

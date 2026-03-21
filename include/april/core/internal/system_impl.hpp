@@ -11,10 +11,10 @@ namespace april {
 	//--------------
 	// EXECUTE BATCH
 	//--------------
-	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<
-		ContainerDecl, Traits>
+	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
+	requires container::IsContainerDecl<ContainerDecl, Traits>
 	template <ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
-	void System<ContainerDecl, Traits>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
+	void System<ContainerDecl, Traits, ExecConfig>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
 		using namespace april::exec;
 		using namespace april::exec::internal;
 
@@ -45,8 +45,9 @@ namespace april {
 	//--------------
 	// UPDATE FORCES
 	//--------------
-	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
-	void System<C, Traits>::update_forces() {
+	template <class C, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
+	requires container::IsContainerDecl<C, Traits>
+	void System<C, Traits, ExecConfig>::update_forces() {
 
 		// handle pair wise (type-type) interactions
 		auto update_forces_batch = [&]<container::batching::IsBatch Batch, container::batching::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
@@ -173,8 +174,9 @@ namespace april {
 	//-----------------
 	// APPLY BOUNDARIES
 	//-----------------
-	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
-	void System<C, Traits>::apply_boundary_conditions() {
+	template <class C, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
+	requires container::IsContainerDecl<C, Traits>
+	void System<C, Traits, ExecConfig>::apply_boundary_conditions() {
 	    particles_to_update_buffer.clear();
 	    const core::Box domain_box = this->box();
 
@@ -287,8 +289,9 @@ namespace april {
 	//------------------
 	// APPLY CONTROLLERS
 	//------------------
-	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
-	void System<C, Traits>::apply_controllers() {
+	template <class C, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
+	requires container::IsContainerDecl<C, Traits>
+	void System<C, Traits, ExecConfig>::apply_controllers() {
 		controllers.for_each_item([this](auto & controller) {
 			if (controller.should_trigger(trig_context)) {
 				controller.dispatch_apply(system_context);
@@ -300,8 +303,9 @@ namespace april {
 	//-------------
 	// APPLY FIELDS
 	//-------------
-	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
-	void System<C, Traits>::apply_force_fields() {
+	template <class C, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
+	requires container::IsContainerDecl<C, Traits>
+	void System<C, Traits, ExecConfig>::apply_force_fields() {
 		fields.for_each_item([&]<typename F>(F & field) {
 			for_each_particle<ParallelPolicy::Threaded>(scalar_kernel<F::fields, ParticleField::force>(
 				[&](auto && p) {
@@ -315,8 +319,9 @@ namespace april {
 	//-------
 	// UPDATE
 	//-------
-	template <class C, core::internal::IsEnvironmentTraits Traits> requires container::IsContainerDecl<C, Traits>
-	void System<C, Traits>::update_all_components() {
+	template <class C, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
+	requires container::IsContainerDecl<C, Traits>
+	void System<C, Traits, ExecConfig>::update_all_components() {
 		fields.for_each_item([this](auto & field) {
 			field.template dispatch_update<System>(system_context);
 		});

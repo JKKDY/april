@@ -5,7 +5,7 @@
 
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
-#include "april/exec/executor.hpp"
+#include "april/exec/config.hpp"
 
 #include "april/math/range.hpp"
 
@@ -47,12 +47,12 @@ namespace april::container {
 
 
 
-	template<class C, particle::IsParticleAttributes Attributes>
+	template<class Cfg, particle::IsParticleAttributes Attributes>
 	class Container {
 	public:
 		using ParticleRecord = particle::ParticleRecord<Attributes>;
 		using ParticleAttributes = Attributes;
-		using Config = C;
+		using Config = Cfg;
 
 		Container(const Config & config, const internal::ContainerCreateInfo & info, const exec::Executor & executor):
 			config(config),

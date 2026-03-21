@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include <cstddef>
 #include "domain.hpp"
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
@@ -19,7 +18,7 @@ namespace april::core {
 		explicit SystemContext(System & sys): system(sys) {}
 		[[nodiscard]] double time() const noexcept { return system.time(); }
 		[[nodiscard]] size_t step() const noexcept { return system.step(); }
-		[[nodiscard]] core::Box box() const noexcept { return system.box(); }
+		[[nodiscard]] Box box() const noexcept { return system.box(); }
 
 
 		// ------------------

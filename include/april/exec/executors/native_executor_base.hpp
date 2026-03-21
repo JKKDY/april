@@ -10,6 +10,7 @@
 
 
 #if defined(_WIN32)
+    #define NOMINMAX
     #include <windows.h>
 #elif defined(__linux__) || defined(__APPLE__)
     #include <pthread.h>
@@ -51,26 +52,34 @@ namespace april::exec::internal {
 namespace april::exec::internal {
     // cross platform no-op
     // x86 / x86_64 (Intel & AMD)
-    #if defined(__x86_64__) || defined(__i386__)
-        #include <emmintrin.h>
+    #if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
+        #if !defined(_MSC_VER)
+            #include <immintrin.h>
+        #endif
         inline void cpu_pause() noexcept {
-            _mm_pause(); // should keep power consumption low. see https://coffeebeforearch.github.io/2020/11/07/spinlocks-4.html
-        }
-        // ARM / AArch64 (Apple Silicon, AWS Graviton)
-    #elif defined(__aarch64__) || defined(__arm__)
-        inline void cpu_pause() noexcept {
-            __asm__ volatile("yield" ::: "memory");
+            _mm_pause();
         }
 
-        // Fallback for unknown architectures
+    // ARM / AArch64 (Apple Silicon, AWS Graviton, Windows ARM)
+    #elif defined(__aarch64__) || defined(__arm__) || defined(_M_ARM64) || defined(_M_ARM)
+        inline void cpu_pause() noexcept {
+            #if defined(_MSC_VER)
+                __yield(); // MSVC ARM intrinsic
+            #else
+                __asm__ volatile("yield" ::: "memory"); // GCC/Clang ARM asm
+            #endif
+        }
+
+    // Fallback for unknown architectures
     #else
         inline void cpu_pause() noexcept {
-            // Compiler memory barrier to prevent the spin-loop
-            // from being aggressively optimized away.
-            __asm__ volatile("" ::: "memory");
+            #if defined(_MSC_VER)
+                _ReadWriteBarrier(); // MSVC compiler memory barrier
+            #else
+                __asm__ volatile("" ::: "memory"); // GCC/Clang compiler memory barrier
+            #endif
         }
     #endif
-
 } // namespace april::exec::internal
 
 namespace april::exec::internal {

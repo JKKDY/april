@@ -12,7 +12,7 @@
 namespace april::exec {
     class NativeBarrierExecutor : public internal::NativeExecutorBase {
     public:
-        explicit NativeBarrierExecutor(const unsigned int n = N_CPU_THREADS)
+        explicit NativeBarrierExecutor(const unsigned int n = N_CPU_THREADS-4)
             : start_sync(n), end_sync(n) {
 
             internal::pin_current_thread(0);

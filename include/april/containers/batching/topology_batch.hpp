@@ -36,7 +36,7 @@ namespace april::container::batching {
     // @Brief Builds phases of independent/non-conflicting Topological Batches (collection of id-id interactions)
     template <typename Node = ParticleID>
     std::vector<std::vector<utility::graph::EdgeList<Node>>> build_concurrent_phases(
-        const std::vector<std::vector<Node>> & input_topologies,
+        const std::vector<utility::graph::EdgeList<Node>> & input_topologies,
         const size_t max_partition_size,
         const size_t min_batches_threshold
     ) {
@@ -111,11 +111,25 @@ namespace april::container::batching {
 
         // Add the sequential fallback phase
         if (!sequential_fallback.empty()) {
-            std::vector<Pairs> seq_phase;
-            seq_phase.reserve(sequential_fallback.size());
+            Pairs seq_batch;
+
+            // pre allocate space
+            size_t total_pairs = 0;
             for (const size_t idx : sequential_fallback) {
-                seq_phase.push_back(std::move(atomics[idx]));
+                total_pairs += atomics[idx].size();
             }
+            seq_batch.reserve(total_pairs);
+
+            // Flatten all under-utilized atomics into seq_batch
+            for (const size_t idx : sequential_fallback) {
+                seq_batch.insert(
+                    seq_batch.end(),
+                    std::make_move_iterator(atomics[idx].begin()),
+                    std::make_move_iterator(atomics[idx].end())
+                );
+            }
+
+            std::vector<Pairs> seq_phase {std::move(seq_batch)};
             final_phases.push_back(std::move(seq_phase));
         }
 

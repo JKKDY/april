@@ -1,7 +1,7 @@
 #pragma once
 
 
-#define AP_EXECUTOR_USE_NATIVE_BARRIER
+#define AP_EXECUTOR_USE_NATIVE_SPIN
 
 #if defined(AP_EXECUTOR_USE_OMP)
 #include "april/exec/executors/omp_executor.hpp"

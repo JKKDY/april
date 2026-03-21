@@ -43,7 +43,7 @@ int main() {
 		.with_monitor(Benchmark())
 		.with_monitor(BinaryOutput(Trigger::every(100), dir_path.string()))
 		.with_monitor(ProgressBar(Trigger::every(100)))
-		.run_for_duration(0.0002, 0.1);
+		.run_for_duration(0.0002, 3);
 }
 
 

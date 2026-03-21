@@ -173,67 +173,108 @@ namespace april::container::internal {
 	private:
 		std::vector<std::vector<batching::TopologyBatch<DirectSumCore>>> topology_phases;
 
-		void build_topology_batches(this auto && self) {
-		    for (size_t i = 0; i < self.force_schema.interactions.size(); ++i) {
-		        const auto& prop = self.force_schema.interactions[i];
+		void build_topology_batches() {
 
-		    	// skip empty batches or passive interactions (e.g. NoForce)
-		        if (prop.used_by_ids.empty() || !prop.is_active) continue;
+			// collect all interaction topologies into a single vector
+			std::vector<utility::graph::EdgeList<ParticleID>> global_topologies;
+			global_topologies.reserve(this->force_schema.interactions.size());
 
-		    	// get a representative pair. This determines the type of interaction for the batch
-	            auto rep_types = std::make_pair(
-	                static_cast<ParticleType>(prop.used_by_ids[0].first),
-	                static_cast<ParticleType>(prop.used_by_ids[0].second)
-	            );
+			for (const auto& prop : this->force_schema.interactions) {
+				if (!prop.used_by_ids.empty() && prop.is_active) {
+					global_topologies.push_back(prop.used_by_ids);
+				}
+			}
 
-	            // greedy coloring scheme: every pair conflicting with all phases gets a new phase
-	            std::vector<std::vector<std::pair<ParticleID, ParticleID>>> raw_phases;
-	            for (const auto& pair : prop.used_by_ids) {
-	                bool placed = false;
+			// create schedule
+			constexpr size_t max_partition_size = 1024;
+			const size_t min_batches_threshold = this->thread_executor.num_threads();
+			auto scheduled_phases = batching::build_concurrent_phases<ParticleID>(
+				global_topologies,
+				max_partition_size,
+				min_batches_threshold
+			);
 
-	            	// check if current pair would conflict with any other pair in any of the other phases
-	                for (auto& phase : raw_phases) {
-	                    bool conflict = false;
-	                    for (const auto& existing : phase) {
-	                        if (existing.first == pair.first || existing.second == pair.first ||
-	                            existing.first == pair.second || existing.second == pair.second) {
-	                            conflict = true; break;
-	                        }
-	                    }
-	                	// if no conflicts with current phase, add it
-	                    if (!conflict) { phase.push_back(pair); placed = true; break; }
-	                }
-	            	// if conflict with every other phase create a new phase
-	                if (!placed) raw_phases.push_back({pair});
-	            }
+			// build phases into batches
+			using ContainerType = std::remove_cvref_t<decltype(*this)>;
 
-	            // 2. Build the fully independent batches
-	            for (auto& raw_phase : raw_phases) {
-	                std::vector<batching::TopologyBatch<DirectSumCore>> current_phase_batches;
+			for (auto& phase : scheduled_phases) {
+				std::vector<batching::TopologyBatch<ContainerType>> current_phase_batches;
+				current_phase_batches.reserve(phase.size());
 
-	                auto blocks = exec::make_linear_schedule(
-	                    math::Range{0, raw_phase.size()},
-	                    self.linear_schedule_config
-	                );
+				for (auto& batch_pairs : phase) {
+					if (batch_pairs.empty()) continue;
 
-	                current_phase_batches.reserve(blocks.size());
-	                for (const auto& block : blocks) {
-		                batching::TopologyBatch<DirectSumCore> batch;
-	                    batch.representatives = rep_types;
-	                    batch.container_ptr = &self;
+					batching::TopologyBatch<ContainerType> batch;
+					batch.container_ptr = this;
+					batch.representatives = batch_pairs[0];
+					batch.pairs = std::move(batch_pairs);
 
-	                    // Copy the specific chunk into the batch's owned vector
-	                    batch.pairs = std::vector<std::pair<ParticleID, ParticleID>>(
-	                        raw_phase.begin() + block.start,
-	                        raw_phase.begin() + block.stop
-	                    );
+					current_phase_batches.push_back(std::move(batch));
+				}
+				topology_phases.push_back(std::move(current_phase_batches));
+			}
 
-	                    current_phase_batches.push_back(std::move(batch));
-	                }
 
-	                self.topology_phases.push_back(current_phase_batches);
-		        }
-		    }
+		    // for (size_t i = 0; i < self.force_schema.interactions.size(); ++i) {
+		    //     const auto& prop = self.force_schema.interactions[i];
+	     //
+		    // 	// skip empty batches or passive interactions (e.g. NoForce)
+		    //     if (prop.used_by_ids.empty() || !prop.is_active) continue;
+	     //
+		    // 	// get a representative pair. This determines the type of interaction for the batch
+	     //        auto rep_types = std::make_pair(
+	     //            static_cast<ParticleType>(prop.used_by_ids[0].first),
+	     //            static_cast<ParticleType>(prop.used_by_ids[0].second)
+	     //        );
+	     //
+	     //        // greedy coloring scheme: every pair conflicting with all phases gets a new phase
+	     //        std::vector<std::vector<std::pair<ParticleID, ParticleID>>> raw_phases;
+	     //        for (const auto& pair : prop.used_by_ids) {
+	     //            bool placed = false;
+	     //
+	     //        	// check if current pair would conflict with any other pair in any of the other phases
+	     //            for (auto& phase : raw_phases) {
+	     //                bool conflict = false;
+	     //                for (const auto& existing : phase) {
+	     //                    if (existing.first == pair.first || existing.second == pair.first ||
+	     //                        existing.first == pair.second || existing.second == pair.second) {
+	     //                        conflict = true; break;
+	     //                    }
+	     //                }
+	     //            	// if no conflicts with current phase, add it
+	     //                if (!conflict) { phase.push_back(pair); placed = true; break; }
+	     //            }
+	     //        	// if conflict with every other phase create a new phase
+	     //            if (!placed) raw_phases.push_back({pair});
+	     //        }
+	     //
+	     //        // 2. Build the fully independent batches
+	     //        for (auto& raw_phase : raw_phases) {
+	     //            std::vector<batching::TopologyBatch<DirectSumCore>> current_phase_batches;
+	     //
+	     //            auto blocks = exec::make_linear_schedule(
+	     //                math::Range{0, raw_phase.size()},
+	     //                self.linear_schedule_config
+	     //            );
+	     //
+	     //            current_phase_batches.reserve(blocks.size());
+	     //            for (const auto& block : blocks) {
+		    //             batching::TopologyBatch<DirectSumCore> batch;
+	     //                batch.representatives = rep_types;
+	     //                batch.container_ptr = &self;
+	     //
+	     //                // Copy the specific chunk into the batch's owned vector
+	     //                batch.pairs = std::vector<std::pair<ParticleID, ParticleID>>(
+	     //                    raw_phase.begin() + block.start,
+	     //                    raw_phase.begin() + block.stop
+	     //                );
+	     //
+	     //                current_phase_batches.push_back(std::move(batch));
+	     //            }
+	     //
+	     //            self.topology_phases.push_back(current_phase_batches);
+		    //     }
+		    // }
 		}
 
 

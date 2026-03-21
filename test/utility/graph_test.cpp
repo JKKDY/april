@@ -125,3 +125,52 @@ TEST(GraphUtilityTest, GreedyIndependentPartitionsWithMaxSize) {
     EXPECT_EQ(partitions[1], (std::vector<size_t>{1, 2}));
     EXPECT_EQ(partitions[2], std::vector<size_t>{3});
 }
+
+
+TEST(GraphUtilityTest, GetUniqueNodesEmpty) {
+    EdgeList<int> edges = {};
+    auto nodes = get_unique_nodes(edges);
+    EXPECT_TRUE(nodes.empty());
+}
+
+TEST(GraphUtilityTest, BuildIntersectionGraphEmpty) {
+    std::vector<std::vector<int>> node_sets = {};
+    auto adj_list = build_intersection_graph(node_sets);
+    EXPECT_TRUE(adj_list.empty());
+}
+
+TEST(GraphUtilityTest, GreedyIndependentPartitionsEmpty) {
+    AdjacencyList<size_t> adj_list = {};
+    std::vector<size_t> order = {};
+    auto partitions = greedy_independent_partitions(adj_list, order);
+    EXPECT_TRUE(partitions.empty());
+}
+
+TEST(GraphUtilityTest, BuildIntersectionGraphMultipleOverlaps) {
+    const std::vector<std::vector<int>> node_sets = {
+        {1, 2, 3}, // Set 0
+        {2, 3, 4}  // Set 1 (Shares both 2 and 3 with Set 0)
+    };
+
+    auto adj_list = build_intersection_graph(node_sets);
+
+    ASSERT_EQ(adj_list.size(), 2);
+    // Even though they share two nodes, there should only be one edge between them
+    EXPECT_EQ(adj_list[0], std::vector<size_t>{1});
+    EXPECT_EQ(adj_list[1], std::vector<size_t>{0});
+}
+
+TEST(GraphUtilityTest, GreedyIndependentPartitionsNoEdges) {
+    // 4 nodes, no edges between them
+    AdjacencyList<size_t> adj_list(4);
+
+    std::vector<size_t> order = {0, 1, 2, 3};
+    auto partitions = greedy_independent_partitions(adj_list, order, 2);
+
+    normalize_2d_vector(partitions);
+
+    // Because max size is 2 and no nodes are forbidden, we expect exactly 2 partitions of size 2.
+    ASSERT_EQ(partitions.size(), 2);
+    EXPECT_EQ(partitions[0], (std::vector<size_t>{0, 1}));
+    EXPECT_EQ(partitions[1], (std::vector<size_t>{2, 3}));
+}

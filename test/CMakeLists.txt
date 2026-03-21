@@ -20,6 +20,7 @@ add_executable(test_april
         containers/directsum_test.cpp
         containers/linkedcells_test.cpp
         containers/cell_ordering_test.cpp
+        containers/scheduling_test.cpp
 
         output_test.cpp
         integrators/stoermerverlet_test.cpp

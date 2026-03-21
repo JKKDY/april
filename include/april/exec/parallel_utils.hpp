@@ -12,7 +12,7 @@ namespace april::exec {
 
     template<typename C>
     concept IsBlockConfig = requires (const C c, size_t elems){
-        {c.calculate_blocks(elems)} -> std::convertible_to<size_t>;
+        {c.calculate_num_blocks(elems)} -> std::convertible_to<size_t>;
         {c.alignment} -> std::convertible_to<size_t>;
     };
 
@@ -29,7 +29,8 @@ namespace april::exec {
               alignment(CACHE_LINE_SIZE / sizeof(vec3::type)) {}  // aligned to cache line width
 
         // heuristic for determining optimal partition count
-        [[nodiscard]] size_t calculate_blocks(const size_t total_elements) const {
+        [[nodiscard]] size_t calculate_num_blocks(const size_t total_elements) const {
+            // TODO take into account a minimum block size
             if (total_elements == 0) return 0;
 
             const size_t ideal_B = total_elements / std::max<size_t>(1, target_elements_per_task);
@@ -100,7 +101,7 @@ namespace april::exec {
             return {{range.start, range.start}};
         }
 
-        const size_t B = config.calculate_blocks(total_elements);
+        const size_t B = config.calculate_num_blocks(total_elements);
 
         if (B <= 1) {
             return {range};
@@ -179,7 +180,7 @@ namespace april::exec {
 
         // determine common block count B based on the larger range
         const size_t max_elements = std::max(range1.size(), range2.size());
-        size_t B = config.calculate_blocks(max_elements);
+        size_t B = config.calculate_num_blocks(max_elements);
 
         if (B == 0) B = 1; // Fallback safety
 

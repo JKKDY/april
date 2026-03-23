@@ -27,16 +27,16 @@ namespace april::container::internal {
 			self.build_topology_batches();
 		}
 
-		template<typename Func>
+		template<ParallelPolicy P, typename Func>
 		void for_each_topology_batch(this auto&& self, Func && f) {
 			for (const auto& phase : self.topology_phases) {
-				self.thread_executor.execute(phase.size(), [&](size_t i) {
+				self.thread_executor.template execute<P>(phase.size(), [&](size_t i) {
 					f(phase[i]);
 				});
 			}
 		}
 
-		template<typename F>
+		template<ParallelPolicy P, typename F>
 		void for_each_interaction_batch(this auto&& self, F && f) {
 			// periodicity flags to jump table index
 			const int mode = (self.flags.periodic_x ? 4 : 0) |
@@ -59,11 +59,11 @@ namespace april::container::internal {
 
 				// process symmetric groups
 				for (const auto & sym_group : self.sym_groups) {
-					self.thread_executor.execute(sym_group.diagonals.size(), [&](size_t i) {
+					self.thread_executor.template execute<P>(sym_group.diagonals.size(), [&](size_t i) {
 						f(sym_group.diagonals[i], bcp);
 					});
 					for (const auto & off_diag : sym_group.off_diagonals) {
-						self.thread_executor.execute(off_diag.size(), [&](size_t i) {
+						self.thread_executor.execute<P>(off_diag.size(), [&](size_t i) {
 							f(off_diag[i], bcp);
 						});
 					}
@@ -72,7 +72,7 @@ namespace april::container::internal {
 				// process asymmetric groups
 				for (const auto & asym_group : self.asym_groups) {
 					for (const auto & phase : asym_group.phases) {
-						self.thread_executor.execute(phase.size(), [&](size_t i) {
+						self.thread_executor.template execute<P>(phase.size(), [&](size_t i) {
 							f(phase[i], bcp);
 						});
 					}

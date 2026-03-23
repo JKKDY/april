@@ -191,14 +191,14 @@ namespace april::container {
 		// ---------------
 		// BATCH ITERATION
 		// ---------------
-		template<typename Func>
+		template<ParallelPolicy P, typename Func>
 		void invoke_for_each_interaction_batch(this auto&& self, Func && func) {
-			self.for_each_interaction_batch(std::forward<Func>(func));
+			self.template for_each_interaction_batch<P>(std::forward<Func>(func));
 		}
 
-		template<typename Func>
+		template<ParallelPolicy P, typename Func>
 		void invoke_for_each_topology_batch(this auto&& self, Func&& func) {
-			self.for_each_topology_batch(std::forward<Func>(func));
+			self.template for_each_topology_batch<P>(std::forward<Func>(func));
 		}
 
 
@@ -516,8 +516,8 @@ namespace april::container {
 
 	    { c.collect_indices_in_region(region) } -> std::convertible_to<std::vector<size_t>>;
 
-	    { c.for_each_interaction_batch([](auto&&){}) };
-		{ c.for_each_topology_batch([](auto&&){}) };
+	    { c.template for_each_interaction_batch<ParallelPolicy::Serial>([](auto&&){}) };
+		{ c.template for_each_topology_batch<ParallelPolicy::Serial>([](auto&&){}) };
 	};
 
 

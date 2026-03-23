@@ -42,7 +42,6 @@ namespace april {
 		using ParticleAttributes= Traits::particle_attributes_t;
 		using ExecutionConfig   = ExecConfig;
 	public:
-
 		// ----------------
 		// PUBLIC API TYPES
 		// ----------------
@@ -50,6 +49,67 @@ namespace april {
 		using TrigContext = utility::internal::TriggerContextImpl<System>;
 		using Container = ContainerDecl::template impl<ParticleAttributes>;
 		using ParticleRec = Traits::particle_record_t;
+
+	private:
+		// ---------------
+		// PRIVATE MEMBERS
+		// ---------------
+		exec::Executor thread_executor;
+		BoundaryTable boundary_table;
+		ForceTable force_table;
+		ControllerStorage controllers;
+		FieldStorage fields;
+		Container particle_container;
+		ExecConfig exec_config;
+
+		struct alignas(64) PaddedThreadBuffer { std::vector<size_t> buffer; };
+		std::vector<PaddedThreadBuffer> thread_update_buffers;
+		std::vector<size_t> particles_to_update_buffer;
+
+		double time_ = 0;
+		size_t step_ = 0;
+
+		core::SystemContext<System> system_context;
+		utility::internal::TriggerContextImpl<System> trig_context;
+
+
+		// private constructor since System should only be creatable through build_system(...)
+		System(
+			const ExecConfig& exec_config,
+			const ContainerDecl& container_cfg,
+			const container::internal::ContainerCreateInfo & container_info,
+			const std::vector<ParticleRec>& particles,
+			const BoundaryTable& boundaries_in,
+			const ForceTable& forces_in,
+			const ControllerStorage& controllers_in,
+			const FieldStorage& fields_in
+		)
+			: thread_executor(typename ExecConfig::ThreadExecutor(exec_config.executer_config)), // init stub incase we want to pass args in the future
+			  boundary_table(boundaries_in),
+			  force_table(forces_in),
+			  controllers(controllers_in),
+			  fields(fields_in),
+			  particle_container(Container(container_cfg, container_info, thread_executor)),
+			  exec_config(exec_config),
+			  system_context(*this),
+			  trig_context(*this)
+		{
+			particle_container.invoke_build(particles);
+			controllers.for_each_item([&](auto& c) { c.dispatch_init(context()); });
+			fields.for_each_item([&](auto& f) { f.dispatch_init(context()); });
+		}
+
+		// Friend factory: only entry point for constructing a System
+		// Avoids exposing constructor internals publicly.
+		template <class C, core::IsEnvironment E, exec::IsExecutionConfig EC>
+	    requires container::IsContainerDecl<C, typename E::traits>
+	    friend System<C, typename E::traits, EC> build_system(
+		    const E&, const C&, const EC&, BuildInfo*
+	    );
+
+		template<ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
+		void execute_batch_kernel(const Batch& batch, Kernel&& kernel);
+	public:
 
 		// -----------------
 		// LIFECYCLE & STATE
@@ -275,64 +335,6 @@ namespace april {
 		[[nodiscard]] const TrigContext & trigger_context() const {
 			return trig_context;
 		}
-
-
-	private:
-		exec::Executor thread_executor;
-		BoundaryTable boundary_table;
-		ForceTable force_table;
-		ControllerStorage controllers;
-		FieldStorage fields;
-		Container particle_container;
-		ExecConfig exec_config;
-
-		struct alignas(64) PaddedThreadBuffer { std::vector<size_t> buffer; };
-		std::vector<PaddedThreadBuffer> thread_update_buffers;
-		std::vector<size_t> particles_to_update_buffer;
-
-		double time_ = 0;
-		size_t step_ = 0;
-
-		core::SystemContext<System> system_context;
-		utility::internal::TriggerContextImpl<System> trig_context;
-
-
-		// private constructor since System should only be creatable through build_system(...)
-		System(
-			const ExecConfig& exec_config,
-			const ContainerDecl& container_cfg,
-			const container::internal::ContainerCreateInfo & container_info,
-			const std::vector<ParticleRec>& particles,
-			const BoundaryTable& boundaries_in,
-			const ForceTable& forces_in,
-			const ControllerStorage& controllers_in,
-			const FieldStorage& fields_in
-		)
-			: thread_executor(typename ExecConfig::ThreadExecutor(exec_config.executer_config)), // init stub incase we want to pass args in the future
-			  boundary_table(boundaries_in),
-			  force_table(forces_in),
-			  controllers(controllers_in),
-			  fields(fields_in),
-			  particle_container(Container(container_cfg, container_info, thread_executor)),
-			  exec_config(exec_config),
-			  system_context(*this),
-			  trig_context(*this)
-		{
-			particle_container.invoke_build(particles);
-			controllers.for_each_item([&](auto& c) { c.dispatch_init(context()); });
-			fields.for_each_item([&](auto& f) { f.dispatch_init(context()); });
-		}
-
-		// Friend factory: only entry point for constructing a System
-		// Avoids exposing constructor internals publicly.
-		template <class C, core::IsEnvironment E, exec::IsExecutionConfig EC>
-	    requires container::IsContainerDecl<C, typename E::traits>
-	    friend System<C, typename E::traits, EC> build_system(
-		    const E&, const C&, const EC&, BuildInfo*
-	    );
-
-		template<ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
-		void execute_batch_kernel(const Batch& batch, Kernel&& kernel);
 	};
 
 

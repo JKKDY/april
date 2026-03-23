@@ -6,7 +6,7 @@ using namespace april;
 namespace fs = std::filesystem;
 
 
-static constexpr int NX = 200, NY = 200, NZ = 200;
+static constexpr int NX = 100, NY = 100, NZ = 100;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
@@ -52,7 +52,7 @@ int main() {
 	for (int i = 0; i < 1; i++) {
 		struct :
 			RunTimeConfig<exec::OmpExecutor>,
-			CompileTimeConfig<ParallelPolicy::Hybrid, VectorPolicy::Auto>
+			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
 		{} cfg;
 		cfg.executer_config.n_threads = 8;
 

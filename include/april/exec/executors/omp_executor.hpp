@@ -15,11 +15,17 @@ namespace april::exec {
         explicit OmpExecutor(const Config & config):
             n_threads(config.n_threads) {}
 
-        template<IsWorkAtom F>
+        template<ParallelPolicy P=ParallelPolicy::Threaded, IsWorkAtom F>
         void execute(const size_t batch_count, F&& task) const {
-            #pragma omp parallel for schedule(guided) num_threads(n_threads)
-            for (int i = 0; i < static_cast<int>(batch_count); ++i) {
-                task(i);
+            if constexpr (P == ParallelPolicy::Serial) {
+                for (int i = 0; i < static_cast<int>(batch_count); ++i) {
+                    task(i);
+                }
+            } else {
+                #pragma omp parallel for schedule(guided) num_threads(n_threads)
+                for (int i = 0; i < static_cast<int>(batch_count); ++i) {
+                    task(i);
+                }
             }
         }
 

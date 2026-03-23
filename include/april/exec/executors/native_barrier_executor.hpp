@@ -7,6 +7,7 @@
 #include "april/exec/info.hpp"
 #include "april/exec/executors/executor_traits.hpp"
 #include "native_executor_base.hpp"
+#include "april/exec/policy.hpp"
 
 
 namespace april::exec {
@@ -35,15 +36,19 @@ namespace april::exec {
             start_sync.arrive_and_wait();
         }
 
-        template <IsWorkAtom F>
+        template <ParallelPolicy P=ParallelPolicy::Threaded, IsWorkAtom F>
         void execute(const size_t batch_count, F&& task) const {
             if (batch_count == 0) return;
-
-            prepare_task(batch_count, std::forward<F>(task));
-
-            start_sync.arrive_and_wait(); // Wake workers
-            process_tasks();              // Main thread works
-            end_sync.arrive_and_wait();   // Sync at phase end
+            if constexpr (P == ParallelPolicy::Serial) {
+                for (int i = 0; i < static_cast<int>(batch_count); ++i) {
+                    task(i);
+                }
+            } else {
+                prepare_task(batch_count, std::forward<F>(task));
+                start_sync.arrive_and_wait(); // Wake workers
+                process_tasks();              // Main thread works
+                end_sync.arrive_and_wait();   // Sync at phase end
+            }
         }
 
     private:

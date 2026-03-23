@@ -20,7 +20,7 @@ namespace april::container::internal {
     	using Base::Base;
     	friend Base;
 
-    	template<typename F>
+    	template<ParallelPolicy P, typename F>
 		void for_each_interaction_batch(this auto && self, F && func) {
     		auto get_indices = [&](const size_t c, const size_t t) {
     			const size_t bin_idx = self.bin_index(c, t);
@@ -31,7 +31,7 @@ namespace april::container::internal {
 
     		for (const auto & phase : self.phase_schedule) {
 
-    			self.thread_executor.execute(phase.size(), [&](size_t block_idx) {
+    			self.thread_executor.template execute<P>(phase.size(), [&](size_t block_idx) {
 				    thread_local LinkedCellsBatch<AsymBatch, SymBatch> batch;
 
 					auto add_asym = [&](const math::Range & range1, const math::Range & range2) {

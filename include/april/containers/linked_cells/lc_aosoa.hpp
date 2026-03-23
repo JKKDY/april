@@ -19,7 +19,7 @@ namespace april::container::internal {
     	using Base::Base;
     	friend Base;
 
-    	template<typename F>
+    	template<ParallelPolicy P, typename F>
 		void for_each_interaction_batch(this auto && self, F && func) {
     		struct BinRange {
     			math::Range range_chunks;
@@ -47,7 +47,7 @@ namespace april::container::internal {
 		    };
 
     		for (const auto & phase : self.phase_schedule) {
-    			self.thread_executor.execute(phase.size(), [&](size_t block_idx) {
+    			self.thread_executor.template execute<P>(phase.size(), [&](size_t block_idx) {
 				    thread_local LinkedCellsBatch<AsymBatch, SymBatch> batch;
 
     				auto add_asym = [&](const BinRange & range1, const BinRange & range2) {

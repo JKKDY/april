@@ -160,15 +160,15 @@ namespace april {
 			force_table.dispatch_id(batch.representatives.first, batch.representatives.second, apply_batch_update);
 		};
 
-		for_each_particle<ParallelPolicy::Threaded>(
+		for_each_particle<ParallelPolicy::Hybrid>(
 			april::universal_kernel<ParticleField::force, ParticleField::force>(
 				[](auto && p) { p.force = {}; } // reset forces
 			)
 		);
 
 		// TODO propagate parallel policy
-		particle_container.invoke_for_each_interaction_batch(update_forces_batch);
-		particle_container.invoke_for_each_topology_batch(update_forces_topology_batch);
+		particle_container.template invoke_for_each_interaction_batch<ParallelPolicy::Threaded>(update_forces_batch);
+		particle_container.template invoke_for_each_topology_batch<ParallelPolicy::Threaded>(update_forces_topology_batch);
 	}
 
 
@@ -309,7 +309,7 @@ namespace april {
 	requires container::IsContainerDecl<C, Traits>
 	void System<C, Traits, ExecConfig>::apply_force_fields() {
 		fields.for_each_item([&]<typename F>(F & field) {
-			for_each_particle<ParallelPolicy::Threaded>(scalar_kernel<F::fields, ParticleField::force>(
+			for_each_particle<ExecConfig::parallel_policy>(scalar_kernel<F::fields, ParticleField::force>(
 				[&](auto && p) {
 					field.dispatch_apply(p);
 				})

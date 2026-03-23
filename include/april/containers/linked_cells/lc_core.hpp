@@ -72,10 +72,10 @@ namespace april::container::internal {
 			);
 		}
 
-		template<typename Func>
+		template<ParallelPolicy P, typename Func>
 		void for_each_topology_batch(this auto&& self, Func && f) {
 			for (const auto& phase : self.topology_phases) {
-				self.thread_executor.execute(phase.size(), [&](size_t i) {
+				self.thread_executor.template execute<P>(phase.size(), [&](size_t i) {
 					f(phase[i]);
 				});
 			}
@@ -564,9 +564,9 @@ namespace april::container::internal {
 
 
 
-		// ---------------------
-		// BATCH ITERATOR KERNEL
-		// ---------------------
+		// ----------------
+		// BATCH ITERATIONS
+		// ----------------
 		template <typename GetRange, typename AddSym, typename AddAsym>
 		AP_FORCE_INLINE void process_cell_interactions(
 			size_t x, size_t y, size_t z,

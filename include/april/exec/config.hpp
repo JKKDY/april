@@ -47,6 +47,12 @@ namespace april {
         // size_t task_chunk_size = 256; // future stub
     };
 
+    enum class Policy {
+        Enabled,
+        Disabled,
+        Auto
+    };
+
     template<
         ParallelPolicy P = ParallelPolicy::Threaded,
         VectorPolicy V = VectorPolicy::Auto>

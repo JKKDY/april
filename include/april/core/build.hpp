@@ -93,7 +93,6 @@ namespace april {
 			execution_config,
 			container_config,
 			container_info,
-			simulation_box,
 			particles,
 			boundaries,
 			forces,

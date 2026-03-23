@@ -12,15 +12,20 @@
 namespace april::exec {
     class NativeBarrierExecutor : public internal::NativeExecutorBase {
     public:
-        explicit NativeBarrierExecutor(const unsigned int n = N_CPU_THREADS)
-            : start_sync(n), end_sync(n) {
+        struct Config {
+            size_t n_threads = N_CPU_THREADS;
+            bool pin_threads = true;
+        };
 
-            internal::pin_current_thread(0);
-            threads.reserve(n - 1);
+        explicit NativeBarrierExecutor(const Config & config)
+            : start_sync(config.n_threads), end_sync(config.n_threads) {
 
-            for (unsigned int i = 0; i < n - 1; ++i) {
+            if (config.pin_threads) internal::pin_current_thread(0);
+            threads.reserve(config.n_threads - 1);
+
+            for (unsigned int i = 0; i < config.n_threads - 1; ++i) {
                 threads.emplace_back(&NativeBarrierExecutor::worker_loop, this);
-                internal::pin_thread_to_core(threads.back().native_handle(), i + 1);
+                if (config.pin_threads) internal::pin_thread_to_core(threads.back().native_handle(), i + 1);
             }
         }
 

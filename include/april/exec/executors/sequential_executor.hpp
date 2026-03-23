@@ -4,6 +4,10 @@
 
 namespace april::exec {
     struct SequentialExecutor {
+        struct Config{};
+
+        explicit SequentialExecutor(const Config&) {}
+
         template<IsWorkAtom F>
         void execute(const size_t batch_count, F&& task) const {
             for (size_t i = 0; i < batch_count; ++i) {

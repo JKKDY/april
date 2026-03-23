@@ -56,8 +56,9 @@ namespace april {
 		// -----------------
 		[[nodiscard]] double time() const noexcept { return time_; }
 		[[nodiscard]] size_t step() const noexcept { return step_; }
-		[[nodiscard]] Domain domain() const { return {simulation_box.min, simulation_box.extent}; }
-		[[nodiscard]] core::Box box() const { return simulation_box; }
+		// TODO check if domain() is used anywehere and if it can be deleted
+		[[nodiscard]] Domain domain() const { return { particle_container.simulation_domain().min,  particle_container.simulation_domain().extent}; }
+		[[nodiscard]] core::Box box() const { return particle_container.simulation_domain(); }
 
 		void update_time(const double dt) noexcept { time_ += dt; }
 		void increment_step() noexcept { ++step_; }
@@ -277,7 +278,6 @@ namespace april {
 
 
 	private:
-		core::Box simulation_box; // TODO rename to domain
 		exec::Executor thread_executor;
 		BoundaryTable boundary_table;
 		ForceTable force_table;
@@ -302,15 +302,13 @@ namespace april {
 			const ExecConfig& exec_config,
 			const ContainerDecl& container_cfg,
 			const container::internal::ContainerCreateInfo & container_info,
-			const core::Box& domain_in,
 			const std::vector<ParticleRec>& particles,
 			const BoundaryTable& boundaries_in,
 			const ForceTable& forces_in,
 			const ControllerStorage& controllers_in,
 			const FieldStorage& fields_in
 		)
-			: simulation_box(domain_in),
-			  thread_executor(exec::Executor()), // init stub incase we want to pass args in the future
+			: thread_executor(typename ExecConfig::ThreadExecutor(exec_config.executer_config)), // init stub incase we want to pass args in the future
 			  boundary_table(boundaries_in),
 			  force_table(forces_in),
 			  controllers(controllers_in),

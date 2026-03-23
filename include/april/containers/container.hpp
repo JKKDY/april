@@ -267,6 +267,9 @@ namespace april::container {
 				return buffer;
 			}
 		}
+		[[nodiscard]] auto simulation_domain() const noexcept {
+			return domain;
+		}
 
 		// TODO implement on containers, use this instead of non buffer version in system
 		void invoke_collect_indices_in_region(this const auto& self, const core::Box & region, std::vector<size_t> & buffer) {

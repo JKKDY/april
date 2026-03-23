@@ -2,12 +2,11 @@
 #include <filesystem>
 
 #include "april/containers/linked_cells.hpp"
-
 using namespace april;
 namespace fs = std::filesystem;
 
 
-static constexpr int NX = 100, NY = 100, NZ = 100;
+static constexpr int NX = 200, NY = 200, NZ = 200;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
@@ -50,16 +49,23 @@ int main() {
 		.with_block_size(2)
 		.with_skin_factor(0.1);
 
-	auto e = ExecutionConfig();
-	auto system = build_system(env, container);
-	constexpr double dt = 0.0002;
-	constexpr int steps  = 100;
+	for (int i = 0; i < 1; i++) {
+		struct :
+			RunTimeConfig<exec::OmpExecutor>,
+			CompileTimeConfig<ParallelPolicy::Hybrid, VectorPolicy::Auto>
+		{} cfg;
+		cfg.executer_config.n_threads = 8;
 
-	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
-	integrator.add_monitor(Benchmark());
-	// integrator.add_monitor(ProgressBar(Trigger::always()));
-		// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
-	integrator.run_for_steps(dt, steps);
+		auto system = build_system(env, container, cfg);
+		constexpr double dt = 0.0002;
+		constexpr int steps  = 20;
+
+		VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
+		integrator.add_monitor(Benchmark());
+		// integrator.add_monitor(ProgressBar(Trigger::always()));
+			// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
+		integrator.run_for_steps(dt, steps);
+	}
 
 	// std::cout << "Particles: " << NX * NY * NZ << "\n"
 	// 		 << "Steps: " << steps << "\n"

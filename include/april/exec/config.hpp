@@ -38,21 +38,32 @@ namespace april::exec {
 static_assert(april::exec::IsExecutor<april::exec::Executor>);
 
 namespace april {
-    template <ParallelPolicy P = ParallelPolicy::Threaded, VectorPolicy V =VectorPolicy::Auto>
-    struct ExecutionConfig {
+
+    template<exec::IsExecutor E = exec::Executor>
+    struct RunTimeConfig {
+        using ThreadExecutor = E;
+        using ExecutorConfig = E::Config;
+        ExecutorConfig executer_config;
+        // size_t task_chunk_size = 256; // future stub
+    };
+
+    template<
+        ParallelPolicy P = ParallelPolicy::Threaded,
+        VectorPolicy V = VectorPolicy::Auto>
+    struct CompileTimeConfig {
         static constexpr VectorPolicy vector_policy = V;
         static constexpr ParallelPolicy parallel_policy = P;
-        exec::Executor thread_executor = exec::Executor(exec::N_CPU_THREADS);
     };
+
+    struct ExecutionConfig : RunTimeConfig<>, CompileTimeConfig<> {};
 
     namespace exec {
         template <typename C>
-        concept IsExecutionConfig =
-         requires (C c) {
+        concept IsExecutionConfig = requires (C c) {
             { C::vector_policy } -> std::convertible_to<VectorPolicy>;
             { C::parallel_policy } -> std::convertible_to<ParallelPolicy>;
-            { c.thread_executor } -> IsExecutor;
-         };
+            { c.executer_config };
+        } && IsExecutor<typename C::ThreadExecutor>;
     }
 }
 

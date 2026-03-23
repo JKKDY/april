@@ -7,8 +7,13 @@
 
 namespace april::exec {
     struct OmpExecutor {
-        explicit OmpExecutor(const unsigned n_threads = N_CPU_THREADS):
-            n_threads(n_threads) {}
+
+        struct Config {
+            size_t n_threads = N_CPU_THREADS;
+        };
+
+        explicit OmpExecutor(const Config & config):
+            n_threads(config.n_threads) {}
 
         template<IsWorkAtom F>
         void execute(const size_t batch_count, F&& task) const {

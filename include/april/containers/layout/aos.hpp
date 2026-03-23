@@ -175,9 +175,10 @@ namespace april::container::layout {
                 self.thread_executor.execute(schedule.size(), [&](size_t i) {
                     for (size_t j : schedule[i]) run_kernel(j);
                 });
-            }
-            else {
+            } else if constexpr (P == ParallelPolicy::Serial){
                 for (size_t j : full_range) run_kernel(j);
+            } else {
+                static_assert(false, "invalid Parallel Policy");
             }
         }
     };

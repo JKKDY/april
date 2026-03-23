@@ -25,7 +25,7 @@ namespace april {
 		void integration_step() const {
 			sys.update_all_components();
 
-			sys.template for_each_particle<ParallelPolicy::Threaded>(scalar_kernel<pos_upd_fields, pos_upd_fields>(
+			sys.template for_each_particle<Sys::parallel_policy>(universal_kernel<pos_upd_fields, pos_upd_fields>(
 				[&](auto p) {
 					p.old_position = p.position;
 					p.velocity += (dt / 2.0) * (p.force / p.mass);
@@ -38,7 +38,7 @@ namespace april {
 			sys.update_forces();
 			sys.apply_force_fields();
 
-			sys.template for_each_particle<ParallelPolicy::Threaded>(universal_kernel<vel_upd_fields, vel_upd_fields>(
+			sys.template for_each_particle<Sys::parallel_policy>(universal_kernel<vel_upd_fields, vel_upd_fields>(
 				[&](auto p) {
 					p.velocity += (dt / 2.0) * (p.force / p.mass);
 				}

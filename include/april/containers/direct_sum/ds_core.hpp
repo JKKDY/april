@@ -63,7 +63,7 @@ namespace april::container::internal {
 						f(sym_group.diagonals[i], bcp);
 					});
 					for (const auto & off_diag : sym_group.off_diagonals) {
-						self.thread_executor.execute<P>(off_diag.size(), [&](size_t i) {
+						self.thread_executor.template execute<P>(off_diag.size(), [&](size_t i) {
 							f(off_diag[i], bcp);
 						});
 					}

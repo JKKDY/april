@@ -160,13 +160,12 @@ namespace april {
 			force_table.dispatch_id(batch.representatives.first, batch.representatives.second, apply_batch_update);
 		};
 
-		for_each_particle<ParallelPolicy::Hybrid>(
+		for_each_particle<ParallelPolicy::Threaded>(
 			april::universal_kernel<ParticleField::force, ParticleField::force>(
 				[](auto && p) { p.force = {}; } // reset forces
 			)
 		);
 
-		// TODO propagate parallel policy
 		particle_container.template invoke_for_each_interaction_batch<ParallelPolicy::Threaded>(update_forces_batch);
 		particle_container.template invoke_for_each_topology_batch<ParallelPolicy::Threaded>(update_forces_topology_batch);
 	}

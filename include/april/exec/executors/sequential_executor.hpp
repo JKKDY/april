@@ -8,7 +8,7 @@ namespace april::exec {
 
         explicit SequentialExecutor(const Config&) {}
 
-        template<IsWorkAtom F>
+        template<ParallelPolicy P = ParallelPolicy::Serial, IsWorkAtom F>
         void execute(const size_t batch_count, F&& task) const {
             for (size_t i = 0; i < batch_count; ++i) {
                 task(i);

@@ -25,20 +25,24 @@ namespace april {
 		void velocity_verlet_step(double delta_t) const {
 			sys.update_all_components();
 
-			sys.for_each_particle(april::universal_kernel<pos_upd_fields, pos_upd_fields>([&](auto p) {
-				p.old_position = p.position;
-				p.velocity += (delta_t / 2.0) * (p.force / p.mass);
-				p.position += delta_t * p.velocity;
-			}), State::MOVABLE);
+			sys.template for_each_particle<Sys::parallel_policy>(
+				april::universal_kernel<pos_upd_fields, pos_upd_fields>([&](auto p) {
+					p.old_position = p.position;
+					p.velocity += (delta_t / 2.0) * (p.force / p.mass);
+					p.position += delta_t * p.velocity;
+				}
+			), State::MOVABLE);
 
 			sys.rebuild_structure();
 			sys.apply_boundary_conditions();
 			sys.update_forces();
 			sys.apply_force_fields();
 
-			sys.for_each_particle(april::universal_kernel<vel_upd_fields, vel_upd_fields>([&](auto p) {
-				p.velocity += (delta_t / 2.0) * (p.force / p.mass);
-			}), State::MOVABLE);
+			sys.template for_each_particle<Sys::parallel_policy>(
+				april::universal_kernel<vel_upd_fields, vel_upd_fields>([&](auto p) {
+					p.velocity += (delta_t / 2.0) * (p.force / p.mass);
+				}
+			), State::MOVABLE);
 
 			sys.apply_controllers();
 		}

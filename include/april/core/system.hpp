@@ -50,6 +50,9 @@ namespace april {
 		using Container = ContainerDecl::template impl<ParticleAttributes>;
 		using ParticleRec = Traits::particle_record_t;
 
+		static constexpr auto parallel_policy = ExecConfig::parallel_policy;
+		static constexpr auto vector_policy = ExecConfig::vector_policy;
+
 	private:
 		// ---------------
 		// PRIVATE MEMBERS

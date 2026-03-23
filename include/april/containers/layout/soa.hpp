@@ -17,7 +17,7 @@ namespace april::container::layout {
         using Base::force_schema;
         friend Base;
 
-        SoA(const Config & config, const internal::ContainerCreateInfo & info, const exec::Executor & executor):
+        SoA(const Config & config, const ContainerBuildContext & info, const exec::Executor & executor):
             Base(config, info, executor)
         {
             this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);

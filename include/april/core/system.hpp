@@ -80,7 +80,7 @@ namespace april {
 		System(
 			const ExecConfig& exec_config,
 			const ContainerDecl& container_cfg,
-			const container::internal::ContainerCreateInfo & container_info,
+			const container::ContainerBuildContext & container_info,
 			const std::vector<ParticleRec>& particles,
 			const BoundaryTable& boundaries_in,
 			const ForceTable& forces_in,

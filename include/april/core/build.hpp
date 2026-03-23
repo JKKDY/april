@@ -82,9 +82,9 @@ namespace april {
 			build_info->simulation_domain = Domain(simulation_box.min, simulation_box.extent);
 		}
 
-		container::internal::ContainerCreateInfo container_info {
+		container::ContainerBuildContext container_info {
 			.flags = core::internal::set_container_flags(topologies),
-			.hints = container::internal::ContainerHints(),
+			.hints = container::ContainerHints(),
 			.force_schema = forces.generate_schema(),
 			.domain = simulation_box
 		};

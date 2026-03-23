@@ -21,29 +21,28 @@
 
 namespace april::container {
 
-	namespace internal {
-		struct ContainerFlags {
-			bool periodic_x;			// domain is periodic along x-axis
-			bool periodic_y;			// domain is periodic along y-axis
-			bool periodic_z;			// domain is periodic along z-axis
-			bool infinite_domain;		// particles outside of domain still interact normally (time complexity may go to O(n^2)
-			bool particle_addable;		// particles can be added during run time
-			bool particle_deletable;	// particles can be deleted during run time
-		};
+	struct ContainerFlags {
+		bool periodic_x;			// domain is periodic along x-axis
+		bool periodic_y;			// domain is periodic along y-axis
+		bool periodic_z;			// domain is periodic along z-axis
+		bool infinite_domain;		// particles outside of domain still interact normally (time complexity may go to O(n^2)
+		bool particle_addable;		// particles can be added during run time
+		bool particle_deletable;	// particles can be deleted during run time
+	};
 
-		struct ContainerHints {
-			// TODO add regions that will be queried in the future so the container can keep track of particles better
-			std::vector<ParticleID> interacting_particles;
-			std::vector<core::Box> query_regions;
-		};
+	struct ContainerHints {
+		// TODO add regions that will be queried in the future so the container can keep track of particles better
+		std::vector<ParticleID> interacting_particles;
+		std::vector<core::Box> query_regions;
+	};
 
-		struct ContainerCreateInfo {
-			ContainerFlags flags {};
-			ContainerHints hints {};
-			force::internal::InteractionSchema force_schema {};
-			core::Box domain {};
-		};
-	}
+	struct ContainerBuildContext {
+		ContainerFlags flags {};
+		ContainerHints hints {};
+		force::internal::InteractionSchema force_schema {};
+		core::Box domain {};
+	};
+
 
 
 
@@ -54,7 +53,7 @@ namespace april::container {
 		using ParticleAttributes = Attributes;
 		using Config = Cfg;
 
-		Container(const Config & config, const internal::ContainerCreateInfo & info, const exec::Executor & executor):
+		Container(const Config & config, const ContainerBuildContext & info, const exec::Executor & executor):
 			config(config),
 			flags(info.flags),
 			hints(info.hints),
@@ -287,8 +286,8 @@ namespace april::container {
 
 	protected:
 		const Config config;
-		const internal::ContainerFlags flags;
-		const internal::ContainerHints hints;
+		const ContainerFlags flags;
+		const ContainerHints hints;
 		const force::internal::InteractionSchema force_schema;
 		const core::Box domain; // Note: in the future this may be adjustable during run time
 		const exec::Executor & thread_executor;

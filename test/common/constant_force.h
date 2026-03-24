@@ -1,17 +1,17 @@
 #pragma once
 
-#include "april/forces/force.hpp"
+#include "april/interactions/force.hpp"
 
 using namespace april;
 
 // A tiny force that returns a constant vector and mixes by summing
-struct ConstantForce final : force::Force {
-	static constexpr auto symmetry = force::ForceSymmetry::Symmetric;
+struct ConstantForce final : interactions::Force {
+	static constexpr auto symmetry = interactions::ForceSymmetry::Symmetric;
 	static constexpr auto fields = ParticleField::none;
 
 	vec3 v;
 
-	ConstantForce(const vec3::type x, const vec3::type y, const vec3::type z, const double cutoff = force::no_cutoff)
+	ConstantForce(const vec3::type x, const vec3::type y, const vec3::type z, const double cutoff = interactions::no_cutoff)
 	: Force(cutoff), v{x,y,z} {}
 
 	auto operator()(auto, auto, auto) const noexcept {

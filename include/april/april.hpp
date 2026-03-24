@@ -8,11 +8,11 @@
 #include "april/boundaries/repulsive.hpp"
 
 // Forces
-#include "april/forces/harmonic.hpp"
-#include "april/forces/gravity.hpp"
-#include "april/forces/lennard_jones.hpp"
-#include "april/forces/no_force.hpp"
-#include "april/forces/coulomb.hpp"
+#include "april/interactions/harmonic.hpp"
+#include "april/interactions/gravity.hpp"
+#include "april/interactions/lennard_jones.hpp"
+#include "april/interactions/no_force.hpp"
+#include "april/interactions/coulomb.hpp"
 
 // Controllers & Fields
 #include "april/controllers/thermostat.hpp"

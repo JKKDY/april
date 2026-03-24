@@ -3,7 +3,7 @@
 #include <vector>
 #include "april/boundaries/boundary.hpp"
 #include "april/exec/policy.hpp"
-#include "april/forces/force.hpp"
+#include "april/interactions/force.hpp"
 #include "april/particle/attributes.hpp"
 
 namespace april {
@@ -51,7 +51,7 @@ namespace april {
 		// handle pair wise (type-type) interactions
 		auto update_forces_batch = [&]<container::batching::IsBatch Batch, container::batching::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
 
-			auto apply_batch_update =  [&] <force::IsForce ForceT> (const ForceT & force) {
+			auto apply_batch_update =  [&] <interactions::IsForce ForceT> (const ForceT & force) {
 				constexpr ParticleField M = ForceT::fields | ParticleField::position;
 
 				auto kernel = [&]<bool is_packed>(auto && p1, auto && p2) AP_FORCE_INLINE {
@@ -69,7 +69,7 @@ namespace april {
 						auto outside  = r.norm_squared() > force.cutoff2();
 						if (all(outside )) return;
 
-						if constexpr (ForceT::symmetry == force::ForceSymmetry::Nonsymmetric) {
+						if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Nonsymmetric) {
 							auto f1 = force(p1, p2, r);
 							auto f2 = force(p2, p1, -r);
 
@@ -91,10 +91,10 @@ namespace april {
 								select(outside , packed(0), f.y),
 								select(outside , packed(0), f.z)
 							};
-							if constexpr (ForceT::symmetry == force::ForceSymmetry::Antisymmetric) {
+							if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Antisymmetric) {
 								p1.force += f_masked;
 								p2.force -= f_masked;
-							} else if constexpr (ForceT::symmetry == force::ForceSymmetry::Symmetric) {
+							} else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Symmetric) {
 								p1.force += f_masked;
 								p2.force += f_masked;
 							}
@@ -103,15 +103,15 @@ namespace april {
 						if (r.norm_squared() > force.cutoff2()) {
 							return;
 						}
-						if constexpr (ForceT::symmetry == force::ForceSymmetry::Antisymmetric) {
+						if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Antisymmetric) {
 							vec3 f = force(p1.to_view(), p2.to_view(), r);
 							p1.force += f;
 							p2.force -= f;
-						}  else if constexpr (ForceT::symmetry == force::ForceSymmetry::Symmetric) {
+						}  else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Symmetric) {
 							vec3 f = force(p1.to_view(), p2.to_view(), r);
 							p1.force += f;
 							p2.force += f;
-						}  else if constexpr (ForceT::symmetry == force::ForceSymmetry::Nonsymmetric) {
+						}  else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Nonsymmetric) {
 							p1.force += force(p1.to_view(), p2.to_view(), r);
 							p2.force += force(p2.to_view(), p1.to_view(), -r);
 						}
@@ -132,22 +132,22 @@ namespace april {
 
 		// handle id-id interactions
 		auto update_forces_topology_batch = [&](const container::batching::IsTopologyBatch auto & batch) {
-			auto apply_batch_update = [&] <force::IsForce ForceT> (const ForceT & force) {
+			auto apply_batch_update = [&] <interactions::IsForce ForceT> (const ForceT & force) {
 				constexpr auto Read = ForceT::fields | ParticleField::position;
 				constexpr auto Write = ParticleField::force;
 
 				auto kernel = [&](auto && p1, auto && p2) AP_FORCE_INLINE {
 					vec3 r = p2.position - p1.position;
 
-					if constexpr (ForceT::symmetry == force::ForceSymmetry::Antisymmetric) {
+					if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Antisymmetric) {
 						vec3 f = force(p1.to_view(), p2.to_view(), r);
 						p1.force += f;
 						p2.force -= f;
-					}  else if constexpr (ForceT::symmetry == force::ForceSymmetry::Symmetric) {
+					}  else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Symmetric) {
 						vec3 f = force(p1.to_view(), p2.to_view(), r);
 						p1.force += f;
 						p2.force += f;
-					}  else if constexpr (ForceT::symmetry == force::ForceSymmetry::Nonsymmetric) {
+					}  else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Nonsymmetric) {
 						p1.force += force(p1.to_view(), p2.to_view(), r);
 						p2.force += force(p2.to_view(), p1.to_view(), -r);
 					}

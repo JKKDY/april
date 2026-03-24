@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cmath>
-#include "april/forces/force.hpp"
+#include "april/interactions/force.hpp"
 #include "april/base/types.hpp"
 
 
@@ -9,7 +9,7 @@
 namespace april {
 
 	// Lennard-Jones potential (12-6). epsilon: well depth; sigma: zero-cross distance.
-	struct LennardJones : force::Force {
+	struct LennardJones : interactions::Force {
 		static constexpr auto fields = ParticleField::none;
 
 		LennardJones(const double epsilon, const double sigma, const double cutoff = -1.0)

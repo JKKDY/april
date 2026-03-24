@@ -1,18 +1,18 @@
 #pragma once
 
 
-#include "april/forces/force.hpp"
+#include "april/interactions/force.hpp"
 
 
 namespace april {
 	// Harmonic spring force (Hooke's law). k: spring constant; r0: equilibrium distance.
-	struct Harmonic : force::Force {
+	struct Harmonic : interactions::Force {
 		static constexpr auto fields = ParticleField::none;
 
 		double k; // Spring constant
 		double r0; // Equilibrium distance
 
-		Harmonic(const double strength, const double equilibrium, const double cutoff = force::no_cutoff)
+		Harmonic(const double strength, const double equilibrium, const double cutoff = interactions::no_cutoff)
 		: Force(cutoff), k(strength), r0(equilibrium) {}
 
 

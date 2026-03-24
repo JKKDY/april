@@ -3,14 +3,14 @@
 // #include "april/april.hpp"
 
 #include "april/base/types.hpp"
-#include "april/forces/force.hpp"
-#include "april/forces/coulomb.hpp"
-#include "april/forces/gravity.hpp"
-#include "april/forces/harmonic.hpp"
-#include "april/forces/lennard_jones.hpp"
-#include "april/forces/force_table.hpp"
+#include "april/interactions/force.hpp"
+#include "april/interactions/coulomb.hpp"
+#include "april/interactions/gravity.hpp"
+#include "april/interactions/harmonic.hpp"
+#include "april/interactions/lennard_jones.hpp"
+#include "april/interactions/interaction_table.hpp"
 
-using namespace april::force;
+using namespace april::interactions;
 using namespace april::particle;
 using namespace april::particle::internal;
 using namespace april;

@@ -13,7 +13,7 @@ namespace april {
     struct NoForce;
 }
 
-namespace april::force {
+namespace april::interactions {
 
     constexpr double no_cutoff = 1.0e150; // 1.0e150 squared is 1.0e300 <  max of double = 1.79e308
 
@@ -236,7 +236,7 @@ namespace april::force {
 
 namespace april {
     // define Force pack
-    template<class... Fs> inline constexpr force::internal::ForcePack<Fs...> forces{};
+    template<class... Fs> inline constexpr interactions::internal::ForcePack<Fs...> forces{};
 }
 
 

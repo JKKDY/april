@@ -4,7 +4,7 @@
 #include "april/containers/linked_cells/lc_soa.hpp"
 #include "april/containers/linked_cells/lc_aosoa.hpp"
 #include "april/containers/linked_cells/lc_config.hpp"
-#include "april/forces/lennard_jones.hpp"
+#include "april/interactions/lennard_jones.hpp"
 
 
 using namespace april;

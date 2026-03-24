@@ -177,9 +177,9 @@ namespace april::container::internal {
 
 			// collect all interaction topologies into a single vector
 			std::vector<utility::graph::EdgeList<ParticleID>> global_topologies;
-			global_topologies.reserve(this->force_schema.interactions.size());
+			global_topologies.reserve(this->interaction_map.interactions.size());
 
-			for (const auto& prop : this->force_schema.interactions) {
+			for (const auto& prop : this->interaction_map.interactions) {
 				if (!prop.used_by_ids.empty() && prop.is_active) {
 					global_topologies.push_back(prop.used_by_ids);
 				}
@@ -241,7 +241,7 @@ namespace april::container::internal {
 
 		void generate_batches(this auto && self) {
 			// if (self.bin_starts.empty()) return;
-			const auto n_types = static_cast<ParticleType>(self.force_schema.types.size());
+			const auto n_types = static_cast<ParticleType>(self.interaction_map.types.size());
 
             // symmetric batches
             for (ParticleType type = 0; type < n_types; type++) {

@@ -10,7 +10,7 @@ namespace april::container::layout {
     class AoS : public Container<ContainerConfig> {
     public:
         using Base = Container<ContainerConfig>;
-        using Base::force_schema;
+        using Base::interaction_map;
         friend Base;
 
         using Particle = Base::ParticleRecord;

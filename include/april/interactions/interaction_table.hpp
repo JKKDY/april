@@ -2,42 +2,41 @@
 #include <functional>
 #include <unordered_set>
 
-#include "april/forces/force.hpp"
-#include "april/forces/no_force.hpp"
+#include "april/interactions/force.hpp"
+#include "april/interactions/no_force.hpp"
 
 
-namespace april::force::internal {
+namespace april::interactions::internal {
 
 
-    struct InteractionProp {
+    struct InteractionDescriptor {
         double cutoff = 0.0;
         bool is_active = false;
+        size_t arity = 2; // future stub for bonded interactions. Currently unused
         std::vector<std::pair<ParticleType, ParticleType>> used_by_types;
         std::vector<std::pair<ParticleID, ParticleID>> used_by_ids;
     };
 
 
-    struct InteractionSchema {
-        const std::vector<ParticleType> types;
-        const std::vector<ParticleID> ids;
+    struct InteractionMap {
+        const std::vector<ParticleType> types; // list of all types
+        const std::vector<ParticleID> ids;  // list of all ids
+        const std::vector<InteractionDescriptor> interactions; // list of interactions
 
         const std::vector<size_t> type_interaction_matrix; // i * types.size() + j -> index into interactions
         const std::vector<size_t> id_interaction_matrix; // i * id.size() + j -> index into interactions
-
-        const std::vector<InteractionProp> interactions;
-
     };
 
 
     template<IsForceVariant ForceVariant>
-    class ForceTable {
+    class InteractionTable {
         using Type_Interaction = TypeInteraction<ForceVariant>;
         using Id_Interaction = IdInteraction<ForceVariant>;
         using IdMap = std::unordered_map<ParticleID, ParticleID>;
         using TypeMap = std::unordered_map<ParticleType, ParticleType>;
     public:
 
-        ForceTable(
+        InteractionTable(
             std::vector<Type_Interaction> type_interactions,
             std::vector<Id_Interaction> id_interactions,
             const TypeMap & usr_types_to_impl_types,
@@ -48,13 +47,13 @@ namespace april::force::internal {
             validate_force_tables();
         }
 
-        [[nodiscard]] InteractionSchema generate_schema() const {
+        [[nodiscard]] InteractionMap generate_interaction_map() const {
             // helper to extract properties of a given force type
-            auto get_properties = [](auto const& v) -> InteractionProp {
-                return std::visit([]<typename F>(F const& f) -> InteractionProp {
+            auto get_properties = [](auto const& v) -> InteractionDescriptor {
+                return std::visit([]<typename F>(F const& f) -> InteractionDescriptor {
                     using T = std::decay_t<F>;
 
-                    InteractionProp prop;
+                    InteractionDescriptor prop;
                     prop.cutoff = f.cutoff();
 
                     if constexpr (std::is_same_v<T, NoForce>) {
@@ -92,7 +91,7 @@ namespace april::force::internal {
             for (const auto & force : id_forces) all_forces.push_back(force);
 
             // and we also create a corresponding properties vector for every force
-            std::vector<InteractionProp> all_force_props;
+            std::vector<InteractionDescriptor> all_force_props;
             all_force_props.reserve(type_forces.size() + id_forces.size());
             for (const auto & force : all_forces) all_force_props.push_back(get_properties(force));
 
@@ -114,7 +113,7 @@ namespace april::force::internal {
             // first we create a vector of unique forces and track which force in all_forces maps a force in unique_forces
             std::vector<size_t> remapping(all_forces.size());
             std::vector<ForceVariant> unique_forces;
-            std::vector<InteractionProp> unique_props;
+            std::vector<InteractionDescriptor> unique_props;
 
             for (size_t i = 0; i < all_forces.size(); i++) {
                 const auto & current_force = all_forces[i];
@@ -161,12 +160,12 @@ namespace april::force::internal {
                 id_interaction_matrix[i] = remapping[n_types * n_types + i];
             }
 
-            return InteractionSchema{
+            return InteractionMap {
                 .types = types,
                 .ids = ids,
+                .interactions = unique_props,
                 .type_interaction_matrix = type_interaction_matrix,
                 .id_interaction_matrix = id_interaction_matrix,
-                .interactions = unique_props,
             };
         }
 
@@ -300,7 +299,7 @@ namespace april::force::internal {
                 for (size_t b = 0; b < n_ids; b++) {
                     auto & v = id_forces[id_index(a, b)];
                     if (a != b && std::holds_alternative<ForceSentinel>(v)) {
-                        v = april::NoForce();
+                        v = NoForce();
                     }
                 }
             }

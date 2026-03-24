@@ -5,9 +5,9 @@
 #include <variant>
 
 #include "april/base/types.hpp"
-#include "april/forces/force.hpp"
-#include "april/forces/coulomb.hpp"
-#include "april/forces/force_table.hpp"
+#include "april/interactions/force.hpp"
+#include "april/interactions/coulomb.hpp"
+#include "april/interactions/interaction_table.hpp"
 #include "constant_force.h"
 
 using namespace april;
@@ -15,10 +15,10 @@ using namespace april;
 
 // 1. Define the ForceVariant and ForceTable types for the test
 // Must include ForceSentinel and NoForce as per internal requirements
-using TestForceVariant = std::variant<force::internal::ForceSentinel, ConstantForce, NoForce>;
-using ForceTable = force::internal::ForceTable<TestForceVariant>;
-using TypeInfo = force::internal::TypeInteraction<TestForceVariant>;
-using IdInfo = force::internal::IdInteraction<TestForceVariant>;
+using TestForceVariant = std::variant<interactions::internal::ForceSentinel, ConstantForce, NoForce>;
+using ForceTable = interactions::internal::InteractionTable<TestForceVariant>;
+using TypeInfo = interactions::internal::TypeInteraction<TestForceVariant>;
+using IdInfo = interactions::internal::IdInteraction<TestForceVariant>;
 
 
 TEST(InteractionManagerTest, EmptyBuild) {
@@ -26,7 +26,7 @@ TEST(InteractionManagerTest, EmptyBuild) {
 
     const ForceTable force_table({}, {}, {}, {});
 
-    auto schema = force_table.generate_schema();
+    auto schema = force_table.generate_interaction_map();
     EXPECT_TRUE(schema.interactions.empty());
 }
 
@@ -40,7 +40,7 @@ TEST(InteractionManagerTest, MaxCutoffCalculation) {
     const ForceTable force_table(info, {}, type_map, {});
 
     // Verify via Schema
-    auto schema = force_table.generate_schema();
+    auto schema = force_table.generate_interaction_map();
 
     double max_cut = 0;
     for(auto& p : schema.interactions) {
@@ -121,7 +121,7 @@ TEST(InteractionManagerTest, IdBasedLookup) {
     EXPECT_EQ(eval_id(1, 0), vec3(7, 8, 9));
 
     // 3. Verify Schema Topology
-    auto schema = force_table.generate_schema();
+    auto schema = force_table.generate_interaction_map();
 
     // We expect the schema to have recorded the ID usage for this pair
     bool found_id_link = false;
@@ -175,7 +175,7 @@ TEST(InteractionManagerTest, SchemaDeduplication) {
     std::unordered_map<ParticleType, ParticleType> type_map{{0, 0}, {1, 1}};
     ForceTable force_table(info, {}, type_map, {});
 
-    auto schema = force_table.generate_schema();
+    auto schema = force_table.generate_interaction_map();
 
     // We expect exactly 2 unique interactions in the palette:
     // 1. Force(1,0,0) [used by 0-0 and 1-1]

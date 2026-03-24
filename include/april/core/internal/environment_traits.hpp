@@ -5,8 +5,8 @@
 #include "environment_data.hpp"
 #include "april/particle/particle_types.hpp"
 
-#include "april/forces/force.hpp"
-#include "april/forces/force_table.hpp"
+#include "april/interactions/force.hpp"
+#include "april/interactions/interaction_table.hpp"
 
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/boundary_table.hpp"
@@ -22,26 +22,26 @@ namespace april::core::internal {
 	// this class holds relevant types derived from template parameter packs
 	// this significantly cleans up dependent type declarations in other classes
 	template<
-		force::IsForce... Fs,
+		interactions::IsForce... Fs,
 		boundary::IsBoundary... BCs,
 		controller::IsController... Cs,
 		field::IsField... FFs,
 		particle::IsParticleAttributes Attributes>
 	struct EnvironmentTraits<
-		force::internal::ForcePack<Fs...>,
+		interactions::internal::ForcePack<Fs...>,
 		boundary::internal::BoundaryPack<BCs...>,
 		controller::internal::ControllerPack<Cs...>,
 		field::internal::FieldPack<FFs...>,
 		Attributes>
 	{
 		// Core Packs
-		using FPackT  = force::internal::ForcePack<Fs...>;
+		using FPackT  = interactions::internal::ForcePack<Fs...>;
 		using BPack_t  = boundary::internal::BoundaryPack<BCs...>;
 		using CPack_t  = controller::internal::ControllerPack<Cs...>;
 		using FFPack_t = field::internal::FieldPack<FFs...>;
 
 		// Derived Variants
-		using force_variant_t    = force::internal::VariantType_t<Fs...>;
+		using force_variant_t    = interactions::internal::VariantType_t<Fs...>;
 		using boundary_variant_t = boundary::internal::VariantType_t<BCs...>;
 
 		// Derived Storage Types
@@ -50,7 +50,7 @@ namespace april::core::internal {
 
 		// Table Types
 		using boundary_table_t = boundary::internal::BoundaryTable<boundary_variant_t>;
-		using force_table_t    = force::internal::ForceTable<force_variant_t>;
+		using force_table_t    = interactions::internal::InteractionTable<force_variant_t>;
 
 		// particles
 		using particle_attributes_t = Attributes;
@@ -154,7 +154,7 @@ namespace april::core::internal {
 
 
 	template<class T> static constexpr bool is_any_pack_v =
-		force::internal::IsForcePack<T> || boundary::internal::IsBoundaryPack<T> ||
+		interactions::internal::IsForcePack<T> || boundary::internal::IsBoundaryPack<T> ||
 		controller::internal::IsControllerPack<T> || field::internal::IsFieldPack<T> ||
 		is_particle_data_v<T>;
 

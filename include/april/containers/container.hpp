@@ -9,7 +9,7 @@
 
 #include "april/math/range.hpp"
 
-#include "april/forces/force_table.hpp"
+#include "april/interactions/interaction_table.hpp"
 #include "april/core/domain.hpp"
 #include "april/core/internal/environment_traits.hpp"
 #include "april/exec/parallel_utils.hpp"
@@ -45,7 +45,7 @@ namespace april::container {
 		ContainerConfig config;
 		ContainerFlags flags {};
 		ContainerHints hints {};
-		force::internal::InteractionSchema force_schema {};
+		interactions::internal::InteractionMap interaction_map {};
 		core::Box domain {};
 	};
 
@@ -79,7 +79,7 @@ namespace april::container {
 			config(context.config),
 			flags(context.flags),
 			hints(context.hints),
-			force_schema(context.force_schema),
+			interaction_map(context.interaction_map),
 			domain(context.domain),
 			thread_executor(executor)
 		{}
@@ -310,7 +310,7 @@ namespace april::container {
 		const Config config;
 		const ContainerFlags flags;
 		const ContainerHints hints;
-		const force::internal::InteractionSchema force_schema;
+		const interactions::internal::InteractionMap interaction_map;
 		const core::Box domain; // Note: in the future this may be adjustable during run time
 		const exec::Executor & thread_executor;
 

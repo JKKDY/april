@@ -10,7 +10,7 @@
 
 #include "april/base/types.hpp"
 #include "april/core/domain.hpp"
-#include "april/forces/force.hpp"
+#include "april/interactions/force.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/controllers/controller.hpp"
 #include "april/fields/field.hpp"
@@ -19,7 +19,7 @@
 
 namespace april {
     template<
-       force::internal::IsForcePack FPack,
+       interactions::internal::IsForcePack FPack,
        boundary::internal::IsBoundaryPack BPack,
        controller::internal::IsControllerPack CPack,
        field::internal::IsFieldPack FFPack,
@@ -49,8 +49,8 @@ namespace april::core::internal {
     // templated extension
     template<class ForceVariant, class BoundaryVariant, class ControllerStorage, class FieldStorage>
     struct EnvironmentData final : EnvironmentCommonData{
-        std::vector<force::internal::TypeInteraction<ForceVariant>> type_interactions {};
-        std::vector<force::internal::IdInteraction<ForceVariant>> id_interactions {};
+        std::vector<interactions::internal::TypeInteraction<ForceVariant>> type_interactions {};
+        std::vector<interactions::internal::IdInteraction<ForceVariant>> id_interactions {};
         std::array<BoundaryVariant, 6>  boundaries;
 
         ControllerStorage controllers;
@@ -59,7 +59,7 @@ namespace april::core::internal {
 
     // friend function of environment to access the environment data
     template<
-        force::internal::IsForcePack FPack,
+        interactions::internal::IsForcePack FPack,
         boundary::internal::IsBoundaryPack BPack,
         controller::internal::IsControllerPack CPack,
         field::internal::IsFieldPack FFPack,

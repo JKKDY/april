@@ -46,7 +46,7 @@ namespace april {
 		// ----------------
 		using SysContext = core::SystemContext<System>;
 		using TrigContext = utility::internal::TriggerContextImpl<System>;
-		using Container = ContainerBuildConfig::ContainerConfig::template impl<ContainerBuildConfig, ParticleAttributes>;
+		using Container = ContainerBuildConfig::ContainerConfig::template impl<ContainerBuildConfig>;
 		using ParticleRec = Traits::particle_record_t;
 
 		static constexpr auto parallel_policy = ExecConfig::parallel_policy;

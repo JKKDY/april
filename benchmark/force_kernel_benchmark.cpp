@@ -1,7 +1,7 @@
 #include <april/april.hpp>
 #include <filesystem>
 
-#include "april/forces/force.hpp"
+#include "april/interactions/force.hpp"
 #include "april/containers/direct_sum/ds_aos.hpp"
 #include "april/containers/direct_sum/ds_soa.hpp"
 #include "april/containers/direct_sum/ds_aosoa.hpp"
@@ -88,7 +88,7 @@ constexpr size_t n_interactions = N * (N+1) / 2 * steps;
 int main() {
 	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/bench";
 
-	auto force = LennardJones(epsilon, sigma, force::no_cutoff);
+	auto force = LennardJones(epsilon, sigma, interactions::no_cutoff);
 
 	{
 		Environment env (forces<LennardJones>, boundaries<ReflectiveBoundary>);

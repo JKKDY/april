@@ -7,7 +7,7 @@
 #include "april/core/domain.hpp"
 #include "april/core/internal/environment_traits.hpp"
 
-#include "april/forces/force.hpp"
+#include "april/interactions/force.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/controllers/controller.hpp"
 #include "april/fields/field.hpp"
@@ -24,7 +24,7 @@ namespace april {
     struct between_ids { ParticleID id1, id2; };
 
     template<
-        force::internal::IsForcePack FPack,
+        interactions::internal::IsForcePack FPack,
         boundary::internal::IsBoundaryPack BPack,
         controller::internal::IsControllerPack CPack,
         field::internal::IsFieldPack FFPack,
@@ -45,7 +45,7 @@ namespace april {
             (!std::same_as<std::remove_cvref_t<Args>, Environment> && ...) // make sonarqube shut up about perfect forwarding
         explicit Environment(Args&&...)
             : Environment(
-                core::internal::get_pack_t<force::internal::ForcePack, Args...>{},
+                core::internal::get_pack_t<interactions::internal::ForcePack, Args...>{},
                 core::internal::get_pack_t<boundary::internal::BoundaryPack, Args...>{},
                 core::internal::get_pack_t<controller::internal::ControllerPack,Args...>{},
                 core::internal::get_pack_t<field::internal::FieldPack, Args...>{},
@@ -106,20 +106,20 @@ namespace april {
         // ADD INTERACTIONS
         //-----------------
         // Force applied to a single particle type (self-interaction)
-        template<force::IsForce F> requires traits::template is_valid_force_v<F>
+        template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
         void add_force(F force, to_type scope) {
             // add_force({true, std::pair{scope.type, scope.type}})
             data.type_interactions.emplace_back(scope.type, scope.type, typename traits::force_variant_t{std::move(force)});
         }
 
         // Force applied between two particle types
-        template<force::IsForce F> requires traits::template is_valid_force_v<F>
+        template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
         void add_force(F force, between_types scope) {
             data.type_interactions.emplace_back(scope.t1, scope.t2, typename traits::force_variant_t{std::move(force)});
         }
 
         // Force applied between two specific particle IDs
-        template<force::IsForce F> requires traits::template is_valid_force_v<F>
+        template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
         void add_force(F force, between_ids scope) {
             data.id_interactions.emplace_back(scope.id1, scope.id2, typename traits::force_variant_t{std::move(force)});
         }
@@ -241,19 +241,19 @@ namespace april {
         }
 
 
-        template<force::IsForce F> requires traits::template is_valid_force_v<F>
+        template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
         Environment& with_force(F&& force, to_type scope) {
             add_force(std::forward<F>(force), scope);
             return *this;
         }
 
-        template<force::IsForce F> requires traits::template is_valid_force_v<F>
+        template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
         Environment& with_force(F&& force, between_types scope) {
             add_force(std::forward<F>(force), scope);
             return *this;
         }
 
-        template<force::IsForce F> requires traits::template is_valid_force_v<F>
+        template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
         Environment& with_force(F&& force, between_ids scope) {
             add_force(std::forward<F>(force), scope);
             return *this;
@@ -342,7 +342,7 @@ namespace april {
     template<class... Args>
     Environment(Args...)
         -> Environment<
-            core::internal::get_pack_t<force::internal::ForcePack, Args...>,
+            core::internal::get_pack_t<interactions::internal::ForcePack, Args...>,
             core::internal::get_pack_t<boundary::internal::BoundaryPack, Args...>,
             core::internal::get_pack_t<controller::internal::ControllerPack,Args...>,
             core::internal::get_pack_t<field::internal::FieldPack, Args...>,
@@ -356,7 +356,7 @@ namespace april {
             inline constexpr bool is_environment_v = false;
 
             template<
-                force::internal::IsForcePack FPack,
+                interactions::internal::IsForcePack FPack,
                 boundary::internal::IsBoundaryPack BPack,
                 controller::internal::IsControllerPack CPack,
                 field::internal::IsFieldPack FFPack,

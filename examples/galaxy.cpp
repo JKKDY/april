@@ -8,11 +8,11 @@ using namespace april;
 namespace fs = std::filesystem;
 
 // 1. Define a Custom Force to handle n^2 softening
-struct SoftGravity : force::Force {
+struct SoftGravity : interactions::Force {
     double G;
     double eps_sq; // Softening parameter squared
 
-    SoftGravity(const double G, const double eps) : Force(force::no_cutoff), G(G), eps_sq(eps * eps) {}
+    SoftGravity(const double G, const double eps) : Force(interactions::no_cutoff), G(G), eps_sq(eps * eps) {}
 
     // Tell APRIL which particle fields this force needs to access
     static constexpr auto fields = ParticleField::position | ParticleField::mass;

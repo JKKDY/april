@@ -6,7 +6,7 @@
 #include <memory>
 
 #include "april/base/types.hpp"
-#include "april/forces/force.hpp"
+#include "april/interactions/force.hpp"
 #include "april/particle/generators.hpp"
 
 
@@ -127,10 +127,10 @@ namespace april::core::internal {
 
 
 	// ---- build particles ----
-	template<force::internal::IsForceVariant FV>
+	template<interactions::internal::IsForceVariant FV>
 	auto extract_interaction_parameters(
-		const std::vector<force::internal::TypeInteraction<FV>> & type_interactions,
-		const std::vector<force::internal::IdInteraction<FV>> & id_interaction)
+		const std::vector<interactions::internal::TypeInteraction<FV>> & type_interactions,
+		const std::vector<interactions::internal::IdInteraction<FV>> & id_interaction)
 	{
 		std::vector<std::pair<ParticleType, ParticleType>> type_pairs(type_interactions.size());
 		std::vector<std::pair<ParticleID, ParticleID>> id_pairs(id_interaction.size());

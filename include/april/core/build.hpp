@@ -88,7 +88,7 @@ namespace april {
 			.config = container_config,
 			.flags = core::internal::set_container_flags(topologies),
 			.hints = container::ContainerHints(),
-			.force_schema = forces.generate_schema(),
+			.interaction_map = forces.generate_interaction_map(),
 			.domain = simulation_box
 		};
 

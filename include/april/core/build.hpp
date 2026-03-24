@@ -84,7 +84,7 @@ namespace april {
 		}
 
 		container::ContainerBuildConfig<ContainerCfg, ExecCfg, ParticleAttributes> container_info {
-			.execution_config = execution_config,
+			.exec = execution_config,
 			.config = container_config,
 			.flags = core::internal::set_container_flags(topologies),
 			.hints = container::ContainerHints(),

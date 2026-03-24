@@ -14,12 +14,14 @@
 
 namespace april::container::internal {
 
-	template <class ContainerBase>
-	class DirectSumCore : public ContainerBase {
+	template <class Base>
+	class DirectSumCore : public Base {
 	public:
-		using ContainerBase::ContainerBase;
-		using ContainerBase::build_storage;
-		using typename ContainerBase::ParticleRecord;
+		using Base::Base;
+		using Base::build_storage;
+		using typename Base::ParticleRecord;
+		using Base::vector_policy;
+		using Base::parallel_policy;
 
 		void build(this auto&& self, const std::vector<ParticleRecord>& particles) {
 			self.build_storage(particles);
@@ -117,7 +119,7 @@ namespace april::container::internal {
 			}
 
 			// process all tasks in parallel
-			self.thread_executor.execute(num_tasks, [&](const size_t t_idx) {
+			self.thread_executor.template execute<parallel_policy>(num_tasks, [&](const size_t t_idx) {
 				const auto& block = blocks[t_idx];
 				auto& local_ret = local_results[t_idx];
 

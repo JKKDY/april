@@ -41,13 +41,16 @@ namespace april::container {
 		using ContainerConfig = ContainerCfg;
 		using ExecutionConfig = ExecutionCfg;
 		using ParticleAttributes = Attributes;
-		ExecutionConfig execution_config;
+		using ThreadExecutor = ExecutionConfig::ThreadExecutor;
+
+		ExecutionConfig exec;
 		ContainerConfig config;
 		ContainerFlags flags {};
 		ContainerHints hints {};
 		interactions::internal::InteractionMap interaction_map {};
 		core::Box domain {};
 	};
+
 
 	namespace internal {
 		// check if T is a ContainerBuildConfig
@@ -67,15 +70,19 @@ namespace april::container {
 
 
 
-	template<class BuildConfiguration>
+	template<IsContainerBuildConfig BuildConfiguration>
 	class Container {
 	public:
 		using ParticleAttributes = BuildConfiguration::ParticleAttributes;
 		using ParticleRecord = particle::ParticleRecord<ParticleAttributes>;
 		using Config = BuildConfiguration::ContainerConfig;
 		using ExecutionConfig = BuildConfiguration::ExecutionConfig;
+		using ThreadExecutor = BuildConfiguration::ThreadExecutor;
 
-		Container(const BuildConfiguration & context, const exec::Executor & executor):
+		static constexpr auto parallel_policy = ExecutionConfig::parallel_policy;
+		static constexpr auto vector_policy = ExecutionConfig::vector_policy;
+
+		Container(const BuildConfiguration & context, const ThreadExecutor & executor):
 			config(context.config),
 			flags(context.flags),
 			hints(context.hints),
@@ -145,7 +152,7 @@ namespace april::container {
 		// filter by state (safe, performs checks to skip garbage data)
 		template<
 			ParallelPolicy P = ParallelPolicy::Serial,
-			VectorPolicy V = VectorPolicy::Auto,
+			VectorPolicy V = vector_policy,
 			exec::IsKernel Kernel>
 		void for_each_particle(this auto&& self, Kernel && func, ParticleState state = ParticleState::ALL) {
 			self.template invoke_iterate_state<P, V, false>(func, state);
@@ -154,7 +161,7 @@ namespace april::container {
 		// direct range based access (fast & branchless but unsafe; will not perform any checks)
 		template<
 			ParallelPolicy P = ParallelPolicy::Serial,
-			VectorPolicy V = VectorPolicy::Auto,
+			VectorPolicy V = vector_policy,
 			exec::IsKernel Kernel>
 		void for_each_particle(this auto&& self, size_t start, size_t stop, Kernel && func) {
 			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
@@ -184,7 +191,7 @@ namespace april::container {
 					curr = reduce_func(curr, val);
 				};
 
-				self.template invoke_iterate<M, ParallelPolicy::Serial, VectorPolicy::Auto, true>(kernel, state);
+				self.template invoke_iterate<M, ParallelPolicy::Serial, vector_policy, true>(kernel, state);
 				return curr;
 			}
 		}
@@ -312,8 +319,9 @@ namespace april::container {
 		const ContainerHints hints;
 		const interactions::internal::InteractionMap interaction_map;
 		const core::Box domain; // Note: in the future this may be adjustable during run time
-		const exec::Executor & thread_executor;
+		const ThreadExecutor & thread_executor;
 
+		// TODO this does not belong in the base class (which should be as agnostic as possible)
 		exec::BlockConfig pair_schedule_config;
 		exec::BlockConfig linear_schedule_config;
 

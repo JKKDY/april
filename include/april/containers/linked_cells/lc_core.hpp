@@ -20,8 +20,8 @@ namespace april::math {
 }
 
 namespace april::container::internal {
-	template <class ContainerBase>
-	class LinkedCellsCore : public ContainerBase {
+	template <class Base>
+	class LinkedCellsCore : public Base {
 		using cell_index_t = uint32_t;
 
 		enum CellWrapFlag : uint8_t {
@@ -44,9 +44,11 @@ namespace april::container::internal {
 		};
 
 	public:
-		using ContainerBase::ContainerBase;
-		using ContainerBase::build_storage;
-		using typename ContainerBase::ParticleRecord;
+		using Base::Base;
+		using Base::build_storage;
+		using typename Base::ParticleRecord;
+		using Base::vector_policy;
+		using Base::parallel_policy;
 
 		void build (this auto&& self, const std::vector<ParticleRecord>& particles) {
 			self.setup_topology_batches();
@@ -98,7 +100,7 @@ namespace april::container::internal {
 			std::atomic rebuild = false;
 
 			// check if a particle has moved further than the  skin thickness
-			self.template for_each_particle<ParallelPolicy::Threaded>(
+			self.template for_each_particle<parallel_policy>(
 				scalar_kernel<ParticleField::position| ParticleField::id>([&](auto && p) {
 					if (std::abs(self.last_x[p.id] - p.position.x) > self.verlet_skin / 2) rebuild = true;
 					if (std::abs(self.last_y[p.id] - p.position.y) > self.verlet_skin / 2) rebuild = true;
@@ -110,7 +112,7 @@ namespace april::container::internal {
 				self.rebuild_structure_impl();
 
 				// cache current particles positions
-				self.template for_each_particle<ParallelPolicy::Serial>(
+				self.template for_each_particle<parallel_policy>(
 					scalar_kernel<ParticleField::position | ParticleField::id>([&](auto && p) {
 						self.last_x[p.id] = p.position.x;
 						self.last_y[p.id] = p.position.y;
@@ -153,7 +155,7 @@ namespace april::container::internal {
 			}
 
 			// parallel scattering of particles
-			self.thread_executor.execute(tasks.size(), [&](const size_t t_idx) {
+			self.thread_executor.template execute<parallel_policy>(tasks.size(), [&](const size_t t_idx) {
 				const auto& block = tasks[t_idx];
 				auto& local_records = self.thread_local_buffers[t_idx].records;
 
@@ -198,7 +200,7 @@ namespace april::container::internal {
 		    }
 
 			// process all tasks in parallel
-		    self.thread_executor.execute(num_tasks, [&](const size_t t_idx) {
+		    self.thread_executor.template execute<parallel_policy>(num_tasks, [&](const size_t t_idx) {
 		        const auto& block = blocks[t_idx];
 		        auto& local_ret = local_results[t_idx];
 

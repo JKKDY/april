@@ -6,14 +6,14 @@
 #include "april/exec/policy.hpp"
 
 namespace april::container::layout {
-    template <typename ContainerConfig, particle::IsParticleAttributes A>
-    class AoS : public Container<ContainerConfig, A> {
+    template <typename ContainerConfig>
+    class AoS : public Container<ContainerConfig> {
     public:
-        using Base = Container<ContainerConfig, A>;
+        using Base = Container<ContainerConfig>;
         using Base::force_schema;
         friend Base;
 
-        using Particle = particle::ParticleRecord<A>;
+        using Particle = Base::ParticleRecord;
 
         AoS(const ContainerConfig& config, const exec::Executor& executor) :
             Base(config, executor) {

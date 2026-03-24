@@ -33,6 +33,7 @@ namespace april {
 		using BoundaryTable = Env::traits::boundary_table_t;
 		using ForceTable = Env::traits::force_table_t;
 		using ParticleRecord = Env::traits::particle_record_t;
+		using ParticleAttributes = Env::traits::particle_attributes_t;
 
 		using EnvData = core::internal::EnvironmentData< // explicit type so the IDE can perform code completion
 			typename Env::traits::force_variant_t,
@@ -82,16 +83,16 @@ namespace april {
 			build_info->simulation_domain = Domain(simulation_box.min, simulation_box.extent);
 		}
 
-		container::ContainerBuildContext<ContainerCfg, ExecCfg> container_info {
-			.container_config = container_config,
+		container::ContainerBuildConfig<ContainerCfg, ExecCfg, ParticleAttributes> container_info {
 			.execution_config = execution_config,
+			.config = container_config,
 			.flags = core::internal::set_container_flags(topologies),
 			.hints = container::ContainerHints(),
 			.force_schema = forces.generate_schema(),
 			.domain = simulation_box
 		};
 
-		return System<container::ContainerBuildContext<ContainerCfg, ExecCfg>, typename Env::traits, ExecCfg> (
+		return System<decltype(container_info), typename Env::traits, ExecCfg> (
 			execution_config,
 			container_info,
 			particles,

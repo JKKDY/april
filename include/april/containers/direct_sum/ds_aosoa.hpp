@@ -6,10 +6,10 @@
 #include "april/containers/batching/chunked_batch.hpp"
 
 namespace april::container::internal {
-    template <class Config, class U, size_t ChunkSize>
-    class DirectSumAoSoAImpl : public DirectSumCore<layout::AoSoA<Config, U, ChunkSize>> {
+    template <class Config, size_t ChunkSize>
+    class DirectSumAoSoAImpl : public DirectSumCore<layout::AoSoA<Config, ChunkSize>> {
     public:
-        using Base = DirectSumCore<layout::AoSoA<Config, U, ChunkSize>>;
+        using Base = DirectSumCore<layout::AoSoA<Config, ChunkSize>>;
         using Base::chunk_size;
 
         using SymmetricBatch = batching::SymmetricChunkedBatch<DirectSumAoSoAImpl,  typename Base::ChunkT>;
@@ -60,7 +60,7 @@ namespace april::container {
     template <size_t ChunkSize>
     struct DirectSumAoSoA {
 
-        template <class Config, class U>
-        using impl = internal::DirectSumAoSoAImpl<Config, U, ChunkSize>;
+        template <class Config>
+        using impl = internal::DirectSumAoSoAImpl<Config, ChunkSize>;
     };
 }

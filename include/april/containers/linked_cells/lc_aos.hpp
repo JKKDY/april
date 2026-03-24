@@ -9,13 +9,13 @@
 
 namespace april::container::internal {
 
-    template <class Config, class U>
-    class LinkedCellsAoSImpl : public LinkedCellsCore<layout::AoS<Config, U>> {
+    template <class Config>
+    class LinkedCellsAoSImpl : public LinkedCellsCore<layout::AoS<Config>> {
     public:
 		using AsymBatch = batching::AsymmetricScalarBatch<LinkedCellsAoSImpl, exec::VectorTrait::ScalarPath>;
     	using SymBatch = batching::SymmetricScalarBatch<LinkedCellsAoSImpl, exec::VectorTrait::ScalarPath>;
 
-    	using Base = LinkedCellsCore<layout::AoS<Config, U>>;
+    	using Base = LinkedCellsCore<layout::AoS<Config>>;
 
     	using Base::Base;
     	friend Base;
@@ -87,8 +87,8 @@ namespace april::container::internal {
 namespace april::container {
     struct LinkedCellsAoS : internal::LinkedCellsConfig{
 
-        template <class Config, class Attributes>
-        using impl = internal::LinkedCellsAoSImpl<Config, Attributes>;
+    	template<class Config>
+        using impl = internal::LinkedCellsAoSImpl<Config>;
     };
 }
 

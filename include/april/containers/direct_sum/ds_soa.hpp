@@ -7,10 +7,10 @@
 
 namespace april::container::internal {
 
-    template <class Config, class U>
-    class DirectSumSoAImpl : public DirectSumCore<layout::SoA<Config, U>> {
+    template <class Config>
+    class DirectSumSoAImpl : public DirectSumCore<layout::SoA<Config>> {
     public:
-        using Base = DirectSumCore<layout::SoA<Config, U>>;
+        using Base = DirectSumCore<layout::SoA<Config>>;
 
         using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumSoAImpl>;
         using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumSoAImpl>;
@@ -45,8 +45,8 @@ namespace april::container::internal {
 
 namespace april::container {
     struct DirectSumSoA {
-        template <class Config, class U>
-        using impl = internal::DirectSumSoAImpl<Config, U>;
+        template<class Config>
+        using impl = internal::DirectSumSoAImpl<Config>;
     };
 }
 

@@ -36,31 +36,47 @@ namespace april::container {
 		std::vector<core::Box> query_regions;
 	};
 
-	template<class ContainerCfg, class ExecutionCfg>
-	struct ContainerBuildContext {
+	template<class ContainerCfg, class ExecutionCfg, particle::IsParticleAttributes Attributes>
+	struct ContainerBuildConfig {
 		using ContainerConfig = ContainerCfg;
 		using ExecutionConfig = ExecutionCfg;
-		ContainerConfig container_config;
+		using ParticleAttributes = Attributes;
 		ExecutionConfig execution_config;
+		ContainerConfig config;
 		ContainerFlags flags {};
 		ContainerHints hints {};
 		force::internal::InteractionSchema force_schema {};
 		core::Box domain {};
 	};
 
+	namespace internal {
+		// check if T is a ContainerBuildConfig
+		template<typename T>
+		struct is_container_build_context : std::false_type {};
+
+		template<typename Cfg, typename Exec, typename Attributes>
+		struct is_container_build_context<
+			ContainerBuildConfig<Cfg, Exec, Attributes>
+		> : std::true_type {};
+	}
+
+	template<typename T>
+	concept IsContainerBuildConfig =
+		internal::is_container_build_context<std::remove_cvref_t<T>>::value;
 
 
 
-	template<class BuildConfiguration,  particle::IsParticleAttributes Attributes>
+
+	template<class BuildConfiguration>
 	class Container {
 	public:
-		using ParticleRecord = particle::ParticleRecord<Attributes>;
-		using ParticleAttributes = Attributes;
+		using ParticleAttributes = BuildConfiguration::ParticleAttributes;
+		using ParticleRecord = particle::ParticleRecord<ParticleAttributes>;
 		using Config = BuildConfiguration::ContainerConfig;
 		using ExecutionConfig = BuildConfiguration::ExecutionConfig;
 
 		Container(const BuildConfiguration & context, const exec::Executor & executor):
-			config(context.container_config),
+			config(context.config),
 			flags(context.flags),
 			hints(context.hints),
 			force_schema(context.force_schema),
@@ -79,28 +95,28 @@ namespace april::container {
 		// INDEX ACCESSORS
 		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at(this auto&& self, size_t index) {
-			return particle::internal::ScalarParticleRef<Read, Write, Attributes> {
+			return particle::internal::ScalarParticleRef<Read, Write, ParticleAttributes> {
 				self.template access_particle<Read, Write>(index)
 			};
 		}
 
 		template<ParticleField Read>
 		[[nodiscard]] auto view(this const auto& self, size_t index) {
-			return particle::internal::ScalarParticleRef<Read, ParticleField::none, Attributes> {
+			return particle::internal::ScalarParticleRef<Read, ParticleField::none, ParticleAttributes> {
 				self.template access_particle<Read, ParticleField::none>(index)
 			};
 		}
 
 		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t index) {
-			return particle::internal::PackedParticleRef<Read, Write, Attributes> {
+			return particle::internal::PackedParticleRef<Read, Write, ParticleAttributes> {
 				self.template access_particle<Read, Write>(index)
 			};
 		}
 
 		template<ParticleField Read>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t index) {
-			return particle::internal::PackedParticleRef<Read, ParticleField::none, Attributes> { // Assuming you kept the View alias
+			return particle::internal::PackedParticleRef<Read, ParticleField::none, ParticleAttributes> { // Assuming you kept the View alias
 				self.template access_particle<Read, ParticleField::none>(index)
 			};
 		}
@@ -109,14 +125,14 @@ namespace april::container {
 		// ID ACCESSORS
 		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at_id(this auto&& self, ParticleID id) {
-			return particle::internal::ScalarParticleRef<Read, Write, Attributes> {
+			return particle::internal::ScalarParticleRef<Read, Write, ParticleAttributes> {
 				self.template access_particle_id<Read, Write>(id)
 			};
 		}
 
 		template<ParticleField Read>
 		[[nodiscard]] auto view_id(this const auto & self, ParticleID id) {
-			return particle::internal::ScalarParticleRef<Read, ParticleField::none, Attributes> {
+			return particle::internal::ScalarParticleRef<Read, ParticleField::none, ParticleAttributes> {
 				self.template access_particle_id<Read, ParticleField::none>(id)
 			};
 		}
@@ -415,7 +431,7 @@ namespace april::container {
 				"APRIL ERROR: Cannot request write permissions (WriteMask != none) on a const Container. "
 				"Either drop the write mask or ensure the container is mutable.");
 
-			particle::internal::ParticleSource<Read, Write, Attributes> src;
+			particle::internal::ParticleSource<Read, Write, ParticleAttributes> src;
 			constexpr auto Mask = Read | Write;
 
 			if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
@@ -446,7 +462,7 @@ namespace april::container {
 
 			constexpr auto Mask = Read | Write;
 			if constexpr (Mask == ParticleField::none) { // guard against none because 1 << std::countr_zero would produce UB
-				return particle::internal::ParticleSource<Read, Write, Attributes>{};
+				return particle::internal::ParticleSource<Read, Write, ParticleAttributes>{};
 			}
 
 			// We pick the first active field in the Mask to test if 'get_field_ptr_id' exists.
@@ -463,7 +479,7 @@ namespace april::container {
 		    		"APRIL ERROR: Cannot request write permissions (WriteMask != none) on a const Container. "
 					"Either drop the write mask or ensure the container is mutable.");
 
-		    	particle::internal::ParticleSource<Read, Write, Attributes> src;
+		    	particle::internal::ParticleSource<Read, Write, ParticleAttributes> src;
 
 		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
         			src.force = self.template invoke_get_field_ptr_id<ParticleField::force>(id);

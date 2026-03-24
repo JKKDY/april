@@ -9,13 +9,13 @@
 
 namespace april::container::internal {
 
-    template <class Config, class U>
-    class LinkedCellsSoAImpl : public LinkedCellsCore<layout::SoA<Config, U>> {
+    template <class Config>
+    class LinkedCellsSoAImpl : public LinkedCellsCore<layout::SoA<Config>> {
     public:
 		using AsymBatch = batching::AsymmetricScalarBatch<LinkedCellsSoAImpl>;
     	using SymBatch = batching::SymmetricScalarBatch<LinkedCellsSoAImpl>;
 
-    	using Base = LinkedCellsCore<layout::SoA<Config, U>>;
+    	using Base = LinkedCellsCore<layout::SoA<Config>>;
 
     	using Base::Base;
     	friend Base;
@@ -86,8 +86,8 @@ namespace april::container::internal {
 namespace april::container {
     struct LinkedCellsSoA : internal::LinkedCellsConfig{
 
-    	template <class Config, class Attributes>
-	    using impl = internal::LinkedCellsSoAImpl<Config, Attributes>;
+    	template<class Config>
+	    using impl = internal::LinkedCellsSoAImpl<Config>;
     };
 }
 

@@ -10,11 +10,12 @@
 
 namespace april::container::layout {
 
-    template<typename ContainerConfig, particle::IsParticleAttributes Attributes>
-    class SoA : public Container<ContainerConfig, Attributes> {
+    template<typename ContainerConfig>
+    class SoA : public Container<ContainerConfig> {
     public:
-        using Base = Container<ContainerConfig, Attributes>;
+        using Base = Container<ContainerConfig>;
         using Base::force_schema;
+        using ParticleAttributes = Base::ParticleAttributes;
         friend Base;
 
         SoA(const ContainerConfig & config, const exec::Executor & executor):
@@ -52,14 +53,14 @@ namespace april::container::layout {
         }
 
     protected:
-        SoAStorage<Attributes> tmp;
-        SoAStorage<Attributes> data;
+        SoAStorage<ParticleAttributes> tmp;
+        SoAStorage<ParticleAttributes> data;
         std::vector<size_t> bin_starts; // first particle index of each bin
         std::vector<size_t> bin_sizes; // number of particles in each bin
         std::vector<uint32_t> id_to_index_map;
 
         // explode AoS input into SoA vectors
-        void build_storage(const std::vector<particle::ParticleRecord<Attributes>>& particles) {
+        void build_storage(const std::vector<particle::ParticleRecord<ParticleAttributes>>& particles) {
             size_t n = particles.size();
             data.resize(n);
             id_to_index_map.resize(n);

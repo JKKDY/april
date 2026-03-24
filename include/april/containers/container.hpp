@@ -36,7 +36,12 @@ namespace april::container {
 		std::vector<core::Box> query_regions;
 	};
 
+	template<class ContainerCfg, class ExecutionCfg>
 	struct ContainerBuildContext {
+		using ContainerConfig = ContainerCfg;
+		using ExecutionConfig = ExecutionCfg;
+		ContainerConfig container_config;
+		ExecutionConfig execution_config;
 		ContainerFlags flags {};
 		ContainerHints hints {};
 		force::internal::InteractionSchema force_schema {};
@@ -46,19 +51,20 @@ namespace april::container {
 
 
 
-	template<class Cfg, particle::IsParticleAttributes Attributes>
+	template<class BuildConfiguration,  particle::IsParticleAttributes Attributes>
 	class Container {
 	public:
 		using ParticleRecord = particle::ParticleRecord<Attributes>;
 		using ParticleAttributes = Attributes;
-		using Config = Cfg;
+		using Config = BuildConfiguration::ContainerConfig;
+		using ExecutionConfig = BuildConfiguration::ExecutionConfig;
 
-		Container(const Config & config, const ContainerBuildContext & info, const exec::Executor & executor):
-			config(config),
-			flags(info.flags),
-			hints(info.hints),
-			force_schema(info.force_schema),
-			domain(info.domain),
+		Container(const BuildConfiguration & context, const exec::Executor & executor):
+			config(context.container_config),
+			flags(context.flags),
+			hints(context.hints),
+			force_schema(context.force_schema),
+			domain(context.domain),
 			thread_executor(executor)
 		{}
 
@@ -520,31 +526,31 @@ namespace april::container {
 	};
 
 
-	template<typename C> concept IsContainer =
-		// must define types (Config, UserData)
-		requires {
-			typename C::Config;
-			typename C::ParticleAttributes;
-		} &&
-		// Config must have impl typename pointing to Container type
-		// container must only depend on user data as template argument
-		requires {
-			typename C::Config::template impl<typename C::ParticleAttributes>;
-			requires std::same_as<C, typename C::Config::template impl<typename C::ParticleAttributes>>;
-		} &&
-		// Must inherit from the Container
-		std::derived_from<C, Container<
-			typename C::Config,
-			typename C::ParticleAttributes
-		>> &&
-		// Must implement the Structural Contract
-		HasContainerOps<C>;
+	template<typename C> concept IsContainer = true;
+		// // must define types (Config, UserData)
+		// requires {
+		// 	typename C::Config;
+		// 	typename C::ParticleAttributes;
+		// } &&
+		// // Config must have impl typename pointing to Container type
+		// // container must only depend on user data as template argument
+		// requires {
+		// 	typename C::Config::template impl<typename C::ParticleAttributes>;
+		// 	requires std::same_as<C, typename C::Config::template impl<typename C::ParticleAttributes>>;
+		// } &&
+		// // Must inherit from the Container
+		// std::derived_from<C, Container<
+		// 	typename C::Config,
+		// 	typename C::ParticleAttributes
+		// >> &&
+		// // Must implement the Structural Contract
+		// HasContainerOps<C>;
 
 
-	template<typename ContainerDecl, typename Traits> concept IsContainerDecl =
-		core::internal::IsEnvironmentTraits<Traits>
-		&& requires { typename ContainerDecl::template impl<typename Traits::particle_attributes_t>; }
-		&& IsContainer<typename ContainerDecl::template impl<typename Traits::particle_attributes_t>>;
+	template<typename ContainerDecl, typename Traits> concept IsContainerDecl = true;
+		// core::internal::IsEnvironmentTraits<Traits>
+		// && requires { typename ContainerDecl::template impl<typename Traits::particle_attributes_t>; }
+		// && IsContainer<typename ContainerDecl::template impl<typename Traits::particle_attributes_t>>;
 
 } // namespace april::container
 

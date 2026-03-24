@@ -85,10 +85,9 @@ namespace april::container::internal {
 
 namespace april::container {
     struct LinkedCellsSoA : internal::LinkedCellsConfig{
-        using ConfigT = LinkedCellsSoA;
 
-        template <class U>
-        using impl = internal::LinkedCellsSoAImpl<ConfigT, U>;
+    	template <class Config, class Attributes>
+	    using impl = internal::LinkedCellsSoAImpl<Config, Attributes>;
     };
 }
 

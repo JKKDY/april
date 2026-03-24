@@ -108,10 +108,9 @@ namespace april::container {
 
 	template<size_t ChunkSize>
     struct LinkedCellsAoSoA : internal::LinkedCellsConfig{
-        using ConfigT = LinkedCellsAoSoA;
 
-        template <class U>
-        using impl = internal::LinkedCellsAoSoAImpl<ConfigT, U, ChunkSize>;
+        template <class Config, class Attributes>
+        using impl = internal::LinkedCellsAoSoAImpl<Config, Attributes ,ChunkSize>;
     };
 }
 

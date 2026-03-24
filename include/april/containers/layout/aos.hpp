@@ -6,19 +6,19 @@
 #include "april/exec/policy.hpp"
 
 namespace april::container::layout {
-    template <typename Config, particle::IsParticleAttributes A>
-    class AoS : public Container<Config, A> {
+    template <typename ContainerConfig, particle::IsParticleAttributes A>
+    class AoS : public Container<ContainerConfig, A> {
     public:
-        using Base = Container<Config, A>;
+        using Base = Container<ContainerConfig, A>;
         using Base::force_schema;
         friend Base;
 
         using Particle = particle::ParticleRecord<A>;
 
-        AoS(const Config& config, const ContainerBuildContext& info, const exec::Executor& executor) :
-            Base(config, info, executor) {
+        AoS(const ContainerConfig& config, const exec::Executor& executor) :
+            Base(config, executor) {
             this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
-            this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 4);
+            this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);
         }
 
 

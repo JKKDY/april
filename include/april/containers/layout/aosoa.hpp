@@ -14,13 +14,13 @@
 
 namespace april::container::layout {
 
-    template <typename Config, particle::IsParticleAttributes Attributes, size_t ChunkSize>
-    class AoSoA : public Container<Config, Attributes> {
+    template <typename ContainerConfig, particle::IsParticleAttributes Attributes, size_t ChunkSize>
+    class AoSoA : public Container<ContainerConfig, Attributes> {
     public:
         static constexpr size_t chunk_size = ChunkSize;
         using ChunkT = ParticleChunk<Attributes, chunk_size>;
 
-        using Base = Container<Config, Attributes>;
+        using Base = Container<ContainerConfig, Attributes>;
         using Base::force_schema;
         using Base::Base; // Inherit constructors
         friend Base;
@@ -30,8 +30,8 @@ namespace april::container::layout {
         using Base::at;
         using Base::access_particle;
 
-        AoSoA(const Config & config, const ContainerBuildContext & info, const exec::Executor & executor):
-           Base(config, info, executor)
+        AoSoA(const ContainerConfig & config, const exec::Executor & executor):
+           Base(config, executor)
         {
             this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
             this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);

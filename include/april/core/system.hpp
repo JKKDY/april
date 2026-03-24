@@ -12,14 +12,14 @@
 namespace april {
 	struct BuildInfo;
 
-	template <class C, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecCfg>
-	requires container::IsContainerDecl<C, Traits>
+	template <class ContainerBuildConfig, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecCfg>
+	// requires container::IsContainerDecl<C, Traits>
 	class System;
 
 
 	template <class Container, core::IsEnvironment Env, exec::IsExecutionConfig ExecCfg>
 	requires container::IsContainerDecl<Container, typename Env::traits>
-	System<Container, typename Env::traits, ExecCfg> build_system(
+	auto build_system(
 		const Env & environment,
 		const Container & container_config,
 		const ExecCfg & execution_config,
@@ -29,8 +29,7 @@ namespace april {
 
 
 
-	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
-	requires container::IsContainerDecl<ContainerDecl, Traits>
+	template <class ContainerBuildConfig, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
 	class System final {
 		// --------------
 		// INTERNAL TYPES
@@ -47,7 +46,7 @@ namespace april {
 		// ----------------
 		using SysContext = core::SystemContext<System>;
 		using TrigContext = utility::internal::TriggerContextImpl<System>;
-		using Container = ContainerDecl::template impl<ParticleAttributes>;
+		using Container = ContainerBuildConfig::ContainerConfig::template impl<ContainerBuildConfig, ParticleAttributes>;
 		using ParticleRec = Traits::particle_record_t;
 
 		static constexpr auto parallel_policy = ExecConfig::parallel_policy;
@@ -79,8 +78,7 @@ namespace april {
 		// private constructor since System should only be creatable through build_system(...)
 		System(
 			const ExecConfig& exec_config,
-			const ContainerDecl& container_cfg,
-			const container::ContainerBuildContext & container_info,
+			const ContainerBuildConfig& container_cfg,
 			const std::vector<ParticleRec>& particles,
 			const BoundaryTable& boundaries_in,
 			const ForceTable& forces_in,
@@ -92,7 +90,7 @@ namespace april {
 			  force_table(forces_in),
 			  controllers(controllers_in),
 			  fields(fields_in),
-			  particle_container(Container(container_cfg, container_info, thread_executor)),
+			  particle_container(Container(container_cfg, thread_executor)),
 			  exec_config(exec_config),
 			  system_context(*this),
 			  trig_context(*this)
@@ -106,7 +104,7 @@ namespace april {
 		// Avoids exposing constructor internals publicly.
 		template <class C, core::IsEnvironment E, exec::IsExecutionConfig EC>
 	    requires container::IsContainerDecl<C, typename E::traits>
-	    friend System<C, typename E::traits, EC> build_system(
+	    friend auto build_system(
 		    const E&, const C&, const EC&, BuildInfo*
 	    );
 

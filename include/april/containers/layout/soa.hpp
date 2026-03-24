@@ -10,15 +10,15 @@
 
 namespace april::container::layout {
 
-    template<typename Config, particle::IsParticleAttributes Attributes>
-    class SoA : public Container<Config, Attributes> {
+    template<typename ContainerConfig, particle::IsParticleAttributes Attributes>
+    class SoA : public Container<ContainerConfig, Attributes> {
     public:
-        using Base = Container<Config, Attributes>;
+        using Base = Container<ContainerConfig, Attributes>;
         using Base::force_schema;
         friend Base;
 
-        SoA(const Config & config, const ContainerBuildContext & info, const exec::Executor & executor):
-            Base(config, info, executor)
+        SoA(const ContainerConfig & config, const exec::Executor & executor):
+            Base(config, executor)
         {
             this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
             this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);

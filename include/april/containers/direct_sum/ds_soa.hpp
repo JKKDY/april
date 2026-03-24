@@ -45,10 +45,8 @@ namespace april::container::internal {
 
 namespace april::container {
     struct DirectSumSoA {
-        using ConfigT = DirectSumSoA;
-
-        template <class U>
-        using impl = internal::DirectSumSoAImpl<ConfigT, U>;
+        template <class Config, class U>
+        using impl = internal::DirectSumSoAImpl<Config, U>;
     };
 }
 

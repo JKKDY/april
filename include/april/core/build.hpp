@@ -24,7 +24,7 @@ namespace april {
 	// constructs a system from an environment and a container.
 	template <class ContainerCfg, core::IsEnvironment Env, exec::IsExecutionConfig ExecCfg>
 	requires container::IsContainerDecl<ContainerCfg, typename Env::traits>
-	System<ContainerCfg, typename Env::traits, ExecCfg> build_system(
+	auto build_system(
 		const Env & environment,
 		const ContainerCfg & container_config,
 		const ExecCfg & execution_config,
@@ -82,16 +82,17 @@ namespace april {
 			build_info->simulation_domain = Domain(simulation_box.min, simulation_box.extent);
 		}
 
-		container::ContainerBuildContext container_info {
+		container::ContainerBuildContext<ContainerCfg, ExecCfg> container_info {
+			.container_config = container_config,
+			.execution_config = execution_config,
 			.flags = core::internal::set_container_flags(topologies),
 			.hints = container::ContainerHints(),
 			.force_schema = forces.generate_schema(),
 			.domain = simulation_box
 		};
 
-		return System<ContainerCfg, typename Env::traits, ExecCfg> (
+		return System<container::ContainerBuildContext<ContainerCfg, ExecCfg>, typename Env::traits, ExecCfg> (
 			execution_config,
-			container_config,
 			container_info,
 			particles,
 			boundaries,
@@ -128,18 +129,5 @@ namespace april {
 		return build_system(environment, container_config, execution_config, nullptr);
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

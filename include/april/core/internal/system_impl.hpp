@@ -13,7 +13,7 @@ namespace april {
 	//--------------
 	// ToDO extract this method to a free convenience function that maps a kernel & policies to a batch for_each_pair call
 	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
-	template <ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
+	template <VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
 	void System<ContainerDecl, Traits, ExecConfig>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
 		using namespace april::exec;
 		using namespace april::exec::internal;
@@ -31,13 +31,7 @@ namespace april {
 		constexpr ExecutionMode exec_mode = resolve_execution_mode<valid_modes, required_modes>();
 
 		// run kernel on batches
-		if constexpr (container::batching::IsBatchAtom<Batch>) {
-			batch.template for_each_pair<P, exec_mode>(kernel); // TODO deduce parallel policy from batch capabilitiy and Policy P
-		} else if constexpr (container::batching::IsBatchAtomRange<Batch>) {
-			for (const auto& atom : batch) {
-				atom.template for_each_pair<P, exec_mode>(kernel);
-			}
-		}
+		batch.template for_each_pair<exec_mode>(kernel); // TODO deduce parallel policy from batch capabilitiy and Policy P
 	}
 
 
@@ -123,7 +117,7 @@ namespace april {
 					|| ForceT::vector_mode == exec::ExecutionMode::Scalar
 					|| ExecConfig::vector_policy == VectorPolicy::Scalar;
 				constexpr VectorPolicy vp = force_scalar ? VectorPolicy::Scalar : VectorPolicy::Auto;
-				execute_batch_kernel<ParallelPolicy::Serial, vp>(batch, april::universal_kernel<M, ParticleField::force>(kernel));
+				execute_batch_kernel<vp>(batch, april::universal_kernel<M, ParticleField::force>(kernel));
 			};
 
 			auto [t1, t2] = batch.types;

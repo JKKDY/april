@@ -41,6 +41,7 @@ namespace april {
 		using ParticleAttributes= Traits::particle_attributes_t;
 		using ExecutionConfig   = ExecConfig;
 	public:
+
 		// ----------------
 		// PUBLIC API TYPES
 		// ----------------
@@ -51,7 +52,6 @@ namespace april {
 
 		static constexpr auto parallel_policy = ExecConfig::parallel_policy;
 		static constexpr auto vector_policy = ExecConfig::vector_policy;
-
 	private:
 		// ---------------
 		// PRIVATE MEMBERS
@@ -108,7 +108,7 @@ namespace april {
 		    const E&, const C&, const EC&, BuildInfo*
 	    );
 
-		template<ParallelPolicy P, VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
+		template<VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel);
 	public:
 
@@ -117,7 +117,7 @@ namespace april {
 		// -----------------
 		[[nodiscard]] double time() const noexcept { return time_; }
 		[[nodiscard]] size_t step() const noexcept { return step_; }
-		// TODO check if domain() is used anywehere and if it can be deleted
+		// TODO check if domain() is used anywhere and if it can be deleted
 		[[nodiscard]] Domain domain() const { return { particle_container.simulation_domain().min,  particle_container.simulation_domain().extent}; }
 		[[nodiscard]] core::Box box() const { return particle_container.simulation_domain(); }
 
@@ -239,9 +239,9 @@ namespace april {
 
 
 
-		template<typename Func>
-		void for_each_interaction_batch(Func && func) { // func(batch, bcp)
-			particle_container.invoke_for_each_interaction_batch(std::forward<Func>(func));
+		template<ParallelPolicy P, typename Func>
+		void for_each_interaction_batch(Func && func) { // func signature: func(batch, bcp)
+			particle_container.template invoke_for_each_interaction_batch<P>(std::forward<Func>(func));
 		}
 
 		template<exec::IsKernel Kernel>

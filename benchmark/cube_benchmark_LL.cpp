@@ -55,8 +55,8 @@ int main() {
 
 	for (int i = 0; i < 1; i++) {
 		struct :
-			RunTimeConfig<exec::SequentialExecutor>,
-			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Scalar>
+			RunTimeConfig<exec::OmpExecutor>,
+			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
 		{} cfg;
 		// cfg.executer_config.n_threads = 8;
 

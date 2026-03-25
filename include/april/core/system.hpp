@@ -7,7 +7,7 @@
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
 #include "april/core/context.hpp"
-#include "april/exec/config.hpp"
+#include "april/exec/executor.hpp"
 
 namespace april {
 	struct BuildInfo;

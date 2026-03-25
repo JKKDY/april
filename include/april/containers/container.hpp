@@ -5,7 +5,7 @@
 
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
-#include "april/exec/config.hpp"
+#include "april/exec/executor.hpp"
 
 #include "april/math/range.hpp"
 

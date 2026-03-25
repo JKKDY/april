@@ -2,36 +2,50 @@
 
 #include "april/base/config.hpp"
 #include "april/exec/policy.hpp"
+#include "executors/executor_traits.hpp"
 
 
-#if defined(AP_EXECUTOR_USE_OMP)
-#include "april/exec/executors/omp_executor.hpp"
 
-namespace april::exec {
-    using Executor = OmpExecutor;
-}
+#if (defined(AP_EXECUTOR_BACKEND_OMP) + \
+defined(AP_EXECUTOR_BACKEND_NATIVE_BARRIER) + \
+defined(AP_EXECUTOR_BACKEND_NATIVE_SPIN) + \
+defined(AP_EXECUTOR_BACKEND_SEQUENTIAL)) > 1
 
-#elif defined(AP_EXECUTOR_USE_NATIVE_BARRIER)
+#error "[APRIL] Multiple executor backends defined. Select exactly one."
+
+#endif
+
+
+#if defined(AP_EXECUTOR_BACKEND_OMP)
+
+    #include "april/exec/executors/omp_executor.hpp"
+    namespace april::exec {
+        using Executor = OmpExecutor;
+    }
+
+#elif defined(AP_EXECUTOR_BACKEND_NATIVE_BARRIER)
 
 #include "april/exec/executors/native_barrier_executor.hpp"
-
 namespace april::exec {
-    using Executor = NativeBarrierExecutor;
-}
-#elif defined(AP_EXECUTOR_USE_NATIVE_SPIN)
+        using Executor = NativeBarrierExecutor;
+    }
+
+#elif defined(AP_EXECUTOR_BACKEND_NATIVE_SPIN)
 
 #include "april/exec/executors/native_spin_executor.hpp"
-
 namespace april::exec {
-    using Executor = NativeSpinExecutor;
-}
+        using Executor = NativeSpinExecutor;
+    }
 
 #elif defined(AP_EXECUTOR_BACKEND_SEQUENTIAL)
 
 #include "executors/sequential_executor.hpp"
 namespace april::exec {
-    using Executor = ::april::exec::SequentialExecutor;
-}
+        using Executor = ::april::exec::SequentialExecutor;
+    }
+
+#else
+#error "[APRIL] No executor backend selected"
 #endif
 
 
@@ -44,12 +58,9 @@ namespace april {
         using ThreadExecutor = E;
         using ExecutorConfig = E::Config;
         ExecutorConfig executer_config;
-        // size_t task_chunk_size = 256; // future stub
     };
 
-    template<
-        ParallelPolicy P = ParallelPolicy::Threaded,
-        VectorPolicy V = VectorPolicy::Scalar>
+    template<ParallelPolicy P = ParallelPolicy::Threaded, VectorPolicy V = VectorPolicy::Auto>
     struct CompileTimeConfig {
         static constexpr VectorPolicy vector_policy = V;
         static constexpr ParallelPolicy parallel_policy = P;

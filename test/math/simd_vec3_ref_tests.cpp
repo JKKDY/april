@@ -3,24 +3,13 @@
 #include <algorithm>
 
 #include "april/base/types.hpp"
-#include "april/simd/backend_xsimd.hpp"
+#include "april/simd/packed.hpp"
 
 using namespace april;
 
 
-#if (defined(__clang__) && !defined(__apple_build_version__)) || defined(__GNUC__)
-#if __has_include(<experimental/simd>) || __has_include(<simd>)
-#define APRIL_HAS_STD_SIMD 1
-#endif
-#endif
+using SimdTypes = testing::Types<simd::Packed<double>, simd::Packed<float>>;
 
-
-#if APRIL_HAS_STD_SIMD
-#include "april/simd/backend_std_simd.hpp"
-using SimdTypes = testing::Types<simd::internal::xsimd::Packed<double>, simd::internal::std_simd::Packed<double>>;
-#else
-using SimdTypes = simd::internal::xsimd::Packed<double>;
-#endif
 
 template <typename T>
 class SimdProxyTest : public testing::Test {

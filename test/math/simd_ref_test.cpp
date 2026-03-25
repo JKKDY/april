@@ -2,24 +2,16 @@
 #include <vector>
 #include <cmath>
 
-#include "april/simd/backend_xsimd.hpp"
 #include "april/simd/packed_ref.hpp"
+#include "april/simd/packed.hpp"
 
-#if (defined(__clang__) && !defined(__apple_build_version__)) || defined(__GNUC__)
-  #if __has_include(<experimental/simd>) || __has_include(<simd>)
-    #define APRIL_HAS_STD_SIMD 1
-  #endif
-#endif
 
-#if APRIL_HAS_STD_SIMD
-  #include "april/simd/backend_std_simd.hpp"
-  using BackendTypes = testing::Types<
-    april::simd::internal::xsimd::Packed<double>,
-    april::simd::internal::std_simd::Packed<double>>;
-#else
-  using BackendTypes = testing::Types<
-    april::simd::internal::xsimd::Packed<double>>;
-#endif
+
+
+using BackendTypes = testing::Types<
+   april::simd::Packed<double>,
+   april::simd::Packed<float>
+>;
 
 template <typename T>
 class SimdRefTest : public testing::Test {

@@ -78,16 +78,16 @@ namespace april::particle::internal {
        }
 
        // Data Fields: Mutable Type, Const Type, Field Enum
-       AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref,     ConstVec3Ref,         ParticleField::force>        force;
-       AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref,     ConstVec3Ref,         ParticleField::position>     position;
-       AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref,     ConstVec3Ref,         ParticleField::velocity>     velocity;
-       AP_NO_UNIQUE_ADDRESS field_t<MutVec3Ref,     ConstVec3Ref,         ParticleField::old_position> old_position;
+       APRIL_NO_UNIQUE_ADDRESS field_t<MutVec3Ref,     ConstVec3Ref,         ParticleField::force>        force;
+       APRIL_NO_UNIQUE_ADDRESS field_t<MutVec3Ref,     ConstVec3Ref,         ParticleField::position>     position;
+       APRIL_NO_UNIQUE_ADDRESS field_t<MutVec3Ref,     ConstVec3Ref,         ParticleField::velocity>     velocity;
+       APRIL_NO_UNIQUE_ADDRESS field_t<MutVec3Ref,     ConstVec3Ref,         ParticleField::old_position> old_position;
 
-       AP_NO_UNIQUE_ADDRESS field_t<double&,        const double&,        ParticleField::mass>         mass;
-       AP_NO_UNIQUE_ADDRESS field_t<ParticleState&, const ParticleState&, ParticleField::state>        state;
-       AP_NO_UNIQUE_ADDRESS field_t<ParticleType&,  const ParticleType&,  ParticleField::type>         type;
-       AP_NO_UNIQUE_ADDRESS field_t<ParticleID&,    const ParticleID&,    ParticleField::id>           id;
-       AP_NO_UNIQUE_ADDRESS field_t<Attributes&,    const Attributes&,    ParticleField::attributes>   attributes;
+       APRIL_NO_UNIQUE_ADDRESS field_t<double&,        const double&,        ParticleField::mass>         mass;
+       APRIL_NO_UNIQUE_ADDRESS field_t<ParticleState&, const ParticleState&, ParticleField::state>        state;
+       APRIL_NO_UNIQUE_ADDRESS field_t<ParticleType&,  const ParticleType&,  ParticleField::type>         type;
+       APRIL_NO_UNIQUE_ADDRESS field_t<ParticleID&,    const ParticleID&,    ParticleField::id>           id;
+       APRIL_NO_UNIQUE_ADDRESS field_t<Attributes&,    const Attributes&,    ParticleField::attributes>   attributes;
     };
 
 

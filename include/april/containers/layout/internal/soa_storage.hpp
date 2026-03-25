@@ -18,31 +18,31 @@ namespace april::container::layout {
         alignas(64) std::vector<ParticleID> id;
         alignas(64) std::vector<Attributes> attributes;
 
-        vec3::type * AP_RESTRICT ptr_pos_x = nullptr;
-        vec3::type * AP_RESTRICT ptr_pos_y = nullptr;
-        vec3::type * AP_RESTRICT ptr_pos_z = nullptr;
+        vec3::type * APRIL_RESTRICT ptr_pos_x = nullptr;
+        vec3::type * APRIL_RESTRICT ptr_pos_y = nullptr;
+        vec3::type * APRIL_RESTRICT ptr_pos_z = nullptr;
 
         // Velocities
-        vec3::type * AP_RESTRICT ptr_vel_x = nullptr;
-        vec3::type * AP_RESTRICT ptr_vel_y = nullptr;
-        vec3::type * AP_RESTRICT ptr_vel_z = nullptr;
+        vec3::type * APRIL_RESTRICT ptr_vel_x = nullptr;
+        vec3::type * APRIL_RESTRICT ptr_vel_y = nullptr;
+        vec3::type * APRIL_RESTRICT ptr_vel_z = nullptr;
 
         // Forces
-        vec3::type * AP_RESTRICT ptr_frc_x = nullptr;
-        vec3::type * AP_RESTRICT ptr_frc_y = nullptr;
-        vec3::type * AP_RESTRICT ptr_frc_z = nullptr;
+        vec3::type * APRIL_RESTRICT ptr_frc_x = nullptr;
+        vec3::type * APRIL_RESTRICT ptr_frc_y = nullptr;
+        vec3::type * APRIL_RESTRICT ptr_frc_z = nullptr;
 
         // Old Position
-        vec3::type * AP_RESTRICT ptr_old_x = nullptr;
-        vec3::type * AP_RESTRICT ptr_old_y = nullptr;
-        vec3::type * AP_RESTRICT ptr_old_z = nullptr;
+        vec3::type * APRIL_RESTRICT ptr_old_x = nullptr;
+        vec3::type * APRIL_RESTRICT ptr_old_y = nullptr;
+        vec3::type * APRIL_RESTRICT ptr_old_z = nullptr;
 
         // Scalars
-        double * AP_RESTRICT ptr_mass = nullptr;
-        ParticleState * AP_RESTRICT ptr_state = nullptr;
-        ParticleType  * AP_RESTRICT ptr_type  = nullptr;
-        ParticleID    * AP_RESTRICT ptr_id    = nullptr;
-        Attributes * AP_RESTRICT ptr_attributes = nullptr;
+        double * APRIL_RESTRICT ptr_mass = nullptr;
+        ParticleState * APRIL_RESTRICT ptr_state = nullptr;
+        ParticleType  * APRIL_RESTRICT ptr_type  = nullptr;
+        ParticleID    * APRIL_RESTRICT ptr_id    = nullptr;
+        Attributes * APRIL_RESTRICT ptr_attributes = nullptr;
 
         size_t capacity{};
         size_t size{};

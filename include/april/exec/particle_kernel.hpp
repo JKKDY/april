@@ -30,7 +30,7 @@ namespace april {
 
             template<typename... Args>
             requires IsKernelInvocable<Func, Args...>
-            AP_FORCE_INLINE decltype(auto) operator()(Args&&... args) const {
+            APRIL_FORCE_INLINE decltype(auto) operator()(Args&&... args) const {
                 constexpr bool packed = (particle::IsPackedParticleAccessor<std::remove_cvref_t<Args>> || ...);
 
                 // Mode checks

@@ -119,7 +119,7 @@ namespace april::container::layout {
         static constexpr uint32_t ID_NOT_FOUND = std::numeric_limits<uint32_t>::max();
 
         // hoist data pointer outside and restrict
-        ChunkT* AP_RESTRICT ptr_chunks = nullptr;
+        ChunkT* APRIL_RESTRICT ptr_chunks = nullptr;
 
         size_t particle_capacity{};
         size_t n_particles{};
@@ -338,7 +338,7 @@ namespace april::container::layout {
         template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
             // route scalar/vector execution
-            auto process_sub_range = [&](const size_t r_start, const size_t r_end) AP_FORCE_INLINE {
+            auto process_sub_range = [&](const size_t r_start, const size_t r_end) APRIL_FORCE_INLINE {
                 if constexpr (V == exec::ExecutionMode::Scalar) {
                     self.template iterate_range_scalar<P, is_const>(kernel, r_start, r_end);
                 } else if constexpr (V == exec::ExecutionMode::Vector || V == exec::ExecutionMode::Hybrid) {
@@ -362,29 +362,29 @@ namespace april::container::layout {
         }
 
         template <ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
-        AP_FORCE_INLINE void iterate_range_scalar(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
+        APRIL_FORCE_INLINE void iterate_range_scalar(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
             using K = std::remove_cvref_t<Kernel>;
             if (start >= end) return;
 
             const auto [start_chunk, start_idx] = self.locate(start);
             const auto [end_chunk, end_idx] = self.locate(end);
 
-            auto* AP_RESTRICT chunks = self.ptr_chunks;
-            auto exec_scalar = [&](size_t c, size_t i) AP_FORCE_INLINE {
+            auto* APRIL_RESTRICT chunks = self.ptr_chunks;
+            auto exec_scalar = [&](size_t c, size_t i) APRIL_FORCE_INLINE {
                 const size_t physical_idx = (c << chunk_shift) | i;
                 if constexpr (is_const) kernel(physical_idx, self.template view<K::Read>(c, i));
                 else kernel(physical_idx, self.template at<K::Read, K::Write>(c, i));
             };
 
             if (start_chunk == end_chunk) {
-                AP_PREFETCH(chunks + start_chunk);
+                APRIL_PREFETCH(chunks + start_chunk);
                 for (size_t i = start_idx; i < end_idx; ++i) {
                     exec_scalar(start_chunk, i);
                 }
             }
             else {
-                AP_PREFETCH(chunks + start_chunk);
-                if (start_chunk + 1 < end_chunk || end_idx > 0) AP_PREFETCH(chunks + start_chunk + 1);
+                APRIL_PREFETCH(chunks + start_chunk);
+                if (start_chunk + 1 < end_chunk || end_idx > 0) APRIL_PREFETCH(chunks + start_chunk + 1);
 
                 // head
                 for (size_t i = start_idx; i < self.chunk_size; ++i) {
@@ -393,7 +393,7 @@ namespace april::container::layout {
 
                 // body
                 for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
-                    AP_PREFETCH(chunks + c + 1);
+                    APRIL_PREFETCH(chunks + c + 1);
                     for (size_t i = 0; i < self.chunk_size; ++i) exec_scalar(c, i);
                 }
 
@@ -407,7 +407,7 @@ namespace april::container::layout {
         }
 
         template <ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
-        AP_FORCE_INLINE void iterate_range_vector(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
+        APRIL_FORCE_INLINE void iterate_range_vector(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
             using K = std::remove_cvref_t<Kernel>;
             if (start >= end) return;
 
@@ -416,7 +416,7 @@ namespace april::container::layout {
             const auto [end_chunk, end_idx] = self.locate(end);
 
             constexpr size_t simd_width = packed::size();
-            auto* AP_RESTRICT chunks = self.ptr_chunks;
+            auto* APRIL_RESTRICT chunks = self.ptr_chunks;
 
             // Align backwards to the nearest vector boundary for head masking
             const size_t head_offset = start_idx % simd_width;
@@ -425,13 +425,13 @@ namespace april::container::layout {
             // kernel expects the logical base index of the vector register
             const auto lane_indices = packed::load_aligned(self.idx_arr);
 
-            auto exec_vector = [&](size_t c, size_t i) AP_FORCE_INLINE {
+            auto exec_vector = [&](size_t c, size_t i) APRIL_FORCE_INLINE {
                 const size_t physical_idx = (c << chunk_shift) | i;
                 if constexpr (is_const) kernel(physical_idx, self.template view_packed<K::Read>(c, i));
                 else kernel(physical_idx, self.template at_packed<K::Read, K::Write>(c, i));
             };
 
-            auto exec_vector_masked = [&](size_t c, size_t i, auto mask) AP_FORCE_INLINE {
+            auto exec_vector_masked = [&](size_t c, size_t i, auto mask) APRIL_FORCE_INLINE {
                 const size_t physical_idx = (c << chunk_shift) | i;
                 if constexpr (is_const) {
                     auto ref = self.template view_packed<K::Read>(c, i);
@@ -444,7 +444,7 @@ namespace april::container::layout {
 
             // Single Chunk iteration (start and end chunk are the same => only one chunk is touched)
             if (start_chunk == end_chunk) {
-                AP_PREFETCH(chunks + start_chunk);
+                APRIL_PREFETCH(chunks + start_chunk);
 
                 // Edge Case: The entire range fits inside a single vector register
                 if (aligned_start_idx + simd_width >= end_idx) {
@@ -476,8 +476,8 @@ namespace april::container::layout {
             }
             // process multiple chunks
             else {
-                AP_PREFETCH(chunks + start_chunk);
-                if (start_chunk + 1 < end_chunk || end_idx > 0) AP_PREFETCH(chunks + start_chunk + 1);
+                APRIL_PREFETCH(chunks + start_chunk);
+                if (start_chunk + 1 < end_chunk || end_idx > 0) APRIL_PREFETCH(chunks + start_chunk + 1);
 
                 // Head Chunk
                 if (head_offset > 0) {
@@ -491,7 +491,7 @@ namespace april::container::layout {
 
                 // Body Chunks (Guaranteed Aligned)
                 for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
-                    AP_PREFETCH(chunks + c + 1);
+                    APRIL_PREFETCH(chunks + c + 1);
                     for (size_t i = 0; i < self.chunk_size; i += simd_width) {
                         exec_vector(c, i);
                     }

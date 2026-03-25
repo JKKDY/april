@@ -168,7 +168,7 @@ namespace april::container::layout {
             static_assert(V != exec::ExecutionMode::Vector,
                           "AoS cannot be vectorized. Change the vector policy to scalar or auto.");
 
-            auto run_kernel = [&](size_t i) AP_FORCE_INLINE {
+            auto run_kernel = [&](size_t i) APRIL_FORCE_INLINE {
                 using K = std::remove_cvref_t<Kernel>;
                 if constexpr (is_const) {
                     kernel(i, self.template view<K::Read>(i));

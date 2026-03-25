@@ -17,7 +17,7 @@ namespace april::container::batching {
 		}
 
 		template<exec::ExecutionMode E, exec::IsKernel Kernel>
-		AP_FORCE_INLINE void for_each_pair(Kernel && f) const {
+		APRIL_FORCE_INLINE void for_each_pair(Kernel && f) const {
 			if (range1.start == range1.stop || range2.start == range2.stop) return;
 
 			if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector)) {
@@ -59,7 +59,7 @@ namespace april::container::batching {
 				for (size_t j : body2) {
 					auto packed2 = container.template at_packed<K::Read, K::Write>(j);
 					auto buffer2 = packed2.load_buffer();
-					AP_UNROLL_LOOP_N(packed_size)
+					APRIL_UNROLL_LOOP_N(packed_size)
 					for (size_t k = 0; k < packed_size; k++) {
 						auto view1 = buffer1.to_view();
 						auto view2 = buffer2.to_view();
@@ -161,7 +161,7 @@ namespace april::container::batching {
 		}
 
 		template<exec::ExecutionMode E, exec::IsKernel Kernel>
-		AP_FORCE_INLINE void for_each_pair(Kernel && f) const {
+		APRIL_FORCE_INLINE void for_each_pair(Kernel && f) const {
 			if (range.start == range.stop) return;
 
 			if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector)) {
@@ -197,7 +197,7 @@ namespace april::container::batching {
 	            // self-interaction within block i
 	            {
 	                auto buffer2 = packed1.load_buffer();
-	                AP_UNROLL_LOOP()
+	                APRIL_UNROLL_LOOP()
 	                for (size_t k = 0; k < packed_size / 2 - 1; k++) {
 	                    buffer2.rotate_right();
 	                    auto view1 = buffer1.to_view();
@@ -218,7 +218,7 @@ namespace april::container::batching {
 	            for (size_t j = i + packed_size; j < tail_start; j += packed_size) {
 	                auto packed2 = container.template at_packed<K::Read, K::Write>(j);
 	                auto buffer2 = packed2.load_buffer();
-	                AP_UNROLL_LOOP_N(packed_size)
+	                APRIL_UNROLL_LOOP_N(packed_size)
 	                for (size_t k = 0; k < packed_size; k++) {
 	                    auto view1 = buffer1.to_view();
 	                    auto view2 = buffer2.to_view();

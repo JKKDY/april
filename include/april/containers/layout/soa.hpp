@@ -177,12 +177,12 @@ namespace april::container::layout {
             using K = std::remove_cvref_t<Kernel>;
             math::Range range = {start, end};
 
-            auto get_scalar = [&](size_t i) AP_FORCE_INLINE {
+            auto get_scalar = [&](size_t i) APRIL_FORCE_INLINE {
                 if constexpr (is_const) return self.template view<K::Read>(i);
                 else return self.template at<K::Read, K::Write>(i);
             };
 
-            auto get_vector_ref = [&](size_t i) AP_FORCE_INLINE {
+            auto get_vector_ref = [&](size_t i) APRIL_FORCE_INLINE {
                 if constexpr (is_const) return self.template view_packed<K::Read>(i);
                 else return self.template at_packed<K::Read, K::Write>(i);
             };

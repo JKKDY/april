@@ -6,38 +6,38 @@
 
 
 
-#if (defined(AP_EXECUTOR_BACKEND_OMP) + \
-defined(AP_EXECUTOR_BACKEND_NATIVE_BARRIER) + \
-defined(AP_EXECUTOR_BACKEND_NATIVE_SPIN) + \
-defined(AP_EXECUTOR_BACKEND_SEQUENTIAL)) > 1
+#if (defined(APRIL_EXECUTOR_BACKEND_OMP) + \
+defined(APRIL_EXECUTOR_BACKEND_NATIVE_BARRIER) + \
+defined(APRIL_EXECUTOR_BACKEND_NATIVE_SPIN) + \
+defined(APRIL_EXECUTOR_BACKEND_SEQUENTIAL)) > 1
 
 #error "[APRIL] Multiple executor backends defined. Select exactly one."
 
 #endif
 
 
-#if defined(AP_EXECUTOR_BACKEND_OMP)
+#if defined(APRIL_EXECUTOR_BACKEND_OMP)
 
     #include "april/exec/executors/omp_executor.hpp"
     namespace april::exec {
         using Executor = OmpExecutor;
     }
 
-#elif defined(AP_EXECUTOR_BACKEND_NATIVE_BARRIER)
+#elif defined(APRIL_EXECUTOR_BACKEND_NATIVE_BARRIER)
 
 #include "april/exec/executors/native_barrier_executor.hpp"
 namespace april::exec {
         using Executor = NativeBarrierExecutor;
     }
 
-#elif defined(AP_EXECUTOR_BACKEND_NATIVE_SPIN)
+#elif defined(APRIL_EXECUTOR_BACKEND_NATIVE_SPIN)
 
 #include "april/exec/executors/native_spin_executor.hpp"
 namespace april::exec {
         using Executor = NativeSpinExecutor;
     }
 
-#elif defined(AP_EXECUTOR_BACKEND_SEQUENTIAL)
+#elif defined(APRIL_EXECUTOR_BACKEND_SEQUENTIAL)
 
 #include "executors/sequential_executor.hpp"
 namespace april::exec {

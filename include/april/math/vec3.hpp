@@ -39,7 +39,7 @@ namespace april::math {
 
     // needed for ADL to work
     template<IsScalar T>
-    AP_FORCE_INLINE inline T rsqrt(T val) {
+    APRIL_FORCE_INLINE inline T rsqrt(T val) {
         return T(1) / std::sqrt(val);
     }
 
@@ -306,9 +306,9 @@ namespace april::math {
     // ------------
     template <typename T> requires std::integral<T> || std::floating_point<T>
     struct Vec3Ptr {
-        T * AP_RESTRICT x = nullptr;
-        T * AP_RESTRICT y = nullptr;
-        T * AP_RESTRICT z = nullptr;
+        T * APRIL_RESTRICT x = nullptr;
+        T * APRIL_RESTRICT y = nullptr;
+        T * APRIL_RESTRICT z = nullptr;
 
         Vec3Ptr() = default;
 
@@ -321,17 +321,17 @@ namespace april::math {
 
         template <typename U>
         requires std::convertible_to<const U*, T*>
-        Vec3Ptr(const Vec3<U>* AP_RESTRICT other)
+        Vec3Ptr(const Vec3<U>* APRIL_RESTRICT other)
            : x(&other->x), y(&other->y), z(&other->z) {
             AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
-        Vec3Ptr(T& AP_RESTRICT x_ref, T& AP_RESTRICT y_ref, T& AP_RESTRICT z_ref)
+        Vec3Ptr(T& APRIL_RESTRICT x_ref, T& APRIL_RESTRICT y_ref, T& APRIL_RESTRICT z_ref)
            : x(&x_ref), y(&y_ref), z(&z_ref) {
             AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
-        Vec3Ptr(T* AP_RESTRICT x_ptr, T* AP_RESTRICT y_ptr, T* AP_RESTRICT z_ptr)
+        Vec3Ptr(T* APRIL_RESTRICT x_ptr, T* APRIL_RESTRICT y_ptr, T* APRIL_RESTRICT z_ptr)
             : x(x_ptr), y(y_ptr), z(z_ptr) {
             AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
@@ -364,9 +364,9 @@ namespace april::math {
     // ----------
     template <typename T>
     struct Vec3Proxy : Vec3Ops<std::remove_cv_t<T>, double> {
-        T& AP_RESTRICT x;
-        T& AP_RESTRICT y;
-        T& AP_RESTRICT z;
+        T& APRIL_RESTRICT x;
+        T& APRIL_RESTRICT y;
+        T& APRIL_RESTRICT z;
 
         Vec3Proxy(const Vec3Proxy&) = default;
 

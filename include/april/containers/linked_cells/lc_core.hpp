@@ -532,7 +532,7 @@ namespace april::container::internal {
         // -----------------
         // Iterates over spatial blocks (cache blocking)
         template <typename Func>
-        AP_FORCE_INLINE void for_each_block(Func&& fn) const {
+        APRIL_FORCE_INLINE void for_each_block(Func&& fn) const {
             const auto& batch_dim = this->config.block_size;
             for (size_t bz = 0; bz < cells_per_axis.z; bz += batch_dim.z)
                 for (size_t by = 0; by < cells_per_axis.y; by += batch_dim.y)
@@ -542,7 +542,7 @@ namespace april::container::internal {
 
 		// Iterates over all unique pairs of types (T1, T2) where T2 >= T1
 		template <typename Func>
-		AP_FORCE_INLINE void for_each_type_pair(Func&& fn) const {
+		APRIL_FORCE_INLINE void for_each_type_pair(Func&& fn) const {
 			for (size_t t1 = 0; t1 < this->n_types; ++t1)
 				for (size_t t2 = t1; t2 < this->n_types; ++t2)
 					fn(t1, t2);
@@ -550,7 +550,7 @@ namespace april::container::internal {
 
         // Iterates over the cells inside a specific block
         template <typename Func>
-        AP_FORCE_INLINE void for_each_cell_in_block(size_t bx, size_t by, size_t bz, Func&& fn) const {
+        APRIL_FORCE_INLINE void for_each_cell_in_block(size_t bx, size_t by, size_t bz, Func&& fn) const {
             const auto& bdim = this->config.block_size;
 
             // Calculate limits (handling edge blocks that might be smaller)
@@ -570,7 +570,7 @@ namespace april::container::internal {
 		// BATCH ITERATIONS
 		// ----------------
 		template <typename GetRange, typename AddSym, typename AddAsym>
-		AP_FORCE_INLINE void process_cell_interactions(
+		APRIL_FORCE_INLINE void process_cell_interactions(
 			size_t x, size_t y, size_t z,
 			size_t t1, size_t t2,
 			GetRange&& get_range,
@@ -619,7 +619,7 @@ namespace april::container::internal {
 		}
 
 		template <typename Func, typename GetIndices, typename ProcessBatch>
-		AP_FORCE_INLINE void for_each_wrapped_interaction(
+		APRIL_FORCE_INLINE void for_each_wrapped_interaction(
 			Func&& func,
 			GetIndices&& get_indices,
 			ProcessBatch&& process_batch
@@ -648,7 +648,7 @@ namespace april::container::internal {
 		//----------
 		// UTILITIES
 		//----------
-		[[nodiscard]] AP_FORCE_INLINE size_t get_neighbor_idx(const size_t x, const size_t y, const size_t z, const int3 offset) const {
+		[[nodiscard]] APRIL_FORCE_INLINE size_t get_neighbor_idx(const size_t x, const size_t y, const size_t z, const int3 offset) const {
 			const int nx = static_cast<int>(x) + offset.x;
 			const int ny = static_cast<int>(y) + offset.y;
 			const int nz = static_cast<int>(z) + offset.z;

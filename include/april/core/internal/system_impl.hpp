@@ -49,7 +49,7 @@ namespace april {
 			auto apply_batch_update =  [&] <interactions::IsForce ForceT> (const ForceT & force) {
 				constexpr ParticleField M = ForceT::fields | ParticleField::position;
 
-				auto kernel = [&]<bool is_packed>(auto && p1, auto && p2) AP_FORCE_INLINE {
+				auto kernel = [&]<bool is_packed>(auto && p1, auto && p2) APRIL_FORCE_INLINE {
 					auto diff = p2.position - p1.position;
 
 					const auto r = [&] {
@@ -131,7 +131,7 @@ namespace april {
 				constexpr auto Read = ForceT::fields | ParticleField::position;
 				constexpr auto Write = ParticleField::force;
 
-				auto kernel = [&](auto && p1, auto && p2) AP_FORCE_INLINE {
+				auto kernel = [&](auto && p1, auto && p2) APRIL_FORCE_INLINE {
 					vec3 r = p2.position - p1.position;
 
 					if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Antisymmetric) {
@@ -197,7 +197,7 @@ namespace april {
 
 	    	// if the particle is inside the domain
 	        auto boundary_condition_inside = [&]<typename B>(const B & bc) {
-	            thread_executor.execute(blocks.size(), [&](const size_t b_idx) AP_FORCE_INLINE {
+	            thread_executor.execute(blocks.size(), [&](const size_t b_idx) APRIL_FORCE_INLINE {
 	                const auto& block = blocks[b_idx];
 	                auto& local_buffer = thread_update_buffers[b_idx].buffer;
 
@@ -218,7 +218,7 @@ namespace april {
 	        auto boundary_condition_outside = [&]<typename B>(const B & bc) {
 	            static constexpr ParticleField detect_mask = ParticleField::position | ParticleField::old_position;
 
-	            thread_executor.execute(blocks.size(), [&](const size_t b_idx) AP_FORCE_INLINE {
+	            thread_executor.execute(blocks.size(), [&](const size_t b_idx) APRIL_FORCE_INLINE {
 	                const auto& block = blocks[b_idx];
 	                auto& local_buffer = thread_update_buffers[b_idx].buffer;
 

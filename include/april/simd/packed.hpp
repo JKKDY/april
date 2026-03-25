@@ -4,8 +4,8 @@
 
 
 
-#if (defined(AP_SIMD_BACKEND_XSIMD) + \
-defined(AP_SIMD_BACKEND_STD_SIMD)) > 1
+#if (defined(APRIL_SIMD_BACKEND_XSIMD) + \
+defined(APRIL_SIMD_BACKEND_STD_SIMD)) > 1
 
 #error "[APRIL] Multiple SIMD backends defined. Select exactly one."
 
@@ -15,7 +15,7 @@ defined(AP_SIMD_BACKEND_STD_SIMD)) > 1
 //-----------------------
 // SIMD BACKEND SWITCHING
 //-----------------------
-#if defined(AP_SIMD_BACKEND_XSIMD)
+#if defined(APRIL_SIMD_BACKEND_XSIMD)
 
     #include "april/simd/backend_xsimd.hpp"
 
@@ -27,7 +27,7 @@ defined(AP_SIMD_BACKEND_STD_SIMD)) > 1
         using PackedMask = internal::xsimd::Mask<T>;
     }
 
-#elif defined(AP_SIMD_BACKEND_STD_SIMD)
+#elif defined(APRIL_SIMD_BACKEND_STD_SIMD)
 
 #include "april/simd/backend_std_simd.hpp"
 

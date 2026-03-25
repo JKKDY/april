@@ -29,7 +29,7 @@ namespace april::interactions {
 
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
-        AP_FORCE_INLINE
+        APRIL_FORCE_INLINE
         auto operator()(this const auto& self, const auto & p1, const auto & p2, const auto & r) {
             using Derived = std::remove_cvref_t<decltype(self)>;
             using ReturnType = std::remove_cvref_t<decltype(r)>; // Resolves to vec3 or pvec3

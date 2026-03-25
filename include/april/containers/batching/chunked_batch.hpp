@@ -43,7 +43,7 @@ namespace april::container::batching {
 
     private:
         Container& container;
-        ChunkPtr* AP_RESTRICT const chunks = container.ptr_chunks;
+        ChunkPtr* APRIL_RESTRICT const chunks = container.ptr_chunks;
 
         static constexpr size_t chunk_size = Container::chunk_size;
         static constexpr size_t packed_size = packed::size();
@@ -68,10 +68,10 @@ namespace april::container::batching {
 
             // body vs body (
             for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
-                AP_PREFETCH(chunks + c1 + 1);
+                APRIL_PREFETCH(chunks + c1 + 1);
 
                 for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
-                    AP_PREFETCH(chunks + c2 + 1);
+                    APRIL_PREFETCH(chunks + c2 + 1);
 
                     for (size_t i = 0; i < chunk_size; ++i) {
                         auto p1 = get_scalar(c1, i);
@@ -85,7 +85,7 @@ namespace april::container::batching {
 
             // body 1 vs tail 2 (iterate full chunks of R1 against the single partial chunk of R2)
             for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
-                AP_PREFETCH(chunks + c1 + 1);
+                APRIL_PREFETCH(chunks + c1 + 1);
                 for (size_t i = 0; i < chunk_size; ++i) {
                     auto p1 = get_scalar(c1, i);
                     for (size_t j = 0; j < limit2_tail; ++j) {
@@ -97,7 +97,7 @@ namespace april::container::batching {
 
             // body 2 vs tail 1 (iterate full chunks of R2 against the single partial chunk of R1
             for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
-                AP_PREFETCH(chunks + c2 + 1);
+                APRIL_PREFETCH(chunks + c2 + 1);
                 for (size_t i = 0; i < limit1_tail; ++i) {
                     auto p1 = get_scalar(c1_body_end, i);
                     for (size_t j = 0; j < chunk_size; ++j) {
@@ -122,10 +122,10 @@ namespace april::container::batching {
         // -----------------
         // helper for 360-degree SIMD rotation sweep for distinct blocks
         template <typename BufferT, typename PackedAccessor, typename Kernel>
-        AP_FORCE_INLINE void interact_block_vs_block(BufferT& buffer1, PackedAccessor&& packed2, Kernel& f) const {
+        APRIL_FORCE_INLINE void interact_block_vs_block(BufferT& buffer1, PackedAccessor&& packed2, Kernel& f) const {
             auto buffer2 = packed2.load_buffer(); // Natively zeroes WOMask fields
 
-            AP_UNROLL_LOOP_N(packed_size)
+            APRIL_UNROLL_LOOP_N(packed_size)
             for (size_t k = 0; k < packed_size; k++) {
                 auto view1 = buffer1.to_view();
                 auto view2 = buffer2.to_view();
@@ -138,7 +138,7 @@ namespace april::container::batching {
 
         // helper for packed vs broadcast scalar block (no rotations needed)
         template <typename BufferT, typename PackedAccessor, typename Kernel>
-        AP_FORCE_INLINE void interact_scalar_vs_block(BufferT& buffer_scalar, PackedAccessor && packed_block, Kernel& f) const {
+        APRIL_FORCE_INLINE void interact_scalar_vs_block(BufferT& buffer_scalar, PackedAccessor && packed_block, Kernel& f) const {
             auto buffer_block = packed_block.load_buffer();
 
             auto view1 = buffer_scalar.to_view();
@@ -189,7 +189,7 @@ namespace april::container::batching {
 
 
         template <typename Kernel>
-        AP_FORCE_INLINE void interact_body_vs_body(
+        APRIL_FORCE_INLINE void interact_body_vs_body(
             const math::Range& full_chunks1, const math::Range& full_chunks2,
             const math::Range& full_tail1, const math::Range& full_tail2,
             Kernel && f) const {
@@ -198,16 +198,16 @@ namespace april::container::batching {
 
             // 1. full SIMD blocks in range 1 (Chunks) vs full SIMD blocks in range 2 (Chunks + Tail)
             for (size_t c1 : full_chunks1) {
-                AP_PREFETCH(chunks + c1 + 1);
-                AP_UNROLL_LOOP_N(iter_chunks)
+                APRIL_PREFETCH(chunks + c1 + 1);
+                APRIL_UNROLL_LOOP_N(iter_chunks)
                 for (size_t i = 0; i < chunk_size; i += packed_size) {
                     auto packed1 = get_packed(c1, i);
                     auto buffer1 = packed1.load_buffer(); // load simd block in range 1
 
                     // a. sweep buffer1 across all full SIMD blocks in Range 2 body chunks [C2]
                     for (size_t c2 : full_chunks2) {
-                        AP_PREFETCH(chunks + c2 + 1);
-                        AP_UNROLL_LOOP_N(iter_chunks)
+                        APRIL_PREFETCH(chunks + c2 + 1);
+                        APRIL_UNROLL_LOOP_N(iter_chunks)
                         for (size_t j = 0; j < chunk_size; j += packed_size) {
                             interact_block_vs_block(buffer1, get_packed(c2, j), f);
                         }
@@ -229,8 +229,8 @@ namespace april::container::batching {
 
                 // a. Interaction with all full chunks in the Range 2 body [C2]
                 for (size_t c2 : full_chunks2) {
-                    AP_PREFETCH(chunks + c2 + 1);
-                    AP_UNROLL_LOOP_N(iter_chunks)
+                    APRIL_PREFETCH(chunks + c2 + 1);
+                    APRIL_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
                         interact_block_vs_block(buffer1, get_packed(c2, j), f);
                     }
@@ -246,7 +246,7 @@ namespace april::container::batching {
 
 
         template <typename Kernel>
-        AP_FORCE_INLINE void interact_tails_vs_body(
+        APRIL_FORCE_INLINE void interact_tails_vs_body(
             const math::Range& full_chunks1, const math::Range& full_chunks2,
             const math::Range& full_tail1, const math::Range& full_tail2,
             const math::Range& partial_tail1, const math::Range& partial_tail2,
@@ -261,8 +261,8 @@ namespace april::container::batching {
 
                 // a. Interaction with full chunks in Range 1 body
                 for (size_t c1 : full_chunks1) {
-                    AP_PREFETCH(chunks + c1 + 1);
-                    AP_UNROLL_LOOP_N(iter_chunks)
+                    APRIL_PREFETCH(chunks + c1 + 1);
+                    APRIL_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
                         interact_scalar_vs_block(buffer2, get_packed(c1, j), f);
                     }
@@ -283,8 +283,8 @@ namespace april::container::batching {
 
                 // a. Interaction with full chunks in Range 2 body
                 for (size_t c2 : full_chunks2) {
-                    AP_PREFETCH(chunks + c2 + 1);
-                    AP_UNROLL_LOOP_N(iter_chunks)
+                    APRIL_PREFETCH(chunks + c2 + 1);
+                    APRIL_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
                         interact_scalar_vs_block(buffer1, get_packed(c2, j), f);
                     }
@@ -300,7 +300,7 @@ namespace april::container::batching {
         }
 
         template <typename Kernel>
-        AP_FORCE_INLINE void interact_tails_vs_tails(
+        APRIL_FORCE_INLINE void interact_tails_vs_tails(
             const math::Range& full_chunks1, const math::Range& full_chunks2,
             const math::Range& partial_tail1, const math::Range& partial_tail2,
             Kernel && f) const {
@@ -366,7 +366,7 @@ namespace april::container::batching {
         size_t range_tail{}; // Number of valid items in the last chunk of range1 (0 = Full)
     private:
         Container& container;
-        ChunkPtr* AP_RESTRICT const chunks = container.ptr_chunks;
+        ChunkPtr* APRIL_RESTRICT const chunks = container.ptr_chunks;
 
         static constexpr size_t chunk_size = Container::chunk_size;
         static constexpr size_t packed_size = packed::size();
@@ -387,7 +387,7 @@ namespace april::container::batching {
             const size_t limit_tail = (range_tail == 0) ? chunk_size : range_tail;
 
             for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
-                AP_PREFETCH(chunks + c1 + 1);
+                APRIL_PREFETCH(chunks + c1 + 1);
 
                 // chunk self interaction
                 for (size_t i = 0; i < chunk_size; ++i) {
@@ -400,7 +400,7 @@ namespace april::container::batching {
 
                 // interaction with all other chunks
                 for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
-                    AP_PREFETCH(chunks + c2 + 1);
+                    APRIL_PREFETCH(chunks + c2 + 1);
                     for (size_t i = 0; i < chunk_size; ++i) {
                         auto p1 = get_scalar(c1, i);
                         for (size_t j = 0; j < chunk_size; ++j) {
@@ -413,7 +413,7 @@ namespace april::container::batching {
 
             // body vs tail (every body chunk with tail chunk)
             for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
-                AP_PREFETCH(chunks + c1 + 1);
+                APRIL_PREFETCH(chunks + c1 + 1);
                 for (size_t i = 0; i < chunk_size; ++i) {
                     auto p1 = get_scalar(c1, i);
                     for (size_t j = 0; j < limit_tail; ++j) {
@@ -439,10 +439,10 @@ namespace april::container::batching {
         // -----------------
         // helper for 360-degree SIMD rotation sweep for distinct blocks
         template <typename BufferT, typename PackedAccessor, typename Kernel>
-        AP_FORCE_INLINE void interact_block_vs_block(BufferT& buffer1, PackedAccessor&& packed2, Kernel& f) const {
+        APRIL_FORCE_INLINE void interact_block_vs_block(BufferT& buffer1, PackedAccessor&& packed2, Kernel& f) const {
             auto buffer2 = packed2.load_buffer(); // Natively zeroes WOMask fields
 
-            AP_UNROLL_LOOP_N(packed_size)
+            APRIL_UNROLL_LOOP_N(packed_size)
             for (size_t k = 0; k < packed_size; k++) {
                 auto view1 = buffer1.to_view();
                 auto view2 = buffer2.to_view();
@@ -455,7 +455,7 @@ namespace april::container::batching {
 
         // helper for packed vs broadcast scalar block (no rotations needed)
         template <typename BufferT, typename ScalarAccessor, typename Kernel>
-        AP_FORCE_INLINE void interact_block_vs_scalar(BufferT& buffer_block, const ScalarAccessor& p2, Kernel& f) const {
+        APRIL_FORCE_INLINE void interact_block_vs_scalar(BufferT& buffer_block, const ScalarAccessor& p2, Kernel& f) const {
             auto buffer_scalar = p2.broadcast();
 
             auto view1 = buffer_block.to_view();
@@ -467,10 +467,10 @@ namespace april::container::batching {
 
         // helper for symmetric pairwise interaction within a single SIMD block
         template <typename BufferT, typename PackedAccessor, typename Kernel>
-        AP_FORCE_INLINE void interact_symmetric_self(BufferT& buffer1, const PackedAccessor& packed1, Kernel& f) const {
+        APRIL_FORCE_INLINE void interact_symmetric_self(BufferT& buffer1, const PackedAccessor& packed1, Kernel& f) const {
             auto buffer2 = packed1.load_buffer();
 
-            AP_UNROLL_LOOP()
+            APRIL_UNROLL_LOOP()
             for (size_t k = 0; k < packed_size / 2 - 1; k++) {
                 buffer2.rotate_right();
                 auto view1 = buffer1.to_view();
@@ -517,7 +517,7 @@ namespace april::container::batching {
 
 
         template <typename Kernel>
-        AP_FORCE_INLINE void interact_body_vs_everything(
+        APRIL_FORCE_INLINE void interact_body_vs_everything(
             const math::Range& full_chunks,
             const math::Range& full_tail,
             const math::Range& partial_tail,
@@ -526,9 +526,9 @@ namespace april::container::batching {
 
             // 1. all simd in full chunks vs all simd in full chunks + full tail + partial particles
             for (size_t c1 : full_chunks) {
-                AP_PREFETCH(chunks + c1 + 1);
+                APRIL_PREFETCH(chunks + c1 + 1);
 
-                AP_UNROLL_LOOP_N(iter_chunks)
+                APRIL_UNROLL_LOOP_N(iter_chunks)
                 for (size_t i = 0; i < chunk_size; i += packed_size) {
                     auto packed1 = get_packed(c1, i);
                     auto buffer1 = packed1.load_buffer();
@@ -543,8 +543,8 @@ namespace april::container::batching {
 
                     // c. inter-chunk interactions (Block i vs all Blocks in c2 where c2 > c1)
                     for (size_t c2 = c1 + 1; c2 < full_chunks.stop; ++c2) {
-                        AP_PREFETCH(chunks + c2 + 1);
-                        AP_UNROLL_LOOP_N(iter_chunks)
+                        APRIL_PREFETCH(chunks + c2 + 1);
+                        APRIL_UNROLL_LOOP_N(iter_chunks)
                         for (size_t j = 0; j < chunk_size; j += packed_size) {
                             interact_block_vs_block(buffer1, get_packed(c2, j), f);
                         }
@@ -567,7 +567,7 @@ namespace april::container::batching {
 
 
         template <typename Kernel>
-        AP_FORCE_INLINE void interact_tail_simd_vs_remainder(
+        APRIL_FORCE_INLINE void interact_tail_simd_vs_remainder(
             const math::Range& full_chunks,
             const math::Range& full_tail,
             const math::Range& partial_tail,
@@ -600,7 +600,7 @@ namespace april::container::batching {
 
 
         template <typename Kernel>
-        AP_FORCE_INLINE void interact_partial_vs_partial(
+        APRIL_FORCE_INLINE void interact_partial_vs_partial(
             const math::Range& full_chunks,
             const math::Range& partial_tail,
             const size_t tail_len,

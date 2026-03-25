@@ -91,24 +91,24 @@ namespace april::particle::internal {
 
 		// type generator for standard scalar pointers
 		template<typename T, ParticleField F>
-		using Ptr = field_access_t<T* AP_RESTRICT, const T* AP_RESTRICT, F, ReadMask, WriteMask>;
+		using Ptr = field_access_t<T* APRIL_RESTRICT, const T* APRIL_RESTRICT, F, ReadMask, WriteMask>;
 
 		// type generator for Vec3 pointers
 		template<ParticleField F>
 		using Vec3PtrT = field_access_t<math::Vec3Ptr<vec3::type>, math::Vec3Ptr<const vec3::type>, F, ReadMask, WriteMask>;
 
 		// data pointers (optimized away to empty poison structs if not accessible)
-		AP_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::force>        force;
-		AP_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::position>     position;
-		AP_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::velocity>     velocity;
-		AP_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::old_position> old_position;
+		APRIL_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::force>        force;
+		APRIL_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::position>     position;
+		APRIL_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::velocity>     velocity;
+		APRIL_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::old_position> old_position;
 
 		// scalar pointers (optimized away to empty poison structs if not accessible)
-		AP_NO_UNIQUE_ADDRESS Ptr<double,        ParticleField::mass>       mass;
-		AP_NO_UNIQUE_ADDRESS Ptr<ParticleState, ParticleField::state>      state;
-		AP_NO_UNIQUE_ADDRESS Ptr<ParticleType,  ParticleField::type>       type;
-		AP_NO_UNIQUE_ADDRESS Ptr<ParticleID,    ParticleField::id>         id;
-		AP_NO_UNIQUE_ADDRESS Ptr<Attributes,    ParticleField::attributes> attributes;
+		APRIL_NO_UNIQUE_ADDRESS Ptr<double,        ParticleField::mass>       mass;
+		APRIL_NO_UNIQUE_ADDRESS Ptr<ParticleState, ParticleField::state>      state;
+		APRIL_NO_UNIQUE_ADDRESS Ptr<ParticleType,  ParticleField::type>       type;
+		APRIL_NO_UNIQUE_ADDRESS Ptr<ParticleID,    ParticleField::id>         id;
+		APRIL_NO_UNIQUE_ADDRESS Ptr<Attributes,    ParticleField::attributes> attributes;
 
 		// ParticleField based getter
 		template<ParticleField F>

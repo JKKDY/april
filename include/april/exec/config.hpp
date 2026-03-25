@@ -64,6 +64,34 @@ namespace april {
             { C::parallel_policy } -> std::convertible_to<ParallelPolicy>;
             { c.executer_config };
         } && IsExecutor<typename C::ThreadExecutor>;
+
+
+        template <typename RealExecutor>
+        class ExecutorRef {
+        public:
+            using Config =  RealExecutor::Config;
+
+            ExecutorRef() = default;
+            explicit ExecutorRef(RealExecutor* p) : ptr(p) {}
+
+            void bind(RealExecutor* p) {
+                ptr = p;
+            }
+
+            [[nodiscard]] size_t num_threads() const noexcept {
+                AP_ASSERT(ptr != nullptr, "[APRIL] ExecutorRef executed before being bound to System!");
+                return ptr->num_threads();
+            }
+
+            template <ParallelPolicy P = ParallelPolicy::Threaded, typename Func>
+            void execute(size_t task_count, Func&& func) const {
+                AP_ASSERT(ptr != nullptr, "[APRIL] ExecutorRef executed before being bound to System!");
+                ptr->template execute<P>(task_count, std::forward<Func>(func));
+            }
+
+        private:
+            RealExecutor* ptr = nullptr;
+        };
     }
 }
 

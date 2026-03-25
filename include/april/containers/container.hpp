@@ -82,13 +82,12 @@ namespace april::container {
 		static constexpr auto parallel_policy = ExecutionConfig::parallel_policy;
 		static constexpr auto vector_policy = ExecutionConfig::vector_policy;
 
-		Container(const BuildConfiguration & context, const ThreadExecutor & executor):
+		explicit Container(const BuildConfiguration & context):
 			config(context.config),
 			flags(context.flags),
 			hints(context.hints),
 			interaction_map(context.interaction_map),
-			domain(context.domain),
-			thread_executor(executor)
+			domain(context.domain)
 		{}
 
 		void invoke_build(this auto&& self, const std::vector<ParticleRecord>& particles) {
@@ -304,14 +303,9 @@ namespace april::container {
 			return self.collect_indices_in_region(region, buffer);
 		}
 
-		void set_linear_schedule_config(const exec::BlockConfig & schedule_config) {
-			linear_schedule_config = schedule_config;
+		void bind_executor(ThreadExecutor* raw_executor_ptr) {
+			thread_executor.bind(raw_executor_ptr);
 		}
-
-		void set_pair_schedule_config(const exec::BlockConfig & schedule_config) {
-			pair_schedule_config = schedule_config;
-		}
-
 
 	protected:
 		const Config config;
@@ -319,11 +313,7 @@ namespace april::container {
 		const ContainerHints hints;
 		const interactions::internal::InteractionMap interaction_map;
 		const core::Box domain; // Note: in the future this may be adjustable during run time
-		const ThreadExecutor & thread_executor;
-
-		// TODO this does not belong in the base class (which should be as agnostic as possible)
-		exec::BlockConfig pair_schedule_config;
-		exec::BlockConfig linear_schedule_config;
+		exec::ExecutorRef<ThreadExecutor> thread_executor;
 
 		template<exec::IsKernel Kernel>
 		static auto adapt_indexed_kernel(Kernel && kernel) {

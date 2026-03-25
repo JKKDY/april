@@ -21,6 +21,7 @@ namespace april::container::layout {
         using Base::interaction_map;
         using ParticleAttributes = Base::ParticleAttributes;
         using Base::Base;
+        using Base::thread_executor;
         friend Base;
 
         static constexpr size_t chunk_size = ChunkSize;
@@ -32,15 +33,16 @@ namespace april::container::layout {
         using Base::at;
         using Base::access_particle;
 
-        AoSoA(const ContainerConfig & config, const exec::Executor & executor):
-           Base(config, executor)
-        {
-            this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
-            this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);
-            this->pair_schedule_config.alignment = chunk_size;
-            this->linear_schedule_config.alignment = chunk_size;
-
+        explicit AoSoA(const ContainerConfig & config): Base(config) {
             for (size_t k = 0; k < packed::size(); ++k) idx_arr[k] = static_cast<double>(k);
+        }
+
+        void bind_executor(Base::ThreadExecutor* raw_executor_ptr) {
+            thread_executor.bind(raw_executor_ptr);
+            pair_schedule_config = exec::BlockConfig(thread_executor.num_threads(), 2);
+            linear_schedule_config = exec::BlockConfig(thread_executor.num_threads(), 8);
+            pair_schedule_config.alignment = chunk_size;
+            linear_schedule_config.alignment = chunk_size;
         }
 
 
@@ -124,6 +126,9 @@ namespace april::container::layout {
         std::vector<size_t> bin_starts; // first chunk index of each bin
         std::vector<size_t> bin_sizes; // number of particles in each bin
         std::vector<uint32_t> id_to_index_map;
+
+        exec::BlockConfig pair_schedule_config;
+        exec::BlockConfig linear_schedule_config;
 
         void update_cache() {
             ptr_chunks = data.data();

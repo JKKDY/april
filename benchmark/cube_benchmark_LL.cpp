@@ -50,13 +50,13 @@ int main() {
 		.with_skin_factor(0.1);
 
 	for (int i = 0; i < 1; i++) {
-		struct :
-			RunTimeConfig<exec::OmpExecutor>,
-			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
-		{} cfg;
-		cfg.executer_config.n_threads = 8;
+		// struct :
+		// 	RunTimeConfig<exec::OmpExecutor>,
+		// 	CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
+		// {} cfg;
+		// cfg.executer_config.n_threads = 8;
 
-		auto system = build_system(env, container, cfg);
+		auto system = build_system(env, container);
 		constexpr double dt = 0.0002;
 		constexpr int steps  = 20;
 

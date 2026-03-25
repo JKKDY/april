@@ -11,14 +11,19 @@ namespace april::container::layout {
     public:
         using Base = Container<ContainerConfig>;
         using Base::interaction_map;
+        using Base::thread_executor;
         friend Base;
 
         using Particle = Base::ParticleRecord;
 
-        AoS(const ContainerConfig& config, const exec::Executor& executor) :
-            Base(config, executor) {
-            this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
-            this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);
+        explicit AoS(const ContainerConfig& config) :
+            Base(config) {
+        }
+
+        void bind_executor(Base::ThreadExecutor* raw_executor_ptr) {
+            thread_executor.bind(raw_executor_ptr);
+            this->pair_schedule_config = exec::BlockConfig(thread_executor.num_threads(), 2);
+            this->linear_schedule_config = exec::BlockConfig(thread_executor.num_threads(), 8);
         }
 
 
@@ -71,6 +76,9 @@ namespace april::container::layout {
         std::vector<size_t> bin_starts; // first particle index of each bin
         std::vector<size_t> bin_sizes; // number of particles in each bin
         std::vector<uint32_t> id_to_index_map; // map id to index
+
+        exec::BlockConfig pair_schedule_config;
+        exec::BlockConfig linear_schedule_config;
 
         void build_storage(const std::vector<Particle>& particles_in) {
             particles = std::vector(particles_in);

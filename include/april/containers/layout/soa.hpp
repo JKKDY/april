@@ -15,15 +15,20 @@ namespace april::container::layout {
     public:
         using Base = Container<ContainerConfig>;
         using Base::interaction_map;
+        using Base::thread_executor;
         using ParticleAttributes = Base::ParticleAttributes;
         friend Base;
 
-        SoA(const ContainerConfig & config, const exec::Executor & executor):
-            Base(config, executor)
-        {
-            this->pair_schedule_config = exec::BlockConfig(executor.num_threads(), 2);
-            this->linear_schedule_config = exec::BlockConfig(executor.num_threads(), 8);
+        explicit SoA(const ContainerConfig & config): Base(config) {
+            this->pair_schedule_config = exec::BlockConfig(config.exec.num_threads, 2);
+            this->linear_schedule_config = exec::BlockConfig(config.exec.num_threads, 8);
             for (size_t k = 0; k < packed::size(); ++k) idx_arr[k] = static_cast<double>(k);
+        }
+
+        void bind_executor(Base::ThreadExecutor* raw_executor_ptr) {
+            thread_executor.bind(raw_executor_ptr);
+            pair_schedule_config = exec::BlockConfig(thread_executor.num_threads(), 2);
+            linear_schedule_config = exec::BlockConfig(thread_executor.num_threads(), 8);
         }
 
         // INDEXING
@@ -58,6 +63,9 @@ namespace april::container::layout {
         std::vector<size_t> bin_starts; // first particle index of each bin
         std::vector<size_t> bin_sizes; // number of particles in each bin
         std::vector<uint32_t> id_to_index_map;
+
+        exec::BlockConfig pair_schedule_config;
+        exec::BlockConfig linear_schedule_config;
 
         // explode AoS input into SoA vectors
         void build_storage(const std::vector<particle::ParticleRecord<ParticleAttributes>>& particles) {

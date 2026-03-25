@@ -92,6 +92,8 @@ namespace april {
 			.domain = simulation_box
 		};
 
+		auto executor = typename ExecCfg::ThreadExecutor(execution_config.executer_config);
+
 		return System<decltype(container_info), typename Env::traits, ExecCfg> (
 			execution_config,
 			container_info,

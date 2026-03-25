@@ -17,6 +17,12 @@ namespace april {
 	class System;
 
 
+	// core::internal::IsEnvironmentTraits Traits
+	// struct SystemConfig {
+	//
+	// };
+
+
 	template <class Container, core::IsEnvironment Env, exec::IsExecutionConfig ExecCfg>
 	requires container::IsContainerDecl<Container, typename Env::traits>
 	auto build_system(
@@ -90,11 +96,12 @@ namespace april {
 			  force_table(forces_in),
 			  controllers(controllers_in),
 			  fields(fields_in),
-			  particle_container(Container(container_cfg, thread_executor)),
+			  particle_container(Container(container_cfg)),
 			  exec_config(exec_config),
 			  system_context(*this),
 			  trig_context(*this)
 		{
+			particle_container.bind_executor(&thread_executor);
 			particle_container.invoke_build(particles);
 			controllers.for_each_item([&](auto& c) { c.dispatch_init(context()); });
 			fields.for_each_item([&](auto& f) { f.dispatch_init(context()); });
@@ -111,6 +118,11 @@ namespace april {
 		template<VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel);
 	public:
+		// make non copyable
+		System(const System&) = delete;
+		System& operator=(const System&) = delete;
+		System(System&&) = delete;
+		System& operator=(System&&) = delete;
 
 		// -----------------
 		// LIFECYCLE & STATE

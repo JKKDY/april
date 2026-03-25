@@ -1,16 +1,13 @@
-#enable_testing()
-
-find_package(OpenMP REQUIRED)
-
 include(FetchContent)
 
+# Fetch GoogleTest
 FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG v1.16.0
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.16.0
+    SYSTEM
 )
-
-set(gtest_build_shared_libs OFF CACHE BOOL "Build GTest as static")
+set(gtest_build_shared_libs OFF CACHE BOOL "Build GTest as static" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(test_april
@@ -58,29 +55,19 @@ add_executable(test_april
         utility/graph_test.cpp
 )
 
-target_include_directories(test_april PRIVATE
-        ${PROJECT_SOURCE_DIR}/test/common
-)
+target_include_directories(test_april PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common)
 
+# Link everything required
 target_link_libraries(test_april PRIVATE
         April
+        April_dev_configs
         GTest::gtest
         GTest::gtest_main
         GTest::gmock
         GTest::gmock_main
-        OpenMP::OpenMP_CXX
 )
 
-
-set_target_build_flags(test_april)
-enable_sanitizer_if_dbg(test_april)
-enable_coverage(test_april)
-
-
-# Discover GTest tests
+# Discover GTest tests automatically
 include(GoogleTest)
 gtest_discover_tests(test_april)
 set_target_properties(test_april PROPERTIES GTEST_DISCOVER_TESTS_MODE PRE_TEST)
-
-
-

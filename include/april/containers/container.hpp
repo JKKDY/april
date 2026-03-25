@@ -42,6 +42,7 @@ namespace april::container {
 		using ExecutionConfig = ExecutionCfg;
 		using ParticleAttributes = Attributes;
 		using ThreadExecutor = ExecutionConfig::ThreadExecutor;
+		using Container = ContainerCfg::template impl<ContainerBuildConfig>;
 
 		ExecutionConfig exec;
 		ContainerConfig config;

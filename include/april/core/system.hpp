@@ -12,15 +12,32 @@
 namespace april {
 	struct BuildInfo;
 
-	template <class ContainerBuildConfig, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecCfg>
-	// requires container::IsContainerDecl<C, Traits>
+	template <class SystemConfig>
 	class System;
 
 
-	// core::internal::IsEnvironmentTraits Traits
-	// struct SystemConfig {
-	//
-	// };
+	template<
+		class ParticleContainer,
+		core::internal::IsEnvironmentTraits EnvTraits,
+		exec::IsExecutionConfig ExecCfg>
+	struct SystemConfig {
+		using Container = ParticleContainer;
+		using ExecutionConfig = ExecCfg;
+		using BoundaryTable = EnvTraits::boundary_table_t;
+		using InteractionTable = EnvTraits::force_table_t;
+		using ParticleRecord = EnvTraits::particle_record_t;
+		using ParticleAttributes = EnvTraits::particle_attributes_t;
+		using Controllers = EnvTraits::controller_storage_t;
+		using Fields = EnvTraits::field_storage_t;
+
+		Container & container;
+		const ExecutionConfig & execution_config;
+		const std::vector<ParticleRecord>& particles;
+		BoundaryTable& boundaries;
+		InteractionTable& interactions;
+		Controllers& controllers;
+		Fields& fields;
+	};
 
 
 	template <class Container, core::IsEnvironment Env, exec::IsExecutionConfig ExecCfg>
@@ -35,40 +52,41 @@ namespace april {
 
 
 
-	template <class ContainerBuildConfig, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
+	template <class SystemConfig>
 	class System final {
 		// --------------
 		// INTERNAL TYPES
 		// --------------
-		using ControllerStorage = Traits::controller_storage_t;
-		using FieldStorage	    = Traits::field_storage_t;
-		using ForceTable     	= Traits::force_table_t;
-		using BoundaryTable  	= Traits::boundary_table_t;
-		using ParticleAttributes= Traits::particle_attributes_t;
-		using ExecutionConfig   = ExecConfig;
+		using Controllers		= SystemConfig::Controllers;
+		using Fields			= SystemConfig::Fields;
+		using InteractionTable 	= SystemConfig::InteractionTable;
+		using BoundaryTable  	= SystemConfig::BoundaryTable;
 	public:
-
 		// ----------------
 		// PUBLIC API TYPES
 		// ----------------
 		using SysContext = core::SystemContext<System>;
 		using TrigContext = utility::internal::TriggerContextImpl<System>;
-		using Container = ContainerBuildConfig::ContainerConfig::template impl<ContainerBuildConfig>;
-		using ParticleRec = Traits::particle_record_t;
+		using ParticleAttributes= SystemConfig::ParticleAttributes;
+		using ParticleRec		= SystemConfig::ParticleRecord;
+		using Container			= SystemConfig::Container;
+		using ExecutionConfig   = SystemConfig::ExecutionConfig;
 
-		static constexpr auto parallel_policy = ExecConfig::parallel_policy;
-		static constexpr auto vector_policy = ExecConfig::vector_policy;
+		// convenience aliases
+		static constexpr auto parallel_policy = ExecutionConfig::parallel_policy;
+		static constexpr auto vector_policy = ExecutionConfig::vector_policy;
+
 	private:
 		// ---------------
 		// PRIVATE MEMBERS
 		// ---------------
 		exec::Executor thread_executor;
 		BoundaryTable boundary_table;
-		ForceTable force_table;
-		ControllerStorage controllers;
-		FieldStorage fields;
+		InteractionTable force_table;
+		Controllers controllers;
+		Fields fields;
 		Container particle_container;
-		ExecConfig exec_config;
+		ExecutionConfig exec_config;
 
 		struct alignas(64) PaddedThreadBuffer { std::vector<size_t> buffer; };
 		std::vector<PaddedThreadBuffer> thread_update_buffers;
@@ -82,27 +100,19 @@ namespace april {
 
 
 		// private constructor since System should only be creatable through build_system(...)
-		System(
-			const ExecConfig& exec_config,
-			const ContainerBuildConfig& container_cfg,
-			const std::vector<ParticleRec>& particles,
-			const BoundaryTable& boundaries_in,
-			const ForceTable& forces_in,
-			const ControllerStorage& controllers_in,
-			const FieldStorage& fields_in
-		)
-			: thread_executor(typename ExecConfig::ThreadExecutor(exec_config.executer_config)), // init stub incase we want to pass args in the future
-			  boundary_table(boundaries_in),
-			  force_table(forces_in),
-			  controllers(controllers_in),
-			  fields(fields_in),
-			  particle_container(Container(container_cfg)),
-			  exec_config(exec_config),
+		explicit System(SystemConfig & config)
+			: thread_executor(typename ExecutionConfig::ThreadExecutor(config.execution_config.executer_config)),
+			  boundary_table(config.boundaries),
+			  force_table(config.interactions),
+			  controllers(config.controllers),
+			  fields(config.fields),
+			  particle_container(config.container),
+			  exec_config(config.execution_config),
 			  system_context(*this),
 			  trig_context(*this)
 		{
 			particle_container.bind_executor(&thread_executor);
-			particle_container.invoke_build(particles);
+			particle_container.invoke_build(config.particles);
 			controllers.for_each_item([&](auto& c) { c.dispatch_init(context()); });
 			fields.for_each_item([&](auto& f) { f.dispatch_init(context()); });
 		}
@@ -220,7 +230,7 @@ namespace april {
 		// --------------
 		template<
 			ParallelPolicy P=ParallelPolicy::Serial,
-			VectorPolicy V=ExecConfig::vector_policy,
+			VectorPolicy V=vector_policy,
 			exec::IsKernel Kernel>
 		void for_each_particle(Kernel && func, ParticleState state = ParticleState::ALL) {
 			particle_container.template for_each_particle<P, V, Kernel>(std::forward<Kernel>(func), state);
@@ -228,7 +238,7 @@ namespace april {
 
 		template<
 			ParallelPolicy P=ParallelPolicy::Serial,
-			VectorPolicy V=ExecConfig::vector_policy,
+			VectorPolicy V=vector_policy,
 			exec::IsKernel Kernel>
 		void for_each_particle_view(Kernel && func, ParticleState state = ParticleState::ALL) const {
 			static_assert(std::remove_cvref_t<Kernel>::Write == ParticleField::none,
@@ -289,7 +299,7 @@ namespace april {
 				};
 
 				auto kernel = exec::internal::KernelWrapper<K::Read, K::Write, K::Mode, decltype(bridge)>{bridge};
-				execute_batch_kernel<ParallelPolicy::Serial, ExecConfig::vector_policy>(batch, kernel);
+				execute_batch_kernel<ParallelPolicy::Serial, vector_policy>(batch, kernel);
 			};
 
 			for_each_interaction_batch(update_batch);
@@ -357,8 +367,8 @@ namespace april {
 			inline constexpr bool is_system_v = false;
 
 			// mark all System<C, Env, ExecCfg> instantiations as true (template specialization
-			template<class C, IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecCfg>
-			inline constexpr bool is_system_v<System<C, Traits, ExecCfg>> = true;
+			template<class Container, IsEnvironmentTraits EnvTraits, exec::IsExecutionConfig ExecCfg>
+			inline constexpr bool is_system_v<System<SystemConfig<Container, EnvTraits, ExecCfg>>> = true;
 		}
 
 		template<typename T>

@@ -12,9 +12,9 @@ namespace april {
 	// EXECUTE BATCH
 	//--------------
 	// ToDO extract this method to a free convenience function that maps a kernel & policies to a batch for_each_pair call
-	template <class ContainerDecl, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
+	template <class SystemConfig>
 	template <VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
-	void System<ContainerDecl, Traits, ExecConfig>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
+	void System<SystemConfig>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
 		using namespace april::exec;
 		using namespace april::exec::internal;
 
@@ -39,8 +39,8 @@ namespace april {
 	//--------------
 	// UPDATE FORCES
 	//--------------
-	template <class C, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
-	void System<C, Traits, ExecConfig>::update_forces() {
+	template <class SystemConfig>
+	void System<SystemConfig>::update_forces() {
 
 		// handle pair wise (type-type) interactions
 		auto update_forces_batch = [&]<container::batching::IsBatch Batch, container::batching::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
@@ -115,7 +115,7 @@ namespace april {
 				constexpr bool force_scalar =
 					(static_cast<bool>(M & ParticleField::attributes) && !particle::IsVectorizable<ParticleAttributes>)
 					|| ForceT::vector_mode == exec::ExecutionMode::Scalar
-					|| ExecConfig::vector_policy == VectorPolicy::Scalar;
+					|| vector_policy == VectorPolicy::Scalar;
 				constexpr VectorPolicy vp = force_scalar ? VectorPolicy::Scalar : VectorPolicy::Auto;
 				execute_batch_kernel<vp>(batch, april::universal_kernel<M, ParticleField::force>(kernel));
 			};
@@ -152,14 +152,14 @@ namespace april {
 			force_table.dispatch_id(batch.representatives.first, batch.representatives.second, apply_batch_update);
 		};
 
-		for_each_particle<ParallelPolicy::Threaded>(
+		for_each_particle<parallel_policy>(
 			april::universal_kernel<ParticleField::force, ParticleField::force>(
 				[](auto && p) { p.force = {}; } // reset forces
 			)
 		);
 
-		particle_container.template invoke_for_each_interaction_batch<ParallelPolicy::Threaded>(update_forces_batch);
-		particle_container.template invoke_for_each_topology_batch<ParallelPolicy::Threaded>(update_forces_topology_batch);
+		particle_container.template invoke_for_each_interaction_batch<parallel_policy>(update_forces_batch);
+		particle_container.template invoke_for_each_topology_batch<parallel_policy>(update_forces_topology_batch);
 	}
 
 
@@ -167,8 +167,8 @@ namespace april {
 	//-----------------
 	// APPLY BOUNDARIES
 	//-----------------
-	template <class C, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
-	void System<C, Traits, ExecConfig>::apply_boundary_conditions() {
+	template <class SystemConfig>
+	void System<SystemConfig>::apply_boundary_conditions() {
 	    particles_to_update_buffer.clear();
 	    const core::Box domain_box = this->box();
 
@@ -281,8 +281,8 @@ namespace april {
 	//------------------
 	// APPLY CONTROLLERS
 	//------------------
-	template <class C, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
-	void System<C, Traits, ExecConfig>::apply_controllers() {
+	template <class SystemConfig>
+	void System<SystemConfig>::apply_controllers() {
 		controllers.for_each_item([this](auto & controller) {
 			if (controller.should_trigger(trig_context)) {
 				controller.dispatch_apply(system_context);
@@ -294,10 +294,10 @@ namespace april {
 	//-------------
 	// APPLY FIELDS
 	//-------------
-	template <class C, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
-	void System<C, Traits, ExecConfig>::apply_force_fields() {
+	template <class SystemConfig>
+	void System<SystemConfig>::apply_force_fields() {
 		fields.for_each_item([&]<typename F>(F & field) {
-			for_each_particle<ExecConfig::parallel_policy>(scalar_kernel<F::fields, ParticleField::force>(
+			for_each_particle<parallel_policy>(scalar_kernel<F::fields, ParticleField::force>(
 				[&](auto && p) {
 					field.dispatch_apply(p);
 				})
@@ -309,8 +309,8 @@ namespace april {
 	//-------
 	// UPDATE
 	//-------
-	template <class C, core::internal::IsEnvironmentTraits Traits, exec::IsExecutionConfig ExecConfig>
-	void System<C, Traits, ExecConfig>::update_all_components() {
+	template <class SystemConfig>
+	void System<SystemConfig>::update_all_components() {
 		fields.for_each_item([this](auto & field) {
 			field.template dispatch_update<System>(system_context);
 		});

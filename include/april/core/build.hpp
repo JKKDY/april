@@ -83,7 +83,8 @@ namespace april {
 			build_info->simulation_domain = Domain(simulation_box.min, simulation_box.extent);
 		}
 
-		container::ContainerBuildConfig<ContainerCfg, ExecCfg, ParticleAttributes> container_info {
+		using ContainerConfig = container::ContainerBuildConfig<ContainerCfg, ExecCfg, ParticleAttributes>;
+		ContainerConfig container_build_config {
 			.exec = execution_config,
 			.config = container_config,
 			.flags = core::internal::set_container_flags(topologies),
@@ -92,17 +93,20 @@ namespace april {
 			.domain = simulation_box
 		};
 
-		auto executor = typename ExecCfg::ThreadExecutor(execution_config.executer_config);
+		auto container = typename ContainerConfig::Container(container_build_config);
 
-		return System<decltype(container_info), typename Env::traits, ExecCfg> (
-			execution_config,
-			container_info,
-			particles,
-			boundaries,
-			forces,
-			env.controllers,
-			env.fields
-		);
+
+		SystemConfig<typename ContainerConfig::Container, typename Env::traits, ExecCfg> system_config {
+			.container = container,
+			.execution_config = execution_config,
+			.particles = particles,
+			.boundaries = boundaries,
+			.interactions = forces,
+			.controllers = env.controllers,
+			.fields = env.fields
+		};
+
+		return System(system_config);
 	}
 
 	// convenience overloads

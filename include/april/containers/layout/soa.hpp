@@ -20,8 +20,6 @@ namespace april::container::layout {
         friend Base;
 
         explicit SoA(const ContainerConfig & config): Base(config) {
-            this->pair_schedule_config = exec::BlockConfig(config.exec.num_threads, 2);
-            this->linear_schedule_config = exec::BlockConfig(config.exec.num_threads, 8);
             for (size_t k = 0; k < packed::size(); ++k) idx_arr[k] = static_cast<double>(k);
         }
 

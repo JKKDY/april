@@ -71,8 +71,9 @@ namespace april {
 		using ParticleRec		= SystemConfig::ParticleRecord;
 		using Container			= SystemConfig::Container;
 		using ExecutionConfig   = SystemConfig::ExecutionConfig;
+		using ThreadExecutor	= ExecutionConfig::ThreadExecutor;
 
-		// convinience aliases
+		// convenience aliases
 		static constexpr auto parallel_policy = ExecutionConfig::parallel_policy;
 		static constexpr auto vector_policy = ExecutionConfig::vector_policy;
 
@@ -80,7 +81,7 @@ namespace april {
 		// ---------------
 		// PRIVATE MEMBERS
 		// ---------------
-		exec::Executor thread_executor;
+		ThreadExecutor thread_executor;
 		BoundaryTable boundary_table;
 		InteractionTable force_table;
 		Controllers controllers;

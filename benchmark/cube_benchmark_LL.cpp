@@ -2,6 +2,10 @@
 #include <filesystem>
 
 #include "april/containers/linked_cells.hpp"
+
+#include "april/exec/executors/omp_executor.hpp"
+#include "april/exec/executors/sequential_executor.hpp"
+
 using namespace april;
 namespace fs = std::filesystem;
 
@@ -50,13 +54,13 @@ int main() {
 		.with_skin_factor(0.1);
 
 	for (int i = 0; i < 1; i++) {
-		// struct :
-		// 	RunTimeConfig<exec::OmpExecutor>,
-		// 	CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
-		// {} cfg;
+		struct :
+			RunTimeConfig<exec::SequentialExecutor>,
+			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Scalar>
+		{} cfg;
 		// cfg.executer_config.n_threads = 8;
 
-		auto system = build_system(env, container);
+		auto system = build_system(env, container, cfg);
 		constexpr double dt = 0.0002;
 		constexpr int steps  = 20;
 

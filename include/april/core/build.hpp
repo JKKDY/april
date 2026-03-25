@@ -97,16 +97,16 @@ namespace april {
 
 
 		SystemConfig<typename ContainerConfig::Container, typename Env::traits, ExecCfg> system_config {
-			.container = container,
+			.container = std::move(container),
 			.execution_config = execution_config,
-			.particles = particles,
-			.boundaries = boundaries,
-			.interactions = forces,
-			.controllers = env.controllers,
-			.fields = env.fields
-		};
+			.particles = std::move(particles),
+			.boundaries = std::move(boundaries),
+			.interactions = std::move(forces),
+			.controllers = std::move(env.controllers),
+			.fields = std::move(env.fields)
+		 };
 
-		return System(system_config);
+		return System(std::move(system_config));
 	}
 
 	// convenience overloads

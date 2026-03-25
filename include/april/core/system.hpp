@@ -30,13 +30,13 @@ namespace april {
 		using Controllers = EnvTraits::controller_storage_t;
 		using Fields = EnvTraits::field_storage_t;
 
-		Container & container;
-		const ExecutionConfig & execution_config;
-		const std::vector<ParticleRecord>& particles;
-		BoundaryTable& boundaries;
-		InteractionTable& interactions;
-		Controllers& controllers;
-		Fields& fields;
+		Container container; // Keep as value
+		ExecutionConfig execution_config; // Keep as value
+		std::vector<ParticleRecord> particles; // Change to value!
+		BoundaryTable boundaries; // Change to value!
+		InteractionTable interactions; // Change to value!
+		Controllers controllers; // Change to value!
+		Fields fields; // Change to value!
 	};
 
 
@@ -72,7 +72,7 @@ namespace april {
 		using Container			= SystemConfig::Container;
 		using ExecutionConfig   = SystemConfig::ExecutionConfig;
 
-		// convenience aliases
+		// convinience aliases
 		static constexpr auto parallel_policy = ExecutionConfig::parallel_policy;
 		static constexpr auto vector_policy = ExecutionConfig::vector_policy;
 
@@ -100,16 +100,16 @@ namespace april {
 
 
 		// private constructor since System should only be creatable through build_system(...)
-		explicit System(SystemConfig & config)
-			: thread_executor(typename ExecutionConfig::ThreadExecutor(config.execution_config.executer_config)),
-			  boundary_table(config.boundaries),
-			  force_table(config.interactions),
-			  controllers(config.controllers),
-			  fields(config.fields),
-			  particle_container(config.container),
-			  exec_config(config.execution_config),
-			  system_context(*this),
-			  trig_context(*this)
+		explicit System(SystemConfig&& config)
+		  : thread_executor(typename ExecutionConfig::ThreadExecutor(config.execution_config.executer_config)),
+			boundary_table(std::move(config.boundaries)),     // Zero-cost pointer swap!
+			force_table(std::move(config.interactions)),      // Zero-cost pointer swap!
+			controllers(std::move(config.controllers)),       // Zero-cost pointer swap!
+			fields(std::move(config.fields)),                 // Zero-cost pointer swap!
+			particle_container(std::move(config.container)),  // Zero-cost pointer swap!
+			exec_config(std::move(config.execution_config)),
+			system_context(*this),
+			trig_context(*this)
 		{
 			particle_container.bind_executor(&thread_executor);
 			particle_container.invoke_build(config.particles);

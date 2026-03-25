@@ -5,6 +5,7 @@
 #include "april/exec/policy.hpp"
 #include "april/interactions/force.hpp"
 #include "april/particle/attributes.hpp"
+#include "april/exec/parallel_utils.hpp"
 
 namespace april {
 

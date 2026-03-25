@@ -4,6 +4,7 @@
 #include "april/containers/container.hpp"
 #include "april/math/range.hpp"
 #include "april/exec/policy.hpp"
+#include "april/exec/parallel_utils.hpp"
 
 namespace april::container::layout {
     template <typename ContainerConfig>

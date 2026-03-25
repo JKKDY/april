@@ -9,6 +9,8 @@
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
 #include "april/exec/policy.hpp"
+#include "april/exec/parallel_utils.hpp"
+
 
 #include "april/containers/layout/internal/soa_chunk.hpp"
 

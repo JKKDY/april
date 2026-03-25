@@ -12,7 +12,6 @@
 #include "april/interactions/interaction_table.hpp"
 #include "april/core/domain.hpp"
 #include "april/core/internal/environment_traits.hpp"
-#include "april/exec/parallel_utils.hpp"
 
 #include "april/particle/scalar_access.hpp"
 #include "april/particle/packed_access.hpp"

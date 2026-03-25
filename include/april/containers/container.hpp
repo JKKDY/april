@@ -540,32 +540,38 @@ namespace april::container {
 	};
 
 
-	template<typename C> concept IsContainer = true;
-		// // must define types (Config, UserData)
-		// requires {
-		// 	typename C::Config;
-		// 	typename C::ParticleAttributes;
-		// } &&
-		// // Config must have impl typename pointing to Container type
-		// // container must only depend on user data as template argument
-		// requires {
-		// 	typename C::Config::template impl<typename C::ParticleAttributes>;
-		// 	requires std::same_as<C, typename C::Config::template impl<typename C::ParticleAttributes>>;
-		// } &&
-		// // Must inherit from the Container
-		// std::derived_from<C, Container<
-		// 	typename C::Config,
-		// 	typename C::ParticleAttributes
-		// >> &&
-		// // Must implement the Structural Contract
-		// HasContainerOps<C>;
+	template<typename C>
+	concept IsContainer =
+		// 1. Must expose the standard traits (which your base Container class now does)
+		requires {
+			typename C::Config;
+			typename C::ExecutionConfig;
+			typename C::ParticleAttributes;
+		} &&
+		// 2. Must physically implement the operations
+		HasContainerOps<C>
+		&& std::derived_from<C, Container< ContainerBuildConfig<typename C::Config, typename C::ExecutionConfig, typename C::ParticleAttributes> >>;
 
 
-	template<typename ContainerDecl, typename Traits> concept IsContainerDecl = true;
-		// core::internal::IsEnvironmentTraits<Traits>
-		// && requires { typename ContainerDecl::template impl<typename Traits::particle_attributes_t>; }
-		// && IsContainer<typename ContainerDecl::template impl<typename Traits::particle_attributes_t>>;
+	template<typename ContainerDecl, typename Traits, typename ExecCfg>
+	concept IsContainerDecl =
+		core::internal::IsEnvironmentTraits<Traits> &&
+		exec::IsExecutionConfig<ExecCfg> &&
+		requires {
+			// 1. Synthesize the Build Configuration
+			typename ContainerBuildConfig<ContainerDecl, ExecCfg, typename Traits::particle_attributes_t>;
 
+			// 2. Check if the user's tag has an `impl` alias that accepts it
+			typename ContainerDecl::template impl<
+				ContainerBuildConfig<ContainerDecl, ExecCfg, typename Traits::particle_attributes_t>
+			>;
+		} &&
+		// 3. Check if the resulting type satisfies the physical container requirements
+		IsContainer<
+			typename ContainerDecl::template impl<
+				ContainerBuildConfig<ContainerDecl, ExecCfg, typename Traits::particle_attributes_t>
+			>
+		>;
 } // namespace april::container
 
 

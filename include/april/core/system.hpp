@@ -40,11 +40,11 @@ namespace april {
 	};
 
 
-	template <class Container, core::IsEnvironment Env, exec::IsExecutionConfig ExecCfg>
-	requires container::IsContainerDecl<Container, typename Env::traits>
+	template <class ContainerCfg, core::IsEnvironment Env, exec::IsExecutionConfig ExecCfg>
+	requires container::IsContainerDecl<ContainerCfg, typename Env::traits, ExecCfg>
 	auto build_system(
 		const Env & environment,
-		const Container & container_config,
+		const ContainerCfg & container_config,
 		const ExecCfg & execution_config,
 		BuildInfo * build_info
 	);
@@ -117,13 +117,10 @@ namespace april {
 			fields.for_each_item([&](auto& f) { f.dispatch_init(context()); });
 		}
 
-		// Friend factory: only entry point for constructing a System
-		// Avoids exposing constructor internals publicly.
+		// only entry point for constructing a System (friend factory)
 		template <class C, core::IsEnvironment E, exec::IsExecutionConfig EC>
-	    requires container::IsContainerDecl<C, typename E::traits>
-	    friend auto build_system(
-		    const E&, const C&, const EC&, BuildInfo*
-	    );
+	    requires container::IsContainerDecl<C, typename E::traits, EC>
+	    friend auto build_system(const E&, const C&, const EC&, BuildInfo*);
 
 		template<VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
 		void execute_batch_kernel(const Batch& batch, Kernel&& kernel);

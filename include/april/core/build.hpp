@@ -23,7 +23,7 @@ namespace april {
 
 	// constructs a system from an environment and a container.
 	template <class ContainerCfg, core::IsEnvironment Env, exec::IsExecutionConfig ExecCfg>
-	requires container::IsContainerDecl<ContainerCfg, typename Env::traits>
+	requires container::IsContainerDecl<ContainerCfg, typename Env::traits, ExecCfg>
 	auto build_system(
 		const Env & environment,
 		const ContainerCfg & container_config,

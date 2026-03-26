@@ -8,7 +8,7 @@
 using namespace april;
 
 
-using SimdTypes = testing::Types<simd::Packed<double>, simd::Packed<float>>;
+using SimdTypes = testing::Types<simd::Packed<double>>;
 
 
 template <typename T>

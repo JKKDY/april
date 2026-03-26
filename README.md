@@ -10,7 +10,7 @@ April is a high-performance, header-only C++23 framework for particle-based simu
 The design is fully modular. Components such as forces, boundaries, containers, and integrators can be freely combined because simulation logic is decoupled from data representation; memory layout (AoS, SoA, AoSoA) is independent of the physics code.
 
 
-> **Status**: Early WIP. API unstable. Core Architecture, Memory layouts, SIMD, Multi-threading complete.  
+> **Status**: Early WIP — API unstable. Core architecture, memory layouts, SIMD, and multi-threading are implemented. 
 > **Next**: Algorithmic Improvements (Verlet Cluster Lists, Barnes Hut)
 
 

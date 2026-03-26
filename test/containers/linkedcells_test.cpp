@@ -597,8 +597,81 @@ TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
 
 
 
+TYPED_TEST(LinkedCellsTest, LinkedCells_vs_DirectSum_Parity_Open) {
+
+	// Setup Environment with OpenBoundary
+	// This ensures both LC and DS only see the "real" distances.
+	Environment env(forces<LennardJones>, boundaries<OpenBoundary>);
+	env.add_force(LennardJones(5.0, 1.0, 3.0), to_type(0));
+
+	// Safe Jittered Grid Initialization
+	const int nx = 10, ny = 10, nz = 10;
+	const double spacing = 1.15; // Slightly larger than sigma (1.0) to stay out of the wall
+	const double jitter_mag = 0.05; // Small nudge
+
+	std::mt19937 gen(42);
+	std::uniform_real_distribution<double> jitter(-jitter_mag, jitter_mag);
+
+	for (int k = 0; k < nz; ++k) {
+		for (int j = 0; j < ny; ++j) {
+			for (int i = 0; i < nx; ++i) {
+				ParticleID user_id = k * (nx * ny) + j * nx + i;
+
+				vec3 pos = {
+					0.5 + i * spacing + jitter(gen),
+					0.5 + j * spacing + jitter(gen),
+					0.5 + k * spacing + jitter(gen)
+				};
+
+				env.add_particle(make_particle(0, pos, {0,0,0}, 1.0, ParticleState::ALIVE, user_id));
+			}
+		}
+	}
 
 
+	// Build systems
+	BuildInfo ds_info, lc_info;
+	auto ds_system = build_system(env, DirectSum<Layout::AoS>{}, &ds_info);
+	auto lc_system = build_system(env, TypeParam::create(3.0), &lc_info);
+
+	ds_system.update_forces();
+	lc_system.update_forces();
+
+	// Comparison
+	constexpr double epsilon = 1e-9;
+	bool found_failure = false;
+	for (ParticleID user_id = 0; user_id < 1000; ++user_id) {
+		const auto ds_idx = ds_info.id_map[user_id];
+		const auto lc_idx = lc_info.id_map[user_id];
+
+		auto p_ds = get_particle_by_id(ds_system, ds_idx);
+		auto p_lc = get_particle_by_id(lc_system, lc_idx);
+
+		// 1. POSITION GUARD: If these aren't the same, the mapping is broken.
+		double pos_diff = (p_ds.position - p_lc.position).norm();
+		if (pos_diff > epsilon) {
+			std::cout << "\n[  MAPPING FAIL  ] User ID: " << user_id << "\n"
+					  << "  DS Internal Idx: " << ds_idx << " | LC Internal Idx: " << lc_idx << "\n"
+					  << "  DS Pos: " << p_ds.position << "\n"
+					  << "  LC Pos: " << p_lc.position << "\n";
+			found_failure = true;
+			break;
+		}
+
+		// 2. FORCE CHECK
+		if (std::abs(p_ds.force.x - p_lc.force.x) > epsilon) {
+			std::cout << "\n[   FORCE FAIL   ] User ID: " << user_id << "\n"
+					  << "  Position: " << p_ds.position << "\n"
+					  << "  DS Force: " << p_ds.force << "\n"
+					  << "  LC Force: " << p_lc.force << "\n"
+					  << "  Delta:    " << (p_ds.force - p_lc.force) << "\n";
+			found_failure = true;
+			break;
+		}
+	}
+
+	ASSERT_FALSE(found_failure) << "Parity failed. See log for details.";
+}
 
 
 

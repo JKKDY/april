@@ -398,19 +398,10 @@ TYPED_TEST(SimdWideTest, LogicalMaskReductions) {
 // NARROW TYPES TEST SUITE (Upcast/Downcast Memory Interface)
 // ---------------------------------------------------------
 
-#if APRIL_HAS_STD_SIMD
 using NarrowBackendTypes = testing::Types<
-    april::simd::internal::xsimd::Packed<uint64_t>,
-    april::simd::internal::xsimd::Packed<uint32_t>,
-    april::simd::internal::std_simd::Packed<uint64_t>,
-    april::simd::internal::std_simd::Packed<uint32_t>
+    april::simd::Packed<uint64_t>,
+    april::simd::Packed<uint32_t>
 >;
-#else
-using NarrowBackendTypes = testing::Types<
-    april::simd::internal::xsimd::Packed<uint64_t>,
-    april::simd::internal::xsimd::Packed<uint32_t>
->;
-#endif
 
 template <typename T>
 class SimdNarrowTest : public testing::Test {

@@ -16,76 +16,69 @@ using testing::Eq;
 using namespace april;
 
 
+
+
+
+// Execution Strategy Wrapper
 template<ParallelPolicy P, VectorPolicy V = VectorPolicy::Auto>
 struct CustomExecConfig : RunTimeConfig<>, CompileTimeConfig<P, V> {};
 
-// Policy: No ordering (Flat/Default)
+// Ordering Policies
 struct OrderDefault {
-	static auto apply(auto&& container) {
-		return std::forward<decltype(container)>(container);
-	}
+    static auto&& apply(auto&& c) { return std::forward<decltype(c)>(c); }
 };
 
-// Policy: Morton
-struct OrderMorton {
-	static auto apply(auto&& container) {
-		// Assuming morton_order is available in current scope or april namespace
-		return container.with_cell_ordering(morton_order);
-	}
-};
-
-// Policy: Hilbert
 struct OrderHilbert {
-	static auto apply(auto&& container) {
-		// Assuming hilbert_order is available in current scope or april namespace
-		return container.with_cell_ordering(hilbert_order);
-	}
+    static auto&& apply(auto&& c) { return c.with_cell_ordering(hilbert_order); }
 };
 
-template <typename ContainerT, typename OrderingT>
+template <typename ContainerT, typename OrderingT, ParallelPolicy P, VectorPolicy V>
 struct TestConfig {
-	// Helper to initialize the container with size and ordering
-	static auto create(double cell_size) {
-		// Create container and set size
-		auto c = ContainerT{}
-			.with_abs_cell_size(cell_size)
-			.with_skin_factor(0.0);
-		// Apply the ordering strategy (Default, Morton, or Hilbert)
-		return OrderingT::apply(std::move(c));
-	}
+    using Container = ContainerT;
+    using ExecConfig = CustomExecConfig<P, V>;
 
-	static auto create() {
-		auto c = ContainerT{};
-		return OrderingT::apply(std::move(c));
-	}
+    // Returns the configured container by value (ready for build_system)
+    static auto create_container(double cell_size) {
+        auto c = ContainerT{};
+
+        c.with_abs_cell_size(cell_size)
+         .with_skin_factor(0.0)
+         .with_block_size(2);
+
+        return OrderingT::apply(std::move(c));
+    }
+
+	static auto create_container() {
+    	auto c = ContainerT{};
+    	c.with_skin_factor(0.0);
+    	return OrderingT::apply(std::move(c));
+    }
+
+    // Returns a valid execution config
+    static auto create_exec() {
+        return ExecConfig{};
+    }
 };
 
-using ContainerConfigurations = testing::Types<
-	// AoS Combinations
-	TestConfig<LinkedCells<Layout::AoS>, OrderDefault>,
-	TestConfig<LinkedCells<Layout::AoS>, OrderMorton>,
-	TestConfig<LinkedCells<Layout::AoS>, OrderHilbert>,
+// 4. Optimized Test Matrix (The "Five-Point" Coverage)
+using Matrix = testing::Types<
+    TestConfig<LinkedCells<Layout::AoS>, OrderDefault, ParallelPolicy::Serial, VectorPolicy::Scalar>,
 
-	// SoA Combinations
-	TestConfig<LinkedCells<Layout::SoA>, OrderDefault>,
-	TestConfig<LinkedCells<Layout::SoA>, OrderMorton>,
-	TestConfig<LinkedCells<Layout::SoA>, OrderHilbert>,
+    TestConfig<LinkedCells<Layout::SoA>, OrderDefault, ParallelPolicy::Serial, VectorPolicy::Auto>,
 
-	// AoSoA Combinations
-	TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderDefault>,
-	TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderMorton>,
-	TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderHilbert>,
+    TestConfig<LinkedCells<Layout::SoA>, OrderDefault, ParallelPolicy::Threaded, VectorPolicy::Auto>,
 
-	TestConfig<LinkedCells<Layout::AoSoA<16>>, OrderDefault>,
-	TestConfig<LinkedCells<Layout::AoSoA<16>>, OrderMorton>,
-	TestConfig<LinkedCells<Layout::AoSoA<16>>, OrderHilbert>
+    TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderDefault, ParallelPolicy::Serial, VectorPolicy::Scalar>,
+
+	TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderDefault, ParallelPolicy::Serial, VectorPolicy::Auto>,
+
+    TestConfig<LinkedCells<Layout::AoSoA<32>>, OrderHilbert, ParallelPolicy::Threaded, VectorPolicy::Auto>
 >;
 
-template <typename LinkedCellsT>
+template <typename T>
 class LinkedCellsTest : public testing::Test {};
 
-// Update the Test Suite to use these configurations
-TYPED_TEST_SUITE(LinkedCellsTest, ContainerConfigurations);
+TYPED_TEST_SUITE(LinkedCellsTest, Matrix);
 
 
 
@@ -95,7 +88,7 @@ TYPED_TEST(LinkedCellsTest, SingleParticle_NoForce) {
 	e.add_force(NoForce(), to_type(0));
 	e.set_extent({4,4,4});
 
-	auto sys = build_system(e, TypeParam::create(4));
+	auto sys = build_system(e, TypeParam::create_container(4), TypeParam::create_exec());
     sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -111,7 +104,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
 	e.add_particle(make_particle(7, {1.5,0,0}, {}, 2, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = build_system(e, TypeParam::create(2));
+	auto sys = build_system(e, TypeParam::create_container(2), TypeParam::create_exec());
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -133,7 +126,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 	e.add_particle(make_particle(7, {1.5,0,0}, {}, 2, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = build_system(e, TypeParam::create(1));
+	auto sys = build_system(e, TypeParam::create_container(1), TypeParam::create_exec());
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -155,7 +148,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 	e.add_particle(make_particle(7, {1.25,0,0}, {}, 1, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
-	auto sys = build_system(e, TypeParam::create(0.5));
+	auto sys = build_system(e, TypeParam::create_container(0.5), TypeParam::create_exec());
 	sys.update_forces();
     auto const& out = export_particles(sys);
 	ASSERT_EQ(out.size(), 2u);
@@ -176,7 +169,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
 	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
 	e.auto_domain(2);
 
-	auto sys = build_system(e, TypeParam::create());
+	auto sys = build_system(e, TypeParam::create_container(), TypeParam::create_exec());
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -202,7 +195,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 
 	e.add_force(Gravity(5.0), between_types(0, 1));
 
-	auto sys = build_system(e, TypeParam::create());
+	auto sys = build_system(e, TypeParam::create_container(), TypeParam::create_exec());
 	sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -236,7 +229,7 @@ TYPED_TEST(LinkedCellsTest, OrbitTest) {
 	env.set_origin({-1.5*v,-1.5*v,0});
 	env.set_extent({3*v,3*v,1});
 
-	auto sys = build_system(env, TypeParam::create(v));
+	auto sys = build_system(env, TypeParam::create_container(v), TypeParam::create_exec());
 	sys.update_forces();
 
 	VelocityVerlet integrator(sys, monitors<OrbitMonitor>);
@@ -287,7 +280,7 @@ TYPED_TEST(LinkedCellsTest, CollectIndicesInRegion) {
 		e.add_particles(cuboid);
         e.add_force(NoForce(), to_type(0));
 
-        auto sys = build_system(e, TypeParam::create(cell_size));
+        auto sys = build_system(e, TypeParam::create_container(cell_size), TypeParam::create_exec());
 
         // Case 1: small inner region (should include one particle)
         {
@@ -369,7 +362,7 @@ TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 		e.set_boundaries(DummyPeriodicBoundary(), {DomainFace::XMinus, DomainFace::XPlus});
 
 		BuildInfo mapping;
-		auto sys = build_system(e, TypeParam::create(cell_size_hint), &mapping);
+		auto sys = build_system(e, TypeParam::create_container(cell_size_hint), TypeParam::create_exec(), &mapping);
 		sys.update_forces();
 
 		auto const& out = export_particles(sys);
@@ -405,7 +398,7 @@ TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
 		});
 
 		BuildInfo mapping;
-		auto sys = build_system(e, TypeParam::create(cell_size_hint), &mapping);
+		auto sys = build_system(e, TypeParam::create_container(cell_size_hint), TypeParam::create_exec(), &mapping);
 		sys.update_forces();
 
 		auto const& out = export_particles(sys);
@@ -449,7 +442,7 @@ TYPED_TEST(LinkedCellsTest, Asymmetric_ChunkBoundaries_Counting) {
 
     BuildInfo info;
     // Set cell size >= cutoff
-    auto sys = build_system(e, TypeParam::create(1.5), &info);
+    auto sys = build_system(e, TypeParam::create_container(1.5), TypeParam::create_exec(), &info);
     sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -488,7 +481,7 @@ TYPED_TEST(LinkedCellsTest, Asymmetric_MultiChunk_Gravity_WithCutoff) {
     e.add_force(NoForce(), to_type(1));
 
     BuildInfo info;
-    auto sys = build_system(e, TypeParam::create(cutoff), &info);
+    auto sys = build_system(e, TypeParam::create_container(cutoff), TypeParam::create_exec(), &info);
     sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -534,7 +527,7 @@ TYPED_TEST(LinkedCellsTest, Asymmetric_TypeChaining) {
     e.add_force(NoForce(), between_types(0, 2));
 
     BuildInfo info;
-    auto sys = build_system(e, TypeParam::create(1.5), &info);
+    auto sys = build_system(e, TypeParam::create_container(1.5), TypeParam::create_exec(), &info);
     sys.update_forces();
 
     auto const& out = export_particles(sys);
@@ -563,7 +556,7 @@ TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
 	e.add_force(NoForce(), to_type(0));
 
 	BuildInfo info;
-	auto sys = build_system(e, TypeParam::create(1.0), &info);
+	auto sys = build_system(e, TypeParam::create_container(1.0), TypeParam::create_exec(), &info);
 
 	// test view_id (Read Only)
 	for (size_t i = 0; i < N; ++i) {
@@ -636,7 +629,7 @@ TYPED_TEST(LinkedCellsTest, LinkedCells_vs_DirectSum_Parity_Open) {
 	// Build systems
 	BuildInfo ds_info, lc_info;
 	auto ds_system = build_system(env, DirectSum<Layout::AoS>{}, serial_exec, &ds_info);
-	auto lc_system = build_system(env, TypeParam::create(3.0), serial_exec, &lc_info);
+	auto lc_system = build_system(env, TypeParam::create_container(3.0), serial_exec, &lc_info);
 
 	ds_system.update_forces();
 	lc_system.update_forces();

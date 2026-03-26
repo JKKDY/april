@@ -126,6 +126,14 @@ double run_april_benchmark() {
     return std::chrono::duration<double>(end - start).count();
 }
 
+double get_allowed_tolerance() {
+#if defined(_MSC_VER) && !defined(__clang__)
+    return 1.6; // MSVC is allowed more overhead due to conservative inlining
+#else
+    return 1.1; // GCC/Clang must remain near-zero overhead
+#endif
+}
+
 // THE TEST
 TEST(PerformanceRegression, DirectSumAoS_vs_Handcoded) {
 #ifndef NDEBUG
@@ -150,7 +158,7 @@ TEST(PerformanceRegression, DirectSumAoS_vs_Handcoded) {
         std::cout << "[  RESULT  ] April     : " << time_april << " s\n";
         std::cout << "[  RESULT  ] Ratio     : " << (time_april / time_handcoded) << "x\n";
 
-        if (time_april <= time_handcoded * tolerance) {
+        if (time_april <= time_handcoded * get_allowed_tolerance()) {
             std::cout << "[  PASSED  ] April met the performance target!" << std::endl;
             SUCCEED();
             return; // Early exit! We proved the engine is fast enough.

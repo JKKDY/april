@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "april/base/types.hpp"
+#include "lc_scheduling.hpp"
 
 namespace april::container {
 	enum class CellSize {
@@ -33,6 +34,8 @@ namespace april::container::internal {
 
 		std::optional<std::function<std::vector<uint32_t>(uint3)>> cell_ordering_fn;
 		uint3 block_size = {2,2,2};
+
+		std::function<size_t(size_t, size_t, size_t, uint3)> schedule_phases = C08_schedule;
 
 		auto with_abs_cell_size(this auto&& self, const double cell_size) {
 			self.manual_cell_size = cell_size;
@@ -85,6 +88,11 @@ namespace april::container::internal {
 			return self;
 		}
 
+		auto with_scheduling(this auto&& self, std::function<size_t(size_t, size_t, size_t)> fn) {
+			self.schedule_phases = std::move(fn);
+			return self;
+		}
+
 		[[nodiscard]] double get_width(const double max_force_cutoff) const {
 			switch (cell_size_strategy) {
 			case CellSize::Cutoff: return max_force_cutoff;
@@ -105,18 +113,4 @@ namespace april::container::internal {
 		}
 	};
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

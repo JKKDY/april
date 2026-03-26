@@ -283,7 +283,7 @@ namespace april::container::internal {
 		// cell pair info
 		std::vector<int3> neighbor_stencil;
 		std::vector<WrappedCellPair> wrapped_cell_pairs;
-		std::array<std::vector<uint3>, 8> phase_schedule; // for c08 coloring scheme
+		std::vector<std::vector<uint3>> phase_schedule; // for c08 coloring scheme
 
 
 
@@ -520,12 +520,16 @@ namespace april::container::internal {
 				const size_t logical_y = by / batch_dim.y;
 				const size_t logical_z = bz / batch_dim.z;
 
-				const size_t color = (logical_x % 2) + ((logical_y % 2) << 1) + ((logical_z % 2) << 2);
+				const size_t color = this->config.schedule_phases(logical_x, logical_y, logical_z, batch_dim);
+				if (color >= phase_schedule.size()) {
+					phase_schedule.resize(color + 1);
+				}
 
-				phase_schedule[color].push_back(uint3{bx, by, bz});
+				phase_schedule[color].emplace_back(bx, by, bz);
 			});
 		}
 
+				// const size_t color = (logical_x % 2) + ((logical_y % 2) << 1) + ((logical_z % 2) << 2);
 
         // -----------------
         // LOOP ABSTRACTIONS

@@ -92,16 +92,16 @@ if(APRIL_ENABLE_XSIMD)
     FetchContent_MakeAvailable(xsimd)
 
     target_link_libraries(April INTERFACE xsimd)
-    target_compile_definitions(April INTERFACE AP_SIMD_BACKEND_XSIMD)
+    target_compile_definitions(April INTERFACE APRIL_SIMD_BACKEND_XSIMD)
 else()
-    target_compile_definitions(April INTERFACE AP_SIMD_BACKEND_STD_SIMD)
+    target_compile_definitions(April INTERFACE APRIL_SIMD_BACKEND_STD_SIMD)
 endif()
 
 # Resolve Executor Backend
 if(APRIL_ENABLE_OPENMP)
     find_package(OpenMP REQUIRED) # find OpenMP
     target_link_libraries(April INTERFACE OpenMP::OpenMP_CXX)
-    target_compile_definitions(April INTERFACE AP_EXECUTOR_BACKEND_OMP)
+    target_compile_definitions(April INTERFACE APRIL_EXECUTOR_BACKEND_OMP)
 endif()
 
 

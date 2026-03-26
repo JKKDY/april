@@ -106,7 +106,7 @@ jobs:
       - name: Configure CMake
         shell: bash
         # Notice how we cleanly inject the matrix flags here
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_flags }}
+        run: cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_flags }}
 
       - name: Build
         shell: bash

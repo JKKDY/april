@@ -46,7 +46,7 @@ namespace april {
 		// handle pair wise (type-type) interactions
 		auto update_forces_batch = [&]<container::batching::IsBatch Batch, container::batching::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
 
-			auto apply_batch_update =  [&] <interactions::IsForce ForceT> (const ForceT & force) {
+			auto apply_batch_update =  [&] <interactions::IsForce ForceT> (const ForceT & force) APRIL_FORCE_INLINE {
 				constexpr ParticleField M = ForceT::fields | ParticleField::position;
 
 				auto kernel = [&]<bool is_packed>(auto && p1, auto && p2) APRIL_FORCE_INLINE {

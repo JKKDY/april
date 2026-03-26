@@ -141,6 +141,7 @@ target_compile_options(April_dev_configs INTERFACE
         $<$<BOOL:${APRIL_ENABLE_FAST_MATH}>:/fp:fast> # Allow unsafe floating-point optimizations for speed
         $<$<NOT:$<STREQUAL:${APRIL_MSVC_FAVOR},NONE>>:/favor:${APRIL_MSVC_FAVOR}> # specify favoured architecture
         /bigobj
+        /MP
     >
 
     # Debug

@@ -29,6 +29,7 @@ namespace april {
 			return *this;
 		}
 
+		APRIL_FORCE_INLINE
 		auto eval(auto, auto, const auto& r) const noexcept {
 			const auto inv_r2 = static_cast<vec3::type>(1.0) / (r.x*r.x + r.y*r.y + r.z * r.z);
 			const auto inv_r6 = inv_r2 * inv_r2 * inv_r2;
@@ -58,8 +59,8 @@ namespace april {
 		}
 
 		// Precomputed force constants
-		vec3::type c12_force;
-		vec3::type c6_force;
+		vec3::type c12_force{};
+		vec3::type c6_force{};
 
 		double epsilon_; // Depth of the potential well
 		double sigma_; // Distance at which potential is zero

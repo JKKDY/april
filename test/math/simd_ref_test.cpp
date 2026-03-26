@@ -30,7 +30,7 @@ public:
         buffer.resize(safe_size);
 
         // Initialize with zeros or a pattern
-        std::fill(buffer.begin(), buffer.end(), 0.0);
+        std::fill(buffer.begin(), buffer.end(), static_cast<Scalar>(0.0));
     }
 
     // Helper to verify all lanes in a packed match a value
@@ -58,7 +58,7 @@ TYPED_TEST(SimdRefTest, LoadStoreInteraction) {
     using Ref = TestFixture::Ref;
 
     // 1. Setup Memory: [10, 10, 10, 10...]
-    std::fill(this->buffer.begin(), this->buffer.end(), 10.0);
+    std::fill(this->buffer.begin(), this->buffer.end(), static_cast<TestFixture::Scalar>(10.0));
 
     // Point Ref to the start of the buffer
     Ref ref(this->buffer.data());
@@ -122,7 +122,7 @@ TYPED_TEST(SimdRefTest, CompoundAssignments) {
     using Ref = TestFixture::Ref;
 
     // Setup Memory: [10, 10...]
-    std::fill(this->buffer.begin(), this->buffer.end(), 10.0);
+    std::fill(this->buffer.begin(), this->buffer.end(), static_cast<TestFixture::Scalar>(10.0));
     Ref r(this->buffer.data());
 
     // 1. += Scalar (10 + 2 = 12)
@@ -147,7 +147,7 @@ TYPED_TEST(SimdRefTest, MathFunctions) {
     using Ref = TestFixture::Ref;
 
     // Setup: [25, 25...]
-    std::fill(this->buffer.begin(), this->buffer.end(), 25.0);
+    std::fill(this->buffer.begin(), this->buffer.end(), static_cast<TestFixture::Scalar>(25.0));
     Ref r(this->buffer.data());
 
     // sqrt(Ref) -> calls friend sqrt(SimdRef) -> returns Wide

@@ -12,7 +12,8 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(test_april
         test_april.cpp
-        system_test.cpp
+        core/system_test.cpp
+        core/regression_test.cpp
 
         containers/directsum_test.cpp
         containers/linkedcells_test.cpp

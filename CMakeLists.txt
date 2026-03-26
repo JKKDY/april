@@ -131,7 +131,7 @@ target_compile_options(April_dev_configs INTERFACE
     # Release / RelWithDebInfo (MSVC)
     $<$<AND:$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:MSVC>>:
         /O2                 # Maximize speed (replaces /Ox)
-        /GL                 # Whole program optimization (LTCG)
+#        /GL                 # Whole program optimization (LTCG) # commented out because of long build times
         /Gw                 # Optimize global data
         /Ob3                # Aggressive inlining (better than /Ob2)
         /Zc:inline          # Remove unreferenced COMDATs (shrinks binary/link time)

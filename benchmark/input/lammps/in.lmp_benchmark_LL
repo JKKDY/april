@@ -5,9 +5,9 @@ units       lj
 atom_style  atomic
 boundary    f f f
 
-variable NX equal 20
-variable NY equal 20
-variable NZ equal 20
+variable NX equal 90
+variable NY equal 90
+variable NZ equal 90
 variable a  equal 1.1225
 variable sigma equal 1.0
 variable eps   equal 5.0

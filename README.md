@@ -5,12 +5,9 @@
 [![Platforms](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](https://github.com/JKKDY/April/actions)
 
 
-April is a high-performance, header-only C++23 framework for particle-based simulations. It functions as a physics compiler: users describe particles, interactions, and constraints declaratively, and April generates a specialized simulation engine with fully static dispatch and SIMD-vectorizable kernel (no virtual calls and no runtime type erasure).
+April is a high-performance, header-only C++23 framework for particle-based simulations. It follows a compiler-like design: users describe particles, interactions and constraints declaratively and April builds a specialized, statically composed simulation system with SIMD-friendly kernels and multi-threaded execution.
 
-The design is fully modular. Components such as forces, boundaries, containers, and integrators can be freely combined because simulation logic is decoupled from data representation; memory layout (AoS, SoA, AoSoA) is independent of the physics code.
-
-
-> **Status**: Early WIP — API unstable. Core architecture, memory layouts, SIMD, and multi-threading are implemented. 
+> **Status**: Early WIP - API unstable. Core architecture, memory layouts, SIMD and multi-threading are implemented. 
 > **Next**: Algorithmic Improvements (Verlet Cluster Lists, Barnes Hut)
 
 
@@ -93,9 +90,9 @@ April is built around static configuration and strict separation between simulat
 
 
 
-### 3. SIMD Vectorization
+### 3.  SIMD and Parallel Execution
 
-April allows for backend agnostic and non-intrusive vectorization:
+April allows for backend agnostic vectorization and multithreaded execution:
 
 * **Backend Agnostic SIMD API**: April's SIMD API uses interchangeable backends. The library ships with `std::simd` and `xsimd` implementations. Additional backends can be added by implementing the required SIMD and mask interfaces.
 
@@ -103,8 +100,11 @@ April allows for backend agnostic and non-intrusive vectorization:
 
 * **Automatic SIMD Management**: Lane masking, rotations, broadcasts, reductions, and memory operations are handled by the library, allowing users to write plain physics logic. 
 
-* **High-Performance Vectorized Iteration**: SoA and AoSoA containers provide fully vectorized execution with manually optimized loops, including explicit vector tail handling (no scalar fallbacks).
+* **High-Performance Vectorized Iteration**: SoA and AoSoA containers provide fully vectorized execution with manually optimized loops, including explicit vector tail handling (no scalar fallbacks).  
 
+* **Parallel Execution Model**: Core algorithms (e.g. direct sum, linked cells, particle traversal) are parallelized.  
+
+* **Pluggable Executors**: Users can provide custom executors (e.g. thread pools). April includes OpenMP and native executors.
 
 
 
@@ -113,37 +113,50 @@ April allows for backend agnostic and non-intrusive vectorization:
 ### 1. Requirements
 - **C++23 capable compiler** (e.g. gcc-14, clang 18)
 - **CMake ≥ 3.28** (only for examples, tests, benchmarks)
-- **GoogleTest** (Optional/Dev): Required for the test suite. 
-- **xsimd** (Optional): The library can alternatively use `std::simd` if available.
 
-The project's CMake is configured to automatically fetch project dependencies.
+The core library has no mandatory dependencies. The following optional dependencies are automatically fetched or detected by CMake:
 
-### 2. How to Build (examples, benchmarks, tests)
+- **GoogleTest** (dev): required for the test suite
+- **xsimd**: default SIMD backend (enable with `APRIL_ENABLE_XSIMD`; falls back to `std::simd` if disabled)
+- **OpenMP**: optional parallel backend (enable with `APRIL_ENABLE_OPENMP`; otherwise uses the native threading implementation)
 
-Since April is a header-only library, simply copy the headers and `#include <april/april.hpp>`. You can automate this process in CMake with ``FetchContent``:
+
+### 2. Integration
+
+April is a header-only library. You can simply include the `include/` directory, or use CMake's FetchContent:
 ````CMake
 include(FetchContent)
-
 FetchContent_Declare(
-  april
-  GIT_REPOSITORY https://github.com/JKKDY/april.git
-  GIT_TAG        main
+        April
+        GIT_REPOSITORY https://github.com/JKKDY/april.git
+        GIT_TAG        main
 )
-FetchContent_MakeAvailable(april)
+FetchContent_MakeAvailable(April)
+
+# Link to your target
+target_link_libraries(your_project PRIVATE April)
 ````
 
+### 3. Building for Development 
 
-To build all examples and development targets, from the project root run:
-````bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build --config Debug
-````
+```CMake
+# Configure Build to build all dev targets with xsimd and OMP enabled
+cmake -S . -B build \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DAPRIL_BUILD_TESTS=ON \
+      -DAPRIL_BUILD_EXAMPLES=ON \
+      -DAPRIL_BUILD_BENCHMARKS=ON \
+      -DAPRIL_ENABLE_OPENMP=ON \
+      -DAPRIL_ENABLE_XSIMD=ON
 
-To run tests:
-```bash
+cmake --build build --config Release -j 6
+
+# Run the test suite
 cd build
-ctest --output-on-failure --build-config Debug
+ctest --output-on-failure
 ```
+
+
 
 ### 3. Example
 This example demonstrates a many-particle simulation with short-range interactions, boundary conditions, and gravity, using linked cells with SoA layout for particle traversal. 
@@ -197,62 +210,49 @@ int main() {
 
 # Performance
 
-All benchmarks were performed on a single CPU thread.  
-
-**Hardware**: Surface Laptop Studio 2 (Intel i7-11370H, 16 GB RAM)
+**Hardware**: Surface Laptop Studio 2 (Intel i7-11370H, 4 cores / 8 threads, 16 GB RAM)  
 **Software**: Windows 10 with WSL2 Ubuntu 24.04.1.
-
-All benchmark code and raw data are available in `/benchmarks`.
-
-
-### 1. End-to-End Scalar Runtime Comparison
+**Compiler**: Clang 18.1.3
 
 
-Comparative benchmarks were conducted for 10k integration steps with Lennard-Jones (12-6) interactions (ε = 5, σ = 1, cutoff = 3σ, dt = 0.0002).
+### 1. End-to-End Performance
 
-**System:** simple cubic lattice of varying size (1000-8000 particles).  
-**Compilers / Versions:**
-- April: (Clang 18.1.3) 
-- LAMMPS: Stable Release 22 Jul 2025 (Update 3), built with Kokkos backend (Clang 18.1.3) 
-- HOOMD: v5.3.1 (pip install)
-  
+##### Multi-threaded, Vectorized Performance:
+To evaluate April’s parallel performance, a 1M particle simulation (100³ cubic lattice) with Lennard-Jones (12-6) interactions ($r_{cut}=3.0σ$) was benchmarked using the Linked-Cells container. April uses a cell ‘skin’ to avoid rebuilding linked cells every step, amortizing rebuild costs.  
 
+| Threads | Throughput (steps/s) | Speedup | Efficiency |
+| :--- | :--- | :--- | :--- |
+| 1 | 3.83 | 1.00x | 100% |
+| 2 | 6.63 | 1.73x | 86% |
+| 4 (Physical) | 10.24 | 2.67x | 67% |
+| 8 (SMT) | 13.36 | 3.48x | 43% |
 
-![Linked Cells benchmark](benchmark/results/bench_LC.png)
+April exhibits robust scaling due to contiguous memory layouts, static dispatch, and efficient SIMD usage. Performance gains are strongest on physical cores, while SMT threads provide additional but diminishing returns.  
 
+##### Comparison with LAMMPS:
+| Threads | LAMMPS (steps/s) | April (steps/s) | April Lead |
+| :--- | :--- | :--- | :--- |
+| 1 | 2.88 | 3.83 |  +33% |
+| 4 | 6.12 | 10.24 | +67% |
+| 8 | 8.05 | 13.36 | +66% |
 
-**Scalar-only execution**
+In this benchmark, April outperforms LAMMPS, benefiting from aggressively optimized builds where the compiler can fully exploit visibility of all code paths at compile time and more efficient use of vectorization (see below). 
 
-Run time in seconds:
-| Particles | April | LAMMPS | HOOMD |
-| --- | --- | --- | --- |
-| 8000 | 34.127 | 23.965 | 42.475 |
-| 4500 | 18.866 | 12.548 | 23.148 |
-| 2250 | 8.934  | 5.561 | 10.406 |
-| 1000 | 3.325  | 2.102 | 4.107 |
+##### Single-Threaded, Scalar Performance:
 
-April is competitive with both LAMMPS and HOOMD, outperforming HOOMD in this configuration. LAMMPS achieves lower runtimes primarily due to algorithmic differences such as Verlet neighbor lists, which reduce the number of non-interacting particle pairs evaluated per step.
+Comparing April and LAMMPS with scalar (SSE/AVX disabled), single threaded small scale builds, LAMMPS is around 50-60% faster.
 
+| Num Particles | April (s) | LAMMPS (s) | LAMMPS Lead |
+| :--- | :--- | :--- | :--- |
+| 8000 | 34.127 | 23.965 | +42.4% |
+| 4500 | 18.866 | 12.548 | +50.4% |
+| 2250 | 8.934 | 5.561 |   +60.7% |
+| 1000 | 3.325 | 2.102 |   +58.2% |
 
-### 2. SIMD Vectorized Runtime
-
-April’s linked-cells implementation achieves roughly a 2.1× speedup with AVX-512 vectorization using the AoSoA layout.
-
-| Particles | April| 
-| --- | --- | 
-| 8000 | 16.37 s    | 
-| 4500 | 8.90  s    | 
-| 2250 | 4.02  s    | 
-| 1000 | 1.57  s    |
-
-
-DirectSum sees a 3.9× speedup on small scale benchmarks, which is close to the arithmetic throughput limit of Tiger Lake CPUs. On this architecture AVX-512 FMA throughput is effectively the same as AVX2 (maximum ~4× arithmetic throughput, see [Agner Fog’s instruction tables](https://www.agner.org/optimize/instruction_tables.pdf#page=380)) because two FMA execution ports are fused. This result is therefore close to the theoretical limit.
+LAMMPS achieves lower runtimes primarily due to algorithmic differences such as Verlet neighbor lists, which reduce the number of non-interacting particle pairs evaluated per step. However Verlet Lists rely on indirect memory access patterns that are difficult to vectorize. April's Linked Cells implementation instead utilizes contiguous AoSoA sweeps, allowing the SIMD units to stay saturated.
 
 
-For larger benchmarks (e.g. 1M+ particles) April's linked cells performance decreases from the 2.1x multiple due to memory streaming constraints - The benchmark sizes above are small enough that most particle data fits inside CPU caches.
-
-
-### 3. Zero-Overhead Code Generation
+### 2. Zero-Overhead Code Generation
 
 To evaluate overhead of April's code generation, the DirectSum implementation is benchmarked against equivalent handwritten integration loops. These benchmarks were conducted without explicit vectorization.
 
@@ -266,7 +266,7 @@ To evaluate overhead of April's code generation, the DirectSum implementation is
 April does not introduce measurable abstraction overhead compared to handwritten loops. In the SoA case, April slightly outperforms the manual implementation, due to improved aliasing assumptions available to the compiler (usage of the `restrict` compiler hint).
 
 
-### 4. Force Kernel Dispatch Efficiency
+### 3. Force Kernel Dispatch Efficiency
 
 To assess force kernel dispatch efficiency, the amortized time per force evaluation was measured for April’s DirectSum and LinkedCells implementations. These results are compared against a very simple hardcoded force update loop (which gives an upper bound to the maximum possible performance) and LAMMPS force evaluation performance. These benchmarks were conducted without explicit vectorization.
 
@@ -412,7 +412,7 @@ Planned additions (subject to change)
 - [x] SoA
 - [x] AoSoA
 - [x] SIMD support
-- [ ] Parallelism
+- [x] Parallelism
 
 **Features**: 
 - [x] Yoshida4

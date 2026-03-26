@@ -11,50 +11,50 @@ set(gtest_build_shared_libs OFF CACHE BOOL "Build GTest as static" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(test_april
-#        test_april.cpp
-#        core/system_test.cpp
+        test_april.cpp
+        core/system_test.cpp
         core/regression_test.cpp
-#        core/conservation_test.cpp
-#
-#        containers/directsum_test.cpp
-#        containers/linkedcells_test.cpp
-#        containers/cell_ordering_test.cpp
-#        containers/scheduling_test.cpp
-#
-#        output_test.cpp
-#        integrators/stoermerverlet_test.cpp
-#        integrators/yoshida_test.cpp
-#
-#        boundaries/apply_boundary_test.cpp
-#        boundaries/absorb_test.cpp
-#        boundaries/periodic_test.cpp
-#        boundaries/repulsive_test.cpp
-#        boundaries/reflective_test.cpp
-#
-#        controllers/apply_controller_test.cpp
-#        controllers/thermostat_test.cpp
-#
-#        fields/uniform_field_test.cpp
-#        fields/local_field_test.cpp
-#        fields/apply_field_test.cpp
-#
-#        particle/particle_test.cpp
-#        particle/particle_fields_test.cpp
-#        particle/particle_generators_test.cpp
-#        particle/packed_fields_test.cpp
-#
-#        math/range_test.cpp
-#        math/simd_test.cpp
-#        math/vec3_test.cpp
-#        math/simd_ref_test.cpp
-#        math/vec3_ref_test.cpp
-#        math/simd_vec3_ref_tests.cpp
-#
-#        forces/interaction_test.cpp
-#        forces/forces_test.cpp
-#        forces/simd_forces_test.cpp
-#
-#        utility/graph_test.cpp
+        core/conservation_test.cpp
+
+        containers/directsum_test.cpp
+        containers/linkedcells_test.cpp
+        containers/cell_ordering_test.cpp
+        containers/scheduling_test.cpp
+
+        output_test.cpp
+        integrators/stoermerverlet_test.cpp
+        integrators/yoshida_test.cpp
+
+        boundaries/apply_boundary_test.cpp
+        boundaries/absorb_test.cpp
+        boundaries/periodic_test.cpp
+        boundaries/repulsive_test.cpp
+        boundaries/reflective_test.cpp
+
+        controllers/apply_controller_test.cpp
+        controllers/thermostat_test.cpp
+
+        fields/uniform_field_test.cpp
+        fields/local_field_test.cpp
+        fields/apply_field_test.cpp
+
+        particle/particle_test.cpp
+        particle/particle_fields_test.cpp
+        particle/particle_generators_test.cpp
+        particle/packed_fields_test.cpp
+
+        math/range_test.cpp
+        math/simd_test.cpp
+        math/vec3_test.cpp
+        math/simd_ref_test.cpp
+        math/vec3_ref_test.cpp
+        math/simd_vec3_ref_tests.cpp
+
+        forces/interaction_test.cpp
+        forces/forces_test.cpp
+        forces/simd_forces_test.cpp
+
+        utility/graph_test.cpp
 )
 
 target_include_directories(test_april PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common)

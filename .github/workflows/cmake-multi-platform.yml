@@ -1,8 +1,5 @@
 name: April CI
 
-# Triggers the workflow on push or pull request events
-# targeting the main or master branch.
-# Also allows for manual triggering from the GitHub UI.
 on:
   push:
     branches: [ "main", "dev" ]
@@ -12,11 +9,11 @@ on:
 
 jobs:
   build_and_test:
-    name: ${{ matrix.name }} # Name the job with its matrix configuration for clarity
-    runs-on: ${{ matrix.os }} # Use the operating system from the matrix
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
 
     strategy:
-      fail-fast: false       # Don't cancel all jobs if one fails
+      fail-fast: false
 
       matrix:
         include:
@@ -30,7 +27,16 @@ jobs:
             cc: clang-18
             cmake_flags: ""
 
+          - name: macOS (Apple Clang, Release)
+            # Tests the default out-of-the-box Mac experience + NEON SIMD
+            os: macos-latest
+            build_type: Release
+            cxx: clang++
+            cc: clang
+            cmake_flags: ""
+
           - name: macOS (GCC 14, Release)
+            # The modern C++23 fallback for Mac users
             os: macos-latest
             build_type: Release
             cxx: g++-14
@@ -40,6 +46,15 @@ jobs:
           - name: Windows (MSVC, Release)
             os: windows-latest
             build_type: Release
+            cxx: cl
+            cc: cl
+            cmake_flags: ""
+
+          - name: Windows (MinGW, Release)
+            os: windows-latest
+            build_type: Release
+            cxx: g++
+            cc: gcc
             cmake_flags: ""
 
           # -----------------------------------------
@@ -59,7 +74,6 @@ jobs:
             cc: gcc-14
             cmake_flags: "-DAPRIL_USE_TSAN=ON"
 
-
           # -----------------------------------------
           # NON DEFAULT BACKENDS (OpenMP & std::simd)
           # -----------------------------------------
@@ -68,13 +82,13 @@ jobs:
             build_type: Release
             cxx: g++-14
             cc: gcc-14
-            # Turn OFF XSIMD (forces std::simd) and turn ON OpenMP
             cmake_flags: "-DAPRIL_ENABLE_XSIMD=OFF -DAPRIL_ENABLE_OPENMP=ON"
 
           - name: Windows (MSVC, OpenMP)
             os: windows-latest
             build_type: Release
-            # Keep XSIMD on, but enable OpenMP to test MSVC's implementation
+            cxx: cl
+            cc: cl
             cmake_flags: "-DAPRIL_ENABLE_OPENMP=ON"
 
     steps:
@@ -86,7 +100,6 @@ jobs:
       - name: Install Compilers (Linux)
         if: runner.os == 'Linux'
         shell: bash
-        # Ubuntu 24.04 already has these in the native repos! (Much faster)
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-14 g++-14 clang-18
@@ -96,8 +109,11 @@ jobs:
         shell: bash
         run: brew install gcc@14
 
+      - name: Set up MSVC Developer Command Prompt
+        if: matrix.cxx == 'cl'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Set Compiler Environment Variables
-        if: matrix.cc != '' && matrix.cxx != ''
         shell: bash
         run: |
           echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
@@ -105,24 +121,28 @@ jobs:
 
       - name: Configure CMake
         shell: bash
-        # Notice how we cleanly inject the matrix flags here
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_flags }}
+        run: |
+          cmake -G Ninja -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DAPRIL_BUILD_EXAMPLES=ON \
+            -DAPRIL_BUILD_BENCHMARKS=ON \
+            ${{ matrix.cmake_flags }}
 
-      - name: Build
+      - name: Build (All Targets)
         shell: bash
+        # This compiles the engine, tests, examples, and benchmarks.
         run: cmake --build build --config ${{ matrix.build_type }} -j 4
 
       - name: Run Tests
         shell: bash
+        # This executes the compiled tests using CTest.
         run: |
           cd build
           ctest --output-on-failure --build-config ${{ matrix.build_type }}
 
-
   coverage:
     name: Linux (Clang 18, Coverage)
     runs-on: ubuntu-24.04
-    needs: build_and_test
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -135,8 +155,9 @@ jobs:
 
       - name: Configure CMake (Coverage)
         shell: bash
+        # Added Ninja here too for consistency and speed
         run: |
-          cmake -S . -B build-coverage \
+          cmake -G Ninja -S . -B build-coverage \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_COMPILER=clang++-18 \
             -DCMAKE_C_COMPILER=clang-18 \
@@ -175,4 +196,3 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./build-coverage/coverage.lcov
           fail_ci_if_error: true
-

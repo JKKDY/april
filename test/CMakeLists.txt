@@ -14,6 +14,7 @@ add_executable(test_april
         test_april.cpp
         core/system_test.cpp
         core/regression_test.cpp
+        core/conservation_test.cpp
 
         containers/directsum_test.cpp
         containers/linkedcells_test.cpp

@@ -16,6 +16,9 @@ using testing::Eq;
 using namespace april;
 
 
+template<ParallelPolicy P, VectorPolicy V = VectorPolicy::Auto>
+struct CustomExecConfig : RunTimeConfig<>, CompileTimeConfig<P, V> {};
+
 // Policy: No ordering (Flat/Default)
 struct OrderDefault {
 	static auto apply(auto&& container) {
@@ -148,8 +151,8 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 	Environment e(forces<ConstantForce>);
 	e.set_extent({2,1,0.5});
 	e.set_origin({0,0,0});
-	e.add_particle(make_particle(7, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
-	e.add_particle(make_particle(7, {1,0,0}, {}, 1, ParticleState::ALIVE, 1));
+	e.add_particle(make_particle(7, {0.25,0,0}, {}, 1, ParticleState::ALIVE, 0));
+	e.add_particle(make_particle(7, {1.25,0,0}, {}, 1, ParticleState::ALIVE, 1));
 	e.add_force(ConstantForce(3,4,5), to_type(7));
 
 	auto sys = build_system(e, TypeParam::create(0.5));
@@ -628,11 +631,12 @@ TYPED_TEST(LinkedCellsTest, LinkedCells_vs_DirectSum_Parity_Open) {
 		}
 	}
 
+	CustomExecConfig<ParallelPolicy::Serial> serial_exec;
 
 	// Build systems
 	BuildInfo ds_info, lc_info;
-	auto ds_system = build_system(env, DirectSum<Layout::AoS>{}, &ds_info);
-	auto lc_system = build_system(env, TypeParam::create(3.0), &lc_info);
+	auto ds_system = build_system(env, DirectSum<Layout::AoS>{}, serial_exec, &ds_info);
+	auto lc_system = build_system(env, TypeParam::create(3.0), serial_exec, &lc_info);
 
 	ds_system.update_forces();
 	lc_system.update_forces();

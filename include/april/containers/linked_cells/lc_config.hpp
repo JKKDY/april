@@ -37,58 +37,58 @@ namespace april::container::internal {
 
 		std::function<size_t(size_t, size_t, size_t, uint3)> schedule_phases = C08_schedule;
 
-		auto with_abs_cell_size(this auto&& self, const double cell_size) {
+		auto&& with_abs_cell_size(this auto&& self, const double cell_size) {
 			self.manual_cell_size = cell_size;
 			self.cell_size_strategy = CellSize::ManualAbs;
 			return self;
 		}
 
-		auto with_cell_size_factor(this auto&& self, const double factor) {
+		auto&& with_cell_size_factor(this auto&& self, const double factor) {
 			self.manual_cell_size = factor;
 			self.cell_size_strategy = CellSize::ManualFac;
 			return self;
 		}
 
-		auto with_cell_size(this auto&& self, const CellSize cell_size_strategy) {
+		auto&& with_cell_size(this auto&& self, const CellSize cell_size_strategy) {
 			self.cell_size_strategy = cell_size_strategy;
 			return self;
 		}
 
-		auto with_cell_ordering(this auto&& self, const std::function<std::vector<uint32_t>(uint3)> & ordering) {
+		auto&& with_cell_ordering(this auto&& self, const std::function<std::vector<uint32_t>(uint3)> & ordering) {
 			self.cell_ordering_fn = ordering;
 			return self;
 		}
 
-		auto with_block_size(this auto&& self, const uint3 block_size) {
+		auto&& with_block_size(this auto&& self, const uint3 block_size) {
 			self.block_size = block_size;
 			return self;
 		}
 
-		auto with_block_size(this auto&& self, const uint3::type x, const uint3::type y, const uint3::type z) {
+		auto&& with_block_size(this auto&& self, const uint3::type x, const uint3::type y, const uint3::type z) {
 			self.block_size = uint3{x,y,z};
 			return self;
 		}
 
-		auto with_block_size(this auto&& self, const uint3::type size) {
+		auto&& with_block_size(this auto&& self, const uint3::type size) {
 			self.block_size = uint3{size,size,size};
 			return self;
 		}
 
-		auto with_skin_factor(this auto&& self, const double factor) {
+		auto&& with_skin_factor(this auto&& self, const double factor) {
 			// factor is a multiplier of rc
 			self.skin_value = factor;
 			self.skin_strategy = SkinSize::Factor;
 			return self;
 		}
 
-		auto with_absolute_skin(this auto&& self, const double skin) {
+		auto&& with_absolute_skin(this auto&& self, const double skin) {
 			// absolute distance buffer
 			self.skin_value = skin;
 			self.skin_strategy = SkinSize::Absolute;
 			return self;
 		}
 
-		auto with_scheduling(this auto&& self, std::function<size_t(size_t, size_t, size_t)> fn) {
+		auto&& with_scheduling(this auto&& self, std::function<size_t(size_t, size_t, size_t)> fn) {
 			self.schedule_phases = std::move(fn);
 			return self;
 		}

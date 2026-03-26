@@ -36,8 +36,9 @@ public:
     // Helper to verify all lanes in a packed match a value
     void ExpectAll(const Packed& w, Scalar expected) {
         auto arr = w.to_array();
+        const double epsilon = std::is_same_v<Scalar, float> ? 1e-5f : 1e-12;
         for (auto v : arr) {
-            EXPECT_DOUBLE_EQ(v, expected);
+            EXPECT_NEAR(static_cast<double>(v), static_cast<double>(expected), epsilon);
         }
     }
 

@@ -43,8 +43,12 @@ namespace april::exec::internal {
     }
 
     inline void pin_current_thread(const int core_id) {
-        #if defined(_WIN32)
-            pin_thread_to_core(GetCurrentThread(), core_id);
+    #if defined(_WIN32)
+        // Explicitly cast to native_handle_type to satisfy MinGW's pthread implementation
+        pin_thread_to_core(
+            reinterpret_cast<std::thread::native_handle_type>(GetCurrentThread()),
+            core_id
+        );
         #elif defined(__linux__) || defined(__APPLE__)
             pin_thread_to_core(pthread_self(), core_id);
         #endif

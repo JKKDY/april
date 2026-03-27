@@ -121,12 +121,28 @@ jobs:
 
       - name: Configure CMake
         shell: bash
-        run: cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_flags }}
+        run: |
+          cmake -G Ninja -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DAPRIL_BUILD_EXAMPLES=ON \
+            -DAPRIL_BUILD_BENCHMARKS=ON \
+            ${{ matrix.cmake_flags }}
+
+      - name: Build (All Targets)
+        shell: bash
+        # This compiles the engine, tests, examples, and benchmarks.
+        run: cmake --build build --config ${{ matrix.build_type }} -j 4
+
+      - name: Run Tests
+        shell: bash
+        # This executes the compiled tests using CTest.
+        run: |
+          cd build
+          ctest --output-on-failure --build-config ${{ matrix.build_type }}
 
   coverage:
     name: Linux (Clang 18, Coverage)
     runs-on: ubuntu-24.04
-    needs: build_and_test
     steps:
       - name: Check out code
         uses: actions/checkout@v4

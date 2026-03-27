@@ -165,10 +165,153 @@ TEST(EnvTest, AutoOriginExtentDoublesBBox) {
 }
 
 
+TEST(EnvTest, IdentityMappingForDenseInput) {
+    // Verify that dense, sorted, non-interacting input
+    // results in an identity mapping (User ID == System ID).
+    Environment e(forces<NoForce>);
+
+    // Input: IDs 0, 1, 2 | Types 0, 1
+    e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
+    e.add_particle(make_particle(1, {1,1,1}, {}, 1, ParticleState::ALIVE, 1));
+    e.add_particle(make_particle(0, {2,2,2}, {}, 1, ParticleState::ALIVE, 2));
+
+    // Self-interactions only (no ID-to-ID to trigger reordering)
+    e.add_force(NoForce(), to_type(0));
+    e.add_force(NoForce(), to_type(1));
+    e.set_extent(10, 10, 10);
+
+    BuildInfo info;
+    auto sys = build_system(e, container::DirectSumAoS(), ExecutionConfig(), &info);
+
+    // Verify Type Identity
+    EXPECT_EQ(info.type_map.at(0), 0);
+    EXPECT_EQ(info.type_map.at(1), 1);
+
+    // Verify ID Identity
+    EXPECT_EQ(info.id_map.at(0), 0);
+    EXPECT_EQ(info.id_map.at(1), 1);
+    EXPECT_EQ(info.id_map.at(2), 2);
+}
 
 
+TEST(EnvTest, StableMappingAndInteractionPrioritization) {
+    // We want to verify:
+    // 1. Interacting IDs are at the front of the system memory.
+    // 2. Relative order of IDs is preserved (Stable mapping).
+    // 3. User types map to dense indices in ascending order.
+
+    Environment e(forces<NoForce>);
+
+    // Create sparse, out-of-order IDs and types
+    // Non-interacting IDs: 100, 200
+    // Interacting IDs: 10, 50
+    // Types: 5, 2
+    e.add_particle(make_particle(5, {0,0,0}, {}, 1, ParticleState::ALIVE, 200));
+    e.add_particle(make_particle(2, {1,1,1}, {}, 1, ParticleState::ALIVE, 50));
+    e.add_particle(make_particle(5, {2,2,2}, {}, 1, ParticleState::ALIVE, 10));
+    e.add_particle(make_particle(2, {3,3,3}, {}, 1, ParticleState::ALIVE, 100));
+
+    // Define interactions to trigger prioritization
+    e.add_force(NoForce(), between_ids(10, 50));
+    // Self-interactions required by validation
+    e.add_force(NoForce(), to_type(2));
+    e.add_force(NoForce(), to_type(5));
+
+    e.set_extent(10, 10, 10);
+
+    BuildInfo info;
+    auto sys = build_system(e, container::DirectSumAoS(), ExecutionConfig(), &info);
+
+    // Check Type Mapping (Ascending User Type -> Dense System Index)
+    // User Type 2 -> System Type 0
+    // User Type 5 -> System Type 1
+    EXPECT_EQ(info.type_map.at(2), 0);
+    EXPECT_EQ(info.type_map.at(5), 1);
+
+    // Check ID Mapping (Interacting IDs at front, then others, all stable)
+    // Expected order in memory: 10, 50, 100, 200
+    // (10, 50 are interacting, 100, 200 are not. Within groups, they stay ascending)
+    EXPECT_EQ(info.id_map.at(10),  0);
+    EXPECT_EQ(info.id_map.at(50),  1);
+    EXPECT_EQ(info.id_map.at(100), 2);
+    EXPECT_EQ(info.id_map.at(200), 3);
+}
 
 
+TEST(EnvTest, SparseAndAutoIDMix) {
+    Environment e(forces<NoForce>);
+    // User IDs: 1 and 10. Missing IDs for others.
+    e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 1));
+    e.add_particle(make_particle(0, {1,1,1}, {}, 1, ParticleState::ALIVE, std::nullopt));
+    e.add_particle(make_particle(0, {2,2,2}, {}, 1, ParticleState::ALIVE, 10));
+    e.add_particle(make_particle(0, {3,3,3}, {}, 1, ParticleState::ALIVE, std::nullopt));
+
+    e.add_force(NoForce(), to_type(0));
+    e.set_extent(10,10,10);
+
+    BuildInfo info;
+    build_system(e, container::DirectSumAoS(), ExecutionConfig(), &info);
+
+    // Should find 4 unique mappings. Auto-ids should skip 1 and 10.
+    EXPECT_EQ(info.id_map.size(), 4);
+    EXPECT_NO_THROW(info.id_map.at(1));
+    EXPECT_NO_THROW(info.id_map.at(10));
+    // Auto-assigned should be 0 and 2 (first available non-colliding IDs)
+    EXPECT_NO_THROW(info.id_map.at(0));
+    EXPECT_NO_THROW(info.id_map.at(2));
+}
+
+
+TEST(EnvTest, MissingSelfInteractionThrows) {
+    Environment e(forces<NoForce>);
+    e.add_particle(make_particle(0, {0,0,0}, {}, 1));
+    e.add_particle(make_particle(1, {1,1,1}, {}, 1));
+
+    // Interaction between 0 and 1 exists, but 0-0 and 1-1 are missing
+    e.add_force(NoForce(), between_types(0, 1));
+
+    e.set_extent(10, 10, 10);
+    EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
+}
+
+TEST(EnvTest, InvalidStateThrows) {
+    Environment e(forces<NoForce>);
+    e.add_force(NoForce(), to_type(0));
+    e.set_extent(10,10,10);
+
+    // Case A: INVALID sentinel
+    e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::INVALID, 0));
+    EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
+
+    // Case B: Undefined bits
+    Environment e2(forces<NoForce>);
+    e2.add_force(NoForce(), to_type(0));
+    e2.set_extent(10,10,10);
+    e2.add_particle(make_particle(0, {0,0,0}, {}, 1, static_cast<ParticleState>(0b10101010), 1));
+    EXPECT_THROW(build_system(e2, container::DirectSumAoS()), std::invalid_argument);
+}
+
+TEST(EnvTest, IDInteractionPriority) {
+    Environment e(forces<NoForce>);
+    // IDs 0, 1, 2. All are Type 0.
+    e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
+    e.add_particle(make_particle(0, {1,1,1}, {}, 1, ParticleState::ALIVE, 1));
+    e.add_particle(make_particle(0, {2,2,2}, {}, 1, ParticleState::ALIVE, 2));
+
+    e.add_force(NoForce(), to_type(0));
+    // Force between 1 and 2 should move them to system indices 0 and 1
+    e.add_force(NoForce(), between_ids(1, 2));
+
+    e.set_extent(10,10,10);
+
+    BuildInfo info;
+    build_system(e, container::DirectSumAoS(), ExecutionConfig(), &info);
+
+    // User ID 0 was not in an ID-interaction, should be pushed to the back (index 2)
+    EXPECT_EQ(info.id_map.at(1), 0);
+    EXPECT_EQ(info.id_map.at(2), 1);
+    EXPECT_EQ(info.id_map.at(0), 2);
+}
 
 
 

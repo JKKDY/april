@@ -208,8 +208,9 @@ namespace april {
         }
 
         void auto_domain_factor(const vec3d& margin_fac) {
-            data.margin_fac = margin_fac;
+            auto_domain(margin_fac);
         }
+
         void auto_domain_factor(const double margin_fac) {
             auto_domain(vec3d{margin_fac});
         }

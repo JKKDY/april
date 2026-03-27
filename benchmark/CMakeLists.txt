@@ -1,3 +1,4 @@
+
 function(add_benchmark target_name source_file folder_name)
     add_executable(${target_name} ${source_file})
 

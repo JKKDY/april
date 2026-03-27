@@ -200,8 +200,20 @@ endif()
 
 # Deploymenet Target on MacOS
 if(APPLE)
-    # Force the deployment target to macOS 11 (Big Sur) or higher
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version" FORCE)
+    # Force the deployment target to macOS 14
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0" CACHE STRING "Minimum macOS version" FORCE)
+endif()
+
+if(APPLE)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_definitions(April_dev_configs INTERFACE rsize_t=size_t)
+        target_compile_options(April_dev_configs INTERFACE -Wno-psabi)
+    endif()
+
+    # Silence Apple Clang's warnings about features being "too new"
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        target_compile_options(April_dev_configs INTERFACE -Wno-unsupported-availability-guard)
+    endif()
 endif()
 
 

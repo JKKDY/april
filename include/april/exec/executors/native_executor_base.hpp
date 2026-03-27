@@ -10,7 +10,9 @@
 
 
 #if defined(_WIN32)
-    #define NOMINMAX
+#ifndef NOMINMAX
+#  define NOMINMAX
+#endif
     #include <windows.h>
 #elif defined(__linux__) || defined(__APPLE__)
     #include <pthread.h>

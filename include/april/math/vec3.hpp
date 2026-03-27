@@ -238,7 +238,7 @@ namespace april::math {
         // Access component by index: 0 for x, 1 for y, 2 for z.
         // decltype(auto) preserves references
         decltype(auto) operator[](this auto&& self, const int index) noexcept {
-            AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
+            APRIL_ASSERT(index >= 0 && index < 3, "Index out of bounds");
             if (index == 0) return (self.x); // Parentheses matter for decltype(auto) on members
             if (index == 1) return (self.y);
             return (self.z);
@@ -316,31 +316,31 @@ namespace april::math {
         requires std::convertible_to<U, T>
         Vec3Ptr(Vec3<U>* other)
            : x(&other->x), y(&other->y), z(&other->z) {
-            AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+            APRIL_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
         template <typename U>
         requires std::convertible_to<const U*, T*>
         Vec3Ptr(const Vec3<U>* APRIL_RESTRICT other)
            : x(&other->x), y(&other->y), z(&other->z) {
-            AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+            APRIL_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
         Vec3Ptr(T& APRIL_RESTRICT x_ref, T& APRIL_RESTRICT y_ref, T& APRIL_RESTRICT z_ref)
            : x(&x_ref), y(&y_ref), z(&z_ref) {
-            AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+            APRIL_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
         Vec3Ptr(T* APRIL_RESTRICT x_ptr, T* APRIL_RESTRICT y_ptr, T* APRIL_RESTRICT z_ptr)
             : x(x_ptr), y(y_ptr), z(z_ptr) {
-            AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+            APRIL_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
         template <typename U>
         requires std::convertible_to<U*, T*>
         Vec3Ptr(const Vec3Ptr<U>& other)
            : x(other.x), y(other.y), z(other.z) {
-            AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+            APRIL_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
         template <typename U>

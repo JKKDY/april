@@ -102,7 +102,7 @@ namespace april {
 			const int is_plus = boundary::face_sign_pos(face);
 			const int ax = boundary::axis_of_face(face);
 
-			AP_ASSERT(particle.position[ax] >= domain_box.min[ax] && particle.position[ax] <= domain_box.max[ax],
+			APRIL_ASSERT(particle.position[ax] >= domain_box.min[ax] && particle.position[ax] <= domain_box.max[ax],
 			"particle should be inside domain on specified axis! \n\t face:"  + std::to_string(boundary::face_to_int(face)) +
 			"\n\t" + particle.position.to_string() + "  old pos: " + particle.old_position.to_string() );
 

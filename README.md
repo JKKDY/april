@@ -265,7 +265,6 @@ To evaluate overhead of April's code generation, the DirectSum implementation is
 
 April does not introduce measurable abstraction overhead compared to handwritten loops. In the SoA case, April slightly outperforms the manual implementation, due to improved aliasing assumptions available to the compiler (usage of the `restrict` compiler hint).
 
-
 ### 3. Force Kernel Dispatch Efficiency
 
 To assess force kernel dispatch efficiency, the amortized time per force evaluation was measured for April’s DirectSum and LinkedCells implementations. These results are compared against a very simple hardcoded force update loop (which gives an upper bound to the maximum possible performance) and LAMMPS force evaluation performance. These benchmarks were conducted without explicit vectorization.

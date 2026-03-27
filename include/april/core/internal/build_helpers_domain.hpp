@@ -8,7 +8,7 @@
 namespace april::core::internal {
 
 	// calculate the minimal bounding box that contains all particles
-	inline core::Box particle_bounding_box(const std::vector<Particle>& particles) {
+	inline Box particle_bounding_box(const std::vector<Particle>& particles) {
 		if (particles.empty()) return {};
 
 		vec3d min = particles[0].position;
@@ -29,14 +29,14 @@ namespace april::core::internal {
 
 
 	// given particle bounding box and user set parameters, calculate the simulation box
-	inline core::Box calculate_simulation_box(
+	inline Box calculate_simulation_box(
 		const Domain& desired_domain,
-		const core::Box& required_box,
-		const core::Box& particle_bbox
+		const Box& required_box,
+		const Box& particle_bbox
 	) {
 		// Case 1: fully manual: both user origin & extent are specified. overrides any margin set
 		if (desired_domain.origin.has_value() && desired_domain.extent.has_value()) {
-			return core::Box::from_domain(desired_domain);
+			return Box::from_domain(desired_domain);
 		}
 		// Case 2: fully automatic: both user origin & extent not set
 		if (!desired_domain.origin.has_value() && !desired_domain.extent.has_value()) {
@@ -59,7 +59,7 @@ namespace april::core::internal {
 	}
 
 
-	inline void verify_domain_consistency(const core::Box & simulation_box, const core::Box & particle_bbox) {
+	inline void verify_domain_consistency(const Box & simulation_box, const Box & particle_bbox) {
 		if (simulation_box.extent.x < 0 || simulation_box.extent.y < 0 || simulation_box.extent.z < 0)
 		{
 			throw std::logic_error("Simulation domain has negative extent. Got extent " + simulation_box.extent.to_string());
@@ -96,9 +96,9 @@ namespace april::core::internal {
 		}
 	}
 
-	inline core::Box determine_simulation_box(
+	inline Box determine_simulation_box(
 		const Domain& desired_domain,
-		const core::Box& particle_bbox,
+		const Box& particle_bbox,
 		const vec3d & margin_abs,
 		const vec3d & margin_fac
 	) {
@@ -116,9 +116,9 @@ namespace april::core::internal {
 			std::max( particle_bbox.extent.z * margin_fac.z, margin_abs.z)
 		};
 
-		const core::Box required_box (particle_bbox.min-effective_margin, particle_bbox.max+effective_margin);
+		const Box required_box (particle_bbox.min-effective_margin, particle_bbox.max+effective_margin);
 
-		const core::Box simulation_box = calculate_simulation_box(desired_domain, required_box, particle_bbox);
+		const Box simulation_box = calculate_simulation_box(desired_domain, required_box, particle_bbox);
 		verify_domain_consistency(simulation_box, particle_bbox);
 
 		return {simulation_box.min, simulation_box.max};

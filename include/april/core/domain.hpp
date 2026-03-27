@@ -74,11 +74,11 @@ namespace april {
 			Box(const vec3d& min_corner, const vec3d& max_corner):
 				min(min_corner), max(max_corner), extent(max-min) {
 
-				AP_ASSERT(min_corner.x <= max_corner.x, "min_corner.x (" + std::to_string(min_corner.x) + ") "
+				APRIL_ASSERT(min_corner.x <= max_corner.x, "min_corner.x (" + std::to_string(min_corner.x) + ") "
 					"is not <= than max_corner.x (" + std::to_string(max_corner.x)+")");
-				AP_ASSERT(min_corner.y <= max_corner.y, "min_corner.y (" + std::to_string(min_corner.y) + ") "
+				APRIL_ASSERT(min_corner.y <= max_corner.y, "min_corner.y (" + std::to_string(min_corner.y) + ") "
 					"is not <= than max_corner.y (" + std::to_string(max_corner.y)+")");
-				AP_ASSERT(min_corner.z <= max_corner.z, "min_corner.z (" + std::to_string(min_corner.z) + ") "
+				APRIL_ASSERT(min_corner.z <= max_corner.z, "min_corner.z (" + std::to_string(min_corner.z) + ") "
 					"is not <= than max_corner.z (" + std::to_string(max_corner.z)+")");
 			}
 

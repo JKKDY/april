@@ -188,7 +188,7 @@ namespace april::exec {
         std::vector<math::Range> blocks1 = make_linear_schedule(range1, B, config.alignment);
         std::vector<math::Range> blocks2 = make_linear_schedule(range2, B, config.alignment);
 
-        AP_ASSERT(blocks1.size() == blocks2.size(), "Bipartite blocks mismatch");
+        APRIL_ASSERT(blocks1.size() == blocks2.size(), "Bipartite blocks mismatch");
 
         // cyclic Diagonal Scheduling (Phase p: Pair block i with block (i+p)%B)
         schedule.phases.resize(B);

@@ -90,13 +90,13 @@ namespace april {
             }
 
             [[nodiscard]] size_t num_threads() const noexcept {
-                AP_ASSERT(ptr != nullptr, "[APRIL] ExecutorRef executed before being bound to System!");
+                APRIL_ASSERT(ptr != nullptr, "[APRIL] ExecutorRef executed before being bound to System!");
                 return ptr->num_threads();
             }
 
             template <ParallelPolicy P = ParallelPolicy::Threaded, typename Func>
             void execute(size_t task_count, Func&& func) const {
-                AP_ASSERT(ptr != nullptr, "[APRIL] ExecutorRef executed before being bound to System!");
+                APRIL_ASSERT(ptr != nullptr, "[APRIL] ExecutorRef executed before being bound to System!");
                 ptr->template execute<P>(task_count, std::forward<Func>(func));
             }
 

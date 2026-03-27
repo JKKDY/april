@@ -201,7 +201,7 @@ namespace april::interactions {
             ForceSentinel() : Force(-1.0) {}
 
             vec3 eval(auto, auto, const vec3&) const noexcept {
-                AP_ASSERT(false, "NullForce should never be executed");
+                APRIL_ASSERT(false, "NullForce should never be executed");
                 std::unreachable();
             }
             [[nodiscard]] ForceSentinel mix(ForceSentinel const&) const { return {}; }

@@ -156,7 +156,7 @@ namespace april {
 			BoundarySentinel(): Boundary(-1, false, false, false) {}
 
 			void apply(auto, const core::Box &, const DomainFace) const noexcept {
-				AP_ASSERT(false, "apply called on null boundary! this should never happen");
+				APRIL_ASSERT(false, "apply called on null boundary! this should never happen");
 			}
 		};
 

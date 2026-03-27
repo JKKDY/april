@@ -1,12 +1,15 @@
 #pragma once
 
-#ifndef NDEBUG
-
 #include <iostream>
+#ifndef NDEBUG
 #include <cstdlib>
+#define APRIL_ASSERT(Expr, Msg) april::utility::internal::ap_assert(#Expr, (Expr), __FILE__, __LINE__, (Msg))
+#else
+#define APRIL_ASSERT(Expr, Msg)
+#endif
 
+#define APRIL_CHECK(Expr, Msg) april::utility::internal::ap_assert(#Expr, (Expr), __FILE__, __LINE__, (Msg))
 
-#define AP_ASSERT(Expr, Msg) april::utility::internal::ap_assert(#Expr, (Expr), __FILE__, __LINE__, (Msg))
 
 namespace april::utility::internal {
 
@@ -24,12 +27,6 @@ namespace april::utility::internal {
     }
 
 } // namespace april::utility::debug
-
-#else
-
-#define AP_ASSERT(Expr, Msg)
-
-#endif
 
 
 

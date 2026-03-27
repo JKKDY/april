@@ -309,17 +309,17 @@ namespace april::interactions::internal {
             #ifndef NDEBUG
             for (size_t i = 0; i < n_types; ++i)
                 for (size_t j = 0; j < n_types; ++j)
-                    AP_ASSERT(!std::holds_alternative<ForceSentinel>(type_forces[type_index(i, j)]),
+                    APRIL_ASSERT(!std::holds_alternative<ForceSentinel>(type_forces[type_index(i, j)]),
                               "inter_type_forces should not contain ForceSentinel");
 
             for (size_t i = 0; i < n_ids; ++i)
                 for (size_t j = 0; j < n_ids; ++j) {
                     auto& v = id_forces[id_index(i, j)];
                     if (i == j)
-                        AP_ASSERT(std::holds_alternative<ForceSentinel>(v),
+                        APRIL_ASSERT(std::holds_alternative<ForceSentinel>(v),
                                   "intra_particle_forces should contain ForceSentinel for identical ids");
                     else
-                        AP_ASSERT(!std::holds_alternative<ForceSentinel>(v),
+                        APRIL_ASSERT(!std::holds_alternative<ForceSentinel>(v),
                                   "intra_particle_forces should not contain ForceSentinel for differing ids");
             }
             #endif

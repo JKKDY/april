@@ -114,9 +114,9 @@ namespace april::container {
 			VectorPolicy V = vector_policy,
 			exec::IsKernel Kernel>
 		void for_each_particle(this auto&& self, size_t start, size_t stop, Kernel && func) {
-			AP_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
-			AP_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
-			AP_ASSERT(start <= stop, "Invalid range: start > stop");
+			APRIL_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
+			APRIL_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
+			APRIL_ASSERT(start <= stop, "Invalid range: start > stop");
 
 			self.template invoke_iterate_range<P, V, false>(func, start, stop);
 		}
@@ -205,17 +205,17 @@ namespace april::container {
 		// ---------
 		void invoke_add_particle(this auto&& self, const ParticleRecord & record) {
 			// TODO implement add particle
-			AP_ASSERT(false, "add_particle not supported yet");
+			APRIL_ASSERT(false, "add_particle not supported yet");
 			self.add_particle(record);
 		}
 		void invoke_remove_particle(this auto&& self, const ParticleID id) {
 			// TODO implement remove particle
-			AP_ASSERT(false, "remove_particle not supported yet");
+			APRIL_ASSERT(false, "remove_particle not supported yet");
 			self.remove_particle(id);
 		}
 		void invoke_resize_domain(this auto&& self, const core::Box & new_domain) {
 			// TODO implement resize domain
-			AP_ASSERT(false, "resize_domain not supported yet");
+			APRIL_ASSERT(false, "resize_domain not supported yet");
 			self.resize_domain(new_domain);
 		}
 
@@ -358,13 +358,13 @@ namespace april::container {
 
 		template<ParticleField F>
 		auto invoke_get_field_ptr(this auto&& self, size_t i) {
-			AP_ASSERT(i < self.capacity(), "Index lies outside of capacity: " + std::to_string(i));
+			APRIL_ASSERT(i < self.capacity(), "Index lies outside of capacity: " + std::to_string(i));
 			return self.template get_field_ptr<F>(i);
 		}
 
 		template<ParticleField F>
 		auto invoke_get_field_ptr_id(this auto&& self, ParticleID id) {
-			AP_ASSERT(self.contains_id(id), "Got invalid Id: " + std::to_string(id));
+			APRIL_ASSERT(self.contains_id(id), "Got invalid Id: " + std::to_string(id));
 			return self.template get_field_ptr_id<F>(id);
 		}
 

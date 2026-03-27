@@ -354,10 +354,10 @@ namespace april::container::internal {
 
 			// set target cell size and verlet skin
 			double target_cell_size = self.config.get_width(max_cutoff);
-			AP_ASSERT(target_cell_size > 0, "Calculated cell size must be > 0");
+			APRIL_ASSERT(target_cell_size > 0, "Calculated cell size must be > 0");
 
 			self.verlet_skin = self.config.get_skin(target_cell_size);
-			AP_ASSERT(target_cell_size >= 0, "Calculated cell size must be > 0");
+			APRIL_ASSERT(target_cell_size >= 0, "Calculated cell size must be > 0");
 
 			target_cell_size += self.verlet_skin;
 

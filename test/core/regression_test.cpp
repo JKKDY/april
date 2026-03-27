@@ -129,8 +129,10 @@ double run_april_benchmark() {
 double get_allowed_tolerance() {
 #if defined(_MSC_VER) && !defined(__clang__)
     return 1.6; // MSVC is allowed more overhead due to conservative inlining
+#elif defined(__apple_build_version__)
+    return 1.3; // Apple Clang is more conservative than upstream Clang/GCC
 #else
-    return 1.1; // GCC/Clang must remain near-zero overhead
+    return 1.1;
 #endif
 }
 

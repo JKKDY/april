@@ -90,6 +90,14 @@ namespace april::exec::internal {
 
 namespace april::exec::internal {
 
+    // apple clang has problems with jthread so well create our own
+    struct worker_thread : std::thread {
+        using std::thread::thread;
+        ~worker_thread() { if (this->joinable()) this->join(); }
+        worker_thread(worker_thread&&) noexcept = default;
+        worker_thread& operator=(worker_thread&&) noexcept = default;
+    };
+
     struct TaskWrapper {
         void* ctx = nullptr;
         void (*invoke)(void*, size_t) = nullptr;
@@ -100,7 +108,7 @@ namespace april::exec::internal {
         [[nodiscard]] size_t num_threads() const noexcept { return threads.size() + 1; }
 
     protected:
-        std::vector<std::jthread> threads;
+        std::vector<worker_thread> threads;
         std::atomic<bool> terminate{false};
 
         // Mutable read-only state for current task

@@ -5,6 +5,12 @@ cmake_minimum_required(VERSION 3.28)
 # ------------------
 # PROJECT DEFINITION
 # ------------------
+# Deployment Target on MacOS
+if(APPLE)
+    # Force the deployment target to macOS 14
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0" CACHE STRING "Minimum macOS version" FORCE)
+endif()
+
 project(
     April # project name: April
     VERSION 0.1.0
@@ -198,6 +204,24 @@ if(APRIL_ENABLE_COVERAGE AND NOT MSVC)
     endif()
 endif()
 
+# handle apple compiler quirks
+if(APPLE)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_definitions(April_dev_configs INTERFACE rsize_t=size_t)
+        target_compile_options(April_dev_configs INTERFACE -Wno-psabi)
+    endif()
+
+    # Silence Apple Clang's warnings about features being "too new"
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        target_compile_options(April_dev_configs INTERFACE -Wno-unsupported-availability-guard)
+    endif()
+endif()
+
+# handle MINGW compiler quirks
+if(MINGW)
+    # Force static linking of the GCC/Standard library to avoid DLL entry point errors
+    target_link_options(April_dev_configs INTERFACE -static-libgcc -static-libstdc++ -static)
+endif()
 
 
 # --------------

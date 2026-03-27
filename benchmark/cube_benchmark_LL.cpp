@@ -3,9 +3,6 @@
 
 #include "april/containers/linked_cells.hpp"
 
-#include "april/exec/executors/omp_executor.hpp"
-#include "april/exec/executors/sequential_executor.hpp"
-
 using namespace april;
 namespace fs = std::filesystem;
 
@@ -55,7 +52,7 @@ int main() {
 
 	for (int i = 0; i < 1; i++) {
 		struct :
-			RunTimeConfig<exec::OmpExecutor>,
+			RunTimeConfig<exec::Executor>,
 			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
 		{} cfg;
 		// cfg.executer_config.n_threads = 8;

@@ -259,7 +259,7 @@ namespace april {
 
 
 
-		template<ParallelPolicy P, typename Func>
+		template<ParallelPolicy P=ParallelPolicy::Serial, typename Func>
 		void for_each_interaction_batch(Func && func) { // func signature: func(batch, bcp)
 			particle_container.template invoke_for_each_interaction_batch<P>(std::forward<Func>(func));
 		}
@@ -297,7 +297,7 @@ namespace april {
 				};
 
 				auto kernel = exec::internal::KernelWrapper<K::Read, K::Write, K::Mode, decltype(bridge)>{bridge};
-				execute_batch_kernel<ParallelPolicy::Serial, vector_policy>(batch, kernel);
+				execute_batch_kernel<vector_policy>(batch, kernel);
 			};
 
 			for_each_interaction_batch(update_batch);

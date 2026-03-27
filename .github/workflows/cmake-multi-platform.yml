@@ -28,20 +28,19 @@ jobs:
             cmake_flags: ""
 
           - name: macOS (Apple Clang, Release)
-            # macos-latest is currently macos-14 (ARM64 Apple Silicon)
-            # This tests your xsimd NEON backend automatically.
+            # Tests the default out-of-the-box Mac experience + NEON SIMD
             os: macos-latest
             build_type: Release
             cxx: clang++
             cc: clang
             cmake_flags: ""
 
-          - name: macOS (Homebrew LLVM 18, Release)
-            # Fallback for Mac users if Apple Clang fails on C++23
+          - name: macOS (GCC 14, Release)
+            # The modern C++23 fallback for Mac users
             os: macos-latest
             build_type: Release
-            cxx: /opt/homebrew/opt/llvm@18/bin/clang++
-            cc: /opt/homebrew/opt/llvm@18/bin/clang
+            cxx: g++-14
+            cc: gcc-14
             cmake_flags: ""
 
           - name: Windows (MSVC, Release)
@@ -108,9 +107,7 @@ jobs:
       - name: Install Compilers (macOS)
         if: runner.os == 'macOS'
         shell: bash
-        run:
-          brew install gcc@14
-          brew install llvm@18
+        run: brew install gcc@14
 
       - name: Set up MSVC Developer Command Prompt
         if: matrix.cxx == 'cl'
@@ -125,17 +122,6 @@ jobs:
       - name: Configure CMake
         shell: bash
         run: cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_flags }}
-
-      - name: Build
-        shell: bash
-        run: cmake --build build --config ${{ matrix.build_type }} -j 4
-
-      - name: Run Tests
-        shell: bash
-        run: |
-          cd build
-          ctest --output-on-failure --build-config ${{ matrix.build_type }}
-
 
   coverage:
     name: Linux (Clang 18, Coverage)

@@ -315,6 +315,63 @@ TEST(EnvTest, IDInteractionPriority) {
 
 
 
+TEST(EnvTest, AbsoluteMarginExpansion) {
+    Environment e(forces<NoForce>);
+    e.add_particle(vec3(0,0,0), vec3(0,0,0), 1.0);
+    e.add_force(NoForce(), to_type(0));
+
+    // Uses your API: auto_domain(double) sets absolute margin
+    e.auto_domain(1.0);
+
+    const auto sys = build_system(e, container::DirectSumAoS());
+
+    // Particle at [0,0,0], abs margin 1.0 -> Domain [-1, 1]
+    EXPECT_EQ(sys.domain().origin, vec3(-1,-1,-1));
+    EXPECT_EQ(sys.domain().extent, vec3(2,2,2));
+}
+
+TEST(EnvTest, ZeroExtentThrows) {
+    Environment e(forces<NoForce>);
+    e.add_particle(vec3(0,0,0), vec3(0,0,0), 1.0);
+    e.add_force(NoForce(), to_type(0));
+
+    // Use chaining to set both to zero
+    e.with_auto_domain(0.0).auto_domain_factor(vec3(0,0,0));
+
+    EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::logic_error);
+}
+
+TEST(EnvTest, NegativeMarginsThrow) {
+    Environment e(forces<NoForce>);
+    e.add_particle(vec3(0,0,0), vec3(0,0,0), 1.0);
+    e.add_force(NoForce(), to_type(0));
+
+    // Passing negative to the vec3 overload
+    e.auto_domain(vec3(-1, 0, 0));
+    EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::logic_error);
+}
+
+TEST(EnvTest, MarginPriorityMax) {
+    Environment e(forces<NoForce>);
+    // BBox extent is 10.0
+    e.add_particle(vec3(0,0,0), vec3(0,0,0), 1.0);
+    e.add_particle(vec3(10,0,0), vec3(0,0,0), 1.0);
+    e.add_force(NoForce(), to_type(0));
+
+    // Factor 0.1 of 10 = 1.0
+    // Absolute margin = 5.0
+    e.auto_domain_factor(vec3(0.1, 0.1, 0.1));
+    e.auto_domain(5.0);
+
+    const auto sys = build_system(e, container::DirectSumAoS());
+
+    // Absolute margin (5) > Factor margin (1)
+    // origin.x = bbox_min(0) - 5 = -5
+    EXPECT_EQ(sys.box().min.x, -5.0);
+}
+
+
+
 
 
 

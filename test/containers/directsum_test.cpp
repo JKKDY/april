@@ -438,8 +438,65 @@ TYPED_TEST(DirectSumTest, IdBasedAccess_ReadWrite) {
     }
 }
 
+TYPED_TEST(DirectSumTest, SIMDTail_N33) {
+	Environment e(forces<ConstantForce>);
 
+	// 33 particles: One full SIMD block (32) + 1 tail particle (for AoSoA<32>)
+	// Or 4 blocks (8*4) + 1 tail (for standard AVX2 SoA)
+	constexpr size_t N = 33;
+	const vec3 push = {1.0, 0.0, 0.0};
 
+	for (size_t i = 0; i < N; ++i) {
+		e.add_particle(vec3(static_cast<float>(i), 0, 0), {}, 1.0, 0);
+	}
+
+	e.add_force(ConstantForce(push), to_type(0));
+	e.set_extent(100, 100, 100);
+
+	auto sys = build_system(e, TypeParam());
+	sys.update_forces();
+
+	auto const& out = export_particles(sys);
+	ASSERT_EQ(out.size(), N);
+
+	// Every particle should feel exactly (N-1) * push
+	// If the tail particle (index 32) is ignored, its force will be 0.
+	// If the tail is handled but it ignores the others, the others' forces will be wrong.
+	const vec3 expected = push * static_cast<double>(N - 1);
+
+	for (size_t i = 0; i < N; ++i) {
+		EXPECT_NEAR(out[i].force.x, expected.x, 1e-12) << "Failure at particle index " << i;
+	}
+}
+
+TYPED_TEST(DirectSumTest, LargeN_ParallelConsistency) {
+	Environment e(forces<ConstantForce>);
+	constexpr size_t N = 512;
+	const vec3 push = {0.1, 0.2, 0.3};
+
+	for (size_t i = 0; i < N; ++i) {
+		const auto d = static_cast<double>(i);
+		e.add_particle(vec3(d), {}, 1.0, 0);
+	}
+
+	e.add_force(ConstantForce(push), to_type(0));
+	e.set_extent(1000, 1000, 1000);
+
+	auto sys = build_system(e, TypeParam());
+
+	// Run it multiple times to catch intermittent race conditions
+	for (int run = 0; run < 5; ++run) {
+		sys.update_forces();
+		auto const& out = export_particles(sys);
+
+		const vec3 expected = push * static_cast<double>(N - 1);
+		for (const auto& p : out) {
+			EXPECT_NEAR(p.force.x, expected.x, 1e-11);
+			EXPECT_NEAR(p.force.y, expected.y, 1e-11);
+			EXPECT_NEAR(p.force.z, expected.z, 1e-11);
+		}
+	}
+}
 
 
 

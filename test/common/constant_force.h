@@ -11,6 +11,9 @@ struct ConstantForce final : interactions::Force {
 
 	vec3 v;
 
+	ConstantForce(vec3 u, const double cutoff = interactions::no_cutoff)
+	: Force(cutoff), v{u.x,u.y,u.z} {}
+
 	ConstantForce(const vec3::type x, const vec3::type y, const vec3::type z, const double cutoff = interactions::no_cutoff)
 	: Force(cutoff), v{x,y,z} {}
 

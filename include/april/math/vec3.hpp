@@ -284,8 +284,12 @@ namespace april::math {
         T x, y, z;
 
         Vec3() : x(0), y(0), z(0) {}
-        template <typename U> requires std::convertible_to<U, T>
-        Vec3(U x, U y, U z) : x(x), y(y), z(z) {}
+
+        // templated in each argument to allow Vec3(int, uint, double) -> Vec<float>
+        template <typename X, typename Y, typename Z>
+        requires std::convertible_to<X, T> && std::convertible_to<Y, T> && std::convertible_to<Z, T>
+        Vec3(X x, Y y, Z z) : x(x), y(y), z(z) {}
+
         explicit Vec3(T v) : x(v), y(v), z(v) {}
 
         Vec3(T x, T y, T z) : x(x), y(y), z(z) {}

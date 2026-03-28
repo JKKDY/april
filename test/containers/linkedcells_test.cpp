@@ -624,6 +624,41 @@ TYPED_TEST(LinkedCellsTest, Sparse_SIMD_Mask_Check) {
 	}
 }
 
+TYPED_TEST(LinkedCellsTest, ParticleMigration_BetweenCells) {
+	Environment e(forces<ConstantForce>);
+	e.set_extent({10, 10, 10});
+	e.set_origin({0, 0, 0});
+
+	// Particle 0 is at the edge of Cell (0,0,0) [Assuming cell_size = 2.0]
+	e.add_particle(make_particle(0, {1.9, 5.0, 5.0}, {100.0, 0, 0}, 1.0, ParticleState::ALIVE, 0));
+
+	// Particle 1 is deep inside Cell (1,0,0) at {3.5, 5, 5}
+	// Distance initially is 1.6 (within 2.0 cutoff)
+	e.add_particle(make_particle(0, {3.5, 5.0, 5.0}, {0, 0, 0}, 1.0, ParticleState::ALIVE, 1));
+
+	e.add_force(ConstantForce(1, 0, 0), to_type(0));
+
+	auto sys = build_system(e, TypeParam::create_container(2.0), TypeParam::create_exec());
+
+	// Check if particles are neighbors
+	sys.update_forces();
+	EXPECT_EQ(export_particles(sys)[0].force.x, 1.0);
+
+	// Move Particle 0 across the boundary into the NEXT cell
+	// New position: {2.1, 5, 5}. Distance to P1 is now 1.4.
+	// They are now in the SAME cell (1,0,0) or neighboring cells (if P1 stayed put).
+	VelocityVerlet integrator(sys);
+	integrator.run_for_steps(0.01, 1); // This triggers movement and container migration
+
+	// Post-Migration Check
+	sys.update_forces();
+	auto const& out = export_particles(sys);
+
+	// If migration failed, p0 might still be "indexed" in Cell (0,0,0)
+	// and won't see p1 in Cell (1,0,0) anymore.
+	EXPECT_EQ(out[0].force.x, 1.0) << "Particle lost its neighbor after migrating cells!";
+}
+
 
 
 TYPED_TEST(LinkedCellsTest, LinkedCells_vs_DirectSum_Parity_Open) {
@@ -677,7 +712,7 @@ TYPED_TEST(LinkedCellsTest, LinkedCells_vs_DirectSum_Parity_Open) {
 		auto p_ds = get_particle_by_id(ds_system, ds_idx);
 		auto p_lc = get_particle_by_id(lc_system, lc_idx);
 
-		// 1. POSITION GUARD: If these aren't the same, the mapping is broken.
+		// position guard: If these aren't the same, the mapping is broken.
 		double pos_diff = (p_ds.position - p_lc.position).norm();
 		if (pos_diff > epsilon) {
 			std::cout << "\n[  MAPPING FAIL  ] User ID: " << user_id << "\n"
@@ -688,7 +723,7 @@ TYPED_TEST(LinkedCellsTest, LinkedCells_vs_DirectSum_Parity_Open) {
 			break;
 		}
 
-		// 2. FORCE CHECK
+		// force check
 		if (std::abs(p_ds.force.x - p_lc.force.x) > epsilon) {
 			std::cout << "\n[   FORCE FAIL   ] User ID: " << user_id << "\n"
 					  << "  Position: " << p_ds.position << "\n"

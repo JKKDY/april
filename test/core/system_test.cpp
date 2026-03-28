@@ -416,3 +416,56 @@ TEST(EnvTest, ZeroStateThrows) {
 }
 
 
+TEST(EnvTest, DefaultToOpenBoundary) {
+    Environment e(forces<NoForce>);
+    e.add_particle(vec3(0), vec3(0), 1.0);
+    e.add_force(NoForce(), to_type(0));
+    e.set_extent(1,1,1);
+
+    // No boundaries set manually
+    EXPECT_NO_THROW(build_system(e, container::DirectSumAoS()));
+}
+
+TEST(EnvTest, AsymmetricPeriodicThrows) {
+    // Assuming PeriodicBoundary is available in your traits
+    Environment e(forces<NoForce>, boundaries<PeriodicBoundary, OpenBoundary>);
+    e.add_particle(vec3(0.5), vec3(0), 1.0);
+    e.add_force(NoForce(), to_type(0));
+    e.set_extent(1,1,1);
+
+    // Set only X- to Periodic; X+ defaults to Open
+    e.set_boundary(PeriodicBoundary(), DomainFace::XMinus);
+
+    EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
+}
+
+TEST(EnvTest, PeriodicityFlagsPropagate) {
+    Environment e(forces<NoForce>, boundaries<PeriodicBoundary>);
+    e.add_particle(vec3(0.5), vec3(0), 1.0);
+    e.add_force(NoForce(), to_type(0));
+    e.set_extent(1,1,1);
+
+    // Symmetrically set X axis to Periodic
+    e.set_boundary(PeriodicBoundary(), DomainFace::XMinus);
+    e.set_boundary(PeriodicBoundary(), DomainFace::XPlus);
+
+    auto sys = build_system(e, container::DirectSumAoS());
+}
+
+TEST(EnvTest, MixedBoundaries) {
+    Environment e(forces<NoForce>, boundaries<PeriodicBoundary, ReflectiveBoundary>);
+    e.add_particle(vec3(0.5), vec3(0), 1.0);
+    e.add_force(NoForce(), to_type(0));
+    e.set_extent(1,1,1);
+
+    // x-axis: Periodic
+    e.set_boundary(PeriodicBoundary(), DomainFace::XMinus);
+    e.set_boundary(PeriodicBoundary(), DomainFace::XPlus);
+
+    // y-axis: Reflective
+    e.set_boundary(ReflectiveBoundary(), DomainFace::YMinus);
+    e.set_boundary(ReflectiveBoundary(), DomainFace::YPlus);
+
+    EXPECT_NO_THROW(build_system(e, container::DirectSumAoS()));
+}
+

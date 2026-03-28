@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <gmock/gmock.h>
 
 #include "april/integrators/velocity_verlet.hpp"
 #include "april/containers/direct_sum.hpp"

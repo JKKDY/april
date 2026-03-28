@@ -70,7 +70,9 @@ using Matrix = testing::Types<
 
     TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderDefault, ParallelPolicy::Serial, VectorPolicy::Scalar>,
 
-	TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderDefault, ParallelPolicy::Serial, VectorPolicy::Auto>,
+	TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderDefault, ParallelPolicy::Threaded, VectorPolicy::Auto>,
+
+    TestConfig<LinkedCells<Layout::AoSoA<32>>, OrderHilbert, ParallelPolicy::Serial, VectorPolicy::Scalar>,
 
     TestConfig<LinkedCells<Layout::AoSoA<32>>, OrderHilbert, ParallelPolicy::Threaded, VectorPolicy::Auto>
 >;

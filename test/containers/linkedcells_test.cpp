@@ -592,38 +592,37 @@ TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
 }
 
 
-// TYPED_TEST(LinkedCellsTest, Sparse_SIMD_Mask_Check) {
-// 	// This specifically targets the AoSoA padding logic.
-// 	Environment env(forces<LennardJones>, boundaries<OpenBoundary>);
-// 	env.add_force(LennardJones(5.0, 1.0, 3.0), to_type(0));
-//
-// 	// Massive extent, tiny number of particles = lots of empty cells
-// 	env.set_extent({100, 100, 100});
-// 	env.set_origin({0, 0, 0});
-//
-// 	// Add just 4 particles, completely isolated from each other
-// 	env.add_particle(make_particle(0, {10, 10, 10}, {}, 1.0, ParticleState::ALIVE, 0));
-// 	env.add_particle(make_particle(0, {50, 50, 50}, {}, 1.0, ParticleState::ALIVE, 1));
-// 	env.add_particle(make_particle(0, {90, 90, 90}, {}, 1.0, ParticleState::ALIVE, 2));
-//
-// 	// Add two particles right next to each other to trigger exactly ONE interaction
-// 	env.add_particle(make_particle(0, {25, 25, 25}, {}, 1.0, ParticleState::ALIVE, 3));
-// 	env.add_particle(make_particle(0, {25.5, 25, 25}, {}, 1.0, ParticleState::ALIVE, 4));
-//
-// 	auto sys = build_system(env, TypeParam::create_container(3.0), TypeParam::create_exec());
-// 	sys.update_forces();
-//
-// 	auto const& out = export_particles(sys);
-// 	ASSERT_EQ(out.size(), 5u);
-//
-// 	// Particles 0, 1, and 2 should have EXACTLY zero force.
-// 	// If they have NaN or random numbers, your SIMD padding masks are leaking.
-// 	for (const auto& p : out) {
-// 		if (p.id == 0 || p.id == 1 || p.id == 2) {
-// 			EXPECT_EQ(p.force, vec3(0,0,0)) << "SIMD Padding Leak detected on isolated particle " << p.id;
-// 		}
-// 	}
-// }
+TYPED_TEST(LinkedCellsTest, Sparse_SIMD_Mask_Check) {
+	// This specifically targets the AoSoA padding logic.
+	Environment env(forces<LennardJones>, boundaries<OpenBoundary>);
+	env.add_force(LennardJones(5.0, 1.0, 3.0), to_type(0));
+
+	// Massive extent, tiny number of particles = lots of empty cells
+	env.set_extent({100, 100, 100});
+	env.set_origin({0, 0, 0});
+
+	// Add just 4 particles, completely isolated from each other
+	env.add_particle(make_particle(0, {10, 10, 10}, {}, 1.0, ParticleState::ALIVE, 0));
+	env.add_particle(make_particle(0, {50, 50, 50}, {}, 1.0, ParticleState::ALIVE, 1));
+	env.add_particle(make_particle(0, {90, 90, 90}, {}, 1.0, ParticleState::ALIVE, 2));
+
+	// Add two particles right next to each other to trigger exactly ONE interaction
+	env.add_particle(make_particle(0, {25, 25, 25}, {}, 1.0, ParticleState::ALIVE, 3));
+	env.add_particle(make_particle(0, {25.5, 25, 25}, {}, 1.0, ParticleState::ALIVE, 4));
+
+	auto sys = build_system(env, TypeParam::create_container(3.0), TypeParam::create_exec());
+	sys.update_forces();
+
+	auto const& out = export_particles(sys);
+	ASSERT_EQ(out.size(), 5u);
+
+	// Particles 0, 1, and 2 should have EXACTLY zero force.
+	for (const auto& p : out) {
+		if (p.id == 0 || p.id == 1 || p.id == 2) {
+			EXPECT_EQ(p.force, vec3(0,0,0)) << "SIMD Padding Leak detected on isolated particle " << p.id;
+		}
+	}
+}
 
 
 

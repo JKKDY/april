@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <random>
-#include <cmath>
 
 #include "utils.h"
 #include "april/april.hpp"
@@ -11,8 +10,8 @@ using namespace april;
 // --------------------------------------
 // TEST CONFIGURATION & TYPED SUITE SETUP
 // --------------------------------------
-template <typename ContainerT, typename OrderingT>
-struct TestConfig {
+template <typename ContainerT, typename OrderingT, template<typename...> typename IntegratorT>struct TestConfig {
+
     static auto create(double cutoff) {
         auto c = ContainerT{};
 
@@ -25,15 +24,22 @@ struct TestConfig {
 
         return OrderingT::apply(std::move(c));
     }
+
+    template<typename S>
+    static auto make_integrator(S& sys) {
+        return IntegratorT<S>(sys);
+    }
 };
+
 
 struct OrderDefault { static auto apply(auto&& c) { return std::forward<decltype(c)>(c); } };
 struct OrderHilbert { static auto apply(auto&& c) { return c.with_cell_ordering(hilbert_order); } };
 
 using PhysicsConfigs = testing::Types<
-    TestConfig<DirectSum<Layout::AoS>, OrderDefault>,     // The Math Baseline
-    TestConfig<LinkedCells<Layout::AoS>, OrderDefault>,
-    TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderHilbert>
+    TestConfig<DirectSum<Layout::AoS>, OrderDefault, VelocityVerlet>,
+    TestConfig<DirectSum<Layout::AoSoA<>>, OrderDefault, Yoshida4>,
+    TestConfig<LinkedCells<Layout::AoSoA<8>>, OrderHilbert, VelocityVerlet>,
+    TestConfig<LinkedCells<Layout::AoSoA<16>>, OrderHilbert, Yoshida4>
 >;
 
 template <typename T>

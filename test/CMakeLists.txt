@@ -12,16 +12,17 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(test_april
         test_april.cpp
+        output_test.cpp
+
         core/system_test.cpp
         core/regression_test.cpp
-        core/conservation_test.cpp
 
         containers/directsum_test.cpp
         containers/linkedcells_test.cpp
         containers/cell_ordering_test.cpp
         containers/scheduling_test.cpp
 
-        output_test.cpp
+        integrators/conservation_test.cpp
         integrators/stoermerverlet_test.cpp
         integrators/yoshida_test.cpp
 

@@ -19,7 +19,7 @@ using ContainerTypes = testing::Types<
 	DirectSum<Layout::AoS>,
 	DirectSum<Layout::SoA>,
 	DirectSum<Layout::AoSoA<>>,
-	DirectSum<Layout::AoSoA<16>>
+	DirectSum<Layout::AoSoA<32>>
 >;
 TYPED_TEST_SUITE(DirectSumTest, ContainerTypes);
 

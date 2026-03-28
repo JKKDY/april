@@ -371,7 +371,48 @@ TEST(EnvTest, MarginPriorityMax) {
 }
 
 
+TEST(EnvTest, DuplicateIDThrows) {
+    Environment e(forces<NoForce>);
+    Particle p = make_particle(0, {0,0,0}, {0,0,0}, 1.0, ParticleState::ALIVE, 10);
+
+    e.add_particle(p);
+    // Adding the same ID again must throw immediately
+    EXPECT_THROW(e.add_particle(p), std::invalid_argument);
+}
 
 
+TEST(EnvTest, NonExistingTypeInteractionThrows) {
+    Environment e(forces<NoForce>);
+    e.add_particle(vec3(0), vec3(0), 1.0, 0); // Only Type 0 exists
+
+    // Force assigned to Type 999
+    e.add_force(NoForce(), to_type(999));
+    e.set_extent(1,1,1);
+
+    EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
+}
+
+
+TEST(EnvTest, NonExistingIDInteractionThrows) {
+    Environment e(forces<NoForce>);
+    e.add_particle(make_particle(0, {0,0,0}, {0,0,0}, 1.0, ParticleState::ALIVE, 1));
+
+    // Force between existing ID 1 and non-existing ID 999
+    e.add_force(NoForce(), between_ids(1, 999));
+    e.set_extent(1,1,1);
+
+    EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
+}
+
+TEST(EnvTest, ZeroStateThrows) {
+    Environment e(forces<NoForce>);
+    // Manual cast to bypass ALIVE default
+    e.add_particle(make_particle(0, {0,0,0}, {0,0,0}, 1.0, static_cast<ParticleState>(0), 1));
+
+    e.add_force(NoForce(), to_type(0));
+    e.set_extent(1,1,1);
+
+    EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
+}
 
 

@@ -8,31 +8,103 @@
 #include "april/exec/particle_kernel.hpp"
 
 
-#define get_scalar(chunk, index) container.template at<K::Read, K::Write>(chunk, index)
-#define get_packed(chunk, index) container.template at_packed<K::Read, K::Write>(chunk, index)
-
 namespace april::container::batching {
+
+    namespace internal {
+        // Shared SIMD interaction logic:
+        // These helpers handle Rotation Sweeps (360-degree interaction) and Scalar Broadcast interactions.
+
+        // 360-degree SIMD rotation sweep for distinct blocks (N^2 within the blocks)
+        template <typename Buffer1, typename PackedAccessor, typename Kernel>
+        APRIL_FORCE_INLINE void interact_block_vs_block(Buffer1& b1, PackedAccessor&& acc2, Kernel& f) {
+            auto b2 = acc2.load_buffer();
+
+            // interact all pairs {p1, p2} with p1 in b1, p2 in b2
+            APRIL_UNROLL_LOOP_N(packed::size())
+            for (size_t k = 0; k < packed::size(); k++) {
+                f(b1.to_view(), b2.to_view());
+                b2.rotate_right();
+            }
+
+            b2.update_into(acc2); // Flush accumulated forces back to memory
+        }
+
+        // Interaction between a broadcasted scalar particle and a full SIMD block
+        template <typename BufferScalar, typename PackedAccessor, typename Kernel>
+        APRIL_FORCE_INLINE void interact_scalar_vs_block(BufferScalar& b_scalar, PackedAccessor&& acc_block, Kernel& f) {
+            auto b_block = acc_block.load_buffer();
+            f(b_scalar.to_view(), b_block.to_view());
+            b_block.update_into(acc_block);
+        }
+
+        // helper for packed vs broadcast scalar block (no rotations needed)
+        template <typename BufferT, typename ScalarAccessor, typename Kernel>
+        APRIL_FORCE_INLINE void interact_block_vs_scalar(BufferT& buffer_block, const ScalarAccessor& p2, Kernel& f) {
+            auto buffer_scalar = p2.broadcast();
+            f(buffer_block.to_view(), buffer_scalar.to_view());
+            buffer_scalar.reduce_into(p2);
+        }
+
+
+        template<typename Container, typename Kernel>
+        struct BatchContext {
+            using K = std::remove_cvref_t<Kernel>;
+            Container& container;
+            K & kernel;
+
+            BatchContext(Container& c, K& k) : container(c), kernel(k) {}
+
+            APRIL_FORCE_INLINE auto scalar(size_t chunk, size_t i) const {
+                return container.template at<K::Read, K::Write>(chunk, i);
+            }
+            APRIL_FORCE_INLINE auto packed(size_t chunk, size_t i) const {
+                return container.template at_packed<K::Read, K::Write>(chunk, i);
+            }
+        };
+
+        template <typename Container, typename Kernel>
+        BatchContext(Container&, Kernel&) -> BatchContext<Container, Kernel>;
+
+
+        template <typename Container, typename ChunkPtr>
+        struct ChunkedBatchBase : BatchBase<exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath> {
+            explicit ChunkedBatchBase(Container& container, ChunkPtr* chunks)
+                : container(container), chunks(chunks) {
+                for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
+            }
+
+            template <exec::ExecutionMode E, exec::IsKernel Func>
+            void for_each_pair(this const auto & self, Func&& f) {
+                if (self.empty()) return;
+
+                if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector))
+                    self.for_each_pair_packed(std::forward<Func>(f));
+                else
+                    self.for_each_pair_scalar(std::forward<Func>(f));
+            }
+
+        protected:
+            Container& container;
+            ChunkPtr* APRIL_RESTRICT const chunks;
+            static constexpr size_t chunk_size = Container::chunk_size;
+            static constexpr size_t packed_size = packed::size();
+            static constexpr size_t iter_chunks = chunk_size / packed_size;
+            alignas(64) packed::value_type idx_arr[packed_size]{};
+        };
+    }
+
+
     //-----------------
     // ASYMMETRIC BATCH
     //-----------------
     template <typename Container, typename ChunkPtr>
-    struct AsymmetricChunkedBatch : BatchBase<exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath> {
+    struct AsymmetricChunkedBatch : internal::ChunkedBatchBase<Container, ChunkPtr> {
+        using Base = internal::ChunkedBatchBase<Container, ChunkPtr>;
+        using Base::Base, Base::container, Base::chunks, Base::chunk_size, Base::packed_size, Base::iter_chunks, Base::idx_arr;
+        friend Base;
 
-        explicit AsymmetricChunkedBatch(Container& container, ChunkPtr* chunks)
-          : container(container), chunks(chunks) {
-            for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
-        }
-
-        template <exec::ExecutionMode E, exec::IsKernel Func>
-        void for_each_pair(Func&& f) const {
-            // skip empty range
-            if (range1_chunks.start == range1_chunks.stop || range2_chunks.start == range2_chunks.stop) return;
-
-            if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector)) {
-                for_each_pair_packed(f);
-            } else {
-                for_each_pair_scalar(f);
-            }
+        [[nodiscard]] bool empty() const noexcept{
+            return range1_chunks.empty() || range2_chunks.empty();
         }
 
         // range1_chunks/range2_chunks represent chunk indices! (e.g., 0 to 4 means Chunks 0,1,2,3)
@@ -42,22 +114,14 @@ namespace april::container::batching {
         size_t range2_tail{};
 
     private:
-        Container& container;
-        ChunkPtr* APRIL_RESTRICT const chunks = container.ptr_chunks;
-
-        static constexpr size_t chunk_size = Container::chunk_size;
-        static constexpr size_t packed_size = packed::size();
-        static constexpr size_t iter_chunks = chunk_size / packed_size;
-
-        alignas(64) packed::value_type idx_arr[packed_size]{};
-
 
         //----------------
         // SCALAR ITERATOR
         //----------------
         template <exec::IsKernel Kernel>
         void for_each_pair_scalar(Kernel && f) const {
-            using K = std::remove_cvref_t<Kernel>;
+            internal::BatchContext ctx(container, f);
+
             // peel of last chunk (i.e. the tail)
             const size_t c1_body_end = range1_chunks.stop - 1;
             const size_t c2_body_end = range2_chunks.stop - 1;
@@ -74,9 +138,9 @@ namespace april::container::batching {
                     APRIL_PREFETCH(chunks + c2 + 1);
 
                     for (size_t i = 0; i < chunk_size; ++i) {
-                        auto p1 = get_scalar(c1, i);
+                        auto p1 = ctx.scalar(c1, i);
                         for (size_t j = 0; j < chunk_size; ++j) {
-                            auto p2 = get_scalar(c2, j);
+                            auto p2 = ctx.scalar(c2, j);
                             f(p1, p2);
                         }
                     }
@@ -87,9 +151,9 @@ namespace april::container::batching {
             for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
                 APRIL_PREFETCH(chunks + c1 + 1);
                 for (size_t i = 0; i < chunk_size; ++i) {
-                    auto p1 = get_scalar(c1, i);
+                    auto p1 = ctx.scalar(c1, i);
                     for (size_t j = 0; j < limit2_tail; ++j) {
-                        auto p2 = get_scalar(c2_body_end, j);
+                        auto p2 = ctx.scalar(c2_body_end, j);
                         f(p1, p2);
                     }
                 }
@@ -99,9 +163,9 @@ namespace april::container::batching {
             for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
                 APRIL_PREFETCH(chunks + c2 + 1);
                 for (size_t i = 0; i < limit1_tail; ++i) {
-                    auto p1 = get_scalar(c1_body_end, i);
+                    auto p1 = ctx.scalar(c1_body_end, i);
                     for (size_t j = 0; j < chunk_size; ++j) {
-                        auto p2 = get_scalar(c2, j);
+                        auto p2 = ctx.scalar(c2, j);
                         f(p1, p2);
                     }
                 }
@@ -109,44 +173,14 @@ namespace april::container::batching {
 
             // tail 1 vs tail 2 (Interaction between the two last chunks)
             for (size_t i = 0; i < limit1_tail; ++i) {
-                auto p1 = get_scalar(c1_body_end, i);
+                auto p1 = ctx.scalar(c1_body_end, i);
                 for (size_t j = 0; j < limit2_tail; ++j) {
-                    auto p2 = get_scalar(c2_body_end, j);
+                    auto p2 = ctx.scalar(c2_body_end, j);
                     f(p1, p2);
                 }
             }
         }
 
-        // -----------------
-        // HELPERS (ROUTING)
-        // -----------------
-        // helper for 360-degree SIMD rotation sweep for distinct blocks
-        template <typename BufferT, typename PackedAccessor, typename Kernel>
-        APRIL_FORCE_INLINE void interact_block_vs_block(BufferT& buffer1, PackedAccessor&& packed2, Kernel& f) const {
-            auto buffer2 = packed2.load_buffer(); // Natively zeroes WOMask fields
-
-            APRIL_UNROLL_LOOP_N(packed_size)
-            for (size_t k = 0; k < packed_size; k++) {
-                auto view1 = buffer1.to_view();
-                auto view2 = buffer2.to_view();
-                f(view1, view2);
-                buffer2.rotate_right();
-            }
-
-            buffer2.update_into(packed2); // Native WOMask accumulation
-        }
-
-        // helper for packed vs broadcast scalar block (no rotations needed)
-        template <typename BufferT, typename PackedAccessor, typename Kernel>
-        APRIL_FORCE_INLINE void interact_scalar_vs_block(BufferT& buffer_scalar, PackedAccessor && packed_block, Kernel& f) const {
-            auto buffer_block = packed_block.load_buffer();
-
-            auto view1 = buffer_scalar.to_view();
-            auto view2 = buffer_block.to_view();
-            f(view1, view2);
-
-            buffer_block.update_into(packed_block);
-        }
 
         //----------------
         // PACKED ITERATOR
@@ -192,16 +226,17 @@ namespace april::container::batching {
         APRIL_FORCE_INLINE void interact_body_vs_body(
             const math::Range& full_chunks1, const math::Range& full_chunks2,
             const math::Range& full_tail1, const math::Range& full_tail2,
-            Kernel && f) const {
-
-            using K = std::remove_cvref_t<Kernel>; // cvref stripped alias used in get_packed macro
+            Kernel && f
+        ) const {
+            using namespace internal;
+            BatchContext ctx(container, f);
 
             // 1. full SIMD blocks in range 1 (Chunks) vs full SIMD blocks in range 2 (Chunks + Tail)
             for (size_t c1 : full_chunks1) {
                 APRIL_PREFETCH(chunks + c1 + 1);
                 APRIL_UNROLL_LOOP_N(iter_chunks)
                 for (size_t i = 0; i < chunk_size; i += packed_size) {
-                    auto packed1 = get_packed(c1, i);
+                    auto packed1 = ctx.packed(c1, i);
                     auto buffer1 = packed1.load_buffer(); // load simd block in range 1
 
                     // a. sweep buffer1 across all full SIMD blocks in Range 2 body chunks [C2]
@@ -209,13 +244,13 @@ namespace april::container::batching {
                         APRIL_PREFETCH(chunks + c2 + 1);
                         APRIL_UNROLL_LOOP_N(iter_chunks)
                         for (size_t j = 0; j < chunk_size; j += packed_size) {
-                            interact_block_vs_block(buffer1, get_packed(c2, j), f);
+                            interact_block_vs_block(buffer1, ctx.packed(c2, j), f);
                         }
                     }
 
                     // b. sweep buffer1 across SIMD-aligned blocks within the Range 2 tail chunk [F2]
                     for (size_t t2 : full_tail2) {
-                        interact_block_vs_block(buffer1, get_packed(full_chunks2.stop, t2), f);
+                        interact_block_vs_block(buffer1, ctx.packed(full_chunks2.stop, t2), f);
                     }
 
                     buffer1.update_into(packed1); // final register flush for buffer1
@@ -224,7 +259,7 @@ namespace april::container::batching {
 
             // 2. SIMD-aligned blocks in the Range 1 tail chunk vs Full Range 2 (Body + Tail)
             for (size_t t1 : full_tail1) {
-                auto packed1 = get_packed(full_chunks1.stop, t1);
+                auto packed1 = ctx.packed(full_chunks1.stop, t1);
                 auto buffer1 = packed1.load_buffer();
 
                 // a. Interaction with all full chunks in the Range 2 body [C2]
@@ -232,13 +267,13 @@ namespace april::container::batching {
                     APRIL_PREFETCH(chunks + c2 + 1);
                     APRIL_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
-                        interact_block_vs_block(buffer1, get_packed(c2, j), f);
+                        interact_block_vs_block(buffer1, ctx.packed(c2, j), f);
                     }
                 }
 
                 // b. Interaction with SIMD-aligned blocks within the Range 2 tail chunk [F2]
                 for (size_t t2 : full_tail2) {
-                    interact_block_vs_block(buffer1, get_packed(full_chunks2.stop, t2), f);
+                    interact_block_vs_block(buffer1, ctx.packed(full_chunks2.stop, t2), f);
                 }
                 buffer1.update_into(packed1);
             }
@@ -250,13 +285,15 @@ namespace april::container::batching {
             const math::Range& full_chunks1, const math::Range& full_chunks2,
             const math::Range& full_tail1, const math::Range& full_tail2,
             const math::Range& partial_tail1, const math::Range& partial_tail2,
-            Kernel && f) const {
+            Kernel && f
+        ) const {
 
-            using K = std::remove_cvref_t<Kernel>;
+            using namespace internal;
+            BatchContext ctx(container, f);
 
             // 3. Range 2 Partial Tail [P2] vs Range 1 SIMD blocks [C1 + F1]
             for (size_t i : partial_tail2) {
-                auto p2 = get_scalar(full_chunks2.stop, i);
+                auto p2 = ctx.scalar(full_chunks2.stop, i);
                 auto buffer2 = p2.broadcast();
 
                 // a. Interaction with full chunks in Range 1 body
@@ -264,13 +301,13 @@ namespace april::container::batching {
                     APRIL_PREFETCH(chunks + c1 + 1);
                     APRIL_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
-                        interact_scalar_vs_block(buffer2, get_packed(c1, j), f);
+                        interact_scalar_vs_block(buffer2, ctx.packed(c1, j), f);
                     }
                 }
 
                 // b. Interaction with SIMD-aligned blocks in Range 1 tail chunk
                 for (size_t t1 : full_tail1) {
-                    interact_scalar_vs_block(buffer2, get_packed(full_chunks1.stop, t1), f);
+                    interact_scalar_vs_block(buffer2, ctx.packed(full_chunks1.stop, t1), f);
                 }
 
                 buffer2.reduce_into(p2);
@@ -278,7 +315,7 @@ namespace april::container::batching {
 
             // Partial Tail 1 vs Full Range 2 (chunks + full tail)
             for (size_t i : partial_tail1) {
-                auto p1 = get_scalar(full_chunks1.stop, i);
+                auto p1 = ctx.scalar(full_chunks1.stop, i);
                 auto buffer1 = p1.broadcast();
 
                 // a. Interaction with full chunks in Range 2 body
@@ -286,13 +323,13 @@ namespace april::container::batching {
                     APRIL_PREFETCH(chunks + c2 + 1);
                     APRIL_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
-                        interact_scalar_vs_block(buffer1, get_packed(c2, j), f);
+                        interact_scalar_vs_block(buffer1, ctx.packed(c2, j), f);
                     }
                 }
 
                 // b. Interaction with SIMD-aligned blocks in Range 2 tail chunk
                 for (size_t t2 : full_tail2) {
-                    interact_scalar_vs_block(buffer1, get_packed(full_chunks2.stop, t2), f);
+                    interact_scalar_vs_block(buffer1, ctx.packed(full_chunks2.stop, t2), f);
                 }
 
                 buffer1.reduce_into(p1);
@@ -303,8 +340,10 @@ namespace april::container::batching {
         APRIL_FORCE_INLINE void interact_tails_vs_tails(
             const math::Range& full_chunks1, const math::Range& full_chunks2,
             const math::Range& partial_tail1, const math::Range& partial_tail2,
-            Kernel && f) const {
-            using K = std::remove_cvref_t<Kernel>;
+            Kernel && f
+        ) const {
+            using namespace internal;
+            BatchContext ctx(container, f);
 
             // 5. partial tail vs partial tail
             if (partial_tail1.start != partial_tail1.stop && partial_tail2.start != partial_tail2.stop) {
@@ -314,12 +353,12 @@ namespace april::container::batching {
                 const auto mask = lane_indices < valid_lanes;
 
                 // load the single SIMD block containing partial_tail1
-                auto packed1 = get_packed(full_chunks1.stop, partial_tail1.start);
+                auto packed1 = ctx.packed(full_chunks1.stop, partial_tail1.start);
                 auto buffer1 = packed1.load_buffer();
 
                 // loop over the individual particles in partial_tail2
                 for (size_t i = partial_tail2.start; i < partial_tail2.stop; ++i) {
-                    auto p2 = get_scalar(full_chunks2.stop, i);
+                    auto p2 = ctx.scalar(full_chunks2.stop, i);
                     auto buffer2 = p2.broadcast();
 
                     auto view1 = buffer1.to_view();
@@ -343,44 +382,26 @@ namespace april::container::batching {
     // SYMMETRIC BATCH
     //----------------
     template <typename Container, typename ChunkPtr>
-    struct SymmetricChunkedBatch : BatchBase<exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath>
-    {
+    struct SymmetricChunkedBatch : internal::ChunkedBatchBase<Container, ChunkPtr> {
+        using Base = internal::ChunkedBatchBase<Container, ChunkPtr>;
+        using Base::Base, Base::container, Base::chunks, Base::chunk_size, Base::packed_size, Base::iter_chunks, Base::idx_arr;
+        friend Base;
 
-        explicit SymmetricChunkedBatch(Container& container, ChunkPtr* chunks) : container(container), chunks(chunks) {
-            for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
-        }
-
-        template <exec::ExecutionMode E, exec::IsKernel Func>
-        void for_each_pair(Func&& f) const {
-            if (range_chunks.start == range_chunks.stop) return;
-
-            if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector)) {
-                for_each_pair_packed(f);
-            } else {
-                for_each_pair_scalar(f);
-            }
+        [[nodiscard]] bool empty() const noexcept{
+            return range_chunks.start == range_chunks.stop;
         }
 
         // Range represents chunk indices! (e.g., 0 to 4 means Chunks 0,1,2,3)
         math::Range range_chunks; // Chunk Indices [start, end)
         size_t range_tail{}; // Number of valid items in the last chunk of range1 (0 = Full)
     private:
-        Container& container;
-        ChunkPtr* APRIL_RESTRICT const chunks = container.ptr_chunks;
-
-        static constexpr size_t chunk_size = Container::chunk_size;
-        static constexpr size_t packed_size = packed::size();
-        static constexpr size_t iter_chunks = chunk_size / packed_size;
-
-        alignas(64) packed::value_type idx_arr[packed_size]{};
-
 
         //----------------
         // SCALAR ITERATOR
         //----------------
         template <typename Kernel>
         void for_each_pair_scalar(Kernel && f) const {
-            using K = std::remove_cvref_t<Kernel>;
+            internal::BatchContext ctx(container, f);
 
             const size_t c_body_end = range_chunks.stop - 1;
             // Note: Use chunk_size here for full chunks, not packed_size
@@ -391,9 +412,9 @@ namespace april::container::batching {
 
                 // chunk self interaction
                 for (size_t i = 0; i < chunk_size; ++i) {
-                    auto p1 = get_scalar(c1, i);
+                    auto p1 = ctx.scalar(c1, i);
                     for (size_t j = i + 1; j < chunk_size; ++j) {
-                        auto p2 = get_scalar(c1, j);
+                        auto p2 = ctx.scalar(c1, j);
                         f(p1, p2);
                     }
                 }
@@ -402,9 +423,9 @@ namespace april::container::batching {
                 for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
                     APRIL_PREFETCH(chunks + c2 + 1);
                     for (size_t i = 0; i < chunk_size; ++i) {
-                        auto p1 = get_scalar(c1, i);
+                        auto p1 = ctx.scalar(c1, i);
                         for (size_t j = 0; j < chunk_size; ++j) {
-                            auto p2 = get_scalar(c2, j);
+                            auto p2 = ctx.scalar(c2, j);
                             f(p1, p2);
                         }
                     }
@@ -415,9 +436,9 @@ namespace april::container::batching {
             for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
                 APRIL_PREFETCH(chunks + c1 + 1);
                 for (size_t i = 0; i < chunk_size; ++i) {
-                    auto p1 = get_scalar(c1, i);
+                    auto p1 = ctx.scalar(c1, i);
                     for (size_t j = 0; j < limit_tail; ++j) {
-                        auto p2 = get_scalar(c_body_end, j);
+                        auto p2 = ctx.scalar(c_body_end, j);
                         f(p1, p2);
                     }
                 }
@@ -425,46 +446,18 @@ namespace april::container::batching {
 
             // tail (interact tail chunk with itself)
             for (size_t i = 0; i < limit_tail; ++i) {
-                auto p1 = get_scalar(c_body_end, i);
+                auto p1 = ctx.scalar(c_body_end, i);
                 for (size_t j = i + 1; j < limit_tail; ++j) {
-                    auto p2 = get_scalar(c_body_end, j);
+                    auto p2 = ctx.scalar(c_body_end, j);
                     f(p1, p2);
                 }
             }
         }
 
 
-        // -----------------
-        // HELPERS (ROUTING)
-        // -----------------
-        // helper for 360-degree SIMD rotation sweep for distinct blocks
-        template <typename BufferT, typename PackedAccessor, typename Kernel>
-        APRIL_FORCE_INLINE void interact_block_vs_block(BufferT& buffer1, PackedAccessor&& packed2, Kernel& f) const {
-            auto buffer2 = packed2.load_buffer(); // Natively zeroes WOMask fields
-
-            APRIL_UNROLL_LOOP_N(packed_size)
-            for (size_t k = 0; k < packed_size; k++) {
-                auto view1 = buffer1.to_view();
-                auto view2 = buffer2.to_view();
-                f(view1, view2);
-                buffer2.rotate_right();
-            }
-
-            buffer2.update_into(packed2); // Native WOMask accumulation
-        }
-
-        // helper for packed vs broadcast scalar block (no rotations needed)
-        template <typename BufferT, typename ScalarAccessor, typename Kernel>
-        APRIL_FORCE_INLINE void interact_block_vs_scalar(BufferT& buffer_block, const ScalarAccessor& p2, Kernel& f) const {
-            auto buffer_scalar = p2.broadcast();
-
-            auto view1 = buffer_block.to_view();
-            auto view2 = buffer_scalar.to_view();
-            f(view1, view2);
-
-            buffer_scalar.reduce_into(p2);
-        }
-
+        //----------------
+        // PACKED ITERATOR
+        //----------------
         // helper for symmetric pairwise interaction within a single SIMD block
         template <typename BufferT, typename PackedAccessor, typename Kernel>
         APRIL_FORCE_INLINE void interact_symmetric_self(BufferT& buffer1, const PackedAccessor& packed1, Kernel& f) const {
@@ -487,9 +480,6 @@ namespace april::container::batching {
             f(view1, view2);
         }
 
-        //----------------
-        // PACKED ITERATOR
-        //----------------
         void for_each_pair_packed(auto&& f) const {
             const size_t tail_len = (range_tail == 0) ? chunk_size : range_tail; // length of entire tail
             const size_t full_tail_end = (tail_len / packed_size) * packed_size;
@@ -521,8 +511,10 @@ namespace april::container::batching {
             const math::Range& full_chunks,
             const math::Range& full_tail,
             const math::Range& partial_tail,
-            Kernel&& f) const {
-            using K = std::remove_cvref_t<Kernel>;
+            Kernel&& f
+        ) const {
+            using namespace internal;
+            BatchContext ctx(container, f);
 
             // 1. all simd in full chunks vs all simd in full chunks + full tail + partial particles
             for (size_t c1 : full_chunks) {
@@ -530,7 +522,7 @@ namespace april::container::batching {
 
                 APRIL_UNROLL_LOOP_N(iter_chunks)
                 for (size_t i = 0; i < chunk_size; i += packed_size) {
-                    auto packed1 = get_packed(c1, i);
+                    auto packed1 = ctx.packed(c1, i);
                     auto buffer1 = packed1.load_buffer();
 
                     // a. simd register self interaction
@@ -538,7 +530,7 @@ namespace april::container::batching {
 
                     // b. intra-chunk interactions (Block i vs Blocks j where j > i inside c1)
                     for (size_t j = i + packed_size; j < chunk_size; j += packed_size) {
-                        interact_block_vs_block(buffer1, get_packed(c1, j), f);
+                        interact_block_vs_block(buffer1, ctx.packed(c1, j), f);
                     }
 
                     // c. inter-chunk interactions (Block i vs all Blocks in c2 where c2 > c1)
@@ -546,18 +538,18 @@ namespace april::container::batching {
                         APRIL_PREFETCH(chunks + c2 + 1);
                         APRIL_UNROLL_LOOP_N(iter_chunks)
                         for (size_t j = 0; j < chunk_size; j += packed_size) {
-                            interact_block_vs_block(buffer1, get_packed(c2, j), f);
+                            interact_block_vs_block(buffer1, ctx.packed(c2, j), f);
                         }
                     }
 
                     // d. interaction with SIMD-aligned blocks in the tail chunk [F]
                     for (size_t j : full_tail) {
-                        interact_block_vs_block(buffer1, get_packed(full_chunks.stop, j), f);
+                        interact_block_vs_block(buffer1, ctx.packed(full_chunks.stop, j), f);
                     }
 
                     // e. interaction with partial particles in the tail chunk [P]
                     for (size_t j : partial_tail) {
-                        interact_block_vs_scalar(buffer1, get_scalar(full_chunks.stop, j), f);
+                        interact_block_vs_scalar(buffer1, ctx.scalar(full_chunks.stop, j), f);
                     }
 
                     buffer1.update_into(packed1);
@@ -572,13 +564,14 @@ namespace april::container::batching {
             const math::Range& full_tail,
             const math::Range& partial_tail,
             const size_t full_tail_end,
-            Kernel&& f) const {
-
-            using K = std::remove_cvref_t<Kernel>;
+            Kernel&& f
+        ) const {
+            using namespace internal;
+            BatchContext ctx(container, f);
 
             // 2. all full blocks i in tail chunk [F] vs remainder [a) Self, b) F_intra, c) P]
             for (size_t i : full_tail) {
-                auto packed1 = get_packed(full_chunks.stop, i);
+                auto packed1 = ctx.packed(full_chunks.stop, i);
                 auto buffer1 = packed1.load_buffer();
 
                 // a. self interaction
@@ -586,12 +579,12 @@ namespace april::container::batching {
 
                 // b. intra-chunk interactions (Block i vs Blocks j where j > i inside full tail)
                 for (size_t j = i + packed_size; j < full_tail_end; j += packed_size) {
-                    interact_block_vs_block(buffer1, get_packed(full_chunks.stop, j), f);
+                    interact_block_vs_block(buffer1, ctx.packed(full_chunks.stop, j), f);
                 }
 
                 // c interaction with partial particles in the tail chunk [P]
                 for (size_t j : partial_tail) {
-                    interact_block_vs_scalar(buffer1, get_scalar(full_chunks.stop, j), f);
+                    interact_block_vs_scalar(buffer1, ctx.scalar(full_chunks.stop, j), f);
                 }
 
                 buffer1.update_into(packed1);
@@ -604,9 +597,10 @@ namespace april::container::batching {
             const math::Range& full_chunks,
             const math::Range& partial_tail,
             const size_t tail_len,
-            Kernel && f) const {
-
-            using K = std::remove_cvref_t<Kernel>;
+            Kernel && f
+        ) const {
+            using namespace internal;
+            BatchContext ctx(container, f);
 
             // 3. partial vs partial
             if (partial_tail.start != partial_tail.stop) {
@@ -617,12 +611,12 @@ namespace april::container::batching {
                 const auto valid_tail_mask = absolute_lane_indices < static_cast<double>(tail_len);
 
                 // load the entire tail chunk
-                auto packed_chunk = get_packed(full_chunks.stop, partial_tail.start);
+                auto packed_chunk = ctx.packed(full_chunks.stop, partial_tail.start);
                 auto chunk_data = packed_chunk.load_buffer();
 
                 // loop over valid particles in the tail
                 for (size_t i : partial_tail) {
-                    auto p1 = get_scalar(full_chunks.stop, i);
+                    auto p1 = ctx.scalar(full_chunks.stop, i);
                     auto buffer1 =  p1.broadcast();
 
                     // Fresh buffer to capture forces exerted on the chunk from just this p1
@@ -649,7 +643,4 @@ namespace april::container::batching {
     };
 }
 
-
-#undef get_scalar
-#undef get_packed
 

@@ -46,6 +46,10 @@ namespace april::integrator {
 			return self;
 		}
 
+		void clear_monitors() {
+			monitors.clear();
+		}
+
 
 		void set_dt(const double delta_t) {
 			dt = delta_t;

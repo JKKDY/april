@@ -1,5 +1,7 @@
 #pragma once
 
+#include "april/base/types.hpp"
+#include "april/core/domain.hpp"
 #include <vector>
 
 namespace april::container {

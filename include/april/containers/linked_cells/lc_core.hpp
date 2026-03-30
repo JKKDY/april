@@ -283,8 +283,8 @@ namespace april::container::internal {
 		// cell pair info
 		std::vector<int3> neighbor_stencil;
 		std::vector<WrappedCellPair> wrapped_cell_pairs;
-		std::vector<std::vector<uint3>> phase_schedule; // for c08 coloring scheme
-
+		std::vector<std::vector<uint3>> phase_schedule; // for user defined coloring scheme
+		std::vector<std::vector<WrappedCellPair>> wrapped_phase_schedule;
 
 
 		//------
@@ -515,6 +515,7 @@ namespace april::container::internal {
 		void schedule_phases() {
 			const auto& batch_dim = this->config.block_size;
 
+			// schedule phases for neighboring cells according to user defined color scheme
 			for_each_block([&](size_t bx, size_t by, size_t bz) {
 				const size_t logical_x = bx / batch_dim.x;
 				const size_t logical_y = by / batch_dim.y;
@@ -527,9 +528,45 @@ namespace april::container::internal {
 
 				phase_schedule[color].emplace_back(bx, by, bz);
 			});
+
+			// schedule wrapped neighbor cells (if force wrapping is enabled)
+			// create an edge list graph of interacting wrapped pairs
+			std::vector<std::vector<uint32_t>> touched_cells;
+			touched_cells.reserve(wrapped_cell_pairs.size());
+			for (const auto& pair : wrapped_cell_pairs) {
+				touched_cells.push_back({pair.c1, pair.c2});
+			}
+
+			// and build an intersection graph (Adjacency list of conflicting cell pairs)
+			const auto conflict_graph = utility::graph::build_intersection_graph(touched_cells);
+
+			// create a sequential processing order (indices 0 to N-1)
+			std::vector<size_t> processing_order(wrapped_cell_pairs.size());
+			std::iota(processing_order.begin(), processing_order.end(), 0);
+
+			// partition into independent sets (Conflict-free phases)
+			const auto independent_phases = utility::graph::greedy_independent_partitions(
+				conflict_graph,
+				processing_order
+			);
+
+			// Build the final schedule for the execution loop
+			wrapped_phase_schedule.clear();
+			wrapped_phase_schedule.reserve(independent_phases.size());
+
+			for (const auto& phase_indices : independent_phases) {
+				std::vector<WrappedCellPair> phase_pairs;
+				phase_pairs.reserve(phase_indices.size());
+
+				// Map the indices back to the actual WrappedCellPair objects
+				for (size_t idx : phase_indices) {
+					phase_pairs.push_back(wrapped_cell_pairs[idx]);
+				}
+
+				wrapped_phase_schedule.push_back(std::move(phase_pairs));
+			}
 		}
 
-				// const size_t color = (logical_x % 2) + ((logical_y % 2) << 1) + ((logical_z % 2) << 2);
 
         // -----------------
         // LOOP ABSTRACTIONS
@@ -622,28 +659,35 @@ namespace april::container::internal {
 			}
 		}
 
-		template <typename Func, typename GetIndices, typename ProcessBatch>
+		template <ParallelPolicy P, typename Func, typename GetIndices, typename ProcessBatch>
 		APRIL_FORCE_INLINE void for_each_wrapped_interaction(
+			this const auto& self,
 			Func&& func,
 			GetIndices&& get_indices,
 			ProcessBatch&& process_batch
-		) const {
-			if (this->wrapped_cell_pairs.empty()) return;
+		) {
+			if (self.wrapped_phase_schedule.empty()) return;
 
-			for (const auto& pair : this->wrapped_cell_pairs) {
-				auto bcp = [&pair](const auto& diff) { return diff + pair.shift; };
+			// Iterate sequentially over the independent phases
+			for (const auto& phase : self.wrapped_phase_schedule) {
 
-				for (size_t t1 = 0; t1 < this->n_types; ++t1) {
-					auto range1 = get_indices(pair.c1, t1);
-					if (range1.empty()) continue;
+				// Execute the pairs within the phase in parallel
+				self.thread_executor.template execute<P>(phase.size(), [&](size_t pair_idx) {
+					const auto& pair = phase[pair_idx];
+					auto bcp = [&pair](const auto& diff) { return diff + pair.shift; };
 
-					for (size_t t2 = 0; t2 < this->n_types; ++t2) {
-						auto range2 = get_indices(pair.c2, t2);
-						if (range2.empty()) continue;
+					for (size_t t1 = 0; t1 < self.n_types; ++t1) {
+						auto range1 = get_indices(pair.c1, t1);
+						if (range1.empty()) continue;
 
-						process_batch(func, range1, range2, t1, t2, bcp);
+						for (size_t t2 = 0; t2 < self.n_types; ++t2) {
+							auto range2 = get_indices(pair.c2, t2);
+							if (range2.empty()) continue;
+
+							process_batch(func, range1, range2, t1, t2, bcp);
+						}
 					}
-				}
+				});
 			}
 		}
 

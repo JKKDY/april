@@ -77,7 +77,7 @@ namespace april::container::internal {
     			f(wrapped_batch, bcp);
     		};
 
-    		self.for_each_wrapped_interaction(func, get_indices, process_wrapped);
+    		self.template for_each_wrapped_interaction<P>(func, get_indices, process_wrapped);
 		}
     };
 }

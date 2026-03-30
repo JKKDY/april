@@ -28,7 +28,7 @@ namespace april::container::batching {
          * Reciprocal forces are accumulated into acc2 memory at the end.
          */
         template <typename Buffer1, typename PackedAccessor, typename Kernel>
-        APRIL_FORCE_INLINE void interact_block_vs_block(Buffer1& b1, PackedAccessor&& acc2, Kernel& f) {
+        APRIL_FORCE_INLINE inline void interact_block_vs_block(Buffer1& b1, PackedAccessor&& acc2, Kernel& f) {
             auto b2 = acc2.load_buffer();
 
             // interact all pairs {p1, p2} with p1 in b1, p2 in b2

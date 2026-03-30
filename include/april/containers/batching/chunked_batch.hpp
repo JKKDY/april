@@ -202,14 +202,6 @@ namespace april::container::batching {
         //----------
         // SIMD PATH
         //----------
-        // Helper: Interaction between a broadcasted scalar particle and a full SIMD block
-        template <typename BufferScalar, typename PackedAccessor, typename Kernel>
-        APRIL_FORCE_INLINE void interact_scalar_vs_block(BufferScalar& b_scalar, PackedAccessor&& acc_block, Kernel& f) const {
-            auto b_block = acc_block.load_buffer();
-            f(b_scalar.to_view(), b_block.to_view());
-            b_block.update_into(acc_block);
-        }
-
         /**
          * Main vectorized path for asymmetric interactions.
          */
@@ -308,14 +300,31 @@ namespace april::container::batching {
         }
 
 
+         // Range 1 is the SIMD Block, Range 2 is the Broadcast Scalar
+        template <typename PackedAccessor, typename BufferScalar, typename Kernel>
+        APRIL_FORCE_INLINE void interact_block1_vs_scalar2(PackedAccessor&& p1_block, BufferScalar& p2_scalar, Kernel& f) const {
+            auto b_block = p1_block.load_buffer();
+            f(b_block.to_view(), p2_scalar.to_view()); // P1 first, P2 second
+            b_block.update_into(p1_block);
+        }
+
+
+        // Range 1 is the Broadcast Scalar, Range 2 is the SIMD Block
+        template <typename BufferScalar, typename PackedAccessor, typename Kernel>
+        APRIL_FORCE_INLINE void interact_scalar1_vs_block2(BufferScalar& p1_scalar, PackedAccessor&& p2_block, Kernel& f) const {
+            auto b_block = p2_block.load_buffer();
+            f(p1_scalar.to_view(), b_block.to_view()); // P1 first, P2 second
+            b_block.update_into(p2_block);
+        }
+
+
         template <typename Kernel>
         APRIL_FORCE_INLINE void interact_tails_vs_body(
             const math::Range& full_chunks1, const math::Range& full_chunks2,
-            const math::Range& full_tail1, const math::Range& full_tail2,
-            const math::Range& partial_tail1, const math::Range& partial_tail2,
-            Kernel && f
+            const math::Range& full_tail1,   const math::Range& full_tail2,
+            const math::Range& partial_tail1,const math::Range& partial_tail2,
+            Kernel&& f
         ) const {
-
             using namespace internal;
             BatchContext ctx(container, f);
 
@@ -328,15 +337,13 @@ namespace april::container::batching {
                 for (size_t c1 : full_chunks1) {
                     APRIL_PREFETCH(chunks + c1 + 1);
                     APRIL_UNROLL_LOOP_N(iter_chunks)
-                    for (size_t j = 0; j < chunk_size; j += packed_size) {
-                        interact_scalar_vs_block(buffer2, ctx.packed(c1, j), f);
-                    }
+                    for (size_t j = 0; j < chunk_size; j += packed_size)
+                        interact_block1_vs_scalar2(ctx.packed(c1, j), buffer2, f);
                 }
 
                 // b. Interaction with SIMD-aligned blocks in Range 1 tail chunk
-                for (size_t t1 : full_tail1) {
-                    interact_scalar_vs_block(buffer2, ctx.packed(full_chunks1.stop, t1), f);
-                }
+                for (size_t t1 : full_tail1)
+                    interact_block1_vs_scalar2(ctx.packed(full_chunks1.stop, t1), buffer2, f);
 
                 buffer2.reduce_into(p2);
             }
@@ -350,15 +357,13 @@ namespace april::container::batching {
                 for (size_t c2 : full_chunks2) {
                     APRIL_PREFETCH(chunks + c2 + 1);
                     APRIL_UNROLL_LOOP_N(iter_chunks)
-                    for (size_t j = 0; j < chunk_size; j += packed_size) {
-                        interact_scalar_vs_block(buffer1, ctx.packed(c2, j), f);
-                    }
+                    for (size_t j = 0; j < chunk_size; j += packed_size)
+                        interact_scalar1_vs_block2(buffer1, ctx.packed(c2, j), f);
                 }
 
                 // b. Interaction with SIMD-aligned blocks in Range 2 tail chunk
-                for (size_t t2 : full_tail2) {
-                    interact_scalar_vs_block(buffer1, ctx.packed(full_chunks2.stop, t2), f);
-                }
+                for (size_t t2 : full_tail2)
+                    interact_scalar1_vs_block2(buffer1, ctx.packed(full_chunks2.stop, t2), f);
 
                 buffer1.reduce_into(p1);
             }

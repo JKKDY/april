@@ -17,3 +17,4 @@ add_benchmark(interaction_benchmark interaction_benchmark.cpp interaction_benchm
 add_benchmark(no_overhead_DS_SOA baseline_DS_SOA.cpp no_overhead_DS_SOA)
 add_benchmark(baseline_DS_AOS baseline_DS_AOS.cpp baseline_DS_AOS)
 add_benchmark(baseline_DS_SIMD baseline_DS_SIMD.cpp baseline_DS_SIMD)
+add_benchmark(argon_block argon_block.cpp argon_block)

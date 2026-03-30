@@ -107,7 +107,7 @@ endif()
 if(APRIL_ENABLE_OPENMP)
     find_package(OpenMP REQUIRED) # find OpenMP
     target_link_libraries(April INTERFACE OpenMP::OpenMP_CXX)
-    target_compile_definitions(April INTERFACE APRIL_EXECUTOR_BACKEND_OMP)
+    target_compile_definitions(April INTERFACE APRIL_EXECUTOR_BACKEND_OMP) # switch to OMP backend
 endif()
 
 

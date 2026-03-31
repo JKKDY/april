@@ -138,7 +138,7 @@ auto create_argon_environment(const size_t n_dim, const double temperature = 1.0
     // exactly on the periodic boundary edges.
     auto particle_grid = ParticleCuboid()
         .at(origin + vec3(spacing / 2.0))
-        .velocity(vec3(100))
+        .velocity(vec3(0))
         .count({n_dim, n_dim, n_dim})
         .mass(1.0)
         .spacing(spacing)
@@ -218,24 +218,21 @@ void run_argon_bench_suite() {
 int main() {
     // run_argon_bench_suite();
 
-    struct :
-            RunTimeConfig<exec::Executor>,
-            CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
-        {} cfg;
-    cfg.executer_config.n_threads = 4;
+    ExecutionConfig cfg;
+    cfg.executer_config.n_threads = 6;
 
-    auto env = create_argon_environment(20, 10);
+    auto env = create_argon_environment(100, 1);
     auto container = LinkedCells<Layout::AoSoA<>>().with_absolute_skin(0.3);
     // auto container = DirectSum();
 
-     run_simulation(
-       std::move(env),
-       std::move(container),
-       cfg,
-       25, // warmup
-       7000, // bench
-       0.001,
-       true, // No binary output during benchmark
-       "/mnt/d/Dev/april/animation/output"
-   );
+    run_simulation(
+      std::move(env),
+      std::move(container),
+      cfg,
+      25, // warmup
+      500, // bench
+      0.001,
+      true, // No binary output during benchmark
+      "/mnt/d/Dev/april/animation/output"
+  );
 }

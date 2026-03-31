@@ -28,6 +28,7 @@ namespace april {
           double min_step_sec;
           double max_step_sec;
           double std_dev_sec;
+          std::vector<double> timings;
 
           void print_report() const {
              std::cout << "\n" << std::string(40, '-') << "\n";
@@ -84,7 +85,7 @@ namespace april {
           glob_end_time = std::chrono::steady_clock::now();
 
           // Calculate and store the results internally
-          auto res = calculate_results();
+          const auto res = calculate_results();
           res.print_report();
 
           if (result) {
@@ -117,7 +118,8 @@ namespace april {
               .median_step_sec = sorted[steps / 2],
               .min_step_sec = sorted.front(),
               .max_step_sec = sorted.back(),
-              .std_dev_sec = std::sqrt(variance / static_cast<double>(steps))
+              .std_dev_sec = std::sqrt(variance / static_cast<double>(steps)),
+              .timings = timings
           };
        }
 

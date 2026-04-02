@@ -2,12 +2,12 @@
 #include <filesystem>
 
 #include "april/containers/linked_cells.hpp"
-
+#include "april/exec/executors/sequential_executor.hpp"
 using namespace april;
 namespace fs = std::filesystem;
 
 
-static constexpr int NX = 100, NY = 100, NZ = 100;
+static constexpr int NX = 80, NY = 80, NZ = 80;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
@@ -44,11 +44,11 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(ReflectiveBoundary(), all_faces);
 
-	const auto container = LinkedCells<Layout::AoSoA<>>()
+	const auto container = LinkedCells<Layout::SoA>()
 		.with_cell_size(container::CellSize::Cutoff)
 		.with_cell_ordering(hilbert_order)
 		.with_block_size(2)
-		.with_skin_factor(0.1);
+		.with_skin_factor(0.0);
 
 	for (int i = 0; i < 1; i++) {
 		struct :
@@ -58,13 +58,15 @@ int main() {
 		// cfg.executer_config.n_threads = 8;
 
 		auto system = build_system(env, container, cfg);
-		constexpr double dt = 0.0002;
-		constexpr int steps  = 20;
+		constexpr double dt = 0.005;
+		constexpr int steps  = 10;
 
 		VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
+		integrator.run_for_steps(dt, 0);
+
 		integrator.add_monitor(Benchmark());
-		// integrator.add_monitor(ProgressBar(Trigger::always()));
-			// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
+		integrator.add_monitor(ProgressBar(Trigger::always()));
+		// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
 		integrator.run_for_steps(dt, steps);
 	}
 

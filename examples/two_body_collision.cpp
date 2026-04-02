@@ -3,6 +3,7 @@
 #include <filesystem>
 
 #include "april/containers/linked_cells.hpp"
+#include "april/exec/executors/sequential_executor.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;
@@ -36,8 +37,13 @@ int main() {
 	   .with_force(LennardJones(5, 1), to_type(0))
 	   .with_boundaries(ReflectiveBoundary(), all_faces);
 
-	auto container = LinkedCells<Layout::AoSoA<>>();
-	auto system = build_system(env, container);
+	struct :
+		RunTimeConfig<exec::SequentialExecutor>,
+		CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
+	{} cfg;
+
+	auto container = LinkedCells<Layout::SoA>().with_absolute_skin(0.3);
+	auto system = build_system(env, container, cfg);
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
 		.with_monitor(Benchmark())

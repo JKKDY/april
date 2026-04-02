@@ -1,5 +1,4 @@
 #pragma once
-#include <memory>
 #include <vector>
 #include "april/particle/particle.hpp"
 

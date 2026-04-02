@@ -1,5 +1,5 @@
 /**
-* @file scheduling.hpp
+* @file lc_scheduling.hpp
  * @brief Domain decomposition and thread-coloring schedulers.
  *
  * This file provides spatial coloring algorithms used to prevent data races

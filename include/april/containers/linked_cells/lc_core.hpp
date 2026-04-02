@@ -7,7 +7,6 @@
 #include <functional>
 #include <limits>
 
-#include "lc_batching.hpp"
 #include "april/base/types.hpp"
 #include "april/containers/batching/topology_batch.hpp"
 #include "april/particle/particle_types.hpp"
@@ -122,7 +121,28 @@ namespace april::container::internal {
 			}
 		}
 
+		std::vector<uint32_t> cached_target_bins;
+
 		void rebuild_structure_impl(this auto&& self) {
+			if (self.cached_target_bins.size() < self.capacity()) {
+				self.cached_target_bins.resize(self.capacity());
+			}
+
+			self.template for_each_particle<parallel_policy>(
+				scalar_kernel<ParticleField::position | ParticleField::type>(
+				[&](const size_t idx, const auto& p) {
+
+					const size_t cid = self.cell_index_from_position(p.position);
+					self.cached_target_bins[idx] = self.bin_index(cid, p.type);
+				}
+			));
+
+			self.reorder_storage(self.n_bins ,self.cached_target_bins);
+			self.rebuild_structure_impl2();
+		}
+
+
+		void rebuild_structure_impl2(this auto&& self) {
 		    // clear previous bin assignments
 		    for (auto& bin : self.bin_assignments) {
 		        bin.clear();
@@ -269,6 +289,7 @@ namespace april::container::internal {
 		size_t n_grid_cells {};
 		size_t n_cells {}; // total cells = grid + outside
 		size_t n_types {}; // types range from 0 ... n_types-1
+		size_t n_bins {};
 		double global_cutoff {}; // maximum force cutoff
 		double verlet_skin {};
 
@@ -392,8 +413,9 @@ namespace april::container::internal {
 			self.global_cutoff = max_cutoff;
 
 			// allocate buffers
-			self.bin_starts.resize(self.n_cells * self.n_types);
-			self.bin_assignments.resize(self.n_cells * self.n_types);
+			self.n_bins = self.n_cells * self.n_types;
+			self.bin_starts.resize(self.n_bins);
+			self.bin_assignments.resize(self.n_bins);
 		}
 
 		void init_cell_order(this auto && self) {

@@ -7,8 +7,8 @@
 
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
+#include "april/particle/particle.hpp"
 #include "april/exec/info.hpp"
-
 
 namespace april::container::layout {
     template <particle::IsParticleAttributes Attributes, size_t Size>

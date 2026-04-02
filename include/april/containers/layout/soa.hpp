@@ -58,8 +58,8 @@ namespace april::container::layout {
     protected:
         SoAStorage<ParticleAttributes> tmp;
         SoAStorage<ParticleAttributes> data;
-        std::vector<size_t> bin_starts; // first particle index of each bin
-        std::vector<size_t> bin_sizes; // number of particles in each bin
+        // std::vector<size_t> bin_starts; // first particle index of each bin
+        // std::vector<size_t> bin_sizes; // number of particles in each bin
         std::vector<uint32_t> id_to_index_map;
 
         exec::BlockConfig pair_schedule_config;
@@ -96,6 +96,443 @@ namespace april::container::layout {
             tmp.resize(n);
         }
 
+        SoAStorage<ParticleAttributes> movers_buffer;
+
+        std::vector<size_t> bin_starts; // first particle index of each bin
+        std::vector<size_t> bin_sizes; // number of particles in each bin
+
+
+        std::vector<size_t> flat_bin_sizes;
+        std::vector<size_t> flat_mover_counts;
+        std::vector<size_t> flat_write_offsets;
+        std::vector<size_t> global_mover_starts;
+        std::vector<size_t> bin_mover_totals;
+
+
+        void reorder_storage(const size_t n_bins, const std::vector<uint32_t>& target_bins) {
+            // target bins maps index -> bin
+            const size_t num_particles = this->particle_count();
+            const size_t num_bins = n_bins;
+            bin_sizes.resize(n_bins);
+
+
+            // create schedules
+            auto particle_blocks = exec::make_linear_schedule(math::Range{0, num_particles}, this->linear_schedule_config);
+            auto bin_blocks = exec::make_linear_schedule(math::Range{0, num_bins}, this->linear_schedule_config);
+
+            const size_t num_particle_tasks = particle_blocks.size();
+            const size_t num_bin_tasks = bin_blocks.size();
+            const size_t flat_size = num_bin_tasks * num_bins;
+
+
+            // RESIZING
+            // resize thread local accumulators if needed
+            const size_t flat_particle_size = num_particle_tasks * num_bins;
+            if (flat_bin_sizes.size() < flat_particle_size) {
+                flat_bin_sizes.resize(flat_particle_size, 0);
+            } else {
+                std::ranges::fill(flat_bin_sizes, 0);
+            }
+
+            // calculate how large each bin is and where it starts
+            // first accumulate sizes in local buffers
+            this->thread_executor.execute(num_particle_tasks, [&](const size_t t_idx) {
+                const auto& block = particle_blocks[t_idx];
+                size_t* bin_sizes_buffer = &flat_bin_sizes[t_idx * num_bins];
+
+                for (size_t i = block.start; i < block.stop; ++i) {
+                    ++bin_sizes_buffer[target_bins[i]];
+                }
+            });
+
+            // then sum all buffers up to get final bin sizes
+            this->thread_executor.execute(num_bin_tasks, [&](const size_t t_idx) {
+                const auto& bin_block = bin_blocks[t_idx];
+
+                for (size_t i = bin_block.start; i < bin_block.stop; ++i) {
+                    size_t sum = 0;
+                    for (size_t t = 0; t < num_particle_tasks; ++t) {
+                        sum += flat_bin_sizes[t * num_bins + i];
+                    }
+                    bin_sizes[i] = sum;
+                }
+            });
+
+            // calculate bin starts (prefix sum) (serial)
+            size_t total_size = 0;
+            for (size_t i = 0; i < num_bins; i++) {
+                bin_starts[i] = total_size;
+                total_size += bin_sizes[i];
+            }
+
+            // find the number of movers per bin
+            if (flat_mover_counts.size() < flat_size) {
+                flat_mover_counts.resize(flat_size, 0);
+            } else {
+                std::ranges::fill(flat_mover_counts, 0);
+            }
+
+            this->thread_executor.execute(num_bin_tasks, [&](const size_t task_idx) {
+                const auto & bin_block = bin_blocks[task_idx];
+                size_t* local_counts = &flat_mover_counts[task_idx * num_bins];
+
+                for (const size_t src_bin : bin_block) {
+                   const math::Range bin_range = {bin_starts[src_bin], bin_starts[src_bin] + bin_sizes[src_bin]};
+                    for (const auto i : bin_range) {
+                        const size_t dst_bin = target_bins[i];
+                        if (dst_bin != src_bin) { // particle i must be moved
+                            local_counts[dst_bin]+=1;
+                        }
+                    }
+                }
+            });
+
+            if (global_mover_starts.size() < num_bins) global_mover_starts.resize(num_bins, 0);
+            if (flat_write_offsets.size() < flat_size) flat_write_offsets.resize(flat_size, 0);
+
+            // TODO parallelize
+            // 1. Parallel Reduction (Sum movers per bin across all threads)
+            if (bin_mover_totals.size() < num_bins) bin_mover_totals.resize(num_bins, 0);
+
+            this->thread_executor.execute(num_bin_tasks, [&](const size_t t_idx) {
+                const auto& bin_block = bin_blocks[t_idx];
+                for (size_t b = bin_block.start; b < bin_block.stop; ++b) {
+                    size_t sum = 0;
+                    for (size_t t = 0; t < num_bin_tasks; ++t) {
+                        sum += flat_mover_counts[t * num_bins + b];
+                    }
+                    bin_mover_totals[b] = sum;
+                }
+            });
+
+            // 2. Serial Prefix Sum (Calculate global starts per bin)
+            size_t total_movers = 0;
+            for (size_t b = 0; b < num_bins; ++b) {
+                global_mover_starts[b] = total_movers;
+                total_movers += bin_mover_totals[b];
+            }
+
+            std::cout << total_movers << std::endl;
+
+            if (total_movers == 0) return;
+            if (movers_buffer.capacity < total_movers) movers_buffer.resize(total_movers);
+
+            // 3. Parallel Offset Distribution (Calculate write offsets for each thread)
+            this->thread_executor.execute(num_bin_tasks, [&](const size_t t_idx) {
+                const auto& bin_block = bin_blocks[t_idx];
+                for (size_t b = bin_block.start; b < bin_block.stop; ++b) {
+                    size_t current_offset = global_mover_starts[b];
+                    for (size_t t = 0; t < num_bin_tasks; ++t) {
+                        const size_t flat_idx = t * num_bins + b;
+                        flat_write_offsets[flat_idx] = current_offset;
+                        current_offset += flat_mover_counts[flat_idx];
+                    }
+                }
+            });
+
+
+            // ---------------------------------------------------------
+            // PHASE 4: Extract & Sort directly to buffer
+            // ---------------------------------------------------------
+            this->thread_executor.execute(num_bin_tasks, [&](const size_t t_idx) {
+                const auto& bin_block = bin_blocks[t_idx];
+                size_t* local_offsets = &flat_write_offsets[t_idx * num_bins];
+
+                for (size_t b = bin_block.start; b < bin_block.stop; ++b) {
+                    const size_t owner_bin = b;
+                    const math::Range bin_range = {bin_starts[b], bin_starts[b] + bin_sizes[b]};
+
+                    for (const auto i : bin_range) {
+                        const size_t target = target_bins[i];
+                        if (target != owner_bin) {
+                            const size_t dest_idx = local_offsets[target]++;
+                            movers_buffer.copy_from(dest_idx, data, i);
+                        }
+                    }
+                }
+            });
+
+            // ---------------------------------------------------------
+            // PHASE 5: In-Place Scatter
+            // ---------------------------------------------------------
+            this->thread_executor.execute(num_bin_tasks, [&](const size_t t_idx) {
+                const auto& bin_block = bin_blocks[t_idx];
+
+                for (size_t b = bin_block.start; b < bin_block.stop; ++b) {
+                    if (bin_sizes[b] == 0) continue;
+
+                    size_t mover_read_idx = global_mover_starts[b];
+                    const math::Range bin_range = {bin_starts[b], bin_starts[b] + bin_sizes[b]};
+
+                    for (const auto i : bin_range) {
+                        if (target_bins[i] != b) { // Native hole
+                            data.copy_from(i, movers_buffer, mover_read_idx);
+
+                            const auto id = static_cast<size_t>(data.id[i]);
+                            id_to_index_map[id] = static_cast<uint32_t>(i);
+
+                            ++mover_read_idx;
+                        }
+                    }
+                }
+            });
+
+
+
+            // // find number of movers(holes) per bin
+            // std::vector<std::vector<size_t>> mover_counts_tbuffers(num_bin_tasks, std::vector<size_t>(num_bins, 0));
+            // std::vector<size_t> movers_prefix_sum(num_bins);
+            //
+            //
+            // // movers_out_tbuffers[task_index][bin] = list of source indices (where the movers are that belong into this bin)
+            // // the first copy iterated through this list and gathers all particles that are supposed to go into bin in
+            // // the temporary buffer. It can index it via movers_prefix_sum[bin]
+            // // basically group particles that need to be moved by their destination bin so we can write them into a single chunk into
+            // // the buffer. This allows for the second copy phase to just linearly san that block (bin) of data and copy them into the holes
+            // // into the according bin
+            //
+            // // example
+            // // Bins 1,2,3,...                        01234 56 789A
+            // // 1111|222|3333  ->  1211|231|3133  ->  12112|31|3133  ->  1X11X|XX|3X33  ->
+            // //  current         new target bins  -> new bin sizes -> X need to be copied
+            // // mapping to buffer: 1: [6, 8], 2: [1,4], 3:5
+            // // buffer: 6,8|1,4|5
+            // // mapping to data: 1: [1,4], 2: [5,6], 3: [8]
+            //
+            // std::vector<std::vector<std::vector<size_t>>> movers_out_tbuffers(num_bin_tasks);
+            // for (auto & x: movers_out_tbuffers)  x.resize(num_bins);
+            //
+            // // movers_in_tbuffers[task_index][bin] = list of source indices (where the movers are that belong into this bin)
+            // std::vector<std::vector<std::vector<size_t>>> movers_back_tbuffers(num_bin_tasks);
+            // for (auto & x: movers_back_tbuffers) x.resize(num_bins);
+            //
+            //
+            //
+            // this->thread_executor.execute(num_bin_tasks, [&](const size_t task_idx) {
+            //     const auto & bin_block = bin_blocks[task_idx];
+            //     auto & mover_counts = mover_counts_tbuffers[task_idx];
+            //     auto & movers_out = movers_out_tbuffers[task_idx];
+            //     auto & movers_back = movers_back_tbuffers[task_idx];
+            //
+            //     for (const size_t src_bin : bin_block) {
+            //         const math::Range bin_range = {bin_starts[src_bin], bin_starts[src_bin] + bin_sizes[src_bin]};
+            //         for (const auto i : bin_range) {
+            //             const size_t dst_bin = target_bins[i];
+            //             if (dst_bin != src_bin) { // particle i must be moved
+            //                 mover_counts[dst_bin]+=1;
+            //                 movers_out[src_bin].push_back(i);
+            //                 movers_back[src_bin].push_back(i);
+            //             }
+            //         }
+            //     }
+            // });
+            //
+            // // sum all thread local buffers together to get total number of movers per bin
+            // std::vector<size_t> mover_counts (num_bins);
+            // this->thread_executor.execute(num_bin_tasks, [&](const size_t t_idx) {
+            //     const auto& bin_block = bin_blocks[t_idx];
+            //
+            //     for (size_t i = bin_block.start; i < bin_block.stop; ++i) {
+            //         size_t sum = 0;
+            //         for (const auto & x : mover_counts_tbuffers) sum += x[i];
+            //         mover_counts[i] = sum;
+            //     }
+            // });
+            //
+            // size_t offset = 0;
+            // for (size_t i = 0; i < num_bins; i++) {
+            //     movers_prefix_sum[i] = offset;
+            //     offset += mover_counts[i];
+            // }
+            //
+            //
+            //
+            //
+            // // find all hole indices per bin
+            // std::vector<std::vector<size_t>> holes_per_bin(num_bin_tasks, std::vector<size_t>(num_bins));
+            //
+            //
+            // this->thread_executor.execute(num_bin_tasks, [&](const size_t t_idx) {
+            //     const auto & bins = bin_blocks[t_idx];
+            //
+            //     for (const auto src_bin: bins) {
+            //         for (const auto i : src_bin) {
+            //             const size_t dst_bin = target_bins[i];
+            //             if (dst_bin != src_bin) {
+            //                 mover_counts[dst_bin]+=1;
+            //             }
+            //         }
+            //     }
+            // });
+            //
+            //
+            //
+            //
+            // // the to buffer copy iterates through this. Bin sorted by destination
+            // // mover_copy1_indices_tbuffers[bin] =
+            // std::vector<std::vector<size_t>> mover_copy1_indices_tbuffers(num_bins);
+            //
+            // // the to data copy iterates through this. Bin sorted by destination
+            // // mover_copy2_indices_tbuffers[bin] = holes in bin
+            // std::vector<std::vector<size_t>> mover_copy2_indices_tbuffers(num_bins);
+            //
+            //
+            //
+            //
+            //
+            // std::vector<std::vector<Mover>> movers_buffers(num_bins);
+            //
+            // // where to copy each mover to in buffer (bin sorting)
+            // std::vector<size_t> global_mover_starts(num_bins, 0);
+            // std::vector<size_t> current_bin_write_index(num_bin_tasks, 0);
+            //
+            // // track the holes for each bin
+            // std::vector<std::vector<size_t>> bin_holes(num_bin_tasks, std::vector<size_t>(num_bins, 0));
+            //
+            //
+            //
+            // // identify which particles need to move and how many
+            // this->thread_executor.execute(num_bin_tasks, [&](const size_t task_idx) {
+            //     const auto & bin_block = bin_blocks[task_idx];
+            //     auto & mover_counts = mover_counts_tbuffers[task_idx];
+            //     auto & movers = movers_buffers[task_idx];
+            //     auto & holes = holes_tbuffer[task_idx];
+            //
+            //     for (size_t b = bin_block.start; b < bin_block.stop; ++b) {
+            //         const size_t src_bin = b; // this bin owns particle i
+            //         const math::Range bin_range = {bin_starts[b], bin_starts[b] + bin_sizes[b]};
+            //         for (const auto i : bin_range) {
+            //             const size_t dst_bin = target_bins[i];
+            //             if (dst_bin != src_bin) { // particle i must be moved
+            //
+            //                 // we get the index of the mover
+            //                 // we get the bin it is in
+            //                 // we get the destination bin of where it needs to go to
+            //
+            //                 holes[src_bin].push_back(i);
+            //
+            //                 movers.push_back(Mover{i, dst_bin});
+            //                 mover_counts[dst_bin]+=1;
+            //             }
+            //         }
+            //     }
+            // });
+            //
+            //
+            // this->thread_executor.execute(num_bin_tasks, [&](const size_t t_idx) {
+            //     const auto& bin_block = bin_blocks[t_idx];
+            //
+            //     for (size_t i = bin_block.start; i < bin_block.stop; ++i) {
+            //         size_t sum = 0;
+            //         for (const auto & x : mover_counts_tbuffers) sum += x[i];
+            //         global_mover_starts[i] = sum;
+            //     }
+            // });
+            //
+            //
+            // size_t total_movers = 0;
+            // for (size_t b = 0; b < num_bins; ++b) {
+            //     global_mover_starts[b] = total_movers; // Where this bin's sorted block starts
+            //     for (size_t t = 0; t < num_bin_tasks; ++t) {
+            //         write_offsets[t][b] = total_movers; // Where this thread starts writing for this bin
+            //         total_movers += mover_counts_tbuffers[t][b];
+            //     }
+            // }
+            //
+
+
+
+
+
+
+            // // TODO this should be made persistent to avoid reallocation
+            // // Thread-local 2D buffer: local_movers[thread_idx][target_bin] = list of old indices
+            // struct Hole {
+            //     size_t index; // particle index
+            //     size_t src_bin; // current bin index
+            //     size_t dst_bin; // new bin index
+            // };
+            // std::vector<std::vector<size_t>> particles_to_move_buffers(num_bin_tasks);
+            // std::vector<std::vector<Hole>> bin_holes(num_bin_tasks);
+
+           //  // identify which particles need to move
+           //  this->thread_executor.execute(num_bin_tasks, [&](const size_t task_idx) {
+           //      const auto & bin_block = bin_blocks[task_idx];
+           //      auto & movers = particles_to_move_buffers[task_idx];
+           //      auto & holes = bin_holes[task_idx];
+           //
+           //      for (size_t b = bin_block.start; b < bin_block.stop; ++b) {
+           //          const size_t src_bin = b; // this bin owns particle i
+           //          const math::Range bin_range = {bin_starts[b], bin_starts[b] + bin_sizes[b]};
+           //          for (const auto i : bin_range) {
+           //              const size_t dst_bin = target_bins[i];
+           //              if (dst_bin != src_bin) { // particle i must be moved
+           //                  movers.push_back(i);
+           //                  holes.push_back(Hole{i, src_bin, dst_bin});
+           //              }
+           //          }
+           //      }
+           //  });
+           //
+           //  // prefix sum offset for parallel copying of particles
+           //  size_t offset = 0;
+           //  std::vector<size_t> offsets(particles_to_move_buffers.size());
+           //  for (size_t i = 0; i < offsets.size(); i++) {
+           //      offsets[i] = offset;
+           //      offset += particles_to_move_buffers[i].size();
+           //  }
+           //
+           //  // copy particles in parallel to temporary buffer
+           //  this->thread_executor.execute(particles_to_move_buffers.size(), [&](const size_t task_idx) {
+           //      const auto& particle_idxs = particles_to_move_buffers[task_idx];
+           //      const auto& write_offset = offsets[task_idx];
+           //
+           //      for (size_t i = 0; i < particle_idxs.size(); i++) {
+           //          movers_buffer.copy_from(write_offset + i, data, particle_idxs[i]);
+           //      }
+           //  });
+           //
+           //  // copy mover particles back into correct bins
+           //  const size_t num_movers = offset;
+           //  auto mover_blocks = exec::make_linear_schedule(math::Range{0, num_movers}, this->linear_schedule_config);
+           //
+           //  this->thread_executor.execute(mover_blocks.size(), [&](const size_t task_idx) {
+           //     const auto& movers = mover_blocks[task_idx];
+           //
+           //     for (const auto i : movers) {
+           //         movers_buffer.copy_from(, data, particle_idxs[i]);
+           //     }
+           // });
+
+
+
+
+
+            // std::vector<std::vector<size_t>> local_movers_to(num_tasks, std::vector<size_t>(num_bins, 0));
+            //
+            // this->thread_executor.execute(num_tasks, [&](const size_t t_idx) {
+            //     const auto& block = particle_blocks[t_idx];
+            //     auto& local_movers = local_movers_to[t_idx];
+            //
+            //     // O(1) jump to find the starting owner bin for this physical block
+            //     auto it = std::upper_bound(bin_starts.begin(), bin_starts.end(), block.start);
+            //     size_t owner_bin = std::distance(bin_starts.begin(), it) - 1;
+            //
+            //     for (size_t i = block.start; i < block.stop; ++i) {
+            //         // Roll the owner bin forward if we cross a boundary
+            //         // (The while loop safely handles empty bins)
+            //         while (owner_bin + 1 < num_bins && i >= bin_starts[owner_bin + 1]) {
+            //             owner_bin++;
+            //         }
+            //
+            //         if (target_bins[i] != owner_bin) {
+            //             local_movers[target_bins[i]]++;
+            //         }
+            //     }
+            // });
+
+
+        }
 
         void reorder_storage(const std::vector<std::vector<size_t>>& new_bins) {
             bin_starts.clear();

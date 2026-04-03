@@ -22,6 +22,8 @@ add_executable(test_april
         containers/cell_ordering_test.cpp
         containers/scheduling_test.cpp
 
+        exec/executors_test.cpp
+
         integrators/conservation_test.cpp
         integrators/stoermerverlet_test.cpp
         integrators/yoshida_test.cpp

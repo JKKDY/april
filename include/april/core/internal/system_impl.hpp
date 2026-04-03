@@ -185,13 +185,8 @@ namespace april {
 	        exec::BlockConfig config(thread_executor.num_threads());
 	        auto blocks = exec::make_linear_schedule(math::Range{0, particle_ids.size()}, config);
 
-	        // resize persistent buffers if the block count increases
-	        if (thread_update_buffers.size() < blocks.size()) {
-	            thread_update_buffers.resize(blocks.size());
-	        }
-
 	        // clear local buffers for this face pass
-	        for (size_t i = 0; i < blocks.size(); ++i) {
+	        for (size_t i = 0; i < thread_update_buffers.size(); ++i) {
 	            thread_update_buffers[i].buffer.clear();
 	        }
 
@@ -199,7 +194,7 @@ namespace april {
 	        auto boundary_condition_inside = [&]<typename B>(const B & bc) {
 	            thread_executor.execute(blocks.size(), [&](const size_t b_idx) APRIL_FORCE_INLINE {
 	                const auto& block = blocks[b_idx];
-	                auto& local_buffer = thread_update_buffers[b_idx].buffer;
+	                auto& local_buffer = thread_update_buffers[exec::thread_index()].buffer;
 
 	                for (size_t i = block.start; i < block.stop; ++i) {
 	                    const size_t p_idx = particle_ids[i];
@@ -220,7 +215,7 @@ namespace april {
 
 	            thread_executor.execute(blocks.size(), [&](const size_t b_idx) APRIL_FORCE_INLINE {
 	                const auto& block = blocks[b_idx];
-	                auto& local_buffer = thread_update_buffers[b_idx].buffer;
+	                auto& local_buffer = thread_update_buffers[exec::thread_index()].buffer;
 
 	                for (size_t i = block.start; i < block.stop; ++i) {
 	                    const size_t p_idx = particle_ids[i];

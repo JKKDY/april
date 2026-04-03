@@ -105,7 +105,7 @@ namespace april::container::internal {
 			const size_t num_tasks = blocks.size();
 
 			// allocate buffers for each task
-			std::vector<std::vector<size_t>> local_results(num_tasks);
+			std::vector<std::vector<size_t>> local_results(self.thread_executor.num_threads());
 
 			// preallocate storage with heuristic (assumes uniform distribution)
 			if (domain_vol > 1e-9 && intersection.has_value()) {
@@ -121,7 +121,7 @@ namespace april::container::internal {
 			// process all tasks in parallel
 			self.thread_executor.template execute<parallel_policy>(num_tasks, [&](const size_t t_idx) {
 				const auto& block = blocks[t_idx];
-				auto& local_ret = local_results[t_idx];
+				auto& local_ret = local_results[exec::thread_index()];
 
 				// kernel checks if a particle is alive and inside the region
 				auto kernel = april::universal_kernel<ParticleField::position | ParticleField::state> (

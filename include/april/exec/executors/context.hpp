@@ -21,9 +21,14 @@ namespace april::exec {
         };
     }
 
-    // get current index of thread (within its executor)
-    [[nodiscard]] inline int thread_index() noexcept {
+    // get current index of thread (within its executor) (unsafe: may return -1)
+    [[nodiscard]] inline int thread_index_direct() noexcept {
         return internal::current_thread_id;
+    }
+
+    // get current index of thread (within its executor) (safe)
+    [[nodiscard]] inline int thread_index() noexcept {
+        return internal::current_thread_id < 0 ? 0 : internal::current_thread_id;
     }
 
     // check if thread is running parallel (within the executor)

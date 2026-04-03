@@ -14,6 +14,7 @@
 #include "april/core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
 #include "april/exec/parallel_utils.hpp"
+#include "april/exec/executors/context.hpp"
 
 namespace april::math {
 	struct Range;
@@ -61,7 +62,8 @@ namespace april::container::internal {
 			self.rebuild_structure_impl();
 			self.schedule_phases();
 
-			self.last_x.resize(particles.size()); // TODO STOP GAP MEASURE FIX!
+			// TODO once we can use reflection automatically serialize add a vec3 last_rebuild_position member to particle attributes
+			self.last_x.resize(particles.size());
 			self.last_y.resize(particles.size());
 			self.last_z.resize(particles.size());
 
@@ -191,7 +193,7 @@ namespace april::container::internal {
 		    const size_t num_tasks = blocks.size();
 
 			// allocate buffers for each task
-		    std::vector<std::vector<size_t>> local_results(num_tasks);
+		    std::vector<std::vector<size_t>> local_results(self.thread_executor.num_threads());
 
 			// preallocate storage with heuristic (assumes uniform distribution)
 		    const size_t est_count_per_task = (self.particle_count() * cells.size() / self.n_cells) / num_tasks + 1;
@@ -202,7 +204,7 @@ namespace april::container::internal {
 			// process all tasks in parallel
 		    self.thread_executor.template execute<parallel_policy>(num_tasks, [&](const size_t t_idx) {
 		        const auto& block = blocks[t_idx];
-		        auto& local_ret = local_results[t_idx];
+		        auto& local_ret = local_results[exec::thread_index()];
 
 		        // each task loops over its assigned chunk of cells
 		        for (size_t c = block.start; c < block.stop; ++c) {
@@ -672,8 +674,8 @@ namespace april::container::internal {
 			for (const auto& phase : self.wrapped_phase_schedule) {
 
 				// Execute the pairs within the phase in parallel
-				self.thread_executor.template execute<P>(phase.size(), [&](size_t pair_idx) {
-					const auto& pair = phase[pair_idx];
+				self.thread_executor.template execute<P>(phase.size(), [&](size_t phase_idx) {
+					const auto& pair = phase[phase_idx];
 					auto bcp = [&pair](const auto& diff) { return diff + pair.shift; };
 
 					for (size_t t1 = 0; t1 < self.n_types; ++t1) {

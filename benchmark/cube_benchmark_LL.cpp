@@ -55,15 +55,18 @@ int main() {
 			RunTimeConfig<exec::Executor>,
 			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
 		{} cfg;
-		// cfg.executer_config.n_threads = 8;
+		cfg.executer_config.n_threads = 6;
 
 		auto system = build_system(env, container, cfg);
 		constexpr double dt = 0.0002;
 		constexpr int steps  = 20;
 
 		VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
+
+		integrator.run_for_steps(dt, 1);
+
 		integrator.add_monitor(Benchmark());
-		// integrator.add_monitor(ProgressBar(Trigger::always()));
+		integrator.add_monitor(ProgressBar(Trigger::always()));
 			// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
 		integrator.run_for_steps(dt, steps);
 	}

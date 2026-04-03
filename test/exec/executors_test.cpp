@@ -6,7 +6,6 @@
 #include "april/exec/executors/context.hpp"
 #include "april/exec/executors/native_barrier_executor.hpp"
 #include "april/exec/executors/native_spin_executor.hpp"
-#include "april/exec/executors/omp_executor.hpp"
 
 using namespace april;
 using namespace april::exec;
@@ -21,6 +20,7 @@ protected:
 
 // Define the list of executors to test
 #ifdef _OPENMP
+#include "april/exec/executors/omp_executor.hpp"
 using ExecutorTypes = testing::Types<NativeBarrierExecutor, NativeSpinExecutor, OmpExecutor>;
 #else
 using ExecutorTypes = testing::Types<NativeBarrierExecutor, NativeSpinExecutor>;
@@ -65,12 +65,12 @@ TYPED_TEST(ExecutorTest, SerialPolicyDoesNotSetContext) {
     
     // Outside execute
     EXPECT_FALSE(is_parallel());
-    EXPECT_EQ(thread_index(), -1);
+    EXPECT_EQ(thread_index_direct(), -1);
 
     executor.template execute<ParallelPolicy::Serial>(10, [&](size_t) {
         // Inside Serial execute (User's specific request: no context in serial)
         EXPECT_FALSE(is_parallel());
-        EXPECT_EQ(thread_index(), -1);
+        EXPECT_EQ(thread_index_direct(), -1);
     });
 
     // Back outside
@@ -82,23 +82,23 @@ TYPED_TEST(ExecutorTest, HandlesNestedContextsCorrectly) {
     TypeParam executor(this->config);
 
     // Initial state
-    EXPECT_EQ(thread_index(), -1);
+    EXPECT_EQ(thread_index_direct(), -1);
 
     executor.execute(1, [&](size_t ) {
-        int outer_tid = thread_index();
+        int outer_tid = thread_index_direct();
         EXPECT_GE(outer_tid, 0);
 
         {
             // Simulate a nested region or manual guard
             internal::ScopedThreadContext nested_guard(99);
-            EXPECT_EQ(thread_index(), 99);
+            EXPECT_EQ(thread_index_direct(), 99);
         }
 
         // RAII must restore the ID assigned by the executor
-        EXPECT_EQ(thread_index(), outer_tid);
+        EXPECT_EQ(thread_index_direct(), outer_tid);
     });
 
-    EXPECT_EQ(thread_index(), -1);
+    EXPECT_EQ(thread_index_direct(), -1);
 }
 
 // 4. Test Zero Batch Count (Should return immediately)

@@ -146,6 +146,8 @@ namespace april {
 			particle_container.invoke_build(config.particles);
 			controllers.for_each_item([&](auto& c) { c.dispatch_init(context()); });
 			fields.for_each_item([&](auto& f) { f.dispatch_init(context()); });
+
+			thread_update_buffers.resize(thread_executor.num_threads());
 		}
 
 		// only entry point for constructing a System (friend factory)

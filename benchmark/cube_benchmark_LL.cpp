@@ -2,7 +2,7 @@
 #include <filesystem>
 
 #include "april/containers/linked_cells.hpp"
-#include "april/exec/executors/sequential_executor.hpp"
+
 using namespace april;
 namespace fs = std::filesystem;
 
@@ -30,7 +30,10 @@ int main() {
 	.count({NX, NY, NZ})
 	.mass(1.0)
 	.spacing(a)
-	.type(0);
+	.type(0)
+	.thermal( [&](vec3 /*pos*/) {
+			return math::maxwell_boltzmann_velocity(1);
+		});
 
 
 	// Box with margin >= r_cut around grid (non-periodic)
@@ -48,25 +51,26 @@ int main() {
 		.with_cell_size(container::CellSize::Cutoff)
 		.with_cell_ordering(hilbert_order)
 		.with_block_size(2)
-		.with_skin_factor(0.0);
+		.with_absolute_skin(0.0);
 
 	for (int i = 0; i < 1; i++) {
 		struct :
 			RunTimeConfig<exec::Executor>,
 			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
 		{} cfg;
-		// cfg.executer_config.n_threads = 8;
+		cfg.executer_config.n_threads = 6;
 
 		auto system = build_system(env, container, cfg);
 		constexpr double dt = 0.005;
-		constexpr int steps  = 10;
+		constexpr int steps  = 100;
 
 		VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
-		integrator.run_for_steps(dt, 0);
+
+		integrator.run_for_steps(dt, 1);
 
 		integrator.add_monitor(Benchmark());
 		integrator.add_monitor(ProgressBar(Trigger::always()));
-		// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
+			// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
 		integrator.run_for_steps(dt, steps);
 	}
 

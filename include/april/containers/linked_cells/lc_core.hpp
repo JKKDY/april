@@ -7,12 +7,14 @@
 #include <functional>
 #include <limits>
 
+#include "lc_batching.hpp"
 #include "april/base/types.hpp"
 #include "april/containers/batching/topology_batch.hpp"
 #include "april/particle/particle_types.hpp"
 #include "april/core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
 #include "april/exec/parallel_utils.hpp"
+#include "april/exec/executors/context.hpp"
 
 namespace april::math {
 	struct Range;
@@ -57,10 +59,11 @@ namespace april::container::internal {
 			self.compute_wrapped_cell_pairs();
 			self.build_storage(particles);
 			self.pre_allocate_assignment_bins();
-			self.rebuild_structure_impl();
+			self.rebuild_structure_impl2();
 			self.schedule_phases();
 
-			self.last_x.resize(particles.size()); // TODO STOP GAP MEASURE FIX!
+			// TODO once we can use reflection automatically serialize add a vec3 last_rebuild_position member to particle attributes
+			self.last_x.resize(particles.size());
 			self.last_y.resize(particles.size());
 			self.last_z.resize(particles.size());
 
@@ -124,6 +127,8 @@ namespace april::container::internal {
 		std::vector<uint32_t> cached_target_bins;
 
 		void rebuild_structure_impl(this auto&& self) {
+            std::cout << " start"<< std::endl;
+
 			if (self.cached_target_bins.size() < self.capacity()) {
 				self.cached_target_bins.resize(self.capacity());
 			}
@@ -137,12 +142,62 @@ namespace april::container::internal {
 				}
 			));
 
-			self.reorder_storage(self.n_bins ,self.cached_target_bins);
+			int m = 0;
+			self.template for_each_particle<ParallelPolicy::Serial>(
+				scalar_kernel<ParticleField::position | ParticleField::type | ParticleField::old_position>(
+				[&](const auto& p) {
+
+					const size_t new_cid = self.cell_index_from_position(p.position);
+					const size_t old_cid = self.cell_index_from_position(p.old_position);
+
+					if (self.bin_index(new_cid, p.type) != self.bin_index(old_cid, p.type)) m++;
+				}
+			));
+
+			std::cout << "BOUNDARY MOVERS: "<< m << std::endl;
+
+			// ==========================================
+			// SERIAL TEST: Calculate true Structural Movers
+			// ==========================================
+			const size_t total_bins = self.n_cells * self.n_types;
+			std::vector<size_t> test_new_sizes(total_bins, 0);
+			std::vector<size_t> test_new_starts(total_bins, 0);
+
+			// A. Calculate new sizes
+			for (size_t i = 0; i < self.particle_count(); ++i) {
+				test_new_sizes[self.cached_target_bins[i]]++;
+			}
+
+			// B. Calculate new starts
+			size_t offset = 0;
+			for (size_t b = 0; b < total_bins; ++b) {
+				test_new_starts[b] = offset;
+				offset += test_new_sizes[b];
+			}
+
+			// C. Count particles in the wrong physical slots
+			size_t expected_structural_movers = 0;
+			for (size_t b = 0; b < total_bins; ++b) {
+				const size_t start = test_new_starts[b];
+				const size_t end = start + test_new_sizes[b];
+
+				for (size_t i = start; i < end; ++i) {
+					if (self.cached_target_bins[i] != b) {
+						expected_structural_movers++;
+					}
+				}
+			}
+			std::cout << "[DEBUG] Serial structural movers: " << expected_structural_movers << std::endl;
+
+			self.reorder_storage(self.n_cells * self.n_types ,self.cached_target_bins);
 			self.rebuild_structure_impl2();
+
+			std::cout << "done"<< std::endl;
 		}
 
-
 		void rebuild_structure_impl2(this auto&& self) {
+			std::cout << "hä?"<< std::endl;
+
 		    // clear previous bin assignments
 		    for (auto& bin : self.bin_assignments) {
 		        bin.clear();
@@ -211,7 +266,7 @@ namespace april::container::internal {
 		    const size_t num_tasks = blocks.size();
 
 			// allocate buffers for each task
-		    std::vector<std::vector<size_t>> local_results(num_tasks);
+		    std::vector<std::vector<size_t>> local_results(self.thread_executor.num_threads());
 
 			// preallocate storage with heuristic (assumes uniform distribution)
 		    const size_t est_count_per_task = (self.particle_count() * cells.size() / self.n_cells) / num_tasks + 1;
@@ -222,7 +277,7 @@ namespace april::container::internal {
 			// process all tasks in parallel
 		    self.thread_executor.template execute<parallel_policy>(num_tasks, [&](const size_t t_idx) {
 		        const auto& block = blocks[t_idx];
-		        auto& local_ret = local_results[t_idx];
+		        auto& local_ret = local_results[exec::thread_index()];
 
 		        // each task loops over its assigned chunk of cells
 		        for (size_t c = block.start; c < block.stop; ++c) {
@@ -289,7 +344,6 @@ namespace april::container::internal {
 		size_t n_grid_cells {};
 		size_t n_cells {}; // total cells = grid + outside
 		size_t n_types {}; // types range from 0 ... n_types-1
-		size_t n_bins {};
 		double global_cutoff {}; // maximum force cutoff
 		double verlet_skin {};
 
@@ -413,9 +467,8 @@ namespace april::container::internal {
 			self.global_cutoff = max_cutoff;
 
 			// allocate buffers
-			self.n_bins = self.n_cells * self.n_types;
-			self.bin_starts.resize(self.n_bins);
-			self.bin_assignments.resize(self.n_bins);
+			self.bin_starts.resize(self.n_cells * self.n_types);
+			self.bin_assignments.resize(self.n_cells * self.n_types);
 		}
 
 		void init_cell_order(this auto && self) {
@@ -694,8 +747,8 @@ namespace april::container::internal {
 			for (const auto& phase : self.wrapped_phase_schedule) {
 
 				// Execute the pairs within the phase in parallel
-				self.thread_executor.template execute<P>(phase.size(), [&](size_t pair_idx) {
-					const auto& pair = phase[pair_idx];
+				self.thread_executor.template execute<P>(phase.size(), [&](size_t phase_idx) {
+					const auto& pair = phase[phase_idx];
 					auto bcp = [&pair](const auto& diff) { return diff + pair.shift; };
 
 					for (size_t t1 = 0; t1 < self.n_types; ++t1) {

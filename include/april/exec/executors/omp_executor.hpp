@@ -3,7 +3,9 @@
 #include <omp.h>
 
 #include "april/exec/info.hpp"
+#include "april/exec/policy.hpp"
 #include "april/exec/executors/executor_traits.hpp"
+#include "april/exec/executors/context.hpp"
 
 namespace april::exec {
     struct OmpExecutor {
@@ -22,9 +24,14 @@ namespace april::exec {
                     task(i);
                 }
             } else {
-                #pragma omp parallel for schedule(guided) num_threads(n_threads)
-                for (int i = 0; i < static_cast<int>(batch_count); ++i) {
-                    task(i);
+                #pragma omp parallel num_threads(n_threads)
+                {
+                    internal::ScopedThreadContext ctx(omp_get_thread_num());
+
+                    #pragma omp for schedule(guided)
+                    for (int i = 0; i < static_cast<int>(batch_count); ++i) {
+                        task(i);
+                    }
                 }
             }
         }

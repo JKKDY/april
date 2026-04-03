@@ -69,6 +69,7 @@ namespace april {
     struct ExecutionConfig : RunTimeConfig<>, CompileTimeConfig<> {};
 
     namespace exec {
+
         template <typename C>
         concept IsExecutionConfig = requires (C c) {
             { C::vector_policy } -> std::convertible_to<VectorPolicy>;
@@ -98,6 +99,10 @@ namespace april {
             void execute(size_t task_count, Func&& func) const {
                 APRIL_ASSERT(ptr != nullptr, "[APRIL] ExecutorRef executed before being bound to System!");
                 ptr->template execute<P>(task_count, std::forward<Func>(func));
+            }
+
+            unsigned thread_index() const noexcept {
+                return ptr->thread_index();
             }
 
         private:

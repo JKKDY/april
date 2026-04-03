@@ -4,6 +4,7 @@
 #include <thread>
 #include <vector>
 
+#include "context.hpp"
 #include "april/exec/info.hpp"
 #include "april/exec/executors/executor_traits.hpp"
 #include "native_executor_base.hpp"
@@ -25,7 +26,7 @@ namespace april::exec {
             threads.reserve(config.n_threads - 1);
 
             for (unsigned int i = 0; i < config.n_threads - 1; ++i) {
-                threads.emplace_back(&NativeBarrierExecutor::worker_loop, this);
+                threads.emplace_back(&NativeBarrierExecutor::worker_loop, this, i+1);   // +1 because main thread is 0
                 if (config.pin_threads) internal::pin_thread_to_core(threads.back().native_handle(), i + 1);
             }
         }
@@ -44,9 +45,10 @@ namespace april::exec {
                     task(i);
                 }
             } else {
+                internal::ScopedThreadContext ctx(0);
                 prepare_task(batch_count, std::forward<F>(task));
                 start_sync.arrive_and_wait(); // Wake workers
-                process_tasks();              // Main thread works
+                process_tasks();    // Main thread works as well
                 end_sync.arrive_and_wait();   // Sync at phase end
             }
         }
@@ -55,7 +57,8 @@ namespace april::exec {
         alignas(CACHE_LINE_SIZE) mutable std::barrier<> start_sync;
         alignas(CACHE_LINE_SIZE) mutable std::barrier<> end_sync;
 
-        void worker_loop() const {
+        void worker_loop(const int thread_idx) const {
+            internal::ScopedThreadContext ctx(thread_idx);
             while (true) {
                 start_sync.arrive_and_wait();
                 if (terminate.load(std::memory_order_relaxed)) return;

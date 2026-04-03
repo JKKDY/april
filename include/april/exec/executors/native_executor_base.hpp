@@ -99,7 +99,7 @@ namespace april::exec::internal {
     };
 
     struct TaskWrapper {
-        void* ctx = nullptr;
+        void* callable = nullptr; // need to store the task here because
         void (*invoke)(void*, size_t) = nullptr;
     };
 
@@ -122,10 +122,10 @@ namespace april::exec::internal {
         // Sets up the type-erased lambda and calculates chunk sizes
         template <IsWorkAtom F>
         void prepare_task(const size_t batch_count, F&& task) const {
-            active_task.ctx = &task; // type erase the task
-            active_task.invoke = [](void* ctx, size_t i) {
-                // map type erased task back to original type and call with index i
-                (*static_cast<std::remove_reference_t<F>*>(ctx))(i);
+            active_task.callable = &task; // type erase the task
+            active_task.invoke = [](void* ctx, size_t task_idx) {
+                // map type erased task back to original type and call with thread index and task index
+                (*static_cast<std::remove_reference_t<F>*>(ctx))(task_idx);
             };
 
             total_tasks = batch_count;
@@ -145,7 +145,7 @@ namespace april::exec::internal {
                 // process fetched work
                 const size_t end = std::min(start + chunk_size, total_tasks);
                 for (size_t i = start; i < end; ++i) {
-                    active_task.invoke(active_task.ctx, i);
+                    active_task.invoke(active_task.callable, i);
                 }
             }
         }

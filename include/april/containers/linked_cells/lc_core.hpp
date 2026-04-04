@@ -127,85 +127,12 @@ namespace april::container::internal {
 			}
 		}
 
-		std::vector<size_t> cached_target_bins;
-
-		void rebuild_structure_impl2(this auto&& self) {
+		void rebuild_structure_impl(this auto&& self) {
 			self.reorder_storage(self.n_bins, [&](const size_t i) {
 				const auto p = self.template view<ParticleField::position | ParticleField::type>(i);
 				const size_t cid = self.cell_index_from_position( p.position);
 				return self.bin_index(cid, p.type);
 			});
-		}
-
-
-		void rebuild_structure_impl(this auto&& self) {
-			auto total_start = std::chrono::steady_clock::now();
-
-		    // clear previous bin assignments
-		    for (auto& bin : self.bin_assignments) {
-		        bin.clear();
-		    }
-
-		    // build a flat list of scheduled tasks across all valid particles
-		    std::vector<math::Range> tasks;
-		    for (size_t i = 0; i < self.bin_sizes.size(); i++) {
-		        if (self.bin_sizes[i] == 0) continue;
-
-		    	// tasks should align with bin boundaries
-		        const size_t start = self.bin_starts[i];
-		        const size_t size = self.bin_sizes[i];
-
-		        auto blocks = exec::make_linear_schedule(math::Range{start, start + size}, self.linear_schedule_config);
-		        tasks.insert(tasks.end(), blocks.begin(), blocks.end());
-		    }
-
-		    if (tasks.empty()) return;
-
-			// for every task allocate a local vector
-			if (self.thread_local_buffers.size() < tasks.size()) {
-				self.thread_local_buffers.resize(tasks.size());
-			}
-
-			for (size_t t = 0; t < tasks.size(); ++t) {
-				self.thread_local_buffers[t].records.clear();
-				// reserve approximate capacity to prevent mid-task reallocations
-				self.thread_local_buffers[t].records.reserve(tasks[t].size());
-			}
-
-			// parallel scattering of particles
-			self.thread_executor.template execute<parallel_policy>(tasks.size(), [&](const size_t t_idx) {
-				const auto& block = tasks[t_idx];
-				auto& local_records = self.thread_local_buffers[t_idx].records;
-
-				self.for_each_particle(block.start, block.stop,
-					scalar_kernel<ParticleField::type | ParticleField::position>(
-					[&](const size_t idx, const auto & p) {
-						const size_t cid = self.cell_index_from_position(p.position);
-						const size_t bin = self.bin_index(cid, p.type);
-
-						local_records.push_back({static_cast<uint32_t>(bin), static_cast<uint32_t>(idx)});
-					}
-				));
-			});
-
-			// merge local assignments into global assignment vector
-			for (size_t t = 0; t < tasks.size(); ++t) {
-				for (const auto& record : self.thread_local_buffers[t].records) {
-					self.bin_assignments[record.first].push_back(record.second);
-				}
-			}
-
-			auto total_end = std::chrono::steady_clock::now();
-			std::chrono::duration<double, std::milli> total_dur = total_end - total_start;
-			std::cout << "BLOCK 1 OLD REBUILD (SETUP) TIME: " << total_dur.count() << "ms" << std::endl;
-
-			// rebuilt storage according to assignment vector
-			self.reorder_storage(self.bin_assignments);
-
-			total_end = std::chrono::steady_clock::now();
-			total_dur = total_end - total_start;
-			std::cout << "-----------------------------------" << std::endl;
-			std::cout << "TOTAL REBUILD (OLD) TIME: " << total_dur.count() << "ms" << std::endl;
 		}
 
 		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const core::Box & region) {

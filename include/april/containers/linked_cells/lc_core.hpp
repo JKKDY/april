@@ -74,6 +74,9 @@ namespace april::container::internal {
 					self.last_z[p.id] = p.position.z;
 				})
 			);
+
+
+
 		}
 
 		template<ParallelPolicy P, typename Func>
@@ -124,7 +127,20 @@ namespace april::container::internal {
 			}
 		}
 
+		std::vector<size_t> cached_target_bins;
+
+		void rebuild_structure_impl2(this auto&& self) {
+			self.reorder_storage(self.n_bins, [&](const size_t i) {
+				const auto p = self.template view<ParticleField::position | ParticleField::type>(i);
+				const size_t cid = self.cell_index_from_position( p.position);
+				return self.bin_index(cid, p.type);
+			});
+		}
+
+
 		void rebuild_structure_impl(this auto&& self) {
+			auto total_start = std::chrono::steady_clock::now();
+
 		    // clear previous bin assignments
 		    for (auto& bin : self.bin_assignments) {
 		        bin.clear();
@@ -179,8 +195,17 @@ namespace april::container::internal {
 				}
 			}
 
+			auto total_end = std::chrono::steady_clock::now();
+			std::chrono::duration<double, std::milli> total_dur = total_end - total_start;
+			std::cout << "BLOCK 1 OLD REBUILD (SETUP) TIME: " << total_dur.count() << "ms" << std::endl;
+
 			// rebuilt storage according to assignment vector
 			self.reorder_storage(self.bin_assignments);
+
+			total_end = std::chrono::steady_clock::now();
+			total_dur = total_end - total_start;
+			std::cout << "-----------------------------------" << std::endl;
+			std::cout << "TOTAL REBUILD (OLD) TIME: " << total_dur.count() << "ms" << std::endl;
 		}
 
 		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const core::Box & region) {
@@ -271,6 +296,7 @@ namespace april::container::internal {
 		size_t n_grid_cells {};
 		size_t n_cells {}; // total cells = grid + outside
 		size_t n_types {}; // types range from 0 ... n_types-1
+		size_t n_bins {}; // number of bins (cells * types)
 		double global_cutoff {}; // maximum force cutoff
 		double verlet_skin {};
 
@@ -394,8 +420,9 @@ namespace april::container::internal {
 			self.global_cutoff = max_cutoff;
 
 			// allocate buffers
-			self.bin_starts.resize(self.n_cells * self.n_types);
-			self.bin_assignments.resize(self.n_cells * self.n_types);
+			self.n_bins = self.n_cells * self.n_types;
+			self.bin_starts.resize(self.n_bins);
+			self.bin_assignments.resize(self.n_bins);
 		}
 
 		void init_cell_order(this auto && self) {

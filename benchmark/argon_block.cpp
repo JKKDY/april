@@ -47,7 +47,7 @@ Benchmark::BenchmarkResult run_simulation(
     if (enable_output && !output_path.empty()) {
         if (!fs::exists(output_path)) fs::create_directories(output_path);
         fs::remove_all(output_path);
-        bench_integrator.add_monitor(BinaryOutput(Trigger::every(50), output_path.string()));
+        bench_integrator.add_monitor(BinaryOutput(Trigger::every(1), output_path.string()));
         bench_integrator.add_monitor(ProgressBar(Trigger::every(bench_steps / 100)));
     }
 
@@ -192,7 +192,7 @@ void run_argon_bench_suite() {
                 cfg.executer_config.n_threads = t;
 
                 auto env = create_argon_environment(n, rho);
-                auto container = LinkedCells<Layout::AoSoA<>>().with_absolute_skin(0.3);
+                auto container = LinkedCells<Layout::SoA>().with_absolute_skin(0.3);
 
                 // 3. Execute
                 auto result = run_simulation(
@@ -219,19 +219,19 @@ int main() {
     // run_argon_bench_suite();
 
     ExecutionConfig cfg;
-    cfg.executer_config.n_threads = 6;
+    cfg.executer_config.n_threads = 1;
 
     auto env = create_argon_environment(100, 1);
-    auto container = LinkedCells<Layout::AoSoA<>>().with_absolute_skin(0.3);
+    auto container = LinkedCells<Layout::SoA>().with_absolute_skin(0.3);
     // auto container = DirectSum();
 
     run_simulation(
       std::move(env),
       std::move(container),
       cfg,
-      25, // warmup
-      500, // bench
-      0.001,
+      0, // warmup
+      100, // bench
+      0.005,
       true, // No binary output during benchmark
       "/mnt/d/Dev/april/animation/output"
   );

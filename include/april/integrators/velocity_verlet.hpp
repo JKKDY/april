@@ -23,6 +23,7 @@ namespace april {
 			ParticleField::state | ParticleField::velocity | ParticleField::force | ParticleField::mass;
 
 		void integration_step() const {
+			std::cout << sys.step() << std::endl;
 			sys.update_all_components();
 
 			sys.template for_each_particle<Sys::parallel_policy>(universal_kernel<pos_upd_fields, pos_upd_fields>(

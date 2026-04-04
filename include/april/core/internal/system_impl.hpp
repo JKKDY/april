@@ -255,16 +255,18 @@ namespace april {
 	        }
 
 	        // merge local buffers sequentially
-	        if (compiled_boundary.topology.may_change_particle_position) {
-	            for (size_t i = 0; i < blocks.size(); ++i) {
-	                auto& local_buf = thread_update_buffers[i].buffer;
-	                particles_to_update_buffer.insert(
-	                    particles_to_update_buffer.end(),
-	                    local_buf.begin(),
-	                    local_buf.end()
-	                );
-	            }
-	        }
+	    	if (compiled_boundary.topology.may_change_particle_position) {
+	    		for (size_t i = 0; i < thread_update_buffers.size(); ++i) {
+	    			auto& local_buf = thread_update_buffers[i].buffer;
+	    			if (local_buf.empty()) continue;
+
+	    			particles_to_update_buffer.insert(
+						particles_to_update_buffer.end(),
+						local_buf.begin(),
+						local_buf.end()
+					);
+	    		}
+	    	}
 	    }
 
 		// invoke structure update on the container

@@ -53,23 +53,23 @@ int main() {
 		.with_block_size(2)
 		.with_skin_factor(0.1);
 
-	std::vector t = {1, 2,4,6,8};
+	std::vector t = {1,2,4,6,8};
 	for (int _ :t) {
 		struct :
 			RunTimeConfig<exec::Executor>,
 			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
 		{} cfg;
-		cfg.executer_config.n_threads = 4;
+		cfg.executer_config.n_threads = 1;
 
 		std::cout << " core: " << cfg.executer_config.n_threads << std::endl;
 
 		auto system = build_system(env, container, cfg);
 		constexpr double dt = 0.005;
-		constexpr int steps  = 60;
+		constexpr int steps  = 100;
 
 		VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
 
-		integrator.run_for_steps(dt, 1);
+		integrator.run_for_steps(dt, 20);
 
 		integrator.add_monitor(Benchmark());
 		integrator.add_monitor(ProgressBar(Trigger::always()));

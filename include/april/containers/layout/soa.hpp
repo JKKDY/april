@@ -123,11 +123,8 @@ namespace april::container::layout {
             const size_t n_particles = this->particle_count();
             const unsigned n_threads = this->thread_executor.num_threads();
 
-            std::vector<size_t> & bin_starts2 = bin_starts; // first particle index of each bin
-            std::vector<size_t> & bin_sizes2 = bin_sizes; // number of particles in each bin
-
-            bin_starts2.resize(n_bins);
-            bin_sizes2.resize(n_bins);
+            bin_starts.resize(n_bins);
+            bin_sizes.resize(n_bins);
             bin_counts.resize(n_bins);
             cached_bins.resize(n_particles);
 
@@ -139,13 +136,6 @@ namespace april::container::layout {
 
             bin_particles.resize(n_particles);
 
-            // auto end0 = std::chrono::steady_clock::now();
-            // std::chrono::duration<double, std::milli> dur0 = end0- total_start;
-            // std::cout << "\n\nBlock 0 (Init) took: " << dur0.count() << "ms" << "\n";
-
-
-
-            // auto start1 = std::chrono::steady_clock::now();
             // each thread counts the number of particles per bin in its assigned particle blocks
             bin_counts_tls_buffers.assign(bin_counts_tls_buffers.size(), 0);
             this->thread_executor.execute(particle_blocks.size(), [&](const size_t t_idx) {
@@ -158,98 +148,50 @@ namespace april::container::layout {
                   ++bin_counts_tls[bin];
                 }
             });
-            // auto end1 = std::chrono::steady_clock::now();
-            // std::chrono::duration<double, std::milli> dur1 = end1 - start1;
-            // std::cout << "Block 1 (Counting) took: " << dur1.count() << "ms" << "\n";
 
-
-
-            // auto start2 = std::chrono::steady_clock::now();
             // reduce to a single buffer
             this->thread_executor.execute(bin_blocks.size(), [&](const size_t t_idx) {
                 const auto& bins = bin_blocks[t_idx];
 
-                for (const size_t bin : bins) bin_sizes2[bin] = 0;
+                for (const size_t bin : bins) bin_sizes[bin] = 0;
 
                 for (unsigned i = 0; i < n_threads; i++) {
                     for (const size_t bin : bins) {
-                        bin_sizes2[bin] +=  bin_counts_tls_buffers[n_bins * i + bin];
+                        bin_sizes[bin] +=  bin_counts_tls_buffers[n_bins * i + bin];
                     }
                 }
             });
-            // auto end2 = std::chrono::steady_clock::now();
-            // std::chrono::duration<double, std::milli> dur2 = end2 - start2;
-            // std::cout << "Block 2 (Reduction) took: " << dur2.count() << "ms" << "\n";
 
-
-
-
-            // auto start3 = std::chrono::steady_clock::now();
             // compute offsets (prefix sum)
             size_t offset = 0;
             for (size_t i = 0; i < n_bins; i++) {
-                bin_starts2[i] = offset;
+                bin_starts[i] = offset;
                 bin_counts[i] = offset;
-                offset += bin_sizes2[i];
+                offset += bin_sizes[i];
             }
-            // auto end3 = std::chrono::steady_clock::now();
-            // std::chrono::duration<double, std::milli> dur3 = end3 - start3;
-            // std::cout << "Block 3 (Prefix Sum) took: " << dur3.count() << "ms" << "\n";
 
-
-
-            // auto coarse_particle_blocks = exec::make_linear_schedule(math::Range{0, n_particles}, exec::BlockConfig(n_threads, 8, -1));
-            // std::cout << "##### " <<coarse_particle_blocks.size() << std::endl;
-
-            // auto start4 = std::chrono::steady_clock::now();
-
-            // 2. Build the mapping: destination_idx -> source_idx
+            // Build the mapping: destination_idx -> source_idx
             for (size_t i = 0; i < n_particles; i++) {
                 const size_t bin = cached_bins[i];
                 const size_t dest_idx = bin_counts[bin]++;
                 bin_particles[dest_idx] = i;
             }
 
-            // auto end4 = std::chrono::steady_clock::now();
-            // std::chrono::duration<double, std::milli> dur4 = end4 - start4;
-            // std::cout << "Block 4 (tls offsets) took: " << dur4.count() << "ms" << "\n";
-
-
-
-
-            // auto start5 = std::chrono::steady_clock::now();
             this->thread_executor.execute(particle_blocks.size(), [&](const size_t t_idx) {
                  const auto& block = particle_blocks[t_idx];
 
-                 // The block.start to block.stop range is now our exact sequential destination indices
-                 for (size_t dest_idx = block.start; dest_idx < block.stop; ++dest_idx) {
+                 for (size_t dest_idx : block) {
 
-                     // Read the source index from the mapping array you built in Step 4
                      const size_t src_idx = bin_particles[dest_idx];
-
-                     // GATHER: Random read from 'data', Sequential write to 'tmp'
                      tmp.copy_from(dest_idx, data, src_idx);
 
-                     // Update ID map sequentially
+                     // Update ID map
                      const auto id = static_cast<size_t>(data.id[src_idx]);
                      id_to_index_map[id] = static_cast<uint32_t>(dest_idx);
                  }
              });
 
-
-            // auto end5 = std::chrono::steady_clock::now();
-            // std::chrono::duration<double, std::milli> dur5 = end5 - start5;
-            // std::cout << "Block 5 (copy) took: " << dur5.count() << "ms" << "\n";
-
-
-            // End global timer
-            // auto total_end = std::chrono::steady_clock::now();
-            // std::chrono::duration<double, std::milli> total_dur = total_end - total_start;
-            //
-            // std::cout << "-----------------------------------" << "\n";
-            // std::cout << "Total execution time: " << total_dur.count() << "ms" << "\n\n";
-
-
+            // swap and update pointer caches
             std::swap(data, tmp);
             data.update_pointer_cache();
             tmp.update_pointer_cache();

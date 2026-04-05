@@ -23,7 +23,7 @@ namespace april::exec {
 
         BlockConfig() : min_tasks(1), target_elements_per_task(256), alignment(1) {}
 
-        explicit BlockConfig(const size_t n_threads,  const size_t oversubscription = 4, const size_t target_size = 256)
+        explicit BlockConfig(const size_t n_threads,  const size_t oversubscription = 4, const size_t target_size = 512)
             : min_tasks(n_threads * oversubscription),
               target_elements_per_task(target_size),
               alignment(CACHE_LINE_SIZE / sizeof(vec3::type)) {}  // aligned to cache line width

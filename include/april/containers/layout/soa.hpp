@@ -27,7 +27,7 @@ namespace april::container::layout {
         void bind_executor(Base::ThreadExecutor* raw_executor_ptr) {
             thread_executor.bind(raw_executor_ptr);
             pair_schedule_config = exec::BlockConfig(thread_executor.num_threads(), 2);
-            linear_schedule_config = exec::BlockConfig(thread_executor.num_threads(), 8, 1024);
+            linear_schedule_config = exec::BlockConfig(thread_executor.num_threads(), 8);
         }
 
         // INDEXING

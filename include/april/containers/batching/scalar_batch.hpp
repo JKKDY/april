@@ -34,6 +34,17 @@ namespace april::container::batching {
 		static constexpr size_t packed_size = packed::size();
 		alignas(64) packed::value_type idx_arr[packed_size];
 
+		// prefetch utilities not currently in use. Will need profiling to see if applicable anywhere
+		template <ParticleField F>
+		void prefetch(size_t i) const noexcept {
+			container.template prefetch_particle<F>(i);
+		}
+
+		template <ParticleField F>
+		void prefetch_nta(size_t i) const noexcept {
+			container.template prefetch_particle_nta<F>(i);
+		}
+
 		// VECTORIZED EXECUTION PATH
 		template<exec::IsKernel Kernel>
 	    void for_each_pair_packed(Kernel&& f) const {
@@ -177,6 +188,16 @@ namespace april::container::batching {
 		static constexpr size_t packed_size = packed::size();
 		alignas(64) packed::value_type idx_arr[packed_size];
 
+		// prefetch utilities not currently in use. Will need profiling to see if applicable anywhere
+		template <ParticleField F>
+		void prefetch(size_t i) const noexcept {
+			container.template prefetch_particle<F>(i);
+		}
+
+		template <ParticleField F>
+		void prefetch_nta(size_t i) const noexcept {
+			container.template prefetch_particle_nta<F>(i);
+		}
 
 		// VECTORIZED EXECUTION PATH
 		template<exec::IsKernel Kernel>
@@ -236,6 +257,7 @@ namespace april::container::batching {
 	            auto buffer1 = p1.broadcast();
 
 	            for (size_t j : body) {
+
 	                auto packed2 = container.template at_packed<K::Read, K::Write>(j);
 	                auto buffer2 = packed2.load_buffer();
 

@@ -448,7 +448,6 @@ namespace april::container {
 
 		template<ParticleField F>
 		auto invoke_get_field_ptr(this auto&& self, auto ... args) {
-			APRIL_ASSERT(i < self.capacity(), "Index lies outside of capacity: " + std::to_string(i));
 			return self.template get_field_ptr<F>(args...);
 		}
 

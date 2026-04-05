@@ -42,7 +42,7 @@ namespace april::container::layout {
         }
 
         [[nodiscard]] bool contains_id(const ParticleID id) const {
-            return id <= max_id();
+            return id < max_id();
         }
 
         [[nodiscard]] bool index_is_valid(const size_t index) const {

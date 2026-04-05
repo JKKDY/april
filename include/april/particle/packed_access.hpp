@@ -294,7 +294,7 @@ namespace april::particle::internal {
             if constexpr (has_field_v<ReadMask, ParticleField::mass>) mass = source.mass;
             if constexpr (has_field_v<ReadMask, ParticleField::state>) state = source.state;
             if constexpr (has_field_v<ReadMask, ParticleField::type>) type = source.type;
-            if constexpr (has_field_v<ReadMask, ParticleField::state>) id = source.id;
+            if constexpr (has_field_v<ReadMask, ParticleField::id>) id = source.id;
 
             if constexpr (has_field_v<ReadMask, ParticleField::attributes>) {
                 // Cast the AoS struct pointer to an arithmetic pointer
@@ -487,7 +487,7 @@ namespace april::particle::internal {
             update_field.template operator()<ParticleField::mass>(packed_ref.mass, mass);
 
             if constexpr (has_field_v<RWMask, ParticleField::state>) packed_ref.state = state;
-            if constexpr (has_field_v<RWMask, ParticleField::state>) packed_ref.type = type;
+            if constexpr (has_field_v<RWMask, ParticleField::type>) packed_ref.type = type;
 
             // ATTRIBUTES
             if constexpr (has_field_v<WOMask, ParticleField::attributes>) {

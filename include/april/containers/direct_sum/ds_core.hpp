@@ -219,23 +219,12 @@ namespace april::container::internal {
 
 
 		void build_type_batches(this auto&& self) {
-			// calculate the buckets for bucket sorting the particles by types
-			// outer vector holds buckets, inner vectors hold physical indexes to particles belonging to that bucket
-			std::vector<std::vector<size_t>> buckets;
-
-			self.for_each_particle(april::scalar_kernel<ParticleField::type>(
-				[&](const size_t i, const auto& p) {
-					const auto type_idx = static_cast<size_t>(p.type);
-					if (type_idx >= buckets.size()) {
-						buckets.resize(type_idx + 1);
-					}
-					buckets[type_idx].push_back(i);
-				}
-			));
 
 			// reorder into type-buckets
-			static_assert(requires {self.reorder_storage(buckets); }, "void rebuild_storage(bins) is not implemented");
-			self.reorder_storage(buckets);
+			const size_t n_bins = self.interaction_map.types.size();
+			self.reorder_storage(n_bins,[&](const size_t i) APRIL_FORCE_INLINE {
+				return static_cast<size_t>(*self.template get_field_ptr<ParticleField::type>(i));
+			});
 
 			// build bucket sorted storage and create batches
 			self.generate_batches();

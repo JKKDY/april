@@ -97,49 +97,86 @@ namespace april::container::layout {
         }
 
 
-        void reorder_storage(const std::vector<std::vector<size_t>>& new_bins) {
-            bin_starts.clear();
-            bin_sizes.clear();
+        std::vector<size_t> bin_counts;
+        std::vector<size_t> cached_bins;
+        std::vector<size_t> bin_counts_tls_buffers;
+        std::vector<size_t> bin_particles;
 
-            // calculate offset of each bin sequentially
-            std::vector<size_t> offsets(new_bins.size());
-            size_t current_offset = 0;
+        template <typename HashFunc>
+        requires std::invocable<HashFunc, size_t> &&
+            std::unsigned_integral<std::invoke_result_t<HashFunc, size_t>>
+        void reorder_storage(const size_t n_bins, HashFunc&& calc_bin) {
+            const size_t n_particles = this->particle_count();
+            const unsigned n_threads = this->thread_executor.num_threads();
 
-            for (size_t i = 0; i < new_bins.size(); ++i) {
-                bin_starts.push_back(current_offset);
-                bin_sizes.push_back(new_bins[i].size());
-                offsets[i] = current_offset;
-                current_offset += new_bins[i].size();
-            }
+            if (n_particles == 0 || n_bins == 0) return;
 
-            // Schedule tasks over the bins themselves
-            auto blocks = exec::make_linear_schedule(math::Range{0, new_bins.size()}, this->linear_schedule_config);
+            // Fast serial resizes
+            bin_starts.resize(n_bins);
+            bin_sizes.resize(n_bins);
+            bin_counts.resize(n_bins);
+            cached_bins.resize(n_particles);
+            bin_particles.resize(n_particles);
+            bin_counts_tls_buffers.assign(n_bins * n_threads, 0);
 
-            // Execute thread pool exactly ONCE
-            this->thread_executor.execute(blocks.size(), [&](const size_t b_idx) {
-                const auto& block = blocks[b_idx];
+            auto particle_blocks = exec::make_linear_schedule(math::Range{0, n_particles}, this->linear_schedule_config);
+            auto bin_blocks = exec::make_linear_schedule(math::Range{0, n_bins}, this->linear_schedule_config);
 
-                for (size_t bin_idx = block.start; bin_idx < block.stop; ++bin_idx) {
-                    const auto& bin = new_bins[bin_idx];
-                    if (bin.empty()) continue;
+            // each thread counts the number of particles per bin in its assigned particle blocks
+            this->thread_executor.execute(particle_blocks.size(), [&](const size_t t_idx) {
+                const auto& block = particle_blocks[t_idx];
+                auto* bin_counts_tls = &bin_counts_tls_buffers[exec::thread_index() * n_bins];
 
-                    const size_t start_offset = offsets[bin_idx];
+                for (size_t i = block.start; i < block.stop; ++i) {
+                    const size_t bin = calc_bin(i);
+                    cached_bins[i] = bin;
+                    ++bin_counts_tls[bin];
+                }
+            });
 
-                    for (size_t i = 0; i < bin.size(); ++i) {
-                        const size_t old_idx = bin[i];
-                        const size_t new_idx = start_offset + i;
+            // reduce to a single buffer
+            this->thread_executor.execute(bin_blocks.size(), [&](const size_t t_idx) {
+                const auto& bins = bin_blocks[t_idx];
 
-                        // copy particle (AoS copy)
-                        tmp[new_idx] = particles[old_idx];
+                for (const size_t bin : bins) bin_sizes[bin] = 0;
 
-                        // update id map (thread safe because IDs are unique)
-                        const auto id = tmp[new_idx].id;
-                        id_to_index_map[id] = new_idx;
+                for (unsigned i = 0; i < n_threads; i++) {
+                    for (const size_t bin : bins) {
+                        bin_sizes[bin] += bin_counts_tls_buffers[n_bins * i + bin];
                     }
                 }
             });
 
-            // swap old and new storage
+            // compute offsets (prefix sum)
+            size_t offset = 0;
+            for (size_t i = 0; i < n_bins; i++) {
+                bin_starts[i] = offset;
+                bin_counts[i] = offset;
+                offset += bin_sizes[i];
+            }
+
+            // Build the mapping: destination_idx -> source_idx
+            for (size_t i = 0; i < n_particles; i++) {
+                const size_t bin = cached_bins[i];
+                const size_t dest_idx = bin_counts[bin]++;
+                bin_particles[dest_idx] = i;
+            }
+
+            // gather copy into ping pong buffer
+            this->thread_executor.execute(particle_blocks.size(), [&](const size_t t_idx) {
+                 const auto& block = particle_blocks[t_idx];
+
+                 for (size_t dest_idx = block.start; dest_idx < block.stop; ++dest_idx) {
+                     const size_t src_idx = bin_particles[dest_idx];
+                     tmp[dest_idx] = particles[src_idx];
+
+                     // Update ID map
+                     const auto id = static_cast<size_t>(tmp[dest_idx].id);
+                     id_to_index_map[id] = static_cast<uint32_t>(dest_idx);
+                 }
+             });
+
+            // ping pong swap
             std::swap(particles, tmp);
         }
 

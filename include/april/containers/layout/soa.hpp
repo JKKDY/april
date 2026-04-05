@@ -97,20 +97,9 @@ namespace april::container::layout {
             tmp.resize(n);
         }
 
-
-        std::vector<size_t> flat_bin_sizes;
-        std::vector<size_t> flat_write_offsets;
-        std::vector<uint32_t> cached_target_bins;
-
-
         std::vector<size_t> bin_counts_tls_buffers;
-        std::vector<size_t> write_offsets_tls_buffers;
-        // std::vector<size_t> bin_starts2; // first particle index of each bin
-        // std::vector<size_t> bin_sizes2; // number of particles in each bin
-
         std::vector<size_t> bin_particles;
         std::vector<size_t> bin_counts;
-
         std::vector<size_t> cached_bins;
 
 
@@ -118,26 +107,22 @@ namespace april::container::layout {
         requires std::invocable<HashFunc, size_t> &&
             std::unsigned_integral<std::invoke_result_t<HashFunc, size_t>>
         void reorder_storage(const size_t n_bins, HashFunc&&calc_bin) {
-            // auto total_start = std::chrono::steady_clock::now();
-
             const size_t n_particles = this->particle_count();
             const unsigned n_threads = this->thread_executor.num_threads();
 
+            // resize buffers
             bin_starts.resize(n_bins);
             bin_sizes.resize(n_bins);
             bin_counts.resize(n_bins);
             cached_bins.resize(n_particles);
+            bin_particles.resize(n_particles);
+            bin_counts_tls_buffers.assign(n_bins * n_threads, 0);
 
+            // schedule over particles
             auto particle_blocks = exec::make_linear_schedule(math::Range{0, n_particles}, this->linear_schedule_config);
             auto bin_blocks = exec::make_linear_schedule(math::Range{0, n_bins}, this->linear_schedule_config);
 
-            bin_counts_tls_buffers.resize(n_bins * n_threads); // thread local buffers (tls: thread local storage)
-            write_offsets_tls_buffers.resize(n_bins * n_threads);
-
-            bin_particles.resize(n_particles);
-
             // each thread counts the number of particles per bin in its assigned particle blocks
-            bin_counts_tls_buffers.assign(bin_counts_tls_buffers.size(), 0);
             this->thread_executor.execute(particle_blocks.size(), [&](const size_t t_idx) {
                 const auto& block = particle_blocks[t_idx];
                 auto* bin_counts_tls = &bin_counts_tls_buffers[exec::thread_index() * n_bins];
@@ -177,11 +162,11 @@ namespace april::container::layout {
                 bin_particles[dest_idx] = i;
             }
 
+            // gather copy into ping pong buffer
             this->thread_executor.execute(particle_blocks.size(), [&](const size_t t_idx) {
                  const auto& block = particle_blocks[t_idx];
 
                  for (size_t dest_idx : block) {
-
                      const size_t src_idx = bin_particles[dest_idx];
                      tmp.copy_from(dest_idx, data, src_idx);
 

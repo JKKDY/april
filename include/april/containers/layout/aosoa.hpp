@@ -178,85 +178,136 @@ namespace april::container::layout {
             }
         }
 
-        void reorder_storage(const std::vector<std::vector<size_t>>& new_bins, const bool sentinel_pad = true) {
-            bin_starts.clear();
-            bin_sizes.clear();
 
-            std::vector<size_t> offsets(new_bins.size());
-            size_t n_chunks = 0;
+        std::vector<size_t> bin_counts;
+        std::vector<size_t> cached_bins;
+        std::vector<size_t> bin_counts_tls_buffers;
+        std::vector<size_t> bin_particles;
 
-            for (size_t i = 0; i < new_bins.size(); ++i) {
-                const size_t start_idx = n_chunks * chunk_size;
-                bin_starts.push_back(start_idx);
-                bin_sizes.push_back(new_bins[i].size());
-                offsets[i] = start_idx;
+        template <typename HashFunc>
+        requires std::invocable<HashFunc, size_t> &&
+            std::unsigned_integral<std::invoke_result_t<HashFunc, size_t>>
+        void reorder_storage(const size_t n_bins, HashFunc&& calc_bin) {
+            const size_t n_threads = this->thread_executor.num_threads();
+            const size_t old_capacity = this->particle_capacity;
 
-                if (!new_bins[i].empty()) {
-                    n_chunks += (new_bins[i].size() + chunk_size - 1) / chunk_size;
+            if (n_particles == 0 || n_bins == 0) return;
+
+            // resize buffers
+            bin_starts.resize(n_bins);
+            bin_sizes.resize(n_bins);
+            bin_counts.resize(n_bins);
+            cached_bins.resize(old_capacity);
+            bin_counts_tls_buffers.assign(n_bins * n_threads, 0);
+
+            // schedule over the capacity (including holes)
+            auto capacity_blocks = exec::make_linear_schedule(math::Range{0, old_capacity}, this->linear_schedule_config);
+            auto bin_blocks = exec::make_linear_schedule(math::Range{0, n_bins}, this->linear_schedule_config);
+
+            // each thread counts the number of particles per bin in its assigned particle blocks
+            this->thread_executor.execute(capacity_blocks.size(), [&](const size_t t_idx) {
+                const auto& block = capacity_blocks[t_idx];
+                auto* bin_counts_tls = &bin_counts_tls_buffers[exec::thread_index() * n_bins];
+
+                for (size_t i = block.start; i < block.stop; ++i) {
+                    // skip sentinel/invalid particles inline
+                    const auto [c, l] = locate(i);
+                    if (data[c].state[l] == ParticleState::INVALID) continue;
+
+                    const size_t bin = calc_bin(i);
+                    cached_bins[i] = bin;
+                    ++bin_counts_tls[bin];
                 }
-            }
+            });
 
-            particle_capacity = n_chunks * chunk_size;
-            bin_starts.push_back(particle_capacity);
-            tmp.resize(n_chunks);
+            // reduce to a single buffer
+            this->thread_executor.execute(bin_blocks.size(), [&](const size_t t_idx) {
+                const auto& bins = bin_blocks[t_idx];
 
-            auto bin_blocks = exec::make_linear_schedule(math::Range{0, new_bins.size()}, this->linear_schedule_config);
+                for (const size_t bin : bins) bin_sizes[bin] = 0;
 
-            this->thread_executor.execute(bin_blocks.size(), [&](const size_t b_idx) {
-                const auto& block = bin_blocks[b_idx];
-
-                for (size_t bin_idx = block.start; bin_idx < block.stop; ++bin_idx) {
-                    const auto& bin = new_bins[bin_idx];
-                    if (bin.empty()) continue;
-
-                    const size_t start_offset = offsets[bin_idx];
-
-                    size_t current_new_idx = start_offset;
-                    size_t dst_c = start_offset / chunk_size;
-                    size_t dst_l = 0;
-
-                    for (const size_t old_idx : bin) {
-                        auto [src_c, src_l] = locate(old_idx);
-
-                        auto& src_chunk = data[src_c];
-                        auto& dst_chunk = tmp[dst_c];
-
-                        // Copy particle fields manually
-                        dst_chunk.copy_from(dst_l, src_l, src_chunk);
-
-                        id_to_index_map[dst_chunk.id[dst_l]] = current_new_idx;
-
-                        ++current_new_idx;
-                        ++dst_l;
-                        if (dst_l == chunk_size) {
-                            dst_l = 0;
-                            ++dst_c;
-                        }
-                    }
-
-                    // Sentinel pad logic
-                    if (sentinel_pad) {
-                        const size_t remainder = bin.size() % chunk_size;
-                        if (remainder > 0) {
-                            // dst_c is already pointing at the correct final chunk
-                            auto& dst_chunk = tmp[dst_c];
-
-                            for (size_t pad_l = remainder; pad_l < chunk_size; ++pad_l) {
-                                dst_chunk.state[pad_l] = ParticleState::INVALID;
-                                dst_chunk.pos_x[pad_l] = 1e50;
-                                dst_chunk.pos_y[pad_l] = 1e50;
-                                dst_chunk.pos_z[pad_l] = 1e50;
-                                dst_chunk.id[pad_l]    = std::numeric_limits<ParticleID>::max();
-                                dst_chunk.mass[pad_l]  = 1.0;
-                            }
-                        }
+                for (unsigned i = 0; i < n_threads; i++) {
+                    for (const size_t bin : bins) {
+                        bin_sizes[bin] += bin_counts_tls_buffers[n_bins * i + bin];
                     }
                 }
             });
 
+            // compute chunk aligned offsets (prefix sum) (serial)
+            size_t current_chunk_offset = 0;
+            size_t total_chunks = 0;
+
+            for (size_t i = 0; i < n_bins; ++i) {
+                bin_starts[i] = current_chunk_offset;
+                bin_counts[i] = current_chunk_offset;
+
+                if (bin_sizes[i] > 0) {
+                    // Calculate chunks required for this bin
+                    const size_t chunks_for_bin = (bin_sizes[i] + chunk_size - 1) / chunk_size;
+
+                    total_chunks += chunks_for_bin;
+                    current_chunk_offset += chunks_for_bin * chunk_size;
+                }
+            }
+
+            // calcualte new capacity and update buffers
+            const size_t new_capacity = total_chunks * chunk_size;
+            tmp.resize(total_chunks);
+            bin_particles.assign(new_capacity, std::numeric_limits<size_t>::max());
+
+            // Build the mapping: destination_idx -> source_idx (serial)
+            for (size_t i = 0; i < old_capacity; ++i) {
+                const auto [c, l] = locate(i);
+                if (data[c].state[l] == ParticleState::INVALID) continue;
+
+                const size_t bin = cached_bins[i];
+                const size_t dest_idx = bin_counts[bin]++;
+                bin_particles[dest_idx] = i;
+            }
+
+            // gather copy into ping pong buffer (chunk by chunk)
+            auto chunk_blocks = exec::make_linear_schedule(math::Range{0, total_chunks}, this->linear_schedule_config);
+
+            this->thread_executor.execute(chunk_blocks.size(), [&](const size_t t_idx) {
+                 const auto& block = chunk_blocks[t_idx];
+
+                 // Loop over destination CHUNKS
+                 for (size_t dst_c = block.start; dst_c < block.stop; ++dst_c) {
+                     auto& dst_chunk = tmp[dst_c];
+
+                     // Loop over destination LANES
+                     for (size_t dst_l = 0; dst_l < chunk_size; ++dst_l) {
+                         const size_t dest_idx = dst_c * chunk_size + dst_l;
+                         const size_t src_idx = bin_particles[dest_idx];
+
+                         if (src_idx == std::numeric_limits<size_t>::max()) {
+                             // Write Sentinel Padding
+                             dst_chunk.state[dst_l] = ParticleState::INVALID;
+                             dst_chunk.pos_x[dst_l] = 1e50;
+                             dst_chunk.pos_y[dst_l] = 1e50;
+                             dst_chunk.pos_z[dst_l] = 1e50;
+                             dst_chunk.id[dst_l]    = std::numeric_limits<ParticleID>::max();
+                             dst_chunk.type[dst_l]  = std::numeric_limits<ParticleType>::max();
+                             dst_chunk.mass[dst_l]  = 1.0;
+                         } else {
+                             // Gather Valid Particle
+                             const auto [src_c, src_l] = locate(src_idx);
+                             dst_chunk.copy_from(dst_l, src_l, data[src_c]);
+
+                             // Update ID map
+                             const auto id = static_cast<size_t>(dst_chunk.id[dst_l]);
+                             id_to_index_map[id] = static_cast<uint32_t>(dest_idx);
+                         }
+                     }
+                 }
+             });
+
+            // Swap and update structural tracking
             std::swap(data, tmp);
+            this->particle_capacity = new_capacity;
             update_cache();
         }
+
 
         // return physical index range
         [[nodiscard]] math::Range get_physical_bin_range(const size_t type) const {

@@ -96,6 +96,96 @@ namespace april::container::layout {
         }
 
 
+        // PREFETCHING
+      // ----------------
+       // AOSOA PREFETCHING
+       // ----------------
+
+       template <ParticleField Mask>
+       APRIL_FORCE_INLINE void prefetch_packed(this const auto& self, size_t c, size_t lane_idx = 0) {
+           // Standard prefetch (Temporal Locality = 3) - For outer loops
+           const auto& chunk = self.chunks[c]; // Adjust this based on how your container stores chunks
+
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>) {
+               APRIL_PREFETCH(&chunk.frc_x[lane_idx]);
+               APRIL_PREFETCH(&chunk.frc_y[lane_idx]);
+               APRIL_PREFETCH(&chunk.frc_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>) {
+               APRIL_PREFETCH(&chunk.pos_x[lane_idx]);
+               APRIL_PREFETCH(&chunk.pos_y[lane_idx]);
+               APRIL_PREFETCH(&chunk.pos_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>) {
+               APRIL_PREFETCH(&chunk.vel_x[lane_idx]);
+               APRIL_PREFETCH(&chunk.vel_y[lane_idx]);
+               APRIL_PREFETCH(&chunk.vel_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>) {
+               APRIL_PREFETCH(&chunk.old_x[lane_idx]);
+               APRIL_PREFETCH(&chunk.old_y[lane_idx]);
+               APRIL_PREFETCH(&chunk.old_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>) {
+               APRIL_PREFETCH(&chunk.mass[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>) {
+               APRIL_PREFETCH(&chunk.state[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>) {
+               APRIL_PREFETCH(&chunk.type[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>) {
+               APRIL_PREFETCH(&chunk.id[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>) {
+               APRIL_PREFETCH(&chunk.attributes[lane_idx]);
+           }
+       }
+
+       template <ParticleField Mask>
+       APRIL_FORCE_INLINE void prefetch_packed_nta(this const auto& self, size_t c, size_t lane_idx = 0) {
+           // NTA prefetch (Locality = 0) - For inner streaming loops
+           const auto& chunk = self.chunks[c];
+
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>) {
+               APRIL_PREFETCH_NTA(&chunk.frc_x[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.frc_y[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.frc_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>) {
+               APRIL_PREFETCH_NTA(&chunk.pos_x[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.pos_y[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.pos_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>) {
+               APRIL_PREFETCH_NTA(&chunk.vel_x[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.vel_y[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.vel_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>) {
+               APRIL_PREFETCH_NTA(&chunk.old_x[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.old_y[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.old_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>) {
+               APRIL_PREFETCH_NTA(&chunk.mass[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>) {
+               APRIL_PREFETCH_NTA(&chunk.state[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>) {
+               APRIL_PREFETCH_NTA(&chunk.type[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>) {
+               APRIL_PREFETCH_NTA(&chunk.id[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>) {
+               APRIL_PREFETCH_NTA(&chunk.attributes[lane_idx]);
+           }
+       }
+
+
         // QUERIES
         [[nodiscard]] bool index_is_valid(const size_t index) const {
             if (index >= particle_capacity) return false;
@@ -325,9 +415,14 @@ namespace april::container::layout {
         }
 
         template <ParticleField F>
-        auto get_field_ptr(this auto&& self, const size_t i) {
-            // locate data
+        APRIL_FORCE_INLINE auto get_field_ptr(this auto&& self, size_t i) {
+            // locate data, then forward to the fast path
             const auto [chunk_idx, lane_idx] = self.locate(i);
+            return self.template get_field_ptr<F>(chunk_idx, lane_idx);
+        }
+
+        template <ParticleField F>
+        APRIL_FORCE_INLINE auto get_field_ptr(this auto&& self, size_t chunk_idx, size_t lane_idx) {            // locate data
             auto& chunk = self.ptr_chunks[chunk_idx];
 
             // return vector pointer
@@ -340,7 +435,7 @@ namespace april::container::layout {
             else if constexpr (F == ParticleField::old_position)
                 return math::Vec3Ptr{&chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx]};
 
-                // return scalar pointer
+            // return scalar pointer
             else if constexpr (F == ParticleField::mass) return &chunk.mass[lane_idx];
             else if constexpr (F == ParticleField::state) return &chunk.state[lane_idx];
             else if constexpr (F == ParticleField::type) return &chunk.type[lane_idx];
@@ -349,42 +444,7 @@ namespace april::container::layout {
         }
 
     private:
-        alignas(64) packed::value_type idx_arr[packed::size()]{};
-
-        template <ParticleField Read, ParticleField Write>
-        [[nodiscard]] auto access_particle(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-            constexpr bool is_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-
-            static_assert(!(is_const && Write != ParticleField::none),
-                          "[APRIL] Cannot request write permissions (WriteMask != none) on a const Container. "
-                          "Either drop the write mask or ensure the container is mutable.");
-
-            particle::internal::ParticleSource<Read, Write, ParticleAttributes> src;
-            constexpr auto Mask = Read | Write;
-
-            auto& chunk = self.ptr_chunks[chunk_idx];
-
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
-                src.force = math::Vec3Ptr{&chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx]};
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
-                src.position = math::Vec3Ptr{&chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx]};
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
-                src.velocity = math::Vec3Ptr{&chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx]};
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
-                src.old_position = math::Vec3Ptr{&chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx]};
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
-                src.mass = &chunk.mass[lane_idx];
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
-                src.state = &chunk.state[lane_idx];
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
-                src.type = &chunk.type[lane_idx];
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
-                src.id = &chunk.id[lane_idx];
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
-                src.attributes = &chunk.attributes[lane_idx];
-
-            return src;
-        }
+        alignas(64) packed::value_type idx_arr[packed::size()]{}; // for creating packed masks quickly
 
         template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {

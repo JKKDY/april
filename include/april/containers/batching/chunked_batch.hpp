@@ -61,6 +61,14 @@ namespace april::container::batching {
             APRIL_FORCE_INLINE auto packed(size_t chunk, size_t i) const {
                 return container.template at_packed<K::Read, K::Write>(chunk, i);
             }
+
+            APRIL_FORCE_INLINE void prefetch(size_t, size_t = 0) const {
+                // container.template prefetch_particle<K::Read | K::Write>(chunk, i);
+            }
+
+            APRIL_FORCE_INLINE void prefetch_nta(size_t , size_t = 0) const {
+                // container.template prefetch_particle_nta<K::Read | K::Write>(chunk, i);
+            }
         };
         // Deduction guide for convenience
         template <typename Container, typename Kernel>
@@ -149,10 +157,10 @@ namespace april::container::batching {
 
             // body vs body
             for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
-                APRIL_PREFETCH(chunks + c1 + 1);
+                ctx.prefetch( c1 + 1);
 
                 for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
-                    APRIL_PREFETCH(chunks + c2 + 1);
+                    ctx.prefetch_nta( c2 + 1);
 
                     for (size_t i = 0; i < chunk_size; ++i) {
                         auto p1 = ctx.scalar(c1, i);
@@ -166,7 +174,7 @@ namespace april::container::batching {
 
             // body 1 vs tail 2 (iterate full chunks of R1 against the single partial chunk of R2)
             for (size_t c1 = range1_chunks.start; c1 < c1_body_end; ++c1) {
-                APRIL_PREFETCH(chunks + c1 + 1);
+                ctx.prefetch( c1 + 1);
                 for (size_t i = 0; i < chunk_size; ++i) {
                     auto p1 = ctx.scalar(c1, i);
                     for (size_t j = 0; j < limit2_tail; ++j) {
@@ -178,7 +186,7 @@ namespace april::container::batching {
 
             // body 2 vs tail 1 (iterate full chunks of R2 against the single partial chunk of R1
             for (size_t c2 = range2_chunks.start; c2 < c2_body_end; ++c2) {
-                APRIL_PREFETCH(chunks + c2 + 1);
+                ctx.prefetch( c2 + 1);
                 for (size_t i = 0; i < limit1_tail; ++i) {
                     auto p1 = ctx.scalar(c1_body_end, i);
                     for (size_t j = 0; j < chunk_size; ++j) {
@@ -253,7 +261,7 @@ namespace april::container::batching {
 
             // 1. full SIMD blocks in range 1 (Chunks) vs full SIMD blocks in range 2 (Chunks + Tail)
             for (size_t c1 : full_chunks1) {
-                APRIL_PREFETCH(chunks + c1 + 1);
+                ctx.prefetch( c1 + 1);
                 APRIL_UNROLL_LOOP_N(iter_chunks)
                 for (size_t i = 0; i < chunk_size; i += packed_size) {
                     auto packed1 = ctx.packed(c1, i);
@@ -261,7 +269,7 @@ namespace april::container::batching {
 
                     // a. sweep buffer1 across all full SIMD blocks in Range 2 body chunks [C2]
                     for (size_t c2 : full_chunks2) {
-                        APRIL_PREFETCH(chunks + c2 + 1);
+                        ctx.prefetch_nta( c2 + 1);
                         APRIL_UNROLL_LOOP_N(iter_chunks)
                         for (size_t j = 0; j < chunk_size; j += packed_size) {
                             interact_block_vs_block(buffer1, ctx.packed(c2, j), f);
@@ -284,7 +292,7 @@ namespace april::container::batching {
 
                 // a. Interaction with all full chunks in the Range 2 body [C2]
                 for (size_t c2 : full_chunks2) {
-                    APRIL_PREFETCH(chunks + c2 + 1);
+                    ctx.prefetch_nta( c2 + 1);
                     APRIL_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size) {
                         interact_block_vs_block(buffer1, ctx.packed(c2, j), f);
@@ -335,7 +343,7 @@ namespace april::container::batching {
 
                 // a. Interaction with full chunks in Range 1 body
                 for (size_t c1 : full_chunks1) {
-                    APRIL_PREFETCH(chunks + c1 + 1);
+                    ctx.prefetch_nta(c1 + 1);
                     APRIL_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size)
                         interact_block1_vs_scalar2(ctx.packed(c1, j), buffer2, f);
@@ -355,7 +363,7 @@ namespace april::container::batching {
 
                 // a. Interaction with full chunks in Range 2 body
                 for (size_t c2 : full_chunks2) {
-                    APRIL_PREFETCH(chunks + c2 + 1);
+                    ctx.prefetch_nta( c2 + 1);
                     APRIL_UNROLL_LOOP_N(iter_chunks)
                     for (size_t j = 0; j < chunk_size; j += packed_size)
                         interact_scalar1_vs_block2(buffer1, ctx.packed(c2, j), f);
@@ -446,7 +454,7 @@ namespace april::container::batching {
             const size_t limit_tail = (range_tail == 0) ? chunk_size : range_tail;
 
             for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
-                APRIL_PREFETCH(chunks + c1 + 1);
+                ctx.prefetch( c1 + 1);
 
                 // chunk self interaction
                 for (size_t i = 0; i < chunk_size; ++i) {
@@ -459,7 +467,7 @@ namespace april::container::batching {
 
                 // interaction with all other chunks
                 for (size_t c2 = c1 + 1; c2 < c_body_end; ++c2) {
-                    APRIL_PREFETCH(chunks + c2 + 1);
+                    ctx.prefetch_nta( c2 + 1);
                     for (size_t i = 0; i < chunk_size; ++i) {
                         auto p1 = ctx.scalar(c1, i);
                         for (size_t j = 0; j < chunk_size; ++j) {
@@ -472,7 +480,7 @@ namespace april::container::batching {
 
             // body vs tail (every body chunk with tail chunk)
             for (size_t c1 = range_chunks.start; c1 < c_body_end; ++c1) {
-                APRIL_PREFETCH(chunks + c1 + 1);
+                ctx.prefetch( c1 + 1);
                 for (size_t i = 0; i < chunk_size; ++i) {
                     auto p1 = ctx.scalar(c1, i);
                     for (size_t j = 0; j < limit_tail; ++j) {
@@ -575,7 +583,7 @@ namespace april::container::batching {
 
             // 1. all simd in full chunks vs all simd in full chunks + full tail + partial particles
             for (size_t c1 : full_chunks) {
-                APRIL_PREFETCH(chunks + c1 + 1);
+                ctx.prefetch( c1 + 1);
 
                 APRIL_UNROLL_LOOP_N(iter_chunks)
                 for (size_t i = 0; i < chunk_size; i += packed_size) {
@@ -592,7 +600,7 @@ namespace april::container::batching {
 
                     // c. inter-chunk interactions (Block i vs all Blocks in c2 where c2 > c1)
                     for (size_t c2 = c1 + 1; c2 < full_chunks.stop; ++c2) {
-                        APRIL_PREFETCH(chunks + c2 + 1);
+                        ctx.prefetch_nta( c2 + 1);
                         APRIL_UNROLL_LOOP_N(iter_chunks)
                         for (size_t j = 0; j < chunk_size; j += packed_size) {
                             interact_block_vs_block(buffer1, ctx.packed(c2, j), f);

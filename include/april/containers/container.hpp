@@ -95,6 +95,74 @@ namespace april::container {
 		}
 
 
+		// ----------------
+		// PREFETCHING
+		// ----------------
+		template <ParticleField Mask>
+	    APRIL_FORCE_INLINE void prefetch_particle(this const auto& self, auto... args) {
+
+	        // Standard prefetch (Temporal Locality = 3) - Use for outer loops
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
+	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::force>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
+	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::position>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
+	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::velocity>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
+	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::old_position>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
+	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::mass>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
+	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::state>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
+	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::type>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
+	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::id>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
+	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::attributes>(args...));
+	    }
+
+	    template <ParticleField Mask>
+	    APRIL_FORCE_INLINE void prefetch_particle_nta(this const auto& self, auto... args) {
+
+	        // Non-Temporal Access prefetch (Locality = 0) - Use for inner streaming loops
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
+	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::force>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
+	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::position>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
+	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::velocity>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
+	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::old_position>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
+	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::mass>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
+	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::state>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
+	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::type>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
+	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::id>(args...));
+
+	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
+	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::attributes>(args...));
+	    }
+
+
 
 		// ------------------
 		// PARTICLE ITERATION
@@ -266,6 +334,29 @@ namespace april::container {
 		const core::Box domain; // Note: in the future this may be adjustable during run time
 		exec::ExecutorRef<ThreadExecutor> thread_executor;
 
+		// Helper to evaluate and execute Standard Prefetches at compile time
+		template <typename T>
+		APRIL_FORCE_INLINE static void execute_prefetch(const T& field_data) {
+			if constexpr (requires { field_data.prefetch(); }) {
+				// It has a prefetch method (e.g., Vec3Ptr)
+				field_data.prefetch();
+			} else if constexpr (std::is_pointer_v<std::decay_t<T>>) {
+				// It's a raw pointer (e.g., double*)
+				APRIL_PREFETCH(field_data);
+			}
+			// If neither, do nothing
+		}
+
+		// Helper to evaluate and execute NTA Prefetches at compile time
+		template <typename T>
+		APRIL_FORCE_INLINE static void execute_prefetch_nta(const T& field_data) {
+			if constexpr (requires { field_data.prefetch_nta(); }) {
+				field_data.prefetch_nta();
+			} else if constexpr (std::is_pointer_v<std::decay_t<T>>) {
+				APRIL_PREFETCH_NTA(field_data);
+			}
+		}
+
 		template<exec::IsKernel Kernel>
 		static auto adapt_indexed_kernel(Kernel && kernel) {
 			return exec::make_kernel_wrapper<Kernel>(
@@ -307,7 +398,6 @@ namespace april::container {
 			auto buffered_kernel = adapt_buffered_kernel(std::move(indexed_kernel));
 			return buffered_kernel;
 		}
-
 
 
 		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
@@ -357,9 +447,9 @@ namespace april::container {
 		}
 
 		template<ParticleField F>
-		auto invoke_get_field_ptr(this auto&& self, size_t i) {
+		auto invoke_get_field_ptr(this auto&& self, auto ... args) {
 			APRIL_ASSERT(i < self.capacity(), "Index lies outside of capacity: " + std::to_string(i));
-			return self.template get_field_ptr<F>(i);
+			return self.template get_field_ptr<F>(args...);
 		}
 
 		template<ParticleField F>
@@ -372,7 +462,7 @@ namespace april::container {
 		// PARTICLE DATA ACCESSORS
 		//------------------------
 		template<ParticleField Read, ParticleField Write>
-		[[nodiscard]] auto access_particle(this auto&& self, const size_t i) {
+		[[nodiscard]] auto access_particle(this auto&& self, const auto ... args) {
 
 			constexpr bool is_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 
@@ -384,23 +474,23 @@ namespace april::container {
 			constexpr auto Mask = Read | Write;
 
 			if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
-				src.force = self.template invoke_get_field_ptr<ParticleField::force>(i);
+				src.force = self.template invoke_get_field_ptr<ParticleField::force>(args...);
 			if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
-				src.position = self.template invoke_get_field_ptr<ParticleField::position>(i);
+				src.position = self.template invoke_get_field_ptr<ParticleField::position>(args...);
 			if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
-				src.velocity = self.template invoke_get_field_ptr<ParticleField::velocity>(i);
+				src.velocity = self.template invoke_get_field_ptr<ParticleField::velocity>(args...);
 			if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
-				src.old_position = self.template invoke_get_field_ptr<ParticleField::old_position>(i);
+				src.old_position = self.template invoke_get_field_ptr<ParticleField::old_position>(args...);
 			if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
-				src.mass = self.template invoke_get_field_ptr<ParticleField::mass>(i);
+				src.mass = self.template invoke_get_field_ptr<ParticleField::mass>(args...);
 			if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
-				src.state = self.template invoke_get_field_ptr<ParticleField::state>(i);
+				src.state = self.template invoke_get_field_ptr<ParticleField::state>(args...);
 			if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
-				src.type = self.template invoke_get_field_ptr<ParticleField::type>(i);
+				src.type = self.template invoke_get_field_ptr<ParticleField::type>(args...);
 			if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
-				src.id = self.template invoke_get_field_ptr<ParticleField::id>(i);
+				src.id = self.template invoke_get_field_ptr<ParticleField::id>(args...);
 			if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
-				src.attributes = self.template invoke_get_field_ptr<ParticleField::attributes>(i);
+				src.attributes = self.template invoke_get_field_ptr<ParticleField::attributes>(args...);
 
 			return src;
 		}

@@ -359,6 +359,18 @@ namespace april::math {
         Vec3Proxy<T> operator*() const {
             return Vec3Proxy<T>(*x, *y, *z);
         }
+
+        APRIL_FORCE_INLINE void prefetch() const {
+            APRIL_PREFETCH(x);
+            APRIL_PREFETCH(y);
+            APRIL_PREFETCH(z);
+        }
+
+        APRIL_FORCE_INLINE void prefetch_nta() const {
+            APRIL_PREFETCH_NTA(x);
+            APRIL_PREFETCH_NTA(y);
+            APRIL_PREFETCH_NTA(z);
+        }
     };
 
 

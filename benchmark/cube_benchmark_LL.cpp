@@ -59,20 +59,20 @@ int main() {
 			RunTimeConfig<exec::Executor>,
 			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
 		{} cfg;
-		cfg.executer_config.n_threads = 1;
+		cfg.executer_config.n_threads = 4;
 
 		std::cout << " core: " << cfg.executer_config.n_threads << std::endl;
 
 		auto system = build_system(env, container, cfg);
 		constexpr double dt = 0.005;
-		constexpr int steps  = 100;
+		constexpr int steps  = 20;
 
 		VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
 
-		integrator.run_for_steps(dt, 20);
+		integrator.run_for_steps(dt, 5);
 
 		integrator.add_monitor(Benchmark());
-		integrator.add_monitor(ProgressBar(Trigger::always()));
+		// integrator.add_monitor(ProgressBar(Trigger::always()));
 			// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
 		integrator.run_for_steps(dt, steps);
 		break;

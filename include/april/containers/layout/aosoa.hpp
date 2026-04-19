@@ -296,7 +296,7 @@ namespace april::container::layout {
 
             // each thread counts the number of particles per bin in its assigned particle blocks
             this->thread_executor.execute(capacity_blocks.size(), [&](const size_t t_idx) {
-                APRIL_ASSERT(exec::thread_index() >= 0 && exec::thread_index() < this->thread_executor.num_threads(),
+                APRIL_ASSERT(exec::thread_index() < this->thread_executor.num_threads(),
                       "[APRIL] exec::thread_index() must be in range [0, executor.num_threads()]. "
                       "Verify that the executor sets ScopedThreadContext correctly");
 

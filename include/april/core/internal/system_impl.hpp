@@ -193,6 +193,9 @@ namespace april {
 	    	// if the particle is inside the domain
 	        auto boundary_condition_inside = [&]<typename B>(const B & bc) {
 	            thread_executor.execute(blocks.size(), [&](const size_t b_idx) APRIL_FORCE_INLINE {
+	            	APRIL_ASSERT(exec::thread_index() >= 0 && exec::thread_index() < thread_executor.num_threads(),
+	            		"[APRIL] exec::thread_index() must be in range [0, executor.num_threads()]. "
+						"Verify that the executor sets ScopedThreadContext correctly");
 	                const auto& block = blocks[b_idx];
 	                auto& local_buffer = thread_update_buffers[exec::thread_index()].buffer;
 

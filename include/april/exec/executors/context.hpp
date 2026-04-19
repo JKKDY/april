@@ -27,7 +27,7 @@ namespace april::exec {
     }
 
     // get current index of thread (within its executor) (safe)
-    [[nodiscard]] inline int thread_index() noexcept {
+    [[nodiscard]] inline unsigned thread_index() noexcept {
         return internal::current_thread_id < 0 ? 0 : internal::current_thread_id;
     }
 

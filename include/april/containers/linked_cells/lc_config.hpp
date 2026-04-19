@@ -88,7 +88,7 @@ namespace april::container::internal {
 			return self;
 		}
 
-		auto&& with_scheduling(this auto&& self, std::function<size_t(size_t, size_t, size_t)> fn) {
+		auto&& with_scheduling(this auto&& self, std::function<size_t(size_t, size_t, size_t, uint3)> fn) {
 			self.schedule_phases = std::move(fn);
 			return self;
 		}

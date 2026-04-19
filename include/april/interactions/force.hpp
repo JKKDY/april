@@ -61,10 +61,16 @@ namespace april::interactions {
                         "[APRIL] Force: eval_vector must return the same vector type as 'r' (pvec3)");
                     return self.eval_vector(p1, p2, r);
                 }
-                // Fallback to Generic
+                // Try Templated Generic Next
+                else if constexpr (requires { self.template eval<is_vector>(p1, p2, r); }) {
+                    static_assert(requires { { self.template eval<is_vector>(p1, p2, r) } -> std::same_as<ReturnType>; },
+                        "[APRIL] Force: eval<true> must return the same vector type as 'r' (pvec3)");
+                    return self.template eval<is_vector>(p1, p2, r);
+                }
+                // Fallback to Non-Templated Generic
                 else {
                     static_assert(requires { { self.eval(p1, p2, r) } -> std::same_as<ReturnType>; },
-                        "[APRIL] Force: must implement eval(p1, p2, r) or eval_vector(p1, p2, r)");
+                        "[APRIL] Force: must implement eval(p1, p2, r), eval<packed>(p1, p2, r), or eval_vector(p1, p2, r)");
                     return self.eval(p1, p2, r);
                 }
             }
@@ -75,10 +81,16 @@ namespace april::interactions {
                         "[APRIL] Force: eval_scalar must return the same vector type as 'r' (vec3)");
                     return self.eval_scalar(p1, p2, r);
                 }
-                // Fallback to Generic
+                // Try Templated Generic Next
+                else if constexpr (requires { self.template eval<is_vector>(p1, p2, r); }) {
+                    static_assert(requires { { self.template eval<is_vector>(p1, p2, r) } -> std::same_as<ReturnType>; },
+                        "[APRIL] Force: eval<false> must return the same vector type as 'r' (vec3)");
+                    return self.template eval<is_vector>(p1, p2, r);
+                }
+                // Fallback to Non-Templated Generic
                 else {
                     static_assert(requires { { self.eval(p1, p2, r) } -> std::same_as<ReturnType>; },
-                        "[APRIL] Force: must implement eval(p1, p2, r) or eval_scalar(p1, p2, r)");
+                        "[APRIL] Force: must implement eval(p1, p2, r), eval<packed>(p1, p2, r), or eval_scalar(p1, p2, r)");
                     return self.eval(p1, p2, r);
                 }
             }

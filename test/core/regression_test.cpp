@@ -27,7 +27,6 @@ namespace baseline {
         vec3 position = {};
         vec3 old_position = {};
         vec3 force = {};
-        vec3 old_force = {};
         vec3 velocity = {};
     };
 
@@ -63,11 +62,11 @@ namespace baseline {
         for (int step = 0; step < STEPS; ++step) {
             for (auto& p : particles) {
                 p.old_position = p.position;
-                p.position += DT * p.velocity + (DT * DT) / (2 * MASS) * p.force;
+                p.velocity += (DT / 2.0) * (p.force / MASS);
+                p.position += DT * p.velocity;
             }
 
             for (auto& p : particles) {
-                p.old_force = p.force;
                 p.force = {};
             }
 
@@ -85,7 +84,7 @@ namespace baseline {
             }
 
             for (auto& p : particles) {
-                p.velocity += DT / 2.0 / MASS * (p.force + p.old_force);
+                p.velocity += (DT / 2.0) * (p.force / MASS);
             }
         }
 

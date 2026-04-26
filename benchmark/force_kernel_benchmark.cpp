@@ -5,6 +5,7 @@
 #include "april/containers/direct_sum/ds_aos.hpp"
 #include "april/containers/direct_sum/ds_soa.hpp"
 #include "april/containers/direct_sum/ds_aosoa.hpp"
+#include "april/exec/executors/sequential_executor.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;
@@ -90,6 +91,11 @@ int main() {
 
 	auto force = LennardJones(epsilon, sigma, interactions::no_cutoff);
 
+	const struct:
+		 RunTimeConfig<exec::SequentialExecutor>,
+		 CompileTimeConfig<ParallelPolicy::Serial, VectorPolicy::Scalar>
+	 {} cfg;
+
 	{
 		Environment env (forces<LennardJones>, boundaries<ReflectiveBoundary>);
 		env.add_force(force, to_type(0));
@@ -101,7 +107,7 @@ int main() {
 		}
 
 		constexpr auto container = DirectSum<Layout::AoS>();
-		auto system = build_system(env, container);
+		auto system = build_system(env, container, cfg);
 
 		Benchmark::BenchmarkResult bench_results{};
 		VelocityVerlet integrator(system, monitors<Benchmark>);
@@ -127,7 +133,7 @@ int main() {
 		}
 
 		constexpr auto container = DirectSum<Layout::AoS>();
-		auto system = build_system(env, container);
+		auto system = build_system(env, container, cfg);
 
 		double total_f_time = 0.0;
 

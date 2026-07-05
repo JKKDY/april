@@ -24,7 +24,7 @@ namespace april {
 			particle.position = particle.old_position + t * diff + (1-t) * diff_reflected;
 			particle.velocity[ax] = - particle.velocity[ax];
 
-			AP_ASSERT(particle.position[ax] >= domain_box.min[ax] && particle.position[ax] <= domain_box.max[ax],
+			APRIL_ASSERT(particle.position[ax] >= domain_box.min[ax] && particle.position[ax] <= domain_box.max[ax],
 				"particle outside of domain on reflected axis! \n\tface:"  + std::to_string(boundary::face_to_int(face)) +
 				"\n\t" + particle.position.to_string() + "  old pos: " + particle.old_position.to_string() );
 		}

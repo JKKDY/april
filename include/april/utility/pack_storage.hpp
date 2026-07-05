@@ -63,6 +63,16 @@ namespace april::utility::internal {
 			return std::get<std::vector<T>>(components);
 		}
 
+		// remove all components
+		void clear() {
+			std::apply(
+			   [](auto&... list) {
+				  (list.clear(), ...);
+			   },
+			   components
+			);
+		}
+
 	private:
 		std::tuple<std::vector<Ts>...> components{};
 	};

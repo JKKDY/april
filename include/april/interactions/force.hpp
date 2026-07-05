@@ -13,7 +13,7 @@ namespace april {
     struct NoForce;
 }
 
-namespace april::force {
+namespace april::interactions {
 
     constexpr double no_cutoff = 1.0e150; // 1.0e150 squared is 1.0e300 <  max of double = 1.79e308
 
@@ -29,7 +29,7 @@ namespace april::force {
 
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 
-        AP_FORCE_INLINE
+        APRIL_FORCE_INLINE
         auto operator()(this const auto& self, const auto & p1, const auto & p2, const auto & r) {
             using Derived = std::remove_cvref_t<decltype(self)>;
             using ReturnType = std::remove_cvref_t<decltype(r)>; // Resolves to vec3 or pvec3
@@ -61,10 +61,16 @@ namespace april::force {
                         "[APRIL] Force: eval_vector must return the same vector type as 'r' (pvec3)");
                     return self.eval_vector(p1, p2, r);
                 }
-                // Fallback to Generic
+                // Try Templated Generic Next
+                else if constexpr (requires { self.template eval<is_vector>(p1, p2, r); }) {
+                    static_assert(requires { { self.template eval<is_vector>(p1, p2, r) } -> std::same_as<ReturnType>; },
+                        "[APRIL] Force: eval<true> must return the same vector type as 'r' (pvec3)");
+                    return self.template eval<is_vector>(p1, p2, r);
+                }
+                // Fallback to Non-Templated Generic
                 else {
                     static_assert(requires { { self.eval(p1, p2, r) } -> std::same_as<ReturnType>; },
-                        "[APRIL] Force: must implement eval(p1, p2, r) or eval_vector(p1, p2, r)");
+                        "[APRIL] Force: must implement eval(p1, p2, r), eval<packed>(p1, p2, r), or eval_vector(p1, p2, r)");
                     return self.eval(p1, p2, r);
                 }
             }
@@ -75,10 +81,16 @@ namespace april::force {
                         "[APRIL] Force: eval_scalar must return the same vector type as 'r' (vec3)");
                     return self.eval_scalar(p1, p2, r);
                 }
-                // Fallback to Generic
+                // Try Templated Generic Next
+                else if constexpr (requires { self.template eval<is_vector>(p1, p2, r); }) {
+                    static_assert(requires { { self.template eval<is_vector>(p1, p2, r) } -> std::same_as<ReturnType>; },
+                        "[APRIL] Force: eval<false> must return the same vector type as 'r' (vec3)");
+                    return self.template eval<is_vector>(p1, p2, r);
+                }
+                // Fallback to Non-Templated Generic
                 else {
                     static_assert(requires { { self.eval(p1, p2, r) } -> std::same_as<ReturnType>; },
-                        "[APRIL] Force: must implement eval(p1, p2, r) or eval_scalar(p1, p2, r)");
+                        "[APRIL] Force: must implement eval(p1, p2, r), eval<packed>(p1, p2, r), or eval_scalar(p1, p2, r)");
                     return self.eval(p1, p2, r);
                 }
             }
@@ -201,7 +213,7 @@ namespace april::force {
             ForceSentinel() : Force(-1.0) {}
 
             vec3 eval(auto, auto, const vec3&) const noexcept {
-                AP_ASSERT(false, "NullForce should never be executed");
+                APRIL_ASSERT(false, "NullForce should never be executed");
                 std::unreachable();
             }
             [[nodiscard]] ForceSentinel mix(ForceSentinel const&) const { return {}; }
@@ -236,7 +248,7 @@ namespace april::force {
 
 namespace april {
     // define Force pack
-    template<class... Fs> inline constexpr force::internal::ForcePack<Fs...> forces{};
+    template<class... Fs> inline constexpr interactions::internal::ForcePack<Fs...> forces{};
 }
 
 

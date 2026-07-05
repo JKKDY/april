@@ -6,5 +6,5 @@ cmake ../cmake \
   -D INTEL_ARCH=cpu \
   -D CMAKE_CXX_FLAGS="-O3 -xHost -qopenmp -qopt-zmm-usage=high -ffast-math -fimf-precision=low" \
   -D CMAKE_EXE_LINKER_FLAGS="-ltbbmalloc" \
-  -D BUILD_MPI=no
+  -D BUILD_MPI=yes
 make -j 6

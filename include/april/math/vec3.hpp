@@ -39,7 +39,7 @@ namespace april::math {
 
     // needed for ADL to work
     template<IsScalar T>
-    AP_FORCE_INLINE T rsqrt(T val) {
+    APRIL_FORCE_INLINE inline T rsqrt(T val) {
         return T(1) / std::sqrt(val);
     }
 
@@ -238,7 +238,7 @@ namespace april::math {
         // Access component by index: 0 for x, 1 for y, 2 for z.
         // decltype(auto) preserves references
         decltype(auto) operator[](this auto&& self, const int index) noexcept {
-            AP_ASSERT(index >= 0 && index < 3, "Index out of bounds");
+            APRIL_ASSERT(index >= 0 && index < 3, "Index out of bounds");
             if (index == 0) return (self.x); // Parentheses matter for decltype(auto) on members
             if (index == 1) return (self.y);
             return (self.z);
@@ -284,8 +284,16 @@ namespace april::math {
         T x, y, z;
 
         Vec3() : x(0), y(0), z(0) {}
-        Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
+
+        // templated in each argument to allow Vec3(int, uint, double) -> Vec<float>
+        template <typename X, typename Y, typename Z>
+        requires std::convertible_to<X, T> && std::convertible_to<Y, T> && std::convertible_to<Z, T>
+        Vec3(X x, Y y, Z z) : x(x), y(y), z(z) {}
+
         explicit Vec3(T v) : x(v), y(v), z(v) {}
+
+        Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
+
 
         template <IsVectorLike Other>
         Vec3(const Other& p) : x(static_cast<T>(p.x)), y(static_cast<T>(p.y)), z(static_cast<T>(p.z)) {}
@@ -302,9 +310,9 @@ namespace april::math {
     // ------------
     template <typename T> requires std::integral<T> || std::floating_point<T>
     struct Vec3Ptr {
-        T * AP_RESTRICT x = nullptr;
-        T * AP_RESTRICT y = nullptr;
-        T * AP_RESTRICT z = nullptr;
+        T * APRIL_RESTRICT x = nullptr;
+        T * APRIL_RESTRICT y = nullptr;
+        T * APRIL_RESTRICT z = nullptr;
 
         Vec3Ptr() = default;
 
@@ -312,31 +320,31 @@ namespace april::math {
         requires std::convertible_to<U, T>
         Vec3Ptr(Vec3<U>* other)
            : x(&other->x), y(&other->y), z(&other->z) {
-            AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+            APRIL_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
         template <typename U>
         requires std::convertible_to<const U*, T*>
-        Vec3Ptr(const Vec3<U>* AP_RESTRICT other)
+        Vec3Ptr(const Vec3<U>* APRIL_RESTRICT other)
            : x(&other->x), y(&other->y), z(&other->z) {
-            AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+            APRIL_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
-        Vec3Ptr(T& AP_RESTRICT x_ref, T& AP_RESTRICT y_ref, T& AP_RESTRICT z_ref)
+        Vec3Ptr(T& APRIL_RESTRICT x_ref, T& APRIL_RESTRICT y_ref, T& APRIL_RESTRICT z_ref)
            : x(&x_ref), y(&y_ref), z(&z_ref) {
-            AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+            APRIL_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
-        Vec3Ptr(T* AP_RESTRICT x_ptr, T* AP_RESTRICT y_ptr, T* AP_RESTRICT z_ptr)
+        Vec3Ptr(T* APRIL_RESTRICT x_ptr, T* APRIL_RESTRICT y_ptr, T* APRIL_RESTRICT z_ptr)
             : x(x_ptr), y(y_ptr), z(z_ptr) {
-            AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+            APRIL_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
         template <typename U>
         requires std::convertible_to<U*, T*>
         Vec3Ptr(const Vec3Ptr<U>& other)
            : x(other.x), y(other.y), z(other.z) {
-            AP_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
+            APRIL_ASSERT(x != y && y != z &&  z!= x, "x y z pointers do not point to different addresses");
         }
 
         template <typename U>
@@ -351,6 +359,18 @@ namespace april::math {
         Vec3Proxy<T> operator*() const {
             return Vec3Proxy<T>(*x, *y, *z);
         }
+
+        APRIL_FORCE_INLINE void prefetch() const {
+            APRIL_PREFETCH(x);
+            APRIL_PREFETCH(y);
+            APRIL_PREFETCH(z);
+        }
+
+        APRIL_FORCE_INLINE void prefetch_nta() const {
+            APRIL_PREFETCH_NTA(x);
+            APRIL_PREFETCH_NTA(y);
+            APRIL_PREFETCH_NTA(z);
+        }
     };
 
 
@@ -360,9 +380,9 @@ namespace april::math {
     // ----------
     template <typename T>
     struct Vec3Proxy : Vec3Ops<std::remove_cv_t<T>, double> {
-        T& AP_RESTRICT x;
-        T& AP_RESTRICT y;
-        T& AP_RESTRICT z;
+        T& APRIL_RESTRICT x;
+        T& APRIL_RESTRICT y;
+        T& APRIL_RESTRICT z;
 
         Vec3Proxy(const Vec3Proxy&) = default;
 

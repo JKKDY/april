@@ -4,10 +4,10 @@
 
 #include "april/simd/packed.hpp"
 
-#include "april/forces/lennard_jones.hpp"
-#include "april/forces/harmonic.hpp"
-#include "april/forces/gravity.hpp"
-#include "april/forces/no_force.hpp"
+#include "april/interactions/lennard_jones.hpp"
+#include "april/interactions/harmonic.hpp"
+#include "april/interactions/gravity.hpp"
+#include "april/interactions/no_force.hpp"
 
 using namespace april;
 

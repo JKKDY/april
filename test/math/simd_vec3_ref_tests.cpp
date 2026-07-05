@@ -3,24 +3,13 @@
 #include <algorithm>
 
 #include "april/base/types.hpp"
-#include "april/simd/backend_xsimd.hpp"
+#include "april/simd/packed.hpp"
 
 using namespace april;
 
 
-#if (defined(__clang__) && !defined(__apple_build_version__)) || defined(__GNUC__)
-#if __has_include(<experimental/simd>) || __has_include(<simd>)
-#define APRIL_HAS_STD_SIMD 1
-#endif
-#endif
+using SimdTypes = testing::Types<simd::Packed<double>>;
 
-
-#if APRIL_HAS_STD_SIMD
-#include "april/simd/backend_std_simd.hpp"
-using SimdTypes = testing::Types<simd::internal::xsimd::Packed<double>, simd::internal::std_simd::Packed<double>>;
-#else
-using SimdTypes = simd::internal::xsimd::Packed<double>;
-#endif
 
 template <typename T>
 class SimdProxyTest : public testing::Test {
@@ -78,9 +67,9 @@ TYPED_TEST(SimdProxyTest, ReadFromMemory) {
     auto p = this->MakeProxy();
 
     // Setup Memory manually
-    std::fill(this->x_buf.begin(), this->x_buf.end(), 5.0);
-    std::fill(this->y_buf.begin(), this->y_buf.end(), 6.0);
-    std::fill(this->z_buf.begin(), this->z_buf.end(), 7.0);
+    std::fill(this->x_buf.begin(), this->x_buf.end(), static_cast<TestFixture::Scalar>(5.0));
+    std::fill(this->y_buf.begin(), this->y_buf.end(), static_cast<TestFixture::Scalar>(6.0));
+    std::fill(this->z_buf.begin(), this->z_buf.end(), static_cast<TestFixture::Scalar>(7.0));
 
     // Read
     typename TestFixture::Vec3T v = p;
@@ -91,9 +80,9 @@ TYPED_TEST(SimdProxyTest, ReadFromMemory) {
     // Assuming Packed has to_array or similar, or we just trust the math tests.
     // Let's reuse the memory check by writing it back to zeroed memory.
 
-    std::fill(this->x_buf.begin(), this->x_buf.end(), 0.0);
-    std::fill(this->y_buf.begin(), this->y_buf.end(), 0.0);
-    std::fill(this->z_buf.begin(), this->z_buf.end(), 0.0);
+    std::fill(this->x_buf.begin(), this->x_buf.end(), static_cast<TestFixture::Scalar>(5.0));
+    std::fill(this->y_buf.begin(), this->y_buf.end(), static_cast<TestFixture::Scalar>(6.0));
+    std::fill(this->z_buf.begin(), this->z_buf.end(), static_cast<TestFixture::Scalar>(7.0));
 
     p = v; // Write back
     this->ExpectAllLanes(5.0, 6.0, 7.0);

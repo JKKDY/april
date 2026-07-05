@@ -8,11 +8,11 @@ using namespace april;
 namespace fs = std::filesystem;
 
 // 1. Define a Custom Force to handle n^2 softening
-struct SoftGravity : force::Force {
+struct SoftGravity : interactions::Force {
     double G;
     double eps_sq; // Softening parameter squared
 
-    SoftGravity(const double G, const double eps) : Force(force::no_cutoff), G(G), eps_sq(eps * eps) {}
+    SoftGravity(const double G, const double eps) : Force(interactions::no_cutoff), G(G), eps_sq(eps * eps) {}
 
     // Tell APRIL which particle fields this force needs to access
     static constexpr auto fields = ParticleField::position | ParticleField::mass;
@@ -47,7 +47,7 @@ int main() {
     constexpr double CORE_MASS = 100000.0;
     constexpr double MAX_RADIUS = 100.0;
     constexpr int NUM_ARMS = 2;
-    constexpr double WINDING = 5.0;
+    constexpr double GALAXY_WINDING = 5.0;
     constexpr double THICKNESS = 2.0;
 
     std::vector<Particle> galaxy;
@@ -73,7 +73,7 @@ int main() {
         // Spiral arm math
         int arm = i % NUM_ARMS;
         double offset = (2.0 * 3.1415 / NUM_ARMS) * arm;
-        double theta = offset + (r / MAX_RADIUS) * WINDING + dist_scatter(gen);
+        double theta = offset + (r / MAX_RADIUS) * GALAXY_WINDING + dist_scatter(gen);
 
         // Position (pinched at the edges)
         double x = r * std::cos(theta);

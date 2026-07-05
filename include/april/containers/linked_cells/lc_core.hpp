@@ -7,16 +7,22 @@
 #include <functional>
 #include <limits>
 
+#include "lc_batching.hpp"
 #include "april/base/types.hpp"
+#include "april/containers/batching/topology_batch.hpp"
 #include "april/particle/particle_types.hpp"
 #include "april/core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
-#include "april/containers/batching/common.hpp"
+#include "april/exec/parallel_utils.hpp"
+#include "april/exec/executors/context.hpp"
 
+namespace april::math {
+	struct Range;
+}
 
 namespace april::container::internal {
-	template <class ContainerBase>
-	class LinkedCellsCore : public ContainerBase {
+	template <class Base>
+	class LinkedCellsCore : public Base {
 		using cell_index_t = uint32_t;
 
 		enum CellWrapFlag : uint8_t {
@@ -39,9 +45,11 @@ namespace april::container::internal {
 		};
 
 	public:
-		using ContainerBase::ContainerBase;
-		using ContainerBase::build_storage;
-		using typename ContainerBase::ParticleRecord;
+		using Base::Base;
+		using Base::build_storage;
+		using typename Base::ParticleRecord;
+		using Base::vector_policy;
+		using Base::parallel_policy;
 
 		void build (this auto&& self, const std::vector<ParticleRecord>& particles) {
 			self.setup_topology_batches();
@@ -51,76 +59,178 @@ namespace april::container::internal {
 			self.compute_wrapped_cell_pairs();
 			self.build_storage(particles);
 			self.pre_allocate_assignment_bins();
-			self.rebuild_structure();
+			self.rebuild_structure_impl();
+			self.schedule_phases();
+
+			// TODO once we can use reflection automatically serialize add a vec3 last_rebuild_position member to particle attributes
+			self.last_x.resize(particles.size());
+			self.last_y.resize(particles.size());
+			self.last_z.resize(particles.size());
+
+			self.template for_each_particle<ParallelPolicy::Serial>(
+				scalar_kernel<ParticleField::position | ParticleField::id>([&](auto && p) {
+					self.last_x[p.id] = p.position.x;
+					self.last_y[p.id] = p.position.y;
+					self.last_z[p.id] = p.position.z;
+				})
+			);
+
+
+
 		}
 
-		template<typename Func>
-		void for_each_topology_batch(Func && func) {
-			for (const auto & batch : topology_batches) {
-				func(batch);
+		template<ParallelPolicy P, typename Func>
+		void for_each_topology_batch(this auto&& self, Func && f) {
+			for (const auto& phase : self.topology_phases) {
+				self.thread_executor.template execute<P>(phase.size(), [&](size_t i) {
+					f(phase[i]);
+				});
 			}
 		}
 
-		void rebuild_structure(this auto&& self) {
-			// reset assignment vector
-			for (auto& bin : self.bin_assignments) {
-				bin.clear();
-			}
 
-			// repopulate assignment vector
-			for (size_t i = 0; i < self.bin_sizes.size(); i++) {
-				size_t start = self.bin_starts[i];
-				size_t end = start + self.bin_sizes[i];
-				self.for_each_particle(start, end,
-					scalar_kernel<ParticleField::type | ParticleField::position>(
-					[&](const size_t idx, const auto & p) {
-						const size_t cid = self.cell_index_from_position(p.position);
-						const size_t bin = self.bin_index(cid, p.type);
-						self.bin_assignments[bin].push_back(idx);
-					}
-				));
-			}
+		struct alignas(64) PaddedThreadBuffer {
+			// Stores {bin_index, particle_index}
+			std::vector<std::pair<uint32_t, uint32_t>> records;
+		};
 
-			self.reorder_storage(self.bin_assignments);
-		}
+		// Persistent member variable
+		std::vector<PaddedThreadBuffer> thread_local_buffers;
 
-		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const core::Box & region) {
-			const std::vector<cell_index_t> cells = self.get_cells_in_region(region);
-			std::vector<size_t> ret;
+		std::vector<vec3::type> last_x;
+		std::vector<vec3::type> last_y;
+		std::vector<vec3::type> last_z;
 
-			// heuristic: reserve space for the expected average number of particles per cell
-			const size_t est_count = cells.empty() ? 0 : (self.particle_count() * cells.size() / self.n_cells);
-			ret.reserve(est_count);
+		void rebuild_structure(this auto && self) {
+			std::atomic rebuild = false;
 
-			// for each cell that intersects the region: for each particle in cell perform inclusion check
-			for (const size_t cid : cells) {
-				const auto [start_idx, end_idx] = self.cell_index_range(cid);
-				if (start_idx == end_idx) continue;
+			// check if a particle has moved further than the  skin thickness
+			self.template for_each_particle<parallel_policy>(
+				scalar_kernel<ParticleField::position| ParticleField::id>([&](auto && p) {
+					if (std::abs(self.last_x[p.id] - p.position.x) > self.verlet_skin / 2) rebuild = true;
+					if (std::abs(self.last_y[p.id] - p.position.y) > self.verlet_skin / 2) rebuild = true;
+					if (std::abs(self.last_z[p.id] - p.position.z) > self.verlet_skin / 2) rebuild = true;
+				})
+			);
 
-				self.for_each_particle(start_idx, end_idx,
-					scalar_kernel<ParticleField::position | ParticleField::state>(
-					[&](const size_t i, const auto & particle) {
-						if (static_cast<uint8_t>(particle.state & ParticleState::ALIVE) &&
-							region.contains(particle.position)) {
-							ret.push_back(i);
-						}
+			if (rebuild) {
+				self.rebuild_structure_impl();
+
+				// cache current particles positions
+				self.template for_each_particle<parallel_policy>(
+					scalar_kernel<ParticleField::position | ParticleField::id>([&](auto && p) {
+						self.last_x[p.id] = p.position.x;
+						self.last_y[p.id] = p.position.y;
+						self.last_z[p.id] = p.position.z;
 					})
 				);
 			}
-
-			return ret;
 		}
+
+		void rebuild_structure_impl(this auto&& self) {
+			self.reorder_storage(self.n_bins, [&](const size_t i) {
+				const auto p = self.template view<ParticleField::position | ParticleField::type>(i);
+				const size_t cid = self.cell_index_from_position( p.position);
+				return self.bin_index(cid, p.type);
+			});
+		}
+
+		[[nodiscard]] std::vector<size_t> collect_indices_in_region(this const auto& self, const core::Box & region) {
+		    const std::vector<cell_index_t> cells = self.get_cells_in_region(region);
+
+		    if (cells.empty()) return {};
+
+			// partition the entire particle range into independent blocks/tasks
+		    auto blocks = exec::make_linear_schedule(math::Range{0, cells.size()}, self.linear_schedule_config);
+		    const size_t num_tasks = blocks.size();
+
+			// allocate buffers for each task
+		    std::vector<std::vector<size_t>> local_results(self.thread_executor.num_threads());
+
+			// preallocate storage with heuristic (assumes uniform distribution)
+		    const size_t est_count_per_task = (self.particle_count() * cells.size() / self.n_cells) / num_tasks + 1;
+		    for (auto& loc : local_results) {
+		        loc.reserve(est_count_per_task);
+		    }
+
+			// process all tasks in parallel
+		    self.thread_executor.template execute<parallel_policy>(num_tasks, [&](const size_t t_idx) {
+		        const auto& block = blocks[t_idx];
+		        auto& local_ret = local_results[exec::thread_index()];
+
+		        // each task loops over its assigned chunk of cells
+		        for (size_t c = block.start; c < block.stop; ++c) {
+		        	// get the search range (slice of particle data)
+		            const size_t cid = cells[c];
+		            const auto [start_idx, end_idx] = self.cell_index_range(cid);
+
+		        	// skip empty ranges
+		            if (start_idx == end_idx) continue;
+
+		        	// kernel checks if a particle is alive and inside the region
+		        	// this is scalar because SoA layout is tightly packed resulting in spilling
+		        	// TODO: make this a universal kernel by propagating masks along with particle data
+		        	auto kernel = april::scalar_kernel<ParticleField::position | ParticleField::state> (
+						[&]<bool is_packed>(const size_t i, const auto & particle) {
+							if constexpr (is_packed) {
+								// vectorized state and contains check
+								auto contains_particle = region.contains(particle.position);
+								auto is_alive = (particle.state == +ParticleState::ALIVE);
+
+								// combine and export as integer bit mask
+								auto valid_mask = contains_particle & is_alive;
+								uint64_t bitmask = valid_mask.to_bitmask();
+
+								// extract exact lanes without branching
+								while (bitmask != 0) {
+									 const uint32_t lane = std::countr_zero(bitmask);
+									 local_ret.push_back(i + lane);
+									 bitmask &= (bitmask - 1); // clears the lowest set bit
+								}
+							} else {
+								if (region.contains(particle.position) && particle.state == ParticleState::ALIVE) {
+									local_ret.push_back(i);
+								}
+							}
+						}
+					);
+
+		            // run the kernel
+		            self.for_each_particle(start_idx, end_idx, kernel);
+		        }
+		    });
+
+			// allocate storage for indices buffer
+		    size_t total_found = 0;
+		    for (const auto& loc : local_results) {
+		        total_found += loc.size();
+		    }
+
+		    std::vector<size_t> ret;
+		    ret.reserve(total_found);
+
+			// merge all local buffers into indices buffer
+		    for (const auto& loc : local_results) {
+		        ret.insert(ret.end(), loc.begin(), loc.end());
+		    }
+
+		    return ret;
+		}
+
 
 	protected:
 		size_t outside_cell_id {};
 		size_t n_grid_cells {};
 		size_t n_cells {}; // total cells = grid + outside
 		size_t n_types {}; // types range from 0 ... n_types-1
+		size_t n_bins {}; // number of bins (cells * types)
 		double global_cutoff {}; // maximum force cutoff
+		double verlet_skin {};
 
 		vec3d cell_size; // side lengths of each cell
 		vec3d inv_cell_size; // cache the inverse of each size component to avoid divisions
 		uint3 cells_per_axis{}; // number of cells along each axis
+		uint3::type cell_per_axis_xy{}; // = cells_per_axis.x * cells_per_axis.y
 
 		std::vector<std::vector<size_t>> bin_assignments;
 		std::vector<cell_index_t> cell_ordering; // map x,y,z flat index (Nx*Ny*z+Nx*y+x) to ordering index
@@ -128,31 +238,58 @@ namespace april::container::internal {
 		// cell pair info
 		std::vector<int3> neighbor_stencil;
 		std::vector<WrappedCellPair> wrapped_cell_pairs;
+		std::vector<std::vector<uint3>> phase_schedule; // for user defined coloring scheme
+		std::vector<std::vector<WrappedCellPair>> wrapped_phase_schedule;
 
 
 		//------
 		// SETUP
 		//------
-		void setup_topology_batches(this auto && self) {
-			// precompute topology batches (id based batches)
-			for (size_t i = 0; i < self.force_schema.interactions.size(); ++i) {
-				const auto& prop = self.force_schema.interactions[i];
+		void setup_topology_batches() {
+			// collect all interaction topologies into a single vector
+			std::vector<utility::graph::EdgeList<ParticleID>> global_topologies;
+			global_topologies.reserve(this->interaction_map.interactions.size());
 
+			for (const auto& prop : this->interaction_map.interactions) {
 				if (!prop.used_by_ids.empty() && prop.is_active) {
-					batching::TopologyBatch batch;
-					batch.id1 = prop.used_by_ids[0].first;
-					batch.id2 = prop.used_by_ids[0].second;
-					batch.pairs = prop.used_by_ids;
-
-					self.topology_batches.push_back(std::move(batch));
+					global_topologies.push_back(prop.used_by_ids);
 				}
+			}
+
+			// create schedule
+			constexpr size_t max_partition_size = 1024;
+			const size_t min_batches_threshold = this->thread_executor.num_threads();
+			auto scheduled_phases = batching::build_concurrent_phases<ParticleID>(
+				global_topologies,
+				max_partition_size,
+				min_batches_threshold
+			);
+
+			// build phases into batches
+			using ContainerType = std::remove_cvref_t<decltype(*this)>;
+
+			for (auto& phase : scheduled_phases) {
+				std::vector<batching::TopologyBatch<ContainerType>> current_phase_batches;
+				current_phase_batches.reserve(phase.size());
+
+				for (auto& batch_pairs : phase) {
+					if (batch_pairs.empty()) continue;
+
+					batching::TopologyBatch<ContainerType> batch;
+					batch.container_ptr = this;
+					batch.representatives = batch_pairs[0];
+					batch.pairs = std::move(batch_pairs);
+
+					current_phase_batches.push_back(std::move(batch));
+				}
+				topology_phases.push_back(std::move(current_phase_batches));
 			}
 		}
 
 		void setup_cell_grid(this auto&& self) {
 			// determine the physical cutoff (max_rc) from interactions
 			double max_cutoff = 0;
-			for (const auto & interaction : self.force_schema.interactions) {
+			for (const auto & interaction : self.interaction_map.interactions) {
 				if (interaction.is_active && !interaction.used_by_types.empty() && interaction.cutoff > max_cutoff) {
 					max_cutoff = interaction.cutoff;
 				}
@@ -170,8 +307,14 @@ namespace april::container::internal {
 				max_cutoff = min_dim / 2.0;
 			}
 
+			// set target cell size and verlet skin
 			double target_cell_size = self.config.get_width(max_cutoff);
-			AP_ASSERT(target_cell_size > 0, "Calculated cell size must be > 0");
+			APRIL_ASSERT(target_cell_size > 0, "Calculated cell size must be > 0");
+
+			self.verlet_skin = self.config.get_skin(target_cell_size);
+			APRIL_ASSERT(target_cell_size >= 0, "Calculated cell size must be > 0");
+
+			target_cell_size += self.verlet_skin;
 
 			// compute number of cells along each axis
 			// std::floor ensures that the resulting cells are larger than or equal to target_cell_size
@@ -194,17 +337,19 @@ namespace april::container::internal {
 			  };
 
 			self.cells_per_axis = uint3{num_x, num_y, num_z};
+			self.cell_per_axis_xy = self.cells_per_axis.x * self.cells_per_axis.y;
 
 			// set scalars
-			self.n_types = self.force_schema.types.size();
+			self.n_types = self.interaction_map.types.size();
 			self.n_grid_cells = num_x * num_y * num_z;
 			self.n_cells = self.n_grid_cells + 1;
 			self.outside_cell_id = self.n_grid_cells;
 			self.global_cutoff = max_cutoff;
 
 			// allocate buffers
-			self.bin_starts.resize(self.n_cells * self.n_types);
-			self.bin_assignments.resize(self.n_cells * self.n_types);
+			self.n_bins = self.n_cells * self.n_types;
+			self.bin_starts.resize(self.n_bins);
+			self.bin_assignments.resize(self.n_bins);
 		}
 
 		void init_cell_order(this auto && self) {
@@ -270,7 +415,6 @@ namespace april::container::internal {
 				return static_cast<CellWrapFlag>(1 << ax); // maps axis to appropriate CellWrap flag
 			};
 
-
 			for (unsigned int z = 0; z < self.cells_per_axis.z; z++) {
 				for (unsigned int y = 0; y < self.cells_per_axis.y; y++) {
 					for (unsigned int x = 0; x < self.cells_per_axis.x; x++) {
@@ -324,23 +468,78 @@ namespace april::container::internal {
 			}
 		}
 
+		void schedule_phases() {
+			const auto& batch_dim = this->config.block_size;
+
+			// schedule phases for neighboring cells according to user defined color scheme
+			for_each_block([&](size_t bx, size_t by, size_t bz) {
+				const size_t logical_x = bx / batch_dim.x;
+				const size_t logical_y = by / batch_dim.y;
+				const size_t logical_z = bz / batch_dim.z;
+
+				const size_t color = this->config.schedule_phases(logical_x, logical_y, logical_z, batch_dim);
+				if (color >= phase_schedule.size()) {
+					phase_schedule.resize(color + 1);
+				}
+
+				phase_schedule[color].emplace_back(bx, by, bz);
+			});
+
+			// schedule wrapped neighbor cells (if force wrapping is enabled)
+			// create an edge list graph of interacting wrapped pairs
+			std::vector<std::vector<uint32_t>> touched_cells;
+			touched_cells.reserve(wrapped_cell_pairs.size());
+			for (const auto& pair : wrapped_cell_pairs) {
+				touched_cells.push_back({pair.c1, pair.c2});
+			}
+
+			// and build an intersection graph (Adjacency list of conflicting cell pairs)
+			const auto conflict_graph = utility::graph::build_intersection_graph(touched_cells);
+
+			// create a sequential processing order (indices 0 to N-1)
+			std::vector<size_t> processing_order(wrapped_cell_pairs.size());
+			std::iota(processing_order.begin(), processing_order.end(), 0);
+
+			// partition into independent sets (Conflict-free phases)
+			const auto independent_phases = utility::graph::greedy_independent_partitions(
+				conflict_graph,
+				processing_order
+			);
+
+			// Build the final schedule for the execution loop
+			wrapped_phase_schedule.clear();
+			wrapped_phase_schedule.reserve(independent_phases.size());
+
+			for (const auto& phase_indices : independent_phases) {
+				std::vector<WrappedCellPair> phase_pairs;
+				phase_pairs.reserve(phase_indices.size());
+
+				// Map the indices back to the actual WrappedCellPair objects
+				for (size_t idx : phase_indices) {
+					phase_pairs.push_back(wrapped_cell_pairs[idx]);
+				}
+
+				wrapped_phase_schedule.push_back(std::move(phase_pairs));
+			}
+		}
+
 
         // -----------------
         // LOOP ABSTRACTIONS
         // -----------------
         // Iterates over spatial blocks (cache blocking)
         template <typename Func>
-        AP_FORCE_INLINE void for_each_block(Func&& fn) const {
-            const auto& bdim = this->config.block_size;
-            for (size_t bz = 0; bz < cells_per_axis.z; bz += bdim.z)
-                for (size_t by = 0; by < cells_per_axis.y; by += bdim.y)
-                    for (size_t bx = 0; bx < cells_per_axis.x; bx += bdim.x)
+        APRIL_FORCE_INLINE void for_each_block(Func&& fn) const {
+            const auto& batch_dim = this->config.block_size;
+            for (size_t bz = 0; bz < cells_per_axis.z; bz += batch_dim.z)
+                for (size_t by = 0; by < cells_per_axis.y; by += batch_dim.y)
+                    for (size_t bx = 0; bx < cells_per_axis.x; bx += batch_dim.x)
                         fn(bx, by, bz);
         }
 
 		// Iterates over all unique pairs of types (T1, T2) where T2 >= T1
 		template <typename Func>
-		AP_FORCE_INLINE void for_each_type_pair(Func&& fn) const {
+		APRIL_FORCE_INLINE void for_each_type_pair(Func&& fn) const {
 			for (size_t t1 = 0; t1 < this->n_types; ++t1)
 				for (size_t t2 = t1; t2 < this->n_types; ++t2)
 					fn(t1, t2);
@@ -348,7 +547,7 @@ namespace april::container::internal {
 
         // Iterates over the cells inside a specific block
         template <typename Func>
-        AP_FORCE_INLINE void for_each_cell_in_block(size_t bx, size_t by, size_t bz, Func&& fn) const {
+        APRIL_FORCE_INLINE void for_each_cell_in_block(size_t bx, size_t by, size_t bz, Func&& fn) const {
             const auto& bdim = this->config.block_size;
 
             // Calculate limits (handling edge blocks that might be smaller)
@@ -364,11 +563,11 @@ namespace april::container::internal {
 
 
 
-		// ---------------------
-		// BATCH ITERATOR KERNEL
-		// ---------------------
+		// ----------------
+		// BATCH ITERATIONS
+		// ----------------
 		template <typename GetRange, typename AddSym, typename AddAsym>
-		AP_FORCE_INLINE void process_cell_interactions(
+		APRIL_FORCE_INLINE void process_cell_interactions(
 			size_t x, size_t y, size_t z,
 			size_t t1, size_t t2,
 			GetRange&& get_range,
@@ -392,7 +591,7 @@ namespace april::container::internal {
 			// For mixed types (T1!=T2), we continue because we need the reverse check (Neighbor(T1) vs Cell(T2)).
 			if (range1.empty() && (t1 == t2)) return;
 
-			// inter-cell: process forces between particles of neighbouring cells
+			// inter-cell: process forces between particles of neighboring cells
 			for (auto offset : this->neighbor_stencil) {
 				size_t c_n = this->get_neighbor_idx(x, y, z, offset);
 				if (c_n == this->outside_cell_id) continue;
@@ -416,28 +615,35 @@ namespace april::container::internal {
 			}
 		}
 
-		template <typename Func, typename GetIndices, typename ProcessBatch>
-		AP_FORCE_INLINE void for_each_wrapped_interaction(
+		template <ParallelPolicy P, typename Func, typename GetIndices, typename ProcessBatch>
+		APRIL_FORCE_INLINE void for_each_wrapped_interaction(
+			this const auto& self,
 			Func&& func,
 			GetIndices&& get_indices,
 			ProcessBatch&& process_batch
-		) const {
-			if (this->wrapped_cell_pairs.empty()) return;
+		) {
+			if (self.wrapped_phase_schedule.empty()) return;
 
-			for (const auto& pair : this->wrapped_cell_pairs) {
-				auto bcp = [&pair](const auto& diff) { return diff + pair.shift; };
+			// Iterate sequentially over the independent phases
+			for (const auto& phase : self.wrapped_phase_schedule) {
 
-				for (size_t t1 = 0; t1 < this->n_types; ++t1) {
-					auto range1 = get_indices(pair.c1, t1);
-					if (range1.empty()) continue;
+				// Execute the pairs within the phase in parallel
+				self.thread_executor.template execute<P>(phase.size(), [&](size_t phase_idx) {
+					const auto& pair = phase[phase_idx];
+					auto bcp = [&pair](const auto& diff) { return diff + pair.shift; };
 
-					for (size_t t2 = 0; t2 < this->n_types; ++t2) {
-						auto range2 = get_indices(pair.c2, t2);
-						if (range2.empty()) continue;
+					for (size_t t1 = 0; t1 < self.n_types; ++t1) {
+						auto range1 = get_indices(pair.c1, t1);
+						if (range1.empty()) continue;
 
-						process_batch(func, range1, range2, t1, t2, bcp);
+						for (size_t t2 = 0; t2 < self.n_types; ++t2) {
+							auto range2 = get_indices(pair.c2, t2);
+							if (range2.empty()) continue;
+
+							process_batch(func, range1, range2, t1, t2, bcp);
+						}
 					}
-				}
+				});
 			}
 		}
 
@@ -446,7 +652,7 @@ namespace april::container::internal {
 		//----------
 		// UTILITIES
 		//----------
-		[[nodiscard]] AP_FORCE_INLINE size_t get_neighbor_idx(const size_t x, const size_t y, const size_t z, const int3 offset) const {
+		[[nodiscard]] APRIL_FORCE_INLINE size_t get_neighbor_idx(const size_t x, const size_t y, const size_t z, const int3 offset) const {
 			const int nx = static_cast<int>(x) + offset.x;
 			const int ny = static_cast<int>(y) + offset.y;
 			const int nz = static_cast<int>(z) + offset.z;
@@ -522,20 +728,19 @@ namespace april::container::internal {
 			const size_t start_bin_idx = self.bin_index(cid);
 			size_t start = self.bin_starts[start_bin_idx];
 			size_t end = start_bin_idx + self.n_types >= self.bin_starts.size() ? self.capacity() : self.bin_starts[start_bin_idx + self.n_types];
-			// size_t end = self.bin_starts[start_bin_idx + self.n_types]
 			return {start, end};
 
 		}
 
 		[[nodiscard]] uint32_t cell_pos_to_idx(this const auto & self, const uint32_t x, const uint32_t y, const uint32_t z) noexcept{
-			const uint32_t flat_idx = z * self.cells_per_axis.x * self.cells_per_axis.y + y * self.cells_per_axis.x + x;
+			const uint32_t flat_idx = z * self.cell_per_axis_xy + y * self.cells_per_axis.x + x;
 			return self.cell_ordering.empty() ? flat_idx : self.cell_ordering[flat_idx];
 		}
 
 		uint32_t cell_index_from_position(this const auto & self, const vec3 & position) noexcept {
 			const vec3 pos = position - self.domain.min;
 
-			if (pos.x < 0 || pos.y < 0 || pos.z < 0) {
+			if ((pos.x < 0.0) | (pos.y < 0.0) | (pos.z < 0.0)) {
 				return self.outside_cell_id;
 			}
 
@@ -543,28 +748,14 @@ namespace april::container::internal {
 			const auto y = static_cast<uint32_t>(pos.y * self.inv_cell_size.y);
 			const auto z = static_cast<uint32_t>(pos.z * self.inv_cell_size.z);
 
-			if (x >= self.cells_per_axis.x || y >= self.cells_per_axis.y || z >= self.cells_per_axis.z) {
+			if ((x >= self.cells_per_axis.x) | (y >= self.cells_per_axis.y) | (z >= self.cells_per_axis.z)) {
 				return self.outside_cell_id;
 			}
 
 			return self.cell_pos_to_idx(x, y, z);
 		}
 	private:
-		std::vector<batching::TopologyBatch> topology_batches;
+		std::vector<std::vector<batching::TopologyBatch<LinkedCellsCore>>> topology_phases;
 	};
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

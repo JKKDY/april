@@ -2,19 +2,17 @@
 
 [![C++ CI](https://github.com/JKKDY/april/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/JKKDY/april/actions/workflows/cmake-multi-platform.yml)
 [![codecov](https://codecov.io/github/JKKDY/april/graph/badge.svg?token=B8PK7KTAMP)](https://codecov.io/github/JKKDY/april)
-[![Platforms](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](https://github.com/JKKDY/April/actions)
+[![Platforms](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](https://github.com/JKKDY/APRIL/actions)
 
 
-April is a high-performance, header-only C++23 framework for particle-based simulations. It functions as a physics compiler: users describe particles, interactions, and constraints declaratively, and April generates a specialized simulation engine with fully static dispatch and SIMD-vectorizable kernel (no virtual calls and no runtime type erasure).
-
-The design is fully modular. Components such as forces, boundaries, containers, and integrators can be freely combined because simulation logic is decoupled from data representation; memory layout (AoS, SoA, AoSoA) is independent of the physics code.
+APRIL is a header-only C++23 framework for custom particle simulations that compiles declarative simulation descriptions into specialized CPU execution paths across memory layouts, SIMD modes, and parallel backends.
 
 
-> **Status**: Core architecture, memory layouts (SoA/AoS/AoSoA) and vectorization (SIMD) implemented   
-> **Next**: Multithreaded execution 
+> **Status**: Early WIP — API unstable. Core architecture, memory layouts, SIMD execution, and multithreading are implemented.  
+> **Next**: Algorithmic improvements such as Verlet cluster lists, followed by distributed execution.
 
 
-# Minimal Example
+## Minimal Example
 
 ```c++
 #include <april/april.hpp>
@@ -51,104 +49,82 @@ int main() {
 
 <br>
 
-# Core Features
 
-### 1. Modular Architecture
+## Why APRIL?
 
+APRIL is designed for particle simulations where users need custom physics and flexible composition without giving up high-performance CPU execution.
 
-April is organized into distinct component categories. Each category is defined by a compile-time interface enforced via Concepts and CRTP.
-Users can implement custom components by satisfying the corresponding interface.
+* **Clear, canonical setup path**: Describe particles, interactions, fields, boundaries, and integrators declaratively, then call `build_system(...)` to validate the configuration and materialize an executable, specialized simulation system.
 
-* **Containers**: Own particle storage and define memory layout, traversal strategy and neighbor iteration.    
-  *Built-ins*: `DirectSum`, `LinkedCells`, each available in `AoS`, `SoA`, or `AoSoA` layouts based on reusable container base classes that can be extended for custom containers.
+* **Composable by design**: Containers, forces, fields, boundaries, integrators, monitors, executors and other components are orthogonal. Swapping one part, such as changing from `DirectSum` to `LinkedCells` or from AoS to SoA storage, does not require rewriting force kernels or unrelated components.
 
-* **Forces**: Pairwise particle interactions  
-  *Built-ins*: Lennard-Jones (12-6), Gravity, Coulomb, Harmonic
+* **User components are first-class**: If APRIL does not provide the force law, traversal algorithm, output format, or executor you need, implement it yourself. Custom components compile into the same execution paths as built-in components.
 
-* **Fields**: External force fields  
-  *Built-ins*: `UniformField` (global constant), `LocalField` (localized with optional temporal dependence)
+* **Single-source kernels across layouts and execution modes**: Write particle kernels once against an AoS-style interface. APRIL specializes the same code for AoS, SoA, AoSoA, or custom storage layouts, and for scalar or SIMD execution.
 
-* **Boundaries**: Topological domain constraints     
-  *Built-ins*: Periodic, Reflective, Repulsive, Absorbing, Open
+* **Fast by specialization, flexible at runtime**: Available component types, memory layouts, field access, and execution paths are declared at compile time and remain visible to the compiler. Concrete component objects and parameters are assigned at runtime, keeping simulations configurable without routing hot paths through virtual dispatch or type-erased plugin layers.
 
-* **Integrators**: Propagate the simulation through time     
-  *Built-ins*: Velocity-Verlet, Yoshida4
-
-* **Controllers**: Runtime state modifiers   
-  *Built-ins*: Velocity scaling thermostat
-
-* **Monitors**: Non-intrusive observers used for output or diagnostics  
-  *Built-ins*: Binary snapshots, benchmarking, progress bar
-
-
-
-### 2. Compile-Time Configuration & Memory Abstraction
-
-
-April is built around static configuration and strict separation between simulation logic and data layout.
-
-* **Compile-Time Configuration**: All usable component types and possible execution paths are visible to the compiler through templates and static polymorphism. Configuration and compatibility errors are caught early at compile time in a readable way via Concepts.
-
-* **Run-Time Flexibility**: Predeclare multiple component types at compile time, then assign and configure specific components at runtime; full flexibility without losing performance.
-
-* **Zero-Cost Memory Abstraction**: The library operates on lightweight accessor structs that reference particle data and behave like standard AoS objects. These abstractions inline to direct memory accesses, allowing for full decoupling of library logic from memory layout with no abstraction overhead.
-
-
-
-### 3. SIMD Vectorization
-
-April allows for backend agnostic and non-intrusive vectorization:
-
-* **Backend Agnostic SIMD API**: April's SIMD API uses interchangeable backends. The library ships with `std::simd` and `xsimd` implementations. Additional backends can be added by implementing the required SIMD and mask interfaces.
-
-* **Unified Scalar/SIMD Kernels**: The SIMD API mirrors scalar semantics, allowing kernels to be written once using generic value types. The same kernel code compiles to scalar or vectorized execution without modification.
-
-* **Automatic SIMD Management**: Lane masking, rotations, broadcasts, reductions, and memory operations are handled by the library, allowing users to write plain physics logic. 
-
-* **High-Performance Vectorized Iteration**: SoA and AoSoA containers provide fully vectorized execution with manually optimized loops, including explicit vector tail handling (no scalar fallbacks).
+* **SIMD and parallelism without clutter**: SIMD values mirror scalar semantics, while lane masking, rotations, reductions, tail handling, and shared-memory scheduling are handled by the framework. User kernels stay focused on physics logic.
 
 
 
 
-# Getting Started
+## Getting Started
 
 ### 1. Requirements
-- **C++23 capable compiler** (e.g. gcc-14, clang 18)
+
+- **C++23 capable compiler** (e.g. GCC 14, Clang 18)
 - **CMake ≥ 3.28** (only for examples, tests, benchmarks)
-- **GoogleTest** (Optional/Dev): Required for the test suite. 
-- **xsimd** (Optional): The library can alternatively use `std::simd` if available.
 
-The project's CMake is configured to automatically fetch project dependencies.
+The core library has no mandatory dependencies. The following optional dependencies are automatically fetched or detected by CMake:
 
-### 2. How to Build (examples, benchmarks, tests)
+- **GoogleTest** (dev): required for the test suite
+- **xsimd**: default SIMD backend (enable with `APRIL_ENABLE_XSIMD`; falls back to `std::simd` if disabled)
+- **OpenMP**: optional parallel backend (enable with `APRIL_ENABLE_OPENMP`; otherwise uses the native threading implementation)
 
-Since April is a header-only library, simply copy the headers and `#include <april/april.hpp>`. You can automate this process in CMake with ``FetchContent``:
-````CMake
+
+### 2. Integration
+
+APRIL is a header-only library. You can simply include the `include/` directory, or use CMake's FetchContent:
+
+```cmake
 include(FetchContent)
-
 FetchContent_Declare(
-  april
-  GIT_REPOSITORY https://github.com/JKKDY/april.git
-  GIT_TAG        main
+    APRIL
+    GIT_REPOSITORY https://github.com/JKKDY/april.git
+    GIT_TAG        main
 )
-FetchContent_MakeAvailable(april)
-````
+FetchContent_MakeAvailable(APRIL)
 
-
-To build all examples and development targets, from the project root run:
-````bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build --config Debug
-````
-
-To run tests:
-```bash
-cd build
-ctest --output-on-failure --build-config Debug
+# Link to your target
+target_link_libraries(your_project PRIVATE APRIL)
 ```
 
-### 3. Example
-This example demonstrates a many-particle simulation with short-range interactions, boundary conditions, and gravity, using linked cells with SoA layout for particle traversal. 
+
+### 3. Building for Development 
+
+```CMake
+# Configure Build to build all dev targets with xsimd and OpenMP enabled
+cmake -S . -B build \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DAPRIL_BUILD_TESTS=ON \
+      -DAPRIL_BUILD_EXAMPLES=ON \
+      -DAPRIL_BUILD_BENCHMARKS=ON \
+      -DAPRIL_ENABLE_OPENMP=ON \
+      -DAPRIL_ENABLE_XSIMD=ON
+
+cmake --build build --config Release -j 6
+
+# Run the test suite
+cd build
+ctest --output-on-failure
+```
+
+
+
+### 4. Many-Particle Example
+
+This example shows a many-particle Lennard-Jones simulation using linked cells, SoA storage, a uniform external field, reflective boundaries, and output monitors.
 
 ```c++
 #include <april/april.hpp>
@@ -197,100 +173,87 @@ int main() {
 
 <br>
 
-# Performance
 
-All benchmarks were performed on a single CPU thread.  
+## Components and Built-ins
 
-**Hardware**: Surface Laptop Studio 2 (Intel i7-11370H, 16 GB RAM)
-**Software**: Windows 10 with WSL2 Ubuntu 24.04.1.
+APRIL is organized into distinct component categories:
 
-All benchmark code and raw data are available in `/benchmarks`.
+* **Containers**: Own particle storage and define memory layout, traversal strategy, and neighbor iteration.
+  *Built-ins*: `DirectSum`, `LinkedCells`, each available in `AoS`, `SoA`, or `AoSoA` layouts.
 
+* **Forces**: Pairwise particle interactions.
+  *Built-ins*: Lennard-Jones (12-6), Gravity, Coulomb, Harmonic.
 
-### 1. End-to-End Scalar Runtime Comparison
+* **Fields**: External force fields.
+  *Built-ins*: `UniformField` (global constant), `LocalField` (localized with optional temporal dependence).
 
+* **Boundaries**: Domain constraints and boundary interactions.
+  *Built-ins*: Periodic, Reflective, Repulsive, Absorbing, Open.
 
-Comparative benchmarks were conducted for 10k integration steps with Lennard-Jones (12-6) interactions (ε = 5, σ = 1, cutoff = 3σ, dt = 0.0002).
+* **Integrators**: Propagate the simulation through time.
+  *Built-ins*: Velocity-Verlet, Yoshida4.
 
-**System:** simple cubic lattice of varying size (1000-8000 particles).  
-**Compilers / Versions:**
-- April: (Clang 18.1.3) 
-- LAMMPS: Stable Release 22 Jul 2025 (Update 3), built with Kokkos backend (Clang 18.1.3) 
-- HOOMD: v5.3.1 (pip install)
-  
+* **Controllers**: Runtime state modifiers.
+  *Built-ins*: Velocity scaling thermostat.
 
+* **Monitors**: Non-intrusive observers used for output or diagnostics.
+  *Built-ins*: Binary snapshots, benchmarking, progress bar.
 
-![Linked Cells benchmark](benchmark/results/bench_LC.png)
-
-
-**Scalar-only execution**
-
-Run time in seconds:
-| Particles | April | LAMMPS | HOOMD |
-| --- | --- | --- | --- |
-| 8000 | 34.127 | 23.965 | 42.475 |
-| 4500 | 18.866 | 12.548 | 23.148 |
-| 2250 | 8.934  | 5.561 | 10.406 |
-| 1000 | 3.325  | 2.102 | 4.107 |
-
-April is competitive with both LAMMPS and HOOMD, outperforming HOOMD in this configuration. LAMMPS achieves lower runtimes primarily due to algorithmic differences such as Verlet neighbor lists, which reduce the number of non-interacting particle pairs evaluated per step.
+* **Executors**: Shared-memory execution backends.
+  *Built-ins*: Sequential, OpenMP, native threading executors.
 
 
-### 2. SIMD Vectorized Runtime
 
-April’s linked-cells implementation achieves roughly a 2.1× speedup with AVX-512 vectorization using the AoSoA layout.
+## Performance
 
-| Particles | April| 
-| --- | --- | 
-| 8000 | 16.37 s    | 
-| 4500 | 8.90  s    | 
-| 2250 | 4.02  s    | 
-| 1000 | 1.57  s    |
+The results below were measured on CoolMUC-4 CPU Cluster using optimized CPU builds with Clang 20.1.2. Full benchmark code, configurations, and scripts are available at: https://github.com/JKKDY/april-benchmarks
+
+All benchmarks use a Lennard-Jones (12-6) system with a cutoff of 3.0σ. APRIL was evaluated using DirectSum and LinkedCells containers with AoS, SoA, and AoSoA layouts, both in scalar and SIMD configurations. LAMMPS results were obtained using single-rank OpenMP runs with comparable physical parameters.
+
+### APRIL vs. Handwritten Kernels
+
+Abstraction overhead is evaluated by comparing APRIL's direct-sum Lennard-Jones kernels against traversal-matched handwritten reference implementations.
+
+Lower is better.
+
+| Configuration | APRIL  | Handwritten Reference | Difference |
+| ------------- | ------ | --------------------- | ---------- |
+| AoS scalar    | 4.22 s | 4.06 s                | +4.0%      |
+| SoA scalar    | 5.01 s | 4.86 s                | +3.1%      |
+| SoA SIMD      | 1.44 s | 1.44 s                | +0.1%      |
+| AoSoA SIMD    | 1.42 s | 1.44 s                | -1.1%      |
+
+APRIL's scalar paths stay close to traversal-matched handwritten baselines, while the SIMD paths match handwritten vectorized kernels. This is the intended design point: users write particle kernels once against an AoS-style interface, and APRIL specializes the same code for different memory layouts and scalar/SIMD execution modes.
+
+### APRIL vs. LAMMPS
+
+APRIL was evaluated against single-rank LAMMPS OpenMP runs on a one-million-particle Lennard-Jones benchmark. APRIL used `LinkedCells` with SoA storage and shared-memory parallel execution.
+
+Throughput is reported in **MUPS**: million particle updates per second. Higher is better.
+
+![APRIL vs. LAMMPS shared-memory scaling](img/strong_scaling_mups.png)
+
+The standard timestep benchmark (`dt = 0.005`) represents the main end-to-end comparison. APRIL reaches roughly twice the peak throughput of the evaluated LAMMPS OpenMP configuration and maintains performance up to the full shared-memory node.
+
+The small-timestep benchmark (`dt = 10^-7`) is diagnostic: particle displacements are minimal, reducing neighbor-list and rebuild effects and making traversal, scheduling, and synchronization overhead more visible. In this case, LAMMPS is faster at one thread, but APRIL scales substantially better across the node.
+
+| Configuration | 1 Thread | Peak Throughput | 56 Threads |
+| :--- | ---: | ---: | ---: |
+| APRIL, `dt = 0.005` | 2.65 MUPS | 52.22 MUPS @ 50 threads | 52.00 MUPS |
+| LAMMPS OpenMP, `dt = 0.005` | 1.87 MUPS | 25.95 MUPS @ 45 threads | 24.24 MUPS |
+| APRIL, `dt = 10^-7` | 4.6467 MUPS | 127.86 MUPS @ 56 threads | 127.86 MUPS |
+| LAMMPS OpenMP, `dt = 10^-7` | 7.21 MUPS | 44.66 MUPS @ 16 threads | 29.72 MUPS |
+
+These benchmarks are not intended to claim that APRIL is generally faster than LAMMPS. LAMMPS is a mature distributed molecular dynamics package with many optimized modes and algorithms. The comparison shows that APRIL's statically composed shared-memory CPU path is competitive and can scale very well in the evaluated single-rank configuration.
 
 
-DirectSum sees a 3.9× speedup on small scale benchmarks, which is close to the arithmetic throughput limit of Tiger Lake CPUs. On this architecture AVX-512 FMA throughput is effectively the same as AVX2 (maximum ~4× arithmetic throughput, see [Agner Fog’s instruction tables](https://www.agner.org/optimize/instruction_tables.pdf#page=380)) because two FMA execution ports are fused. This result is therefore close to the theoretical limit.
 
-
-For larger benchmarks (e.g. 1M+ particles) April's linked cells performance decreases from the 2.1x multiple due to memory streaming constraints - The benchmark sizes above are small enough that most particle data fits inside CPU caches.
-
-
-### 3. Zero-Overhead Code Generation
-
-To evaluate overhead of April's code generation, the DirectSum implementation is benchmarked against equivalent handwritten integration loops. These benchmarks were conducted without explicit vectorization.
-
-| Configuration | Median Time (s) |
-| :--- | :--- |
-| **April AOS** | 6.13 |
-| **Hardcoded AOS** | 6.16 |
-| **April SOA** | 6.06 |
-| **Hardcoded SOA** | 6.47 |
-
-April does not introduce measurable abstraction overhead compared to handwritten loops. In the SoA case, April slightly outperforms the manual implementation, due to improved aliasing assumptions available to the compiler (usage of the `restrict` compiler hint).
-
-
-### 4. Force Kernel Dispatch Efficiency
-
-To assess force kernel dispatch efficiency, the amortized time per force evaluation was measured for April’s DirectSum and LinkedCells implementations. These results are compared against a very simple hardcoded force update loop (which gives an upper bound to the maximum possible performance) and LAMMPS force evaluation performance. These benchmarks were conducted without explicit vectorization.
-
-
-| Configuration              | ns / interaction |
-|:---------------------------|-----------------:|
-| Handwritten minimal kernel |             2.63 |
-| April DirectSum            |             3.01 |
-| April LinkedCells          |             3.18 |
-| LAMMPS                     |             4.09 |
-
-
-April's force evaluation performance is close to the scalar single-core limit and is on par or faster than LAMMPS in terms of amortized force dispatch cost.  
-
-<br>
-
-# Architecture
+## Architecture
 
 ### 1. Lifecycle
 
 
-The following diagram shows the typical flow of a program using April:
+The following diagram shows the typical flow of a program using APRIL:
 ```
              [particles]   [boundaries]   [forces]          
                        \        |        /                          
@@ -323,76 +286,60 @@ The following diagram shows the typical flow of a program using April:
                           +-----------+
 ```
 
-The canonical setup path follows three stages: declare, build, run:
 
-1. **Declarative Setup**:
-Users describe the physics of the simulation (particles, interactions, domain, boundary conditions, fields, and controllers). No execution occurs at this stage. Declaration is order-independent and purely descriptive. 
+APRIL follows a staged `declare → build → run` lifecycle:
 
-2. **Build Step**: The `build_system` function compiles the `Environment`, together with a chosen `Container`, into a simulation-ready `System` object. This involves mapping user-facing IDs/types to dense internal indices, finalizing the domain, building the interaction table, validating consistency and triggering component initialization (e.g. particle data and spatial structures in a `Container`). The `System` is stateful and owns all simulation data including time and step counts.
+1. **Declare**: Users describe the simulation: particles, interactions, fields, boundaries, controllers, and the simulation domain. No simulation state is advanced at this stage. The declaration is descriptive and order-independent.
 
-3. **Execution**: An `Integrator` (templated on `System`), advances the simulation in time. During the execution, attached `Monitors` may emit records based on custom trigger policies. After a run the system remains valid and can be queried or resumed - optionally with a different integrator.
+2. **Build**: `build_system(...)` combines an `Environment` with a chosen `Container` and materializes a simulation-ready `System`. This step validates the configuration, finalizes the domain, maps user-facing particle types to internal indices, builds interaction tables, initializes particle storage, and prepares container-specific data structures such as spatial indices.
 
-Since April primarily relies on static composition, all component types (e.g. which forces, monitors, etc.) that *could* be used, must be declared at compile time. This is done via named parameter packs in the `Environment` and `Integrator` constructors. The specific objects and their parameters are configured at run time. 
+3. **Run**: An `Integrator` advances the `System` in time. Attached `Monitors` can emit output or diagnostics based on trigger policies. After a run, the system remains valid and can be queried, resumed, or advanced with another integrator.
 
 
+### Design Notes
+
+APRIL is built around static composition rather than runtime polymorphism. Component categories that may be used, such as forces, fields, boundaries, monitors, containers, and executors, are declared at compile time through named parameter packs. Concrete component objects and parameters are assigned at runtime.
+
+Static composition keeps the available execution paths visible to the compiler. Component types, memory layouts, field access, and execution modes remain statically visible, allowing the compiler to inline through abstraction layers and specialize kernels for the selected configuration.
+
+Where runtime selection is needed, APRIL uses statically known alternatives such as `std::variant` and `std::visit`. Dispatch points are kept outside inner loops where possible, so runtime flexibility does not dominate force-evaluation kernels.
+
+Component interfaces are enforced with Concepts and implemented through CRTP-style base classes. User-defined components inherit from these base classes and satisfy the same interfaces as built-in components and are compiled into the same execution paths. There is no separate plugin layer for custom code.
+
+The tradeoff is increased compile-time work due to template instantiation. APRIL intentionally accepts this cost to reduce overhead during simulation runtime.
 
 
-### 2. Design
 
-April has three architectural goals which dictate its design: 
-1. **Easy to use**: clean & expressive API, clear setup path, good discoverability
-2. **Modularity & Extensibility**: all components are swappable and user-extensible
-3. **Maximum Performance**: Abstraction layers must not introduce overhead
+## Extending APRIL: Quick Look
 
-Modern C++ (templates, concepts, `if constexpr`, `deduce this`, CRTP, CTAD) makes these goals compatible with one another by making all code paths visible to the compiler while keeping the user-facing API clean.
-These goals lead to the following design decisions:
-<br>
-
-#### **Declarative API with an Explicit Build Step**
-User-facing objects are either *declarative* (like `Particle` & containers) and hold no executable simulation state or *functional* (e.g. forces and boundaries). Functional objects do not prescribe or expose mutable state through their interface contract; any state they carry is user-defined and opaque to the system.  
-During the `build_system` step, declarative objects are materialized into internal representations. Functional components are integrated as callable behavior.   
-This design discourages API misuse and establishes a clear, canonical setup path. The declarative style also makes simulations easier to write, reason about, and review.  
-<br>
-
-#### **Static composition over runtime polymorphism and type erasure**
-Virtual dispatch introduces indirection (vtable lookups) and prevents inlining which is detrimental in hot paths.   
-April therefore uses static composition via `deduce this`, CRTP and traits to eliminate virtual calls and make all code paths visible to the compiler.  
-Where runtime selection is unavoidable (e.g. multiple force types), `std::variant` (generates a static jump table) and `std::visit` are used. Dispatch points are hoisted outside of inner loops to amortize lookup costs. 
-This approach increases compile times due to extensive template instantiation. This is an intentional tradeoff for increased runtime performance.   
-<br>
-
-#### **Extensibility via concepts and inheritance**
-April's extensibility model is based on static, inheritance-based interfaces. Interface base classes expose extension points via `deduce this` methods, which either call the corresponding subclass implementation or - in some cases where implementation is optional - fall back to a default implementation. Corresponding concepts check for inheritance and ensure the required interface is satisfied.  
-User-defined components are compiled into the same execution paths as built-in ones i.e., there is no architectural difference between built-in and user components.   
-
-
-### 3. Extending April (Quick Look)
-
-The following demonstrates how to extend April, exemplified by implementing a custom force. Forces implement an `eval` function which produces a force vector given two particles and their relative displacement vector `r`.
+The following example sketches a custom force. A force provides an `eval` function that receives two particle views and their relative displacement `r`.
 
 ```c++
-struct MyForce : Force{
-    using Force::Force; // or define your own constructor
+struct MyWierdForce : Force {
+    using Force::Force;
 
-    // fields you want to access in the eval function must be explicitly
-    // stated at compile time. if you try to access a field not stated here 
-    // the compiler will complain
-    static constexpr env::Mask fields = env::Field::position | env::Field::velocity;
+    // Fields accessed by eval must be declared at compile time.
+    // Accessing undeclared fields is a compile-time error.
+    static constexpr env::Mask fields =
+        env::Field::position | env::Field::velocity;
 
-    // p1, p2 are particle views; 
-    // in the scalar case they hold const references to the actual data
-    // in the vectorized case they hold temporary simd registers
+    double strength = 1.0;
+
+    // p1 and p2 are particle views.
+    // In scalar execution they refer to scalar particle data.
+    // In SIMD execution they represent packed particle data.
     // r is either (scalar) vec3 type or (simd/packed) pvec3 type
-    vec3 eval(auto p1, auto p2, const auto& r) const noexcept {
-        // fields can be accessed with p1.position, p2.velocity ..    
-        return ...         
+    auto eval(auto p1, auto p2, const auto& r) const noexcept {
+        // Fields can be accessed with p1.position, p2.velocity, ...
+        return strength * p1.mass * p2.mass * r 
     }
 };
 ```
 
-# License
 
-April is licensed under **AGPLv3**.
+## License
+
+APRIL is licensed under **AGPLv3**.
 Small users (individuals, academia, non-profits, and SMEs) are granted an exception via an explicit license exception that **waives the AGPL network-use (Section 13) requirement**, allowing private internal services and APIs.
 Larger organizations must comply with AGPLv3.
 
@@ -401,7 +348,7 @@ See `LICENSE` and `EXCEPTION.md` for details.
 
 
 
-# Roadmap
+## Roadmap
 
 Planned additions (subject to change)
 
@@ -414,13 +361,14 @@ Planned additions (subject to change)
 - [x] SoA
 - [x] AoSoA
 - [x] SIMD support
-- [ ] Parallelism
+- [x] Shared-memory Parallelism
+- [ ] Distributed-memory Parallelism
 
 **Features**: 
 - [x] Yoshida4
 - [ ] Boris Pusher Integrator
 - [ ] Barnes-Hut Container
-- [ ] Verlet Clusters
+- [ ] Verlet Cluster Container
 - [ ] Compute Pipelines
 
 **Secondary Features**: 
@@ -448,7 +396,7 @@ To explore?
 - [ ] communication "bridges"/"pipes" between components
 - [ ] econophysics style simulations -->
 
-Note: when C++26 matures, April will likely switch to the newer standard for reflection and `std::simd` support.
+Note: when C++26 matures, APRIL will likely switch to the newer standard for reflection and `std::simd` support.
 
 
 

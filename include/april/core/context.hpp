@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include <cstddef>
 #include "domain.hpp"
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
@@ -19,7 +18,7 @@ namespace april::core {
 		explicit SystemContext(System & sys): system(sys) {}
 		[[nodiscard]] double time() const noexcept { return system.time(); }
 		[[nodiscard]] size_t step() const noexcept { return system.step(); }
-		[[nodiscard]] core::Box box() const noexcept { return system.box(); }
+		[[nodiscard]] Box box() const noexcept { return system.box(); }
 
 
 		// ------------------
@@ -36,10 +35,6 @@ namespace april::core {
 			return system.template view<M>(index);
 		}
 
-		template<ParticleField M>
-		[[nodiscard]] auto restricted_at(size_t index) {
-			return system.template restricted_at<M>(index);
-		}
 
 		// ID ACCESSORS (stable)
 		template<ParticleField M>
@@ -50,11 +45,6 @@ namespace april::core {
 		template<ParticleField M>
 		[[nodiscard]] auto view_id(ParticleID id) const {
 			return system.template view_id<M>(id);
-		}
-
-		template<ParticleField M>
-		[[nodiscard]] auto restricted_at_id(ParticleID id) {
-			return system.template restricted_at_id<M>(id);
 		}
 
 
@@ -70,16 +60,16 @@ namespace april::core {
 			return system.max_id();
 		}
 
-		[[nodiscard]] bool contains(ParticleID id) const {
-			return system.contains(id);
+		[[nodiscard]] bool contains_id(ParticleID id) const {
+			return system.contains_id(id);
 		}
 
 
 		// -------
 		// QUERIES
 		// -------
-		[[nodiscard]] size_t size(ParticleState = ParticleState::ALL) const noexcept {
-			return system.size();
+		[[nodiscard]] size_t size(ParticleState state = ParticleState::ALL) const noexcept {
+			return system.size(state);
 		}
 
 		[[nodiscard]] std::vector<size_t> query_region(const core::Box & region) const {

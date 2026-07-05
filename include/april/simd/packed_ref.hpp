@@ -122,7 +122,7 @@ namespace april::simd {
         template<size_t... Indices>
          [[nodiscard]] PackedT permute() const {
             PackedT val = *this;
-            return val.template rotate_left<Indices...>();
+            return val.template permute<Indices...>();
         }
         template<unsigned K = 1>
         [[nodiscard]] PackedT rotate_left() const {

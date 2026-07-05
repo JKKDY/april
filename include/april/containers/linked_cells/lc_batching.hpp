@@ -10,16 +10,15 @@
 namespace april::container::internal {
 
 	template<typename AsymmetricBatch, typename SymmetricBatch>
-	struct LinkedCellsBatch : batching::BatchBase<exec::ParallelTrait::None,
-		AsymmetricBatch::vector_trait & SymmetricBatch::vector_trait> {
+	struct LinkedCellsBatch : batching::BatchBase<AsymmetricBatch::vector_trait & SymmetricBatch::vector_trait> {
 
-		template<ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Func>
+		template<exec::ExecutionMode E, exec::IsKernel Func>
 		void for_each_pair (Func && f) const {
 			for (const auto& chunk : sym_chunks)
-				chunk.template for_each_pair<P, E>(f);
+				chunk.template for_each_pair<E>(f);
 
 			for (const auto & chunk : asym_chunks)
-				chunk.template for_each_pair<P, E>(f);
+				chunk.template for_each_pair<E>(f);
 		}
 
 		void clear() {

@@ -115,7 +115,9 @@ if __name__ == "__main__":
     waterdrop = "falling_water_drop"
     galaxy = "spiral_galaxy"
 
-    vis = ParticleVisualizer(f"../output/{two_body_collision}")
+    # vis = ParticleVisualizer(f"../output/{two_body_collision}")
+    vis = ParticleVisualizer(f"output")
+
     app.run()
 
     # for f in list_bin_files("../output/two_body_collision"):

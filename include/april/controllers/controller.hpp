@@ -24,8 +24,8 @@ namespace april::controller  {
 
 		template<class S>
 		void dispatch_update(this auto&& self, const core::SystemContext<S> & sys) {
-			if constexpr ( requires { self.Write(sys); }) {
-				self.Write(sys);
+			if constexpr ( requires { self.update(sys); }) {
+				self.update(sys);
 			}
 		}
 

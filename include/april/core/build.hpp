@@ -12,105 +12,132 @@
 
 
 namespace april {
+    // @brief build-time metadata for system
+    struct BuildInfo {
+        std::unordered_map<ParticleType, ParticleType> type_map; // user type -> dense system type
+        std::unordered_map<ParticleID, ParticleID> id_map; // user id -> dense system id
+        Domain particle_box; // minimal bounding box containing all particles
+        Domain simulation_domain; // final domain including margins
+    };
 
-	struct BuildInfo {
-		std::unordered_map<ParticleType, ParticleType> type_map;
-		std::unordered_map<ParticleID, ParticleID> id_map;
-		Domain particle_box;
-		Domain simulation_domain;
-	};
+
+    // @brief constructs a system from an environment, container and execution config. Returns optional build information via build_info pointer
+    template <class ContainerCfg, core::IsEnvironment Env, exec::IsExecutionConfig ExecCfg>
+        requires container::IsContainerDecl<ContainerCfg, typename Env::traits, ExecCfg>
+    auto build_system(
+        const Env& environment,
+        const ContainerCfg& container_config,
+        const ExecCfg& execution_config,
+        BuildInfo* build_info
+    ) {
+        using namespace april::core::internal;
+        using BoundaryTable = Env::traits::boundary_table_t;
+        using ForceTable = Env::traits::force_table_t;
+        using ParticleRecord = Env::traits::particle_record_t;
+        using ParticleAttributes = Env::traits::particle_attributes_t;
+
+        // explicit type for IDE code completion
+        using EnvData = EnvironmentData<
+            typename Env::traits::force_variant_t,
+            typename Env::traits::boundary_variant_t,
+            typename Env::traits::controller_storage_t,
+            typename Env::traits::field_storage_t>;
+
+        // copy environment data
+        EnvData env = get_env_data(environment);
+
+        // validate & set simulation domain
+        const core::Box particle_bbox = particle_bounding_box(env.particles);
+        const core::Box simulation_box = determine_simulation_box(
+            env.domain, particle_bbox, env.margin_abs, env.margin_fac);
+
+        // get all interacting type and id pairs
+        auto [type_pairs, id_pairs] =
+            extract_interaction_parameters(env.type_interactions, env.id_interactions);
+
+        // ensure unique ids and create user -> system mappings for ids and types
+        assign_missing_particle_ids(env.particles, env.user_particle_ids);
+        auto [type_map, id_map] = create_particle_mappings(
+            env.particles,
+            env.user_particle_types,
+            env.user_particle_ids,
+            type_pairs,
+            id_pairs
+        );
+
+        // create particles
+        const std::vector<ParticleRecord> particles = build_particles<ParticleAttributes>(
+            env.particles, type_map, id_map);
+
+        // create force table
+        ForceTable forces(env.type_interactions, env.id_interactions, type_map, id_map);
+
+        // if no boundary specified use a default (OpenBoundary)
+        set_default_boundaries(env.boundaries);
+        BoundaryTable boundaries(env.boundaries, simulation_box);
+        auto topologies = extract_topologies(boundaries);
+        validate_topologies(topologies);
+
+        // fill build info if requested
+        if (build_info) {
+            build_info->type_map = type_map;
+            build_info->id_map = id_map;
+            build_info->particle_box = Domain(particle_bbox.min, particle_bbox.extent);
+            build_info->simulation_domain = Domain(simulation_box.min, simulation_box.extent);
+        }
+
+        // build container
+        using ContainerConfig = container::ContainerBuildConfig<ContainerCfg, ExecCfg, ParticleAttributes>;
+        ContainerConfig container_build_config{
+            .exec = execution_config,
+            .config = container_config,
+            .flags = set_container_flags(topologies),
+            .hints = container::ContainerHints(),
+            .interaction_map = forces.generate_interaction_map(),
+            .domain = simulation_box
+        };
+
+        auto container = typename ContainerConfig::Container(container_build_config);
+
+        // build system
+        SystemConfig<typename ContainerConfig::Container, typename Env::traits, ExecCfg> system_config{
+            .container = std::move(container),
+            .execution_config = execution_config,
+            .particles = std::move(particles),
+            .boundaries = std::move(boundaries),
+            .interactions = std::move(forces),
+            .controllers = std::move(env.controllers),
+            .fields = std::move(env.fields)
+        };
+
+        return System(std::move(system_config));
+    }
 
 
-	template <class Container, core::IsEnvironment EnvT>
-	requires container::IsContainerDecl<Container, typename EnvT::traits>
-	System<Container, typename EnvT::traits> build_system(
-		const EnvT & environment,
-		const Container& container_config,
-		BuildInfo * build_info
-	) {
-		using BoundaryTable = EnvT::traits::boundary_table_t;
-		using ForceTable = EnvT::traits::force_table_t;
-		using ParticleRecord = EnvT::traits::particle_record_t;
+    // convenience overloads
+    template <class Container, core::IsEnvironment EnvT>
+    auto build_system(
+        const EnvT& environment,
+        const Container& container_config
+    ) {
+        return build_system(environment, container_config, ExecutionConfig(), nullptr);
+    }
 
-		using EnvData = core::internal::EnvironmentData< // explicit type so the IDE can perform code completion
-			typename EnvT::traits::force_variant_t,
-			typename EnvT::traits::boundary_variant_t,
-			typename EnvT::traits::controller_storage_t,
-			typename EnvT::traits::field_storage_t>;
+    template <class Container, core::IsEnvironment EnvT>
+    auto build_system(
+        const EnvT& environment,
+        const Container& container_config,
+        BuildInfo* build_info
+    ) {
+        return build_system(environment, container_config, ExecutionConfig(), build_info);
+    }
 
-		// get a copy of the environment data
-		EnvData env = core::internal::get_env_data(environment);
-
-		// validate & set simulation domain
-		const core::Box particle_bbox = core::internal::particle_bounding_box(env.particles);
-		const core::Box simulation_box = core::internal::determine_simulation_box(
-			env.domain, particle_bbox, env.margin_abs, env.margin_fac);
-
-		// validate & create Particles
-		auto [type_pairs, id_pairs] = core::internal::extract_interaction_parameters(
-			env.type_interactions, env.id_interactions );
-
-		core::internal::assign_missing_particle_ids(env.particles, env.user_particle_ids);
-
-		auto [type_map, id_map] = core::internal::create_particle_mappings(
-			env.particles,
-			env.user_particle_types,
-			env.user_particle_ids,
-			type_pairs,
-			id_pairs
-		);
-
-		const std::vector<ParticleRecord> particles =
-			core::internal::build_particles<typename EnvT::traits::particle_attributes_t>(env.particles, type_map, id_map);
-
-		// create boundary table
-		core::internal::set_default_boundaries(env.boundaries);
-		BoundaryTable boundaries(env.boundaries, simulation_box);
-		auto topologies = core::internal::extract_topologies(boundaries);
-		core::internal::validate_topologies(topologies);
-
-		//  create force table
-		ForceTable forces (env.type_interactions, env.id_interactions, type_map, id_map);
-
-		// fill build info if given
-		if (build_info) {
-			build_info->type_map = type_map;
-			build_info->id_map = id_map;
-			build_info->particle_box = Domain(particle_bbox.min, particle_bbox.extent);
-			build_info->simulation_domain = Domain(simulation_box.min, simulation_box.extent);
-		}
-
-		container::internal::ContainerCreateInfo container_info {
-			.flags = core::internal::set_container_flags(topologies),
-			.hints = container::internal::ContainerHints(),
-			.force_schema = forces.generate_schema(),
-			.domain = simulation_box
-		};
-
-		return System<Container, typename EnvT::traits> (
-			container_config,
-			container_info,
-			simulation_box,
-			particles,
-			boundaries,
-			forces,
-			env.controllers,
-			env.fields
-		);
-	}
+    template <class Container, core::IsEnvironment EnvT>
+    auto build_system(
+        const EnvT& environment,
+        const Container& container_config,
+        const exec::IsExecutionConfig auto& execution_config
+    ) {
+        return build_system(environment, container_config, execution_config, nullptr);
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

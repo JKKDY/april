@@ -10,21 +10,20 @@
 namespace april::container::batching {
 
 	template<typename Container,
-		exec::VectorTrait Traits = exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath>
-	struct AsymmetricScalarBatch :
-		BatchBase<exec::ParallelTrait::None, Traits> {
+		exec::VectorTrait VectorTrait = exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath>
+	struct AsymmetricScalarBatch : BatchBase<VectorTrait> {
 		explicit AsymmetricScalarBatch(Container & container) : container(container) {
 			for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
 		}
 
-		template<ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Kernel>
-		AP_FORCE_INLINE void for_each_pair(Kernel && f) const {
+		template<exec::ExecutionMode E, exec::IsKernel Kernel>
+		APRIL_FORCE_INLINE void for_each_pair(Kernel && f) const {
 			if (range1.start == range1.stop || range2.start == range2.stop) return;
 
 			if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector)) {
-				for_each_pair_packed<P>(std::forward<Kernel>(f));
+				for_each_pair_packed(std::forward<Kernel>(f));
 			} else {
-				for_each_pair_scalar<P>(std::forward<Kernel>(f));
+				for_each_pair_scalar(std::forward<Kernel>(f));
 			}
 		}
 
@@ -35,8 +34,19 @@ namespace april::container::batching {
 		static constexpr size_t packed_size = packed::size();
 		alignas(64) packed::value_type idx_arr[packed_size];
 
+		// prefetch utilities not currently in use. Will need profiling to see if applicable anywhere
+		template <ParticleField F>
+		void prefetch(size_t i) const noexcept {
+			container.template prefetch_particle<F>(i);
+		}
+
+		template <ParticleField F>
+		void prefetch_nta(size_t i) const noexcept {
+			container.template prefetch_particle_nta<F>(i);
+		}
+
 		// VECTORIZED EXECUTION PATH
-		template<ParallelPolicy P, exec::IsKernel Kernel>
+		template<exec::IsKernel Kernel>
 	    void for_each_pair_packed(Kernel&& f) const {
 			using K = std::remove_cvref_t<Kernel>;
 
@@ -60,7 +70,7 @@ namespace april::container::batching {
 				for (size_t j : body2) {
 					auto packed2 = container.template at_packed<K::Read, K::Write>(j);
 					auto buffer2 = packed2.load_buffer();
-					AP_UNROLL_LOOP_N(packed_size)
+					APRIL_UNROLL_LOOP_N(packed_size)
 					for (size_t k = 0; k < packed_size; k++) {
 						auto view1 = buffer1.to_view();
 						auto view2 = buffer2.to_view();
@@ -134,7 +144,7 @@ namespace april::container::batching {
 
 
 		// SCALAR EXECUTION PATH
-		template<ParallelPolicy P, exec::IsKernel Kernel>
+		template<exec::IsKernel Kernel>
 		void for_each_pair_scalar(Kernel&& f) const {
 			using K = std::remove_cvref_t<Kernel>;
 			for (size_t i = range1.start; i < range1.stop; ++i) {
@@ -155,20 +165,20 @@ namespace april::container::batching {
 	// SYMMETRIC BATCH
 	//----------------
 	template<typename Container,
-		exec::VectorTrait Traits = exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath>
-	struct SymmetricScalarBatch : BatchBase<exec::ParallelTrait::None, Traits> {
+		exec::VectorTrait VectorTrait = exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath>
+	struct SymmetricScalarBatch : BatchBase<VectorTrait> {
 		explicit SymmetricScalarBatch(Container & container) : container(container) {
 			for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
 		}
 
-		template<ParallelPolicy P, exec::ExecutionMode E, exec::IsKernel Kernel>
-		AP_FORCE_INLINE void for_each_pair(Kernel && f) const {
+		template<exec::ExecutionMode E, exec::IsKernel Kernel>
+		APRIL_FORCE_INLINE void for_each_pair(Kernel && f) const {
 			if (range.start == range.stop) return;
 
 			if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector)) {
-				for_each_pair_packed<P>(std::forward<Kernel>(f));
+				for_each_pair_packed(std::forward<Kernel>(f));
 			} else {
-				for_each_pair_scalar<P>(std::forward<Kernel>(f));
+				for_each_pair_scalar(std::forward<Kernel>(f));
 			}
 		}
 
@@ -178,9 +188,19 @@ namespace april::container::batching {
 		static constexpr size_t packed_size = packed::size();
 		alignas(64) packed::value_type idx_arr[packed_size];
 
+		// prefetch utilities not currently in use. Will need profiling to see if applicable anywhere
+		template <ParticleField F>
+		void prefetch(size_t i) const noexcept {
+			container.template prefetch_particle<F>(i);
+		}
+
+		template <ParticleField F>
+		void prefetch_nta(size_t i) const noexcept {
+			container.template prefetch_particle_nta<F>(i);
+		}
 
 		// VECTORIZED EXECUTION PATH
-		template<ParallelPolicy P, exec::IsKernel Kernel>
+		template<exec::IsKernel Kernel>
 	    void for_each_pair_packed(Kernel&& f) const {
 	        using K = std::remove_cvref_t<Kernel>;
 
@@ -198,7 +218,7 @@ namespace april::container::batching {
 	            // self-interaction within block i
 	            {
 	                auto buffer2 = packed1.load_buffer();
-	                AP_UNROLL_LOOP()
+	                APRIL_UNROLL_LOOP()
 	                for (size_t k = 0; k < packed_size / 2 - 1; k++) {
 	                    buffer2.rotate_right();
 	                    auto view1 = buffer1.to_view();
@@ -219,7 +239,7 @@ namespace april::container::batching {
 	            for (size_t j = i + packed_size; j < tail_start; j += packed_size) {
 	                auto packed2 = container.template at_packed<K::Read, K::Write>(j);
 	                auto buffer2 = packed2.load_buffer();
-	                AP_UNROLL_LOOP_N(packed_size)
+	                APRIL_UNROLL_LOOP_N(packed_size)
 	                for (size_t k = 0; k < packed_size; k++) {
 	                    auto view1 = buffer1.to_view();
 	                    auto view2 = buffer2.to_view();
@@ -237,6 +257,7 @@ namespace april::container::batching {
 	            auto buffer1 = p1.broadcast();
 
 	            for (size_t j : body) {
+
 	                auto packed2 = container.template at_packed<K::Read, K::Write>(j);
 	                auto buffer2 = packed2.load_buffer();
 
@@ -278,7 +299,7 @@ namespace april::container::batching {
 
 
 		// SCALAR EXECUTION PATH
-		template<ParallelPolicy P, exec::IsKernel Kernel>
+		template<exec::IsKernel Kernel>
 		void for_each_pair_scalar(Kernel&& f) const {
 			using K = std::remove_cvref_t<Kernel>;
 			for (size_t i = range.start; i < range.stop; ++i) {
@@ -291,19 +312,3 @@ namespace april::container::batching {
 		}
 	};
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

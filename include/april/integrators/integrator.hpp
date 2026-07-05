@@ -46,6 +46,10 @@ namespace april::integrator {
 			return self;
 		}
 
+		void clear_monitors() {
+			monitors.clear();
+		}
+
 
 		void set_dt(const double delta_t) {
 			dt = delta_t;
@@ -91,11 +95,12 @@ namespace april::integrator {
 				throw std::invalid_argument("neither duration nor number steps have been specified!");
 			}
 
+			self.sys.update_forces(); // ensure valid force initialization
+
 			self.init_monitors();
 			self.dispatch_initialize_monitors();
 
 			// simulation loop
-			self.sys.update_forces(); // ensure valid force initialization
 			for (self.step = 0; self.step < self.num_steps; ++self.step) {
 				self.dispatch_monitor_preparation();
 				self.integration_step();

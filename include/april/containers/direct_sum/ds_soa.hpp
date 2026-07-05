@@ -3,60 +3,50 @@
 #include "april/containers/layout/soa.hpp"
 #include "april/containers/direct_sum/ds_core.hpp"
 #include "april/containers/batching/scalar_batch.hpp"
+#include "april/containers/direct_sum/ds_batching.hpp"
 
 namespace april::container::internal {
 
-    template <class Config, class U>
-    class DirectSumSoAImpl : public DirectSumCore<layout::SoA<Config, U>> {
+    template <class Config>
+    class DirectSumSoAImpl : public DirectSumCore<layout::SoA<Config>> {
     public:
-        using Base = DirectSumCore<layout::SoA<Config, U>>;
+        using Base = DirectSumCore<layout::SoA<Config>>;
+
         using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumSoAImpl>;
         using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumSoAImpl>;
+
+        using SymTaskGroup = SymmetricTaskGroup<SymmetricBatch, AsymmetricBatch>;
+        using AsymTaskGroup = AsymmetricTaskGroup<AsymmetricBatch>;
 
         using Base::Base;
         friend Base;
 
-        void generate_batches() {
-            const auto n_types = static_cast<ParticleType>(this->bin_starts.size());
 
-            // create batches for interacting particles of the same type
-            for (ParticleType type = 0; type < n_types; type++) {
-                auto [start, end, step] = this->get_physical_bin_range(type);
-                if (end - start <= 1) continue;
-
-                SymmetricBatch batch (*this);
-                batch.types = {type, type};
-                batch.range = {start, end};
-                symmetric_batches.push_back(batch);
-            }
-
-            // create batches for interacting particles of different types
-            for (ParticleType t1 = 0; t1 < n_types; t1++) {
-                for (ParticleType t2 = t1 + 1; t2 < n_types; t2++) {
-                    auto [start1, end1, step1] = this->get_physical_bin_range(t1);
-                    auto [start2, end2, step2] = this->get_physical_bin_range(t2);
-                    if (start1 == end1 || start2 == end2) continue;
-
-                    AsymmetricBatch batch (*this);
-                    batch.types = {t1, t2};
-                    batch.range1 = {start1, end1};
-                    batch.range2 = {start2, end2};
-                    asymmetric_batches.push_back(batch);
-                }
-            }
+    private:
+        auto create_symmetric_batch(ParticleType type, const math::Range & range) {
+            SymmetricBatch batch(*this);
+            batch.types = {type, type};
+            batch.range = range;
+            return batch;
         }
 
-        std::vector<SymmetricBatch> symmetric_batches;
-        std::vector<AsymmetricBatch> asymmetric_batches;
+        auto create_asymmetric_batch(ParticleType type1, const math::Range & range1, ParticleType type2, const math::Range & range2) {
+            AsymmetricBatch batch(*this);
+            batch.types = {type1, type2};
+            batch.range1 = range1;
+            batch.range2 = range2;
+            return batch;
+        }
+
+        std::vector<SymTaskGroup> sym_groups;
+        std::vector<AsymTaskGroup> asym_groups;
     };
 }
 
 namespace april::container {
     struct DirectSumSoA {
-        using ConfigT = DirectSumSoA;
-
-        template <class U>
-        using impl = internal::DirectSumSoAImpl<ConfigT, U>;
+        template<class Config>
+        using impl = internal::DirectSumSoAImpl<Config>;
     };
 }
 

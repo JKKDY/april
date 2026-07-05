@@ -1,47 +1,50 @@
-#include <april/april.hpp>
+
+ #include <april/april.hpp>
 #include <filesystem>
+
 
 using namespace april;
 namespace fs = std::filesystem;
 
-
-
-
 int main() {
-    const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/sandbox";
-    remove_all(dir_path);   // delete the directory and all contents
-    create_directory(dir_path); // recreate the empty directory
 
+	const auto dir_path = fs::path(PROJECT_SOURCE_DIR) / "output/sandbox";
+	remove_all(dir_path);   // delete the directory and all contents
+	create_directory(dir_path); // recreate the empty directory
 
-    struct ChargeAttribute {
-        double charge;
+	auto cuboid1 = ParticleCuboid{}
+		.at({0, 0, 0})
+		.velocity({0, 0, 0})
+		.count({40, 8, 5})
+		.mass(1.0)
+		.spacing(1.1225)
+		.type(0);
 
-        struct VectorLayout {
-            using ScalarType = double;
-            simd::Packed<ScalarType> charge;
-        };
-    };
+	auto cuboid2 = ParticleCuboid{}
+		.at({15, 15, 0})
+		.velocity({0, -20, 0})
+		.count({8, 8, 5})
+		.mass(1.0)
+		.spacing(1.1225)
+		.type(0);
 
+	auto env = Environment(forces<LennardJones>, boundaries<ReflectiveBoundary>)
+	   .with_particles(cuboid1)
+	   .with_particles(cuboid2)
+	   .with_extent(100,80,40)
+	   .with_origin(-20,-20,-20)
+	   .with_force(LennardJones(5, 1), to_type(0))
+	   .with_boundaries(ReflectiveBoundary(), all_faces);
 
-    int DEFAULT = 0;
+	auto container = DirectSum<Layout::AoSoA<>>();
+	auto system = build_system(env, container);
 
-    // 1) Define particles and interactions
-    auto sun = Particle().at(0, 0, 0).with_mass(1.0).as_type(DEFAULT).with_data(ChargeAttribute{1});
-    auto planet = Particle().at(1, 0, 0).with_velocity(0, 1, 0).with_mass(1e-3).as_type(DEFAULT).with_data(ChargeAttribute{1});
-    auto moon = Particle().at(1.05, 0, 0).with_velocity(0, 1.2, 0).with_mass(1e-6).as_type(DEFAULT).with_data(ChargeAttribute{1});
-
-    // Declare which component types may be used
-    auto env = Environment(forces<Coulomb>, boundaries<OpenBoundary>, particle_attributes<ChargeAttribute>)
-        .with_particles({sun, planet, moon})
-        .with_force(Coulomb(), to_type(DEFAULT));
-
-    constexpr auto algo = DirectSum<Layout::SoA>();
-    auto system = build_system(env, algo);
-
-    auto integrator = Yoshida4(system, monitors<BinaryOutput, ProgressBar, Benchmark, TerminalOutput>)
-        .with_monitor(BinaryOutput(Trigger::every(50), dir_path.string()))
-        .with_monitor(ProgressBar(Trigger::every(50)))
-        .with_monitor(Benchmark())
-        .run_for_duration(0.014, 1000);
+	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
+		.with_monitor(Benchmark())
+		.with_monitor(BinaryOutput(Trigger::every(100), dir_path.string()))
+		.with_monitor(ProgressBar(Trigger::every(100)))
+		.run_for_duration(0.0002, 3);
 }
+
+
 

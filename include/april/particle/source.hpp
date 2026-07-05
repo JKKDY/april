@@ -1,3 +1,16 @@
+/**
+* @file source.hpp
+ * @brief Compile-time field access control and zero-overhead data source abstraction.
+ *
+ * This file implements APRIL's "Poisoning" system.
+ *
+ * Any attempt to access a particle field that was not explicitly declared in a kernel's
+ * Read/Write mask results in a clean compile-time error instead of a runtime bug.
+ *
+ * Forbidden fields are replaced with the AccessForbidden struct, which deliberately
+ * triggers a static_assert on any operator usage. This gives excellent error messages
+ * while maintaining zero runtime overhead.
+ */
 #pragma once
 
 #include "april/base/types.hpp"
@@ -8,8 +21,11 @@
 
 namespace april::particle::internal {
 
-	// A Poison struct
-	// will throw at compile time if any operator call is instantiated
+	/**
+	 * Poison struct used to occupy slots for forbidden particle fields.
+	 * Triggers a hard compiler error if any operator call is instantiated.
+	 * This effectively "poisons" the field, preventing unauthorized usage.
+	 */
 	template<ParticleField F>
     struct AccessForbidden {
         // Assignment & Compound Assignment
@@ -65,7 +81,7 @@ namespace april::particle::internal {
 		// Note: in c++26 use std::format to print particle field in static assert
         template<typename U = void>
         static void trigger() {
-            static_assert(std::is_same_v<U, int>, // will evaluate to false
+            static_assert(std::is_same_v<U, int>, // will evaluate to false. One could also directly type false but clion/clangd complains
                 "\n\nError: Field Access Violation!\n"
                 "The requested field is not present in the current Accessor Mask.\n"
                 "Make sure that all used fields are in the particle mask\n");
@@ -73,7 +89,12 @@ namespace april::particle::internal {
     };
 
 
-	// selects Mutable, Const, or Poison based on the masks and container constness
+	/**
+	 * Selects the correct type for a field based on the Read/Write masks:
+	 *   - Mutable pointer/reference   if in WriteMask
+	 *   - Const pointer/reference     if only in ReadMask
+	 *   - AccessForbidden<F>          if not requested at all
+	 */
 	template<typename MutableT, typename ConstT, ParticleField F, ParticleField ReadMask, ParticleField WriteMask>
 	using field_access_t = std::conditional_t<
 		has_field_v<ReadMask | WriteMask, F>, // is it accessible at all?
@@ -86,31 +107,44 @@ namespace april::particle::internal {
 	>;
 
 
+	/**
+	 * Lightweight source of raw pointers to particle data.
+	 *
+	 * This struct acts as the common foundation for both ScalarParticleRef and
+	 * PackedParticleRef. Thanks to APRIL_NO_UNIQUE_ADDRESS and the poisoning system,
+	 * fields that are not requested compile down to zero bytes with no overhead.
+	 *
+	 * The masks (ReadMask / WriteMask) are typically supplied by a particle kernel (see exec/particle_kernel.hpp)
+	 * via its static `fields` member.
+	 */
 	template<ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes>
 	struct ParticleSource {
 
 		// type generator for standard scalar pointers
 		template<typename T, ParticleField F>
-		using Ptr = field_access_t<T* AP_RESTRICT, const T* AP_RESTRICT, F, ReadMask, WriteMask>;
+		using Ptr = field_access_t<T* APRIL_RESTRICT, const T* APRIL_RESTRICT, F, ReadMask, WriteMask>;
 
 		// type generator for Vec3 pointers
 		template<ParticleField F>
 		using Vec3PtrT = field_access_t<math::Vec3Ptr<vec3::type>, math::Vec3Ptr<const vec3::type>, F, ReadMask, WriteMask>;
 
 		// data pointers (optimized away to empty poison structs if not accessible)
-		AP_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::force>        force;
-		AP_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::position>     position;
-		AP_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::velocity>     velocity;
-		AP_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::old_position> old_position;
+		APRIL_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::force>        force;
+		APRIL_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::position>     position;
+		APRIL_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::velocity>     velocity;
+		APRIL_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::old_position> old_position;
 
 		// scalar pointers (optimized away to empty poison structs if not accessible)
-		AP_NO_UNIQUE_ADDRESS Ptr<double,        ParticleField::mass>       mass;
-		AP_NO_UNIQUE_ADDRESS Ptr<ParticleState, ParticleField::state>      state;
-		AP_NO_UNIQUE_ADDRESS Ptr<ParticleType,  ParticleField::type>       type;
-		AP_NO_UNIQUE_ADDRESS Ptr<ParticleID,    ParticleField::id>         id;
-		AP_NO_UNIQUE_ADDRESS Ptr<Attributes,    ParticleField::attributes> attributes;
+		APRIL_NO_UNIQUE_ADDRESS Ptr<double,        ParticleField::mass>       mass;
+		APRIL_NO_UNIQUE_ADDRESS Ptr<ParticleState, ParticleField::state>      state;
+		APRIL_NO_UNIQUE_ADDRESS Ptr<ParticleType,  ParticleField::type>       type;
+		APRIL_NO_UNIQUE_ADDRESS Ptr<ParticleID,    ParticleField::id>         id;
+		APRIL_NO_UNIQUE_ADDRESS Ptr<Attributes,    ParticleField::attributes> attributes;
 
-		// ParticleField based getter
+		/**
+		* Retrieves a specific field pointer or a poison struct at compile-time.
+		* Used primarily the construction of ParticleRefs (see scalar_access.hpp and packed_access.hpp).
+		*/
 		template<ParticleField F>
 		constexpr auto get() const noexcept {
 			if constexpr (has_field_v<ReadMask | WriteMask, F>) {
@@ -129,5 +163,3 @@ namespace april::particle::internal {
 		}
 	};
 }
-
-

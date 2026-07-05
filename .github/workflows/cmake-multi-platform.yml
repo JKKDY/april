@@ -1,8 +1,5 @@
-name: C++ CI
+name: April CI
 
-# Triggers the workflow on push or pull request events
-# targeting the main or master branch.
-# Also allows for manual triggering from the GitHub UI.
 on:
   push:
     branches: [ "main", "dev" ]
@@ -12,65 +9,89 @@ on:
 
 jobs:
   build_and_test:
-    # Name the job with its matrix configuration for clarity
     name: ${{ matrix.name }}
-    
-    # Use the operating system from the matrix
     runs-on: ${{ matrix.os }}
 
     strategy:
-      # Don't cancel all jobs if one fails
       fail-fast: false
 
-      # Define the explicit configurations you want to test
       matrix:
         include:
-          # --- Linux (C++23 Capable Runner) ---
-          - name: Linux (GCC 14, Debug)
-            os: ubuntu-24.04
-            build_type: Debug
-            cxx: g++-14
-            cc: gcc-14
-
-          - name: Linux (GCC 14, Release)
-            os: ubuntu-24.04
-            build_type: Release
-            cxx: g++-14
-            cc: gcc-14
-
-          - name: Linux (Clang 18, Debug)
-            os: ubuntu-24.04
-            build_type: Debug
-            cxx: clang++-18
-            cc: clang-18
-
+          # -------------------------------------------
+          #  RELEASE BUILDS (run on Linux, MacOS, MSVC)
+          # -------------------------------------------
           - name: Linux (Clang 18, Release)
             os: ubuntu-24.04
             build_type: Release
             cxx: clang++-18
             cc: clang-18
+            cmake_flags: ""
 
-          # --- Windows (MSVC) ---
-          - name: Windows (MSVC, Debug)
-            os: windows-latest
-            build_type: Debug
+          - name: macOS (Apple Clang, Release)
+            # Tests the default out-of-the-box Mac experience + NEON SIMD
+            os: macos-latest
+            build_type: Release
+            cxx: clang++
+            cc: clang
+            cmake_flags: ""
+            env:
+              MACOSX_DEPLOYMENT_TARGET: "14.0"
+
+          - name: macOS (GCC 14, Release)
+            # The modern C++23 fallback for Mac users
+            os: macos-latest
+            build_type: Release
+            cxx: g++-14
+            cc: gcc-14
+            cmake_flags: ""
 
           - name: Windows (MSVC, Release)
             os: windows-latest
             build_type: Release
+            cxx: cl
+            cc: cl
+            cmake_flags: ""
 
-          # --- macOS (Homebrew GCC) ---
-          - name: macOS (GCC 14, Debug)
-            os: macos-latest
+          - name: Windows (MinGW, Release)
+            os: windows-latest
+            build_type: Release
+            cxx: g++
+            cc: gcc
+            cmake_flags: ""
+
+          # -----------------------------------------
+          # DEBUG BUILDS (Memory & Thread Sanitizers)
+          # -----------------------------------------
+          - name: Linux (Clang 18, ASAN + UBSAN)
+            os: ubuntu-24.04
+            build_type: Debug
+            cxx: clang++-18
+            cc: clang-18
+            cmake_flags: "-DAPRIL_USE_ASAN=ON -DAPRIL_USE_UBSAN=ON"
+
+          - name: Linux (GCC 14, TSAN)
+            os: ubuntu-24.04
             build_type: Debug
             cxx: g++-14
             cc: gcc-14
+            cmake_flags: "-DAPRIL_USE_TSAN=ON"
 
-          - name: macOS (GCC 14, Release)
-            os: macos-latest
+          # -----------------------------------------
+          # NON DEFAULT BACKENDS (OpenMP & std::simd)
+          # -----------------------------------------
+          - name: Linux (GCC 14, std::simd + OpenMP)
+            os: ubuntu-24.04
             build_type: Release
             cxx: g++-14
             cc: gcc-14
+            cmake_flags: "-DAPRIL_ENABLE_XSIMD=OFF -DAPRIL_ENABLE_OPENMP=ON"
+
+          - name: Windows (MSVC, OpenMP)
+            os: windows-latest
+            build_type: Release
+            cxx: cl
+            cc: cl
+            cmake_flags: "-DAPRIL_ENABLE_OPENMP=ON"
 
     steps:
       - name: Check out code
@@ -78,68 +99,52 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Install C++23 compilers (Linux)
-        # This step only runs on Linux
+      - name: Install Compilers (Linux)
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          # Use the PPA for the latest GCC toolchain
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update
-          sudo apt-get install -y gcc-14 g++-14
-          
-          # Use the official LLVM script for the latest Clang
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 18
+          sudo apt-get install -y gcc-14 g++-14 clang-18
 
-      - name: Install GCC 14 (macOS)
-        # This step only runs on macOS to bypass Apple Clang's missing std::simd
+      - name: Install Compilers (macOS)
         if: runner.os == 'macOS'
         shell: bash
         run: brew install gcc@14
 
-      - name: Set C/C++ Compilers
-        # This step sets the specific compilers for Linux and macOS.
-        # Skips Windows since MSVC doesn't use CC/CXX matrix vars here.
-        if: matrix.cc != '' && matrix.cxx != ''
+      - name: Set up MSVC Developer Command Prompt
+        if: matrix.cxx == 'cl'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Set Compiler Environment Variables
         shell: bash
         run: |
           echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
           echo "CXX=${{ matrix.cxx }}" >> $GITHUB_ENV
 
       - name: Configure CMake
-        # Use standard CMake command.
-        # -S . (source dir) -B build (build dir)
-        # -DCMAKE_BUILD_TYPE gets the value from the matrix
         shell: bash
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        run: |
+          cmake -G Ninja -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DAPRIL_BUILD_EXAMPLES=ON \
+            -DAPRIL_BUILD_BENCHMARKS=ON \
+            ${{ matrix.cmake_flags }}
 
-      - name: Build
-        # This command builds all targets (tests, examples, benchmarks)
-        # --config is necessary for multi-config generators like MSVC
-        # -j 2 runs the build on 2 cores to speed it up
+      - name: Build (All Targets)
         shell: bash
-        run: cmake --build build --config ${{ matrix.build_type }} -j 2
+        # This compiles the engine, tests, examples, and benchmarks.
+        run: cmake --build build --config ${{ matrix.build_type }} -j 4
 
       - name: Run Tests
-        # Runs the tests.
-        # --output-on-failure is critical for debugging
-        # --build-config is necessary for MSVC
         shell: bash
+        # This executes the compiled tests using CTest.
         run: |
           cd build
           ctest --output-on-failure --build-config ${{ matrix.build_type }}
 
-
   coverage:
-    # This job will be named "Coverage (Clang 18)"
-    name: Coverage (Clang 18)
+    name: Linux (Clang 18, Coverage)
     runs-on: ubuntu-24.04
-
-    # ensures that coverage only runs IF all build_and_test jobs succeed
-    needs: build_and_test
-
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -147,18 +152,14 @@ jobs:
           submodules: 'recursive'
 
       - name: Install Clang 18
-        # We only need Clang for this job
         shell: bash
-        run: |
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 18
+        run: sudo apt-get install -y clang-18 llvm-18
 
-      - name: Configure CMake (with Coverage)
+      - name: Configure CMake (Coverage)
         shell: bash
+        # Added Ninja here too for consistency and speed
         run: |
-          # Note the build dir name and the new -DAPRIL_ENABLE_COVERAGE=ON
-          cmake -S . -B build-coverage \
+          cmake -G Ninja -S . -B build-coverage \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_COMPILER=clang++-18 \
             -DCMAKE_C_COMPILER=clang-18 \
@@ -166,19 +167,14 @@ jobs:
 
       - name: Build
         shell: bash
-        run: cmake --build build-coverage -j 2
+        run: cmake --build build-coverage -j 4
 
       - name: Run Tests (Generate .profraw)
         shell: bash
         run: |
-          # set the absolute path
           export LLVM_PROFILE_FILE="$(pwd)/build-coverage/test_april-%p.profraw"
-          
-          # Run CTest from within the build directory
           cd build-coverage
           ctest --output-on-failure
-          
-          # Return to root for next steps
           cd ..
 
       - name: Merge Profile Data
@@ -187,10 +183,9 @@ jobs:
           llvm-profdata-18 merge -sparse \
             build-coverage/*.profraw -o build-coverage/coverage.profdata
 
-      - name: Generate Coverage Report (lcov format)
+      - name: Generate Coverage Report
         shell: bash
         run: |
-          # This step generates a single 'lcov.info' file.
           llvm-cov-18 export -format=lcov \
             "build-coverage/test/test_april" \
             -instr-profile=build-coverage/coverage.profdata \
@@ -202,4 +197,4 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./build-coverage/coverage.lcov
-          fail_ci_if_error: true # Fails the CI check if upload fails
+          fail_ci_if_error: true

@@ -13,8 +13,8 @@ namespace april {
     enum class ParallelPolicy {
     	Serial,
     	Threaded, // On-Node (Shared Memory) - e.g. std::thread, OpenMP, TBB
-    	Distributed, // Multi-Node (Distributed Memory) - e.g. MPI
-    	Hybrid // Both Threaded and Distributed
+    	// Distributed, // Multi-Node (Distributed Memory) - e.g. MPI (Future stub - no support)
+    	// Hybrid // Both Threaded and Distributed (Future stub - no support)
     };
 
 

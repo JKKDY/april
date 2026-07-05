@@ -55,6 +55,10 @@ namespace april::simd::internal::xsimd {
         friend Mask operator!=(const Mask& lhs, const Mask& rhs) { return { lhs.data != rhs.data }; }
 
         // EXPORTS / DEBUGGING
+        [[nodiscard]] uint64_t to_bitmask() const {
+            return data.mask();
+        }
+
         [[nodiscard]] std::array<bool, size()> to_array() const {
             alignas(alignof(native_type)) std::array<bool, size()> result;
             store_aligned(result.data());
@@ -73,6 +77,27 @@ namespace april::simd::internal::xsimd {
             return ss.str();
         }
     };
+
+    // Mixed-type bitwise AND
+    template <typename T, typename U>
+    requires (sizeof(T) == sizeof(U) && !std::is_same_v<T, U>)
+    Mask<T> operator&(const Mask<T>& lhs, const Mask<U>& rhs) {
+        return lhs & static_cast<Mask<T>>(rhs);
+    }
+
+    // Mixed-type bitwise OR
+    template <typename T, typename U>
+    requires (sizeof(T) == sizeof(U) && !std::is_same_v<T, U>)
+    Mask<T> operator|(const Mask<T>& lhs, const Mask<U>& rhs) {
+        return lhs | static_cast<Mask<T>>(rhs);
+    }
+
+    // Mixed-type bitwise XOR
+    template <typename T, typename U>
+    requires (sizeof(T) == sizeof(U) && !std::is_same_v<T, U>)
+    Mask<T> operator^(const Mask<T>& lhs, const Mask<U>& rhs) {
+        return lhs ^ static_cast<Mask<T>>(rhs);
+    }
 
 
 

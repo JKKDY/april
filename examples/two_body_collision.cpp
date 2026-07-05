@@ -36,8 +36,14 @@ int main() {
 	   .with_force(LennardJones(5, 1), to_type(0))
 	   .with_boundaries(ReflectiveBoundary(), all_faces);
 
-	auto container = LinkedCells<Layout::SoA>();
-	auto system = build_system(env, container);
+	struct :
+			RunTimeConfig<exec::Executor>,
+			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
+		{} cfg;
+	cfg.executer_config.n_threads = 1;
+
+	auto container = LinkedCells<Layout::AoSoA<>>();
+	auto system = build_system(env, container, cfg);
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)
 		.with_monitor(Benchmark())

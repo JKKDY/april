@@ -2,24 +2,16 @@
 #include <vector>
 #include <cmath>
 
-#include "april/simd/backend_xsimd.hpp"
 #include "april/simd/packed_ref.hpp"
+#include "april/simd/packed.hpp"
 
-#if (defined(__clang__) && !defined(__apple_build_version__)) || defined(__GNUC__)
-  #if __has_include(<experimental/simd>) || __has_include(<simd>)
-    #define APRIL_HAS_STD_SIMD 1
-  #endif
-#endif
 
-#if APRIL_HAS_STD_SIMD
-  #include "april/simd/backend_std_simd.hpp"
-  using BackendTypes = testing::Types<
-    april::simd::internal::xsimd::Packed<double>,
-    april::simd::internal::std_simd::Packed<double>>;
-#else
-  using BackendTypes = testing::Types<
-    april::simd::internal::xsimd::Packed<double>>;
-#endif
+
+
+using BackendTypes = testing::Types<
+   april::simd::Packed<double>,
+   april::simd::Packed<float>
+>;
 
 template <typename T>
 class SimdRefTest : public testing::Test {
@@ -38,14 +30,15 @@ public:
         buffer.resize(safe_size);
 
         // Initialize with zeros or a pattern
-        std::fill(buffer.begin(), buffer.end(), 0.0);
+        std::fill(buffer.begin(), buffer.end(), static_cast<Scalar>(0.0));
     }
 
     // Helper to verify all lanes in a packed match a value
     void ExpectAll(const Packed& w, Scalar expected) {
         auto arr = w.to_array();
+        const double epsilon = std::is_same_v<Scalar, float> ? 1e-5f : 1e-12;
         for (auto v : arr) {
-            EXPECT_DOUBLE_EQ(v, expected);
+            EXPECT_NEAR(static_cast<double>(v), static_cast<double>(expected), epsilon);
         }
     }
 
@@ -66,7 +59,7 @@ TYPED_TEST(SimdRefTest, LoadStoreInteraction) {
     using Ref = TestFixture::Ref;
 
     // 1. Setup Memory: [10, 10, 10, 10...]
-    std::fill(this->buffer.begin(), this->buffer.end(), 10.0);
+    std::fill(this->buffer.begin(), this->buffer.end(), static_cast<TestFixture::Scalar>(10.0));
 
     // Point Ref to the start of the buffer
     Ref ref(this->buffer.data());
@@ -130,7 +123,7 @@ TYPED_TEST(SimdRefTest, CompoundAssignments) {
     using Ref = TestFixture::Ref;
 
     // Setup Memory: [10, 10...]
-    std::fill(this->buffer.begin(), this->buffer.end(), 10.0);
+    std::fill(this->buffer.begin(), this->buffer.end(), static_cast<TestFixture::Scalar>(10.0));
     Ref r(this->buffer.data());
 
     // 1. += Scalar (10 + 2 = 12)
@@ -155,7 +148,7 @@ TYPED_TEST(SimdRefTest, MathFunctions) {
     using Ref = TestFixture::Ref;
 
     // Setup: [25, 25...]
-    std::fill(this->buffer.begin(), this->buffer.end(), 25.0);
+    std::fill(this->buffer.begin(), this->buffer.end(), static_cast<TestFixture::Scalar>(25.0));
     Ref r(this->buffer.data());
 
     // sqrt(Ref) -> calls friend sqrt(SimdRef) -> returns Wide

@@ -1,11 +1,11 @@
 #pragma once
 
-#include "april/forces/force.hpp"
+#include "april/interactions/force.hpp"
 
 
 namespace april {
 	// No-op force: always returns zero vector and mixes to itself.
-	struct NoForce : force::Force{
+	struct NoForce : interactions::Force{
 		static constexpr auto fields = ParticleField::none;
 
 		NoForce(): Force(0) {}

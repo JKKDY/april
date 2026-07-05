@@ -93,6 +93,29 @@ namespace april::simd::internal::std_simd {
         // ---------------------
         // EXPORTS / DEBUGGING
         // ---------------------
+
+        [[nodiscard]] uint64_t to_bitmask() const {
+            using abi_type = native_type::abi_type;
+
+            // 1. Generate powers of two natively in the target type T.
+            // Why safe for floats/doubles?
+            // A 32-bit float exactly represents integers up to 2^24.
+            // A 64-bit double exactly represents integers up to 2^53.
+            // SIMD registers rarely exceed 64 lanes, so this math is perfectly exact.
+            stdx::simd<T, abi_type> powers([](size_t i) {
+                return static_cast<T>(1ULL << i);
+            });
+
+            // 2. Initialize a zeroed vector
+            stdx::simd<T, abi_type> masked_values = 0;
+
+            // 3. Blend: If mask[i] is true, masked_values[i] = 2^i, else 0.
+            stdx::where(data, masked_values) = powers;
+
+            // 4. Horizontal sum. The sum of powers of two inherently forms a binary bitmask.
+            return static_cast<uint64_t>(stdx::reduce(masked_values));
+        }
+
         [[nodiscard]] std::array<bool, native_type::size()> to_array() const {
             // alignas ensures the array starts at a vector-aligned memory boundary
             alignas(alignof(native_type)) std::array<bool, size()> result;
@@ -112,6 +135,27 @@ namespace april::simd::internal::std_simd {
             return ss.str();
         }
     };
+
+    // Mixed-type bitwise AND
+    template <typename T, typename U>
+    requires (sizeof(T) == sizeof(U) && !std::is_same_v<T, U>)
+    Mask<T> operator&(const Mask<T>& lhs, const Mask<U>& rhs) {
+        return lhs & static_cast<Mask<T>>(rhs);
+    }
+
+    // Mixed-type bitwise OR
+    template <typename T, typename U>
+    requires (sizeof(T) == sizeof(U) && !std::is_same_v<T, U>)
+    Mask<T> operator|(const Mask<T>& lhs, const Mask<U>& rhs) {
+        return lhs | static_cast<Mask<T>>(rhs);
+    }
+
+    // Mixed-type bitwise XOR
+    template <typename T, typename U>
+    requires (sizeof(T) == sizeof(U) && !std::is_same_v<T, U>)
+    Mask<T> operator^(const Mask<T>& lhs, const Mask<U>& rhs) {
+        return lhs ^ static_cast<Mask<T>>(rhs);
+    }
 
 
     // Width == 0: Use Native ABI (Best fit for hardware, e.g. 4 doubles on AVX2)

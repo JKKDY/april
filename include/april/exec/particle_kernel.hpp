@@ -5,8 +5,13 @@
 #include "april/particle/packed_access.hpp"
 #include "april/particle/particle_types.hpp"
 
+
+#include <iostream>
 namespace april {
     namespace exec::internal {
+        template<typename T>
+        struct is_kernel_wrapper;
+
         // check that we can call Func with the provided args with or without a template bool
         template<typename Func, typename... Args>
         concept IsKernelInvocable =
@@ -25,7 +30,7 @@ namespace april {
 
             template<typename... Args>
             requires IsKernelInvocable<Func, Args...>
-            decltype(auto) operator()(Args&&... args) const {
+            APRIL_FORCE_INLINE decltype(auto) operator()(Args&&... args) const {
                 constexpr bool packed = (particle::IsPackedParticleAccessor<std::remove_cvref_t<Args>> || ...);
 
                 // Mode checks
@@ -69,12 +74,15 @@ namespace april {
         template<IsKernel K, typename F>
         auto make_kernel_wrapper(F&& func) {
             using KernelType = std::remove_cvref_t<K>;
+
             return exec::internal::KernelWrapper<
-                KernelType::Read, KernelType::Write, KernelType::Mode, std::remove_cvref_t<F>
+                KernelType::Read,
+                KernelType::Write,
+                KernelType::Mode,
+                std::remove_cvref_t<F>
             >{std::forward<F>(func)};
         }
     }
-
 
 
     template<ParticleField Read=ParticleField::none, ParticleField Write=ParticleField::none, typename F> auto scalar_kernel(F&& f) {

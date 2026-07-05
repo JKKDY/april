@@ -6,8 +6,7 @@
 #include <memory>
 
 #include "april/base/types.hpp"
-#include "april/forces/force.hpp"
-#include "april/particle/generators.hpp"
+#include "april/interactions/force.hpp"
 
 
 #ifdef _MSC_VER
@@ -18,7 +17,7 @@ std::string demangled_type_name() {
 #else
 
 #include <cxxabi.h>
-template<typename T>
+	template<typename T>
 		std::string demangled_type_name() {
 	int status = 0;
 	const std::unique_ptr<char, void(*)(void*)> demangled{
@@ -31,7 +30,12 @@ template<typename T>
 
 
 namespace april::core::internal {
-	// ---- Particle Validation ----
+
+	//--------------------
+	// PARTICLE VALIDATION
+	//--------------------
+
+	// Utility: Checks for duplicate pairs in a collection by sorting and finding adjacent matches
 	template <typename T>
 	void validate_no_duplicates(const std::vector<std::pair<T, T>>& pairs, std::string_view item_name) {
 		//check for duplicates: first sort, then check adjacent pairs
@@ -49,6 +53,7 @@ namespace april::core::internal {
 		}
 	}
 
+	// Ensures interacting types are unique and exist and each type has a defined self-interaction
 	inline void validate_types(
 		const std::unordered_set<ParticleType>& user_types,
 		const std::vector<std::pair<ParticleType, ParticleType>>& type_pairs
@@ -85,6 +90,7 @@ namespace april::core::internal {
 	}
 
 
+	// Ensures interacting IDs are unqiue and exist and prevents IDs from interacting with themselves
 	inline void validate_ids(
 		const std::unordered_set<ParticleID>& user_ids,
 		const std::vector<std::pair<ParticleID, ParticleID>>& id_pairs
@@ -111,26 +117,46 @@ namespace april::core::internal {
 		}
 	}
 
+	// Ensures all particles have physically valid (positive) mass and valid state
 	inline void validate_particles(const std::vector<Particle>& particles) {
-		// check for positive particle masses
 		for (auto & p : particles) {
+			// check for positive particle masses
 			if (p.mass <= 0) {
 				throw std::invalid_argument(
 				   "Particles cannot have negative masses. Particle with ID " +
 				   std::to_string(p.id.value()) + " has mass " + std::to_string(p.mass)
 				);
 			}
+
+			// Check if state contains INVALID bit or has bits outside the ALL mask
+			if ((p.state & ParticleState::INVALID) == ParticleState::INVALID ||
+				(p.state & ~ParticleState::ALL) != static_cast<ParticleState>(0)) {
+				throw std::invalid_argument(std::format(
+					"Particle with ID {} has an invalid or corrupted state bitmask.",
+					p.id.value()
+				));
+				}
+
+			if (p.state == static_cast<ParticleState>(0)) {
+				throw std::invalid_argument(std::format(
+					"Particle with ID {} has no state bits set (Uninitialized).",
+					p.id.value()
+				));
+			}
 		}
 	}
 
 
 
+	//----------------
+	// BUILD PARTICLES
+	//----------------
 
-	// ---- build particles ----
-	template<force::internal::IsForceVariant FV>
+	// Extracts raw interacting type and ID pairs from interaction descriptors
+	template<interactions::internal::IsForceVariant FV>
 	auto extract_interaction_parameters(
-		const std::vector<force::internal::TypeInteraction<FV>> & type_interactions,
-		const std::vector<force::internal::IdInteraction<FV>> & id_interaction)
+		const std::vector<interactions::internal::TypeInteraction<FV>> & type_interactions,
+		const std::vector<interactions::internal::IdInteraction<FV>> & id_interaction)
 	{
 		std::vector<std::pair<ParticleType, ParticleType>> type_pairs(type_interactions.size());
 		std::vector<std::pair<ParticleID, ParticleID>> id_pairs(id_interaction.size());
@@ -144,6 +170,7 @@ namespace april::core::internal {
 		return std::pair {type_pairs, id_pairs};
 	}
 
+	// Assigns incremental IDs to any particles defined without an explicit ID
 	inline void assign_missing_particle_ids(
 		std::vector<Particle>& particles,
 		std::unordered_set<ParticleID>& user_ids
@@ -161,55 +188,56 @@ namespace april::core::internal {
 		}
 	}
 
+	// Maps user types to dense system indices in ascending order
 	inline std::unordered_map<ParticleType, ParticleType> create_type_map(
 		const std::unordered_set<ParticleType>& user_types
 	) {
 		std::unordered_map<ParticleType, ParticleType> map;
-		std::vector<ParticleType> type_vector;
-		// copy user types
-		type_vector.reserve(user_types.size());
-		type_vector.insert(type_vector.end(), user_types.begin(), user_types.end());
+		std::vector type_vector(user_types.begin(), user_types.end());
 
-		// create types map
-		for (size_t  i = 0; i < type_vector.size(); i++) {
+		// Sort to ensure lowest user types map to lowest system types
+		std::ranges::sort(type_vector);
+
+		// generate mapping
+		for (size_t i = 0; i < type_vector.size(); i++) {
 			map[type_vector[i]] = static_cast<ParticleType>(i);
 		}
-
 		return map;
 	}
 
-
+	// Maps user IDs to system indices with interacting IDs at the front
+	// Relative order is preserved via stable partitioning
 	inline std::unordered_map<ParticleID, ParticleID> create_id_map(
 		const std::unordered_set<ParticleID>& user_ids,
 		const std::vector<std::pair<ParticleID, ParticleID>>& id_pairs
 	) {
 		std::unordered_map<ParticleID, ParticleID> map;
-		std::vector<ParticleID> id_vector;
+		std::vector id_vector(user_ids.begin(), user_ids.end());
 
-		// copy user ids
-		id_vector.reserve(user_ids.size());
-		id_vector.insert(id_vector.end(), user_ids.begin(), user_ids.end());
+		// sort all ids in ascending order
+		std::ranges::sort(id_vector);
 
-		// collect all ids involved in an id-to-id interaction
+		// collect interacting ids
 		std::unordered_set<ParticleID> interacting_ids;
 		for (const auto & [id1, id2] : id_pairs) {
 			interacting_ids.insert(id1);
 			interacting_ids.insert(id2);
 		}
 
-		//swap ids, such that all ID-interacting particles have the lowest implementation ids
-		std::ranges::partition(id_vector,
-			[&](const ParticleID id_) { return interacting_ids.contains(id_); }
+		// move interacting IDs to front while keeping their relative ascending order
+		std::ranges::stable_partition(id_vector,
+		[&](const ParticleID id_) { return interacting_ids.contains(id_); }
 		);
 
-		// create id map
-		for (size_t  i = 0; i < id_vector.size(); i++) {
+		// generate mapping
+		for (size_t i = 0; i < id_vector.size(); i++) {
 			map[id_vector[i]] = static_cast<ParticleID>(i);
 		}
 
 		return map;
 	}
 
+	// Performs full type & id validation and generates mappings (called by build function)
 	inline std::pair<std::unordered_map<ParticleType, ParticleType>,
 	   std::unordered_map<ParticleID, ParticleID>>
 	create_particle_mappings(
@@ -229,6 +257,7 @@ namespace april::core::internal {
 		return std::pair{type_map, id_map};
 	}
 
+	// Transforms user Particle objects into uniform ParticleRecords (called by build function)
 	template <particle::IsParticleAttributes UserData>
 	std::vector<particle::ParticleRecord<UserData>> build_particles(
 		const std::vector<Particle>& particle_infos,
@@ -239,7 +268,7 @@ namespace april::core::internal {
 		particles.reserve(particle_infos.size());
 
 		for (const auto & p : particle_infos) {
-			AP_ASSERT(p.id.has_value(), "particle id not set during build phase");
+			APRIL_ASSERT(p.id.has_value(), "particle id not set during build phase");
 
 			particle::ParticleRecord<UserData> particle;
 			particle.id = id_map.at(p.id.value());
@@ -250,14 +279,18 @@ namespace april::core::internal {
 			particle.velocity = p.velocity;
 			particle.force = p.force.value_or(vec3{});
 			particle.old_position = p.old_position.value_or(vec3{});
-			if constexpr (std::is_same_v<UserData, NoParticleAttributes>) {
-				particle.attributes = NoParticleAttributes();
-			} else {
-				AP_ASSERT((std::any_cast<UserData>(&p.user_data) != nullptr), "user data particle with id "
-					+ std::to_string(p.id.value())
-					+ " is not of expected type " + demangled_type_name<UserData>()
-					+ " but has (mangled) type " + p.user_data.type().name());
-				particle.attributes = std::any_cast<UserData>(p.user_data);
+
+			if constexpr (!std::is_same_v<UserData, NoParticleAttributes>) {
+				auto* casted_ptr = std::any_cast<UserData>(&p.user_data);
+				if (!casted_ptr) {
+					throw std::invalid_argument(std::format(
+						"User data particle with ID {} is not of expected type '{}' (actual mangled type: '{}')",
+						p.id.value(),
+						demangled_type_name<UserData>(),
+						p.user_data.type().name()
+					));
+				}
+				particle.attributes = *casted_ptr;
 			}
 
 			particles.push_back(particle);

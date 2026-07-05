@@ -7,7 +7,7 @@ using namespace april;
 namespace fs = std::filesystem;
 
 
-static constexpr int NX = 20, NY = 20, NZ = 20;
+static constexpr int NX = 100, NY = 100, NZ = 100;
 static constexpr double a = 1.1225;
 static constexpr double sigma = 1.0;
 static constexpr double epsilon = 3.0;
@@ -30,7 +30,11 @@ int main() {
 	.count({NX, NY, NZ})
 	.mass(1.0)
 	.spacing(a)
-	.type(0);
+	.type(0)
+	.thermal([&](const vec3 & ) {
+		return math::maxwell_boltzmann_velocity(1);
+	});
+
 
 	// Box with margin >= r_cut around grid (non-periodic)
 	const vec3 extent = 1.5 * box;
@@ -43,23 +47,39 @@ int main() {
 	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(ReflectiveBoundary(), all_faces);
 
-	const auto container = LinkedCells<Layout::AoSoA<>>()
+	const auto container = LinkedCells<Layout::SoA>()
 		.with_cell_size(container::CellSize::Cutoff)
 		.with_cell_ordering(hilbert_order)
-		.with_block_size(2);
+		.with_block_size(2)
+		.with_skin_factor(0.1);
 
-	auto system = build_system(env, container);
-	constexpr double dt = 0.0002;
-	constexpr int steps  = 10000;
+	std::vector t = {1,2,4,6,8};
+	for (int _ :t) {
+		struct :
+			RunTimeConfig<exec::Executor>,
+			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
+		{} cfg;
+		cfg.executer_config.n_threads = 4;
 
-	VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
-	integrator.add_monitor(Benchmark());
-	// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
-	integrator.run_for_steps(dt, steps);
+		std::cout << " core: " << cfg.executer_config.n_threads << std::endl;
 
+		auto system = build_system(env, container, cfg);
+		constexpr double dt = 0.005;
+		constexpr int steps  = 20;
 
-	std::cout << "Particles: " << NX * NY * NZ << "\n"
-			 << "Steps: " << steps << "\n"
-			 << "dt: " << dt << "\n";
+		VelocityVerlet integrator(system, monitors<Benchmark, ProgressBar, BinaryOutput>);
+
+		integrator.run_for_steps(dt, 5);
+
+		integrator.add_monitor(Benchmark());
+		// integrator.add_monitor(ProgressBar(Trigger::always()));
+			// integrator.add_monitor(BinaryOutput(Trigger::every(100), dir_path.c_str()));
+		integrator.run_for_steps(dt, steps);
+		break;
+	}
+
+	// std::cout << "Particles: " << NX * NY * NZ << "\n"
+	// 		 << "Steps: " << steps << "\n"
+	// 		 << "dt: " << dt << "\n";
 }
 

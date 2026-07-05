@@ -9,91 +9,70 @@
 #include "april/base/types.hpp"
 #include "april/particle/particle_types.hpp"
 #include "april/exec/policy.hpp"
+#include "april/exec/parallel_utils.hpp"
 
+
+#include "april/containers/layout/internal/soa_chunk.hpp"
 
 namespace april::container::layout {
-    template <particle::IsParticleAttributes Attributes, size_t Size>
-    struct alignas(64) ParticleChunk {
-        // Enforce alignment requirements (Size 8 * double 8 bytes = 64 bytes = 1 AVX-512 Register)
-        static_assert(std::has_single_bit(Size),
-                      "Chunk Size must be a Power of 2 (e.g., 8, 16) for bitwise indexing optimizations.");
-        static_assert(Size * sizeof(vec3::type) >= 64,
-                      "Chunk Size must be at least 8 to fill a standard 64-byte Cache Line / AVX-512 register.");
 
-        static constexpr size_t size = Size;
-
-        // Position
-        alignas(64) std::array<vec3::type, Size> pos_x;
-        alignas(64) std::array<vec3::type, Size> pos_y;
-        alignas(64) std::array<vec3::type, Size> pos_z;
-
-        // Velocity
-        alignas(64) std::array<vec3::type, Size> vel_x;
-        alignas(64) std::array<vec3::type, Size> vel_y;
-        alignas(64) std::array<vec3::type, Size> vel_z;
-
-        // Force
-        alignas(64) std::array<vec3::type, Size> frc_x;
-        alignas(64) std::array<vec3::type, Size> frc_y;
-        alignas(64) std::array<vec3::type, Size> frc_z;
-
-        // Old Position
-        alignas(64) std::array<vec3::type, Size> old_x;
-        alignas(64) std::array<vec3::type, Size> old_y;
-        alignas(64) std::array<vec3::type, Size> old_z;
-
-        // Scalars
-        alignas(64) std::array<double, Size> mass;
-        alignas(64) std::array<ParticleState, Size> state;
-        alignas(64) std::array<ParticleType, Size> type;
-        alignas(64) std::array<ParticleID, Size> id;
-        alignas(64) std::array<Attributes, Size> attributes;
-    };
-
-
-    template <typename Config, particle::IsParticleAttributes Attributes, size_t ChunkSize>
-    class AoSoA : public Container<Config, Attributes> {
+    template <typename ContainerConfig, size_t ChunkSize>
+    class AoSoA : public Container<ContainerConfig> {
     public:
-        static constexpr size_t chunk_size = ChunkSize;
-        using ChunkT = ParticleChunk<Attributes, chunk_size>;
-
-        using Base = Container<Config, Attributes>;
-        using Base::force_schema;
-        using Base::Base; // Inherit constructors
+        using Base = Container<ContainerConfig>;
+        using Base::interaction_map;
+        using ParticleAttributes = Base::ParticleAttributes;
+        using Base::Base;
+        using Base::thread_executor;
         friend Base;
 
-        // make inherited accessors explicit.
-        // Otherwise the compiler cant find them due to existing overrides in this class
+        static constexpr size_t chunk_size = ChunkSize;
+        using ChunkT = ParticleChunk<ParticleAttributes, chunk_size>;
+
+
+        // make inherited accessors explicit otherwise the compiler cant find them due to existing overrides in this class
         using Base::view;
         using Base::at;
         using Base::access_particle;
+
+        explicit AoSoA(const ContainerConfig & config): Base(config) {
+            for (size_t k = 0; k < packed::size(); ++k) idx_arr[k] = static_cast<double>(k);
+        }
+
+        void bind_executor(Base::ThreadExecutor* raw_executor_ptr) {
+            thread_executor.bind(raw_executor_ptr);
+            pair_schedule_config = exec::BlockConfig(thread_executor.num_threads(), 2);
+            linear_schedule_config = exec::BlockConfig(thread_executor.num_threads(), 8);
+            pair_schedule_config.alignment = chunk_size;
+            linear_schedule_config.alignment = chunk_size;
+        }
 
 
         // ACCESSORS (chunk based)
         template <ParticleField Read, ParticleField Write>
         [[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-            return particle::internal::ScalarParticleRef<Read, Write, Attributes>{
+            return particle::internal::ScalarParticleRef<Read, Write, ParticleAttributes>{
                 self.template access_particle<Read, Write>(chunk_idx, lane_idx)
             };
         }
 
         template <ParticleField Read>
         [[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-            return particle::internal::ScalarParticleRef<Read, ParticleField::none, Attributes>{
+            return particle::internal::ScalarParticleRef<Read, ParticleField::none, ParticleAttributes>{
                 self.template access_particle<Read, ParticleField::none>(chunk_idx, lane_idx)
             };
         }
 
         template <ParticleField Read, ParticleField Write>
         [[nodiscard]] auto at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-            return particle::internal::PackedParticleRef<Read, Write, Attributes>{
+            return particle::internal::PackedParticleRef<Read, Write, ParticleAttributes>{
                 self.template access_particle<Read, Write>(chunk_idx, lane_idx)
             };
         }
 
         template <ParticleField Read>
         [[nodiscard]] auto view_packed(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-            return particle::internal::PackedParticleRef<Read, ParticleField::none, Attributes>{
+            return particle::internal::PackedParticleRef<Read, ParticleField::none, ParticleAttributes>{
                 self.template access_particle<Read, ParticleField::none>(chunk_idx, lane_idx)
             };
         }
@@ -115,6 +94,96 @@ namespace april::container::layout {
         [[nodiscard]] size_t capacity() const {
             return particle_capacity;
         }
+
+
+        // PREFETCHING
+      // ----------------
+       // AOSOA PREFETCHING
+       // ----------------
+
+       template <ParticleField Mask>
+       APRIL_FORCE_INLINE void prefetch_packed(this const auto& self, size_t c, size_t lane_idx = 0) {
+           // Standard prefetch (Temporal Locality = 3) - For outer loops
+           const auto& chunk = self.chunks[c]; // Adjust this based on how your container stores chunks
+
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>) {
+               APRIL_PREFETCH(&chunk.frc_x[lane_idx]);
+               APRIL_PREFETCH(&chunk.frc_y[lane_idx]);
+               APRIL_PREFETCH(&chunk.frc_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>) {
+               APRIL_PREFETCH(&chunk.pos_x[lane_idx]);
+               APRIL_PREFETCH(&chunk.pos_y[lane_idx]);
+               APRIL_PREFETCH(&chunk.pos_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>) {
+               APRIL_PREFETCH(&chunk.vel_x[lane_idx]);
+               APRIL_PREFETCH(&chunk.vel_y[lane_idx]);
+               APRIL_PREFETCH(&chunk.vel_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>) {
+               APRIL_PREFETCH(&chunk.old_x[lane_idx]);
+               APRIL_PREFETCH(&chunk.old_y[lane_idx]);
+               APRIL_PREFETCH(&chunk.old_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>) {
+               APRIL_PREFETCH(&chunk.mass[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>) {
+               APRIL_PREFETCH(&chunk.state[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>) {
+               APRIL_PREFETCH(&chunk.type[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>) {
+               APRIL_PREFETCH(&chunk.id[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>) {
+               APRIL_PREFETCH(&chunk.attributes[lane_idx]);
+           }
+       }
+
+       template <ParticleField Mask>
+       APRIL_FORCE_INLINE void prefetch_packed_nta(this const auto& self, size_t c, size_t lane_idx = 0) {
+           // NTA prefetch (Locality = 0) - For inner streaming loops
+           const auto& chunk = self.chunks[c];
+
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>) {
+               APRIL_PREFETCH_NTA(&chunk.frc_x[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.frc_y[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.frc_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>) {
+               APRIL_PREFETCH_NTA(&chunk.pos_x[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.pos_y[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.pos_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>) {
+               APRIL_PREFETCH_NTA(&chunk.vel_x[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.vel_y[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.vel_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>) {
+               APRIL_PREFETCH_NTA(&chunk.old_x[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.old_y[lane_idx]);
+               APRIL_PREFETCH_NTA(&chunk.old_z[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>) {
+               APRIL_PREFETCH_NTA(&chunk.mass[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>) {
+               APRIL_PREFETCH_NTA(&chunk.state[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>) {
+               APRIL_PREFETCH_NTA(&chunk.type[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>) {
+               APRIL_PREFETCH_NTA(&chunk.id[lane_idx]);
+           }
+           if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>) {
+               APRIL_PREFETCH_NTA(&chunk.attributes[lane_idx]);
+           }
+       }
 
 
         // QUERIES
@@ -140,7 +209,7 @@ namespace april::container::layout {
         static constexpr uint32_t ID_NOT_FOUND = std::numeric_limits<uint32_t>::max();
 
         // hoist data pointer outside and restrict
-        ChunkT* AP_RESTRICT ptr_chunks = nullptr;
+        ChunkT* APRIL_RESTRICT ptr_chunks = nullptr;
 
         size_t particle_capacity{};
         size_t n_particles{};
@@ -150,11 +219,14 @@ namespace april::container::layout {
         std::vector<size_t> bin_sizes; // number of particles in each bin
         std::vector<uint32_t> id_to_index_map;
 
+        exec::BlockConfig pair_schedule_config;
+        exec::BlockConfig linear_schedule_config;
+
         void update_cache() {
             ptr_chunks = data.data();
         }
 
-        void build_storage(const std::vector<particle::ParticleRecord<Attributes>>& particles) {
+        void build_storage(const std::vector<particle::ParticleRecord<ParticleAttributes>>& particles) {
             n_particles = particles.size();
 
             const size_t n_chunks = (n_particles + chunk_size - 1) / chunk_size;
@@ -178,27 +250,7 @@ namespace april::container::layout {
                 auto& chunk = data[c_idx];
 
                 // fill chunk
-                chunk.pos_x[l_idx] = p.position.x;
-                chunk.pos_y[l_idx] = p.position.y;
-                chunk.pos_z[l_idx] = p.position.z;
-
-                chunk.vel_x[l_idx] = p.velocity.x;
-                chunk.vel_y[l_idx] = p.velocity.y;
-                chunk.vel_z[l_idx] = p.velocity.z;
-
-                chunk.frc_x[l_idx] = p.force.x;
-                chunk.frc_y[l_idx] = p.force.y;
-                chunk.frc_z[l_idx] = p.force.z;
-
-                chunk.old_x[l_idx] = p.old_position.x;
-                chunk.old_y[l_idx] = p.old_position.y;
-                chunk.old_z[l_idx] = p.old_position.z;
-
-                chunk.mass[l_idx] = p.mass;
-                chunk.state[l_idx] = p.state;
-                chunk.type[l_idx] = p.type;
-                chunk.id[l_idx] = p.id;
-                chunk.attributes[l_idx] = p.attributes;
+                chunk.insert_particle(l_idx, p);
 
                 // Map ID
                 id_to_index_map[static_cast<size_t>(p.id)] = i;
@@ -209,108 +261,147 @@ namespace april::container::layout {
                 data[c_idx].state[l_idx] = ParticleState::INVALID;
                 data[c_idx].id[l_idx] = std::numeric_limits<ParticleID>::max();
                 data[c_idx].type[l_idx] = std::numeric_limits<ParticleType>::max();
+                data[c_idx].pos_x[l_idx] = 1e50;
+                data[c_idx].pos_y[l_idx] = 1e50;
+                data[c_idx].pos_z[l_idx] = 1e50;
+                data[c_idx].mass[l_idx]  = 1.0;
             }
         }
 
-        void reorder_storage(const std::vector<std::vector<size_t>>& bins, const bool sentinel_pad = true) {
-            tmp.clear();
-            bin_starts.clear();
-            bin_sizes.clear();
 
-            // allocate space, calculate chunk index of first chunk in each bin
-            bin_starts.reserve(bins.size() + 1);
+        std::vector<size_t> bin_counts;
+        std::vector<size_t> cached_bins;
+        std::vector<size_t> bin_counts_tls_buffers;
+        std::vector<size_t> bin_particles;
 
-            size_t n_chunks = 0;
-            for (const auto& bin : bins) {
-                bin_starts.push_back(n_chunks * chunk_size);
-                bin_sizes.push_back(bin.size());
-                if (bin.empty()) continue;
-                const size_t bin_size = bin.size();
-                n_chunks += (bin_size + chunk_size - 1) / chunk_size;
-            }
+        template <typename HashFunc>
+        requires std::invocable<HashFunc, size_t> &&
+            std::unsigned_integral<std::invoke_result_t<HashFunc, size_t>>
+        void reorder_storage(const size_t n_bins, HashFunc&& calc_bin) {
+            const size_t n_threads = this->thread_executor.num_threads();
+            const size_t old_capacity = this->particle_capacity;
 
-            particle_capacity = n_chunks * chunk_size;
-            bin_starts.push_back(particle_capacity);
+            if (n_particles == 0 || n_bins == 0) return;
 
-            tmp.resize(n_chunks);
-            id_to_index_map.assign(particle_capacity, ID_NOT_FOUND);
+            // resize buffers
+            bin_starts.resize(n_bins);
+            bin_sizes.resize(n_bins);
+            bin_counts.resize(n_bins);
+            cached_bins.resize(old_capacity);
+            bin_counts_tls_buffers.assign(n_bins * n_threads, 0);
 
-            // traversal cursors
-            size_t dst_c = 0; // destination chunk index
-            size_t dst_l = 0; // destination lane index
+            // schedule over the capacity (including holes)
+            auto capacity_blocks = exec::make_linear_schedule(math::Range{0, old_capacity}, this->linear_schedule_config);
+            auto bin_blocks = exec::make_linear_schedule(math::Range{0, n_bins}, this->linear_schedule_config);
 
-            for (const auto& bin : bins) {
-                if (bin.empty()) continue;
+            // each thread counts the number of particles per bin in its assigned particle blocks
+            this->thread_executor.execute(capacity_blocks.size(), [&](const size_t t_idx) {
+                APRIL_ASSERT(exec::thread_index() < this->thread_executor.num_threads(),
+                      "[APRIL] exec::thread_index() must be in range [0, executor.num_threads()]. "
+                      "Verify that the executor sets ScopedThreadContext correctly");
 
-                for (const size_t src_idx : bin) {
-                    // locate source
-                    auto [src_c, src_l] = locate(src_idx);
+                const auto& block = capacity_blocks[t_idx];
+                auto* bin_counts_tls = &bin_counts_tls_buffers[exec::thread_index() * n_bins];
 
-                    auto& src_chunk = data[src_c];
-                    auto& dst_chunk = tmp[dst_c];
+                for (size_t i = block.start; i < block.stop; ++i) {
+                    // skip sentinel/invalid particles inline
+                    const auto [c, l] = locate(i);
+                    if (data[c].state[l] == ParticleState::INVALID) continue;
 
-                    // copy fields
-                    dst_chunk.pos_x[dst_l] = src_chunk.pos_x[src_l];
-                    dst_chunk.pos_y[dst_l] = src_chunk.pos_y[src_l];
-                    dst_chunk.pos_z[dst_l] = src_chunk.pos_z[src_l];
+                    const size_t bin = calc_bin(i);
+                    cached_bins[i] = bin;
+                    ++bin_counts_tls[bin];
+                }
+            });
 
-                    dst_chunk.vel_x[dst_l] = src_chunk.vel_x[src_l];
-                    dst_chunk.vel_y[dst_l] = src_chunk.vel_y[src_l];
-                    dst_chunk.vel_z[dst_l] = src_chunk.vel_z[src_l];
+            // reduce to a single buffer
+            this->thread_executor.execute(bin_blocks.size(), [&](const size_t t_idx) {
+                const auto& bins = bin_blocks[t_idx];
 
-                    dst_chunk.frc_x[dst_l] = src_chunk.frc_x[src_l];
-                    dst_chunk.frc_y[dst_l] = src_chunk.frc_y[src_l];
-                    dst_chunk.frc_z[dst_l] = src_chunk.frc_z[src_l];
+                for (const size_t bin : bins) bin_sizes[bin] = 0;
 
-                    dst_chunk.old_x[dst_l] = src_chunk.old_x[src_l];
-                    dst_chunk.old_y[dst_l] = src_chunk.old_y[src_l];
-                    dst_chunk.old_z[dst_l] = src_chunk.old_z[src_l];
-
-                    dst_chunk.mass[dst_l] = src_chunk.mass[src_l];
-                    dst_chunk.state[dst_l] = src_chunk.state[src_l];
-                    dst_chunk.type[dst_l] = src_chunk.type[src_l];
-                    dst_chunk.id[dst_l] = src_chunk.id[src_l];
-                    dst_chunk.attributes[dst_l] = src_chunk.attributes[src_l];
-
-                    const size_t new_physical_idx = dst_c * chunk_size + dst_l;
-                    const ParticleID id = dst_chunk.id[dst_l];
-                    id_to_index_map[id] = new_physical_idx;
-
-                    dst_l++;
-                    if (dst_l == chunk_size) {
-                        dst_l = 0;
-                        dst_c++;
+                for (unsigned i = 0; i < n_threads; i++) {
+                    for (const size_t bin : bins) {
+                        bin_sizes[bin] += bin_counts_tls_buffers[n_bins * i + bin];
                     }
                 }
+            });
 
-                // If the bin ended mid-chunk, fill the rest with safe garbage and skip to next chunk.
-                if (sentinel_pad && dst_l > 0) {
-                    auto& dst_chunk = tmp[dst_c];
-                    while (dst_l < chunk_size) {
-                        // mark as dead so physics kernels ignore it
-                        dst_chunk.state[dst_l] = ParticleState::INVALID;
+            // compute chunk aligned offsets (prefix sum) (serial)
+            size_t current_chunk_offset = 0;
+            size_t total_chunks = 0;
 
-                        // move far away to be safe against distance checks
-                        dst_chunk.pos_x[dst_l] = 1e50;
-                        dst_chunk.pos_y[dst_l] = 1e50;
-                        dst_chunk.pos_z[dst_l] = 1e50;
+            for (size_t i = 0; i < n_bins; ++i) {
+                bin_starts[i] = current_chunk_offset;
+                bin_counts[i] = current_chunk_offset;
 
-                        // set ID to max to avoid map lookups
-                        dst_chunk.id[dst_l] = std::numeric_limits<ParticleID>::max();
+                if (bin_sizes[i] > 0) {
+                    // Calculate chunks required for this bin
+                    const size_t chunks_for_bin = (bin_sizes[i] + chunk_size - 1) / chunk_size;
 
-                        // make mass safe
-                        dst_chunk.mass[dst_l] = 1.0;
-
-                        dst_l++;
-                    }
-                    // chunk is now "full"
-                    dst_l = 0;
-                    dst_c++;
+                    total_chunks += chunks_for_bin;
+                    current_chunk_offset += chunks_for_bin * chunk_size;
                 }
             }
+
+            // calcualte new capacity and update buffers
+            const size_t new_capacity = total_chunks * chunk_size;
+            tmp.resize(total_chunks);
+            bin_particles.assign(new_capacity, std::numeric_limits<size_t>::max());
+
+            // Build the mapping: destination_idx -> source_idx (serial)
+            for (size_t i = 0; i < old_capacity; ++i) {
+                const auto [c, l] = locate(i);
+                if (data[c].state[l] == ParticleState::INVALID) continue;
+
+                const size_t bin = cached_bins[i];
+                const size_t dest_idx = bin_counts[bin]++;
+                bin_particles[dest_idx] = i;
+            }
+
+            // gather copy into ping pong buffer (chunk by chunk)
+            auto chunk_blocks = exec::make_linear_schedule(math::Range{0, total_chunks}, this->linear_schedule_config);
+
+            this->thread_executor.execute(chunk_blocks.size(), [&](const size_t t_idx) {
+                 const auto& block = chunk_blocks[t_idx];
+
+                 // Loop over destination CHUNKS
+                 for (size_t dst_c = block.start; dst_c < block.stop; ++dst_c) {
+                     auto& dst_chunk = tmp[dst_c];
+
+                     // Loop over destination LANES
+                     for (size_t dst_l = 0; dst_l < chunk_size; ++dst_l) {
+                         const size_t dest_idx = dst_c * chunk_size + dst_l;
+                         const size_t src_idx = bin_particles[dest_idx];
+
+                         if (src_idx == std::numeric_limits<size_t>::max()) {
+                             // Write Sentinel Padding
+                             dst_chunk.state[dst_l] = ParticleState::INVALID;
+                             dst_chunk.pos_x[dst_l] = 1e50;
+                             dst_chunk.pos_y[dst_l] = 1e50;
+                             dst_chunk.pos_z[dst_l] = 1e50;
+                             dst_chunk.id[dst_l]    = std::numeric_limits<ParticleID>::max();
+                             dst_chunk.type[dst_l]  = std::numeric_limits<ParticleType>::max();
+                             dst_chunk.mass[dst_l]  = 1.0;
+                         } else {
+                             // Gather Valid Particle
+                             const auto [src_c, src_l] = locate(src_idx);
+                             dst_chunk.copy_from(dst_l, src_l, data[src_c]);
+
+                             // Update ID map
+                             const auto id = static_cast<size_t>(dst_chunk.id[dst_l]);
+                             id_to_index_map[id] = static_cast<uint32_t>(dest_idx);
+                         }
+                     }
+                 }
+             });
+
+            // Swap and update structural tracking
             std::swap(data, tmp);
+            this->particle_capacity = new_capacity;
             update_cache();
         }
+
 
         // return physical index range
         [[nodiscard]] math::Range get_physical_bin_range(const size_t type) const {
@@ -328,9 +419,14 @@ namespace april::container::layout {
         }
 
         template <ParticleField F>
-        auto get_field_ptr(this auto&& self, const size_t i) {
-            // locate data
+        APRIL_FORCE_INLINE auto get_field_ptr(this auto&& self, size_t i) {
+            // locate data, then forward to the fast path
             const auto [chunk_idx, lane_idx] = self.locate(i);
+            return self.template get_field_ptr<F>(chunk_idx, lane_idx);
+        }
+
+        template <ParticleField F>
+        APRIL_FORCE_INLINE auto get_field_ptr(this auto&& self, size_t chunk_idx, size_t lane_idx) {            // locate data
             auto& chunk = self.ptr_chunks[chunk_idx];
 
             // return vector pointer
@@ -343,7 +439,7 @@ namespace april::container::layout {
             else if constexpr (F == ParticleField::old_position)
                 return math::Vec3Ptr{&chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx]};
 
-                // return scalar pointer
+            // return scalar pointer
             else if constexpr (F == ParticleField::mass) return &chunk.mass[lane_idx];
             else if constexpr (F == ParticleField::state) return &chunk.state[lane_idx];
             else if constexpr (F == ParticleField::type) return &chunk.type[lane_idx];
@@ -352,92 +448,71 @@ namespace april::container::layout {
         }
 
     private:
-        template <ParticleField Read, ParticleField Write>
-        [[nodiscard]] auto access_particle(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-            constexpr bool is_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-
-            static_assert(!(is_const && Write != ParticleField::none),
-                          "APRIL ERROR: Cannot request write permissions (WriteMask != none) on a const Container. "
-                          "Either drop the write mask or ensure the container is mutable.");
-
-            particle::internal::ParticleSource<Read, Write, Attributes> src;
-            constexpr auto Mask = Read | Write;
-
-            auto& chunk = self.ptr_chunks[chunk_idx];
-
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
-                src.force = math::Vec3Ptr{&chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx]};
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
-                src.position = math::Vec3Ptr{&chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx]};
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
-                src.velocity = math::Vec3Ptr{&chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx]};
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
-                src.old_position = math::Vec3Ptr{&chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx]};
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
-                src.mass = &chunk.mass[lane_idx];
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
-                src.state = &chunk.state[lane_idx];
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
-                src.type = &chunk.type[lane_idx];
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
-                src.id = &chunk.id[lane_idx];
-            if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
-                src.attributes = &chunk.attributes[lane_idx];
-
-            return src;
-        }
+        alignas(64) packed::value_type idx_arr[packed::size()]{}; // for creating packed masks quickly
 
         template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
-            if constexpr (V == exec::ExecutionMode::Scalar) {
-                self.template iterate_range_scalar<P, is_const>(std::forward<Kernel>(kernel), start, end);
+            // route scalar/vector execution
+            auto process_sub_range = [&](const size_t r_start, const size_t r_end) APRIL_FORCE_INLINE {
+                if constexpr (V == exec::ExecutionMode::Scalar) {
+                    self.template iterate_range_scalar<P, is_const>(kernel, r_start, r_end);
+                } else if constexpr (V == exec::ExecutionMode::Vector || V == exec::ExecutionMode::Hybrid) {
+                    self.template iterate_range_vector<P, is_const>(kernel, r_start, r_end);
+                } else {
+                    static_assert(false,"[APRIL] invalid ExecutionMode in AoSoA::iterate_range");
+                }
+            };
+
+            if constexpr (P == ParallelPolicy::Serial) {
+                process_sub_range(start, end);
             }
-            else if constexpr (V == exec::ExecutionMode::Vector) {
-                self.template iterate_range_vector<P, is_const>(std::forward<Kernel>(kernel), start, end);
-            }
-            else if constexpr (V == exec::ExecutionMode::Hybrid) {
-                self.template iterate_range_hybrid<P, is_const>(std::forward<Kernel>(kernel), start, end);
+            else if constexpr (P == ParallelPolicy::Threaded) {
+                math::Range range = {start, end};
+                const auto blocks = exec::make_linear_schedule(range, self.linear_schedule_config);
+
+                self.thread_executor.execute(blocks.size(), [&](const size_t i) {
+                    process_sub_range(blocks[i].start, blocks[i].stop);
+                });
             }
         }
 
         template <ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
-        AP_FORCE_INLINE void iterate_range_scalar(this auto&& self, Kernel&& kernel, const size_t start,
-                                                  const size_t end) {
+        APRIL_FORCE_INLINE void iterate_range_scalar(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
             using K = std::remove_cvref_t<Kernel>;
             if (start >= end) return;
 
             const auto [start_chunk, start_idx] = self.locate(start);
             const auto [end_chunk, end_idx] = self.locate(end);
 
-            size_t curr_idx = start;
-            auto* AP_RESTRICT chunks = self.ptr_chunks;
-            // constexpr size_t simd_width = packed::size();
-
-            auto exec_scalar = [&](size_t c, size_t i) {
-                if constexpr (is_const) kernel(curr_idx++, self.template view<K::Read>(c, i));
-                else kernel(curr_idx++, self.template at<K::Read, K::Write>(c, i));
+            auto* APRIL_RESTRICT chunks = self.ptr_chunks;
+            auto exec_scalar = [&](size_t c, size_t i) APRIL_FORCE_INLINE {
+                const size_t physical_idx = (c << chunk_shift) | i;
+                if constexpr (is_const) kernel(physical_idx, self.template view<K::Read>(c, i));
+                else kernel(physical_idx, self.template at<K::Read, K::Write>(c, i));
             };
 
             if (start_chunk == end_chunk) {
-                AP_PREFETCH(chunks + start_chunk);
+                APRIL_PREFETCH(chunks + start_chunk);
                 for (size_t i = start_idx; i < end_idx; ++i) {
                     exec_scalar(start_chunk, i);
                 }
             }
             else {
-                AP_PREFETCH(chunks + start_chunk);
-                if (start_chunk + 1 < end_chunk || end_idx > 0)
-                    AP_PREFETCH(chunks + start_chunk + 1);
+                APRIL_PREFETCH(chunks + start_chunk);
+                if (start_chunk + 1 < end_chunk || end_idx > 0) APRIL_PREFETCH(chunks + start_chunk + 1);
 
+                // head
                 for (size_t i = start_idx; i < self.chunk_size; ++i) {
                     exec_scalar(start_chunk, i);
                 }
 
+                // body
                 for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
-                    AP_PREFETCH(chunks + c + 1);
+                    APRIL_PREFETCH(chunks + c + 1);
                     for (size_t i = 0; i < self.chunk_size; ++i) exec_scalar(c, i);
                 }
 
+                // tail
                 if (end_idx > 0) {
                     for (size_t i = 0; i < end_idx; ++i) {
                         exec_scalar(end_chunk, i);
@@ -447,128 +522,109 @@ namespace april::container::layout {
         }
 
         template <ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
-        AP_FORCE_INLINE void iterate_range_vector(this auto&& self, Kernel&& kernel, const size_t start,
-                                                  const size_t end) {
+        APRIL_FORCE_INLINE void iterate_range_vector(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
             using K = std::remove_cvref_t<Kernel>;
             if (start >= end) return;
 
+            // get the first and last chunks touched in the iteration
             const auto [start_chunk, start_idx] = self.locate(start);
             const auto [end_chunk, end_idx] = self.locate(end);
 
-            size_t curr_idx = start;
-            auto* AP_RESTRICT chunks = self.ptr_chunks;
             constexpr size_t simd_width = packed::size();
+            auto* APRIL_RESTRICT chunks = self.ptr_chunks;
 
-            auto exec_vector = [&](size_t c, size_t i) {
-                if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::Read>(c, i));
-                else kernel(curr_idx, self.template at_packed<K::Read, K::Write>(c, i));
-                curr_idx += simd_width;
+            // Align backwards to the nearest vector boundary for head masking
+            const size_t head_offset = start_idx % simd_width;
+            const size_t aligned_start_idx = start_idx - head_offset;
+
+            // kernel expects the logical base index of the vector register
+            const auto lane_indices = packed::load_aligned(self.idx_arr);
+
+            auto exec_vector = [&](size_t c, size_t i) APRIL_FORCE_INLINE {
+                const size_t physical_idx = (c << chunk_shift) | i;
+                if constexpr (is_const) kernel(physical_idx, self.template view_packed<K::Read>(c, i));
+                else kernel(physical_idx, self.template at_packed<K::Read, K::Write>(c, i));
             };
 
-            AP_ASSERT(start_idx % simd_width == 0, "Vector execution requires an aligned start index");
+            auto exec_vector_masked = [&](size_t c, size_t i, auto mask) APRIL_FORCE_INLINE {
+                const size_t physical_idx = (c << chunk_shift) | i;
+                if constexpr (is_const) {
+                    auto ref = self.template view_packed<K::Read>(c, i);
+                    kernel(physical_idx, ref.mask_with(mask));
+                } else {
+                    auto ref = self.template at_packed<K::Read, K::Write>(c, i);
+                    kernel(physical_idx, ref.mask_with(mask));
+                }
+            };
 
+            // Single Chunk iteration (start and end chunk are the same => only one chunk is touched)
             if (start_chunk == end_chunk) {
-                AP_PREFETCH(chunks + start_chunk);
-                for (size_t i = start_idx; i < end_idx; i += simd_width) {
+                APRIL_PREFETCH(chunks + start_chunk);
+
+                // Edge Case: The entire range fits inside a single vector register
+                if (aligned_start_idx + simd_width >= end_idx) {
+                    const auto mask = (lane_indices >= static_cast<packed::value_type>(head_offset)) &&
+                                      (lane_indices < static_cast<packed::value_type>(end_idx - aligned_start_idx));
+                    exec_vector_masked(start_chunk, aligned_start_idx, mask);
+                    return;
+                }
+
+                // Head
+                if (head_offset > 0) {
+                    const auto mask = lane_indices >= static_cast<packed::value_type>(head_offset);
+                    exec_vector_masked(start_chunk, aligned_start_idx, mask);
+                }
+
+                // Body
+                const size_t body_start = head_offset > 0 ? aligned_start_idx + simd_width : aligned_start_idx;
+                const size_t body_end = end_idx - (end_idx % simd_width);
+                for (size_t i = body_start; i < body_end; i += simd_width) {
                     exec_vector(start_chunk, i);
+                }
+
+                // Tail
+                const size_t tail_count = end_idx % simd_width;
+                if (tail_count > 0) {
+                    const auto mask = lane_indices < static_cast<packed::value_type>(tail_count);
+                    exec_vector_masked(start_chunk, body_end, mask);
                 }
             }
+            // process multiple chunks
             else {
-                AP_PREFETCH(chunks + start_chunk);
-                if (start_chunk + 1 < end_chunk || end_idx > 0)
-                    AP_PREFETCH(chunks + start_chunk + 1);
+                APRIL_PREFETCH(chunks + start_chunk);
+                if (start_chunk + 1 < end_chunk || end_idx > 0) APRIL_PREFETCH(chunks + start_chunk + 1);
 
-                for (size_t i = start_idx; i < self.chunk_size; i += simd_width) {
+                // Head Chunk
+                if (head_offset > 0) {
+                    const auto mask = lane_indices >= static_cast<packed::value_type>(head_offset);
+                    exec_vector_masked(start_chunk, aligned_start_idx, mask);
+                }
+                const size_t head_body_start = head_offset > 0 ? aligned_start_idx + simd_width : aligned_start_idx;
+                for (size_t i = head_body_start; i < self.chunk_size; i += simd_width) {
                     exec_vector(start_chunk, i);
                 }
 
+                // Body Chunks (Guaranteed Aligned)
                 for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
-                    AP_PREFETCH(chunks + c + 1);
+                    APRIL_PREFETCH(chunks + c + 1);
                     for (size_t i = 0; i < self.chunk_size; i += simd_width) {
                         exec_vector(c, i);
                     }
                 }
 
+                // Tail Chunk
                 if (end_idx > 0) {
-                    for (size_t i = 0; i < end_idx; i += simd_width) {
+                    const size_t tail_body_end = end_idx - (end_idx % simd_width);
+                    for (size_t i = 0; i < tail_body_end; i += simd_width) {
                         exec_vector(end_chunk, i);
+                    }
+                    const size_t tail_count = end_idx % simd_width;
+                    if (tail_count > 0) {
+                        const auto mask = lane_indices < static_cast<packed::value_type>(tail_count);
+                        exec_vector_masked(end_chunk, tail_body_end, mask);
                     }
                 }
             }
-        }
-
-        template <ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
-        AP_FORCE_INLINE void iterate_range_hybrid(this auto&& self, Kernel&& kernel, const size_t start,
-                                                  const size_t end) {
-            using K = std::remove_cvref_t<Kernel>;
-            if (start >= end) return;
-
-            const auto [start_chunk, start_idx] = self.locate(start);
-            const auto [end_chunk, end_idx] = self.locate(end);
-
-            size_t curr_idx = start;
-            auto* AP_RESTRICT chunks = self.ptr_chunks;
-            constexpr size_t simd_width = packed::size();
-
-            // scoped macros to make code DRY but ensure inlining
-            #define EXEC_SCALAR(c, i) \
-                if constexpr (is_const) kernel(curr_idx++, self.template view<K::Read>(c, i)); \
-                else kernel(curr_idx++, self.template at<K::Read, K::Write>(c, i))
-
-            #define EXEC_VECTOR(c, i) \
-                if constexpr (is_const) kernel(curr_idx, self.template view_packed<K::Read>(c, i)); \
-                else { \
-                    auto packed = self.template at_packed<K::Read, K::Write>(c, i); \
-                    kernel(curr_idx, packed); \
-                } \
-                curr_idx += simd_width
-
-            // iterate a single chunk
-            if (start_chunk == end_chunk) {
-                AP_PREFETCH(chunks + start_chunk);
-
-                const size_t head_end = (start_idx % simd_width == 0)
-                                            ? start_idx
-                                            : std::min(end_idx, start_idx + (simd_width - (start_idx % simd_width)));
-                for (size_t i = start_idx; i < head_end; ++i) { EXEC_SCALAR(start_chunk, i); }
-
-                const size_t body_start = head_end;
-                const size_t body_end = body_start + ((end_idx - body_start) / simd_width) * simd_width;
-                for (size_t i = body_start; i < body_end; i += simd_width) { EXEC_VECTOR(start_chunk, i); }
-
-                for (size_t i = body_end; i < end_idx; ++i) { EXEC_SCALAR(start_chunk, i); }
-            }
-            // iterate multiple chunks
-            else {
-                AP_PREFETCH(chunks + start_chunk);
-                if (start_chunk + 1 < end_chunk || end_idx > 0)
-                    AP_PREFETCH(chunks + start_chunk + 1);
-
-                // handle head chunk
-                const size_t head_end = (start_idx % simd_width == 0)
-                                            ? start_idx
-                                            : (start_idx + (simd_width - (start_idx % simd_width)));
-
-                for (size_t i = start_idx; i < head_end; ++i) { EXEC_SCALAR(start_chunk, i); }
-                for (size_t i = head_end; i < self.chunk_size; i += simd_width) { EXEC_VECTOR(start_chunk, i); }
-
-                // body
-                for (size_t c = start_chunk + 1; c < end_chunk; ++c) {
-                    AP_PREFETCH(chunks + c + 1);
-                    // Guaranteed aligned inside full body chunks
-                    for (size_t i = 0; i < self.chunk_size; i += simd_width) { EXEC_VECTOR(c, i); }
-                }
-
-                // handle tail
-                if (end_idx > 0) {
-                    const size_t tail_body_end = (end_idx / simd_width) * simd_width;
-                    for (size_t i = 0; i < tail_body_end; i += simd_width) { EXEC_VECTOR(end_chunk, i); }
-                    for (size_t i = tail_body_end; i < end_idx; ++i) { EXEC_SCALAR(end_chunk, i); }
-                }
-            }
-
-            #undef EXEC_SCALAR
-            #undef EXEC_VECTOR
         }
     };
 }

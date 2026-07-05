@@ -399,6 +399,11 @@ To explore?
 Note: when C++26 matures, APRIL will likely switch to the newer standard for reflection and `std::simd` support.
 
 
+## Further Reading
+
+APRIL's compile-time memory abstraction model, SIMD abstraction layer, and scalar/SIMD traversal strategies, shared memory execution, are described in detail in:
+
+- [Bridging the Abstraction Gap in Particle Simulation Frameworks: Compile-time Memory Abstractions and Hardware-Efficient Execution in Modern C++](https://mediatum.ub.tum.de/node?id=1854059)
 
 
 

@@ -334,7 +334,7 @@ struct MyWierdForce : Force {
         return strength * p1.mass * p2.mass * r 
     }
 };
-
+```
 
 
 ## License

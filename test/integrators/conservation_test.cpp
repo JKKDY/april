@@ -120,7 +120,7 @@ TYPED_TEST(PhysicsConservationTest, NetForceZero_N3L) {
         vec3 pos = {1.0 + (i%4)*2.0, 1.0 + ((i/4)%4)*2.0, 1.0 + (i/16)*2.0};
         env.add_particle(make_particle(0, pos, {0,0,0}, 1.0));
     }
-    env.add_force(LennardJones(5.0, 1.0, rc), to_type(0));
+    env.add_interaction(LennardJones(5.0, 1.0, rc), to_type(0));
 
     auto sys = build_system(env, TypeParam::create(rc));
     sys.update_forces();
@@ -147,7 +147,7 @@ TYPED_TEST(PhysicsConservationTest, MomentumConservation) {
     // Initialize two particles with opposing velocities
     env.add_particle(make_particle(0, {4.5, 5.0, 5.0}, {1.0, 0, 0}, 1.0));
     env.add_particle(make_particle(0, {5.5, 5.0, 5.0}, {-1.0, 0, 0}, 1.0));
-    env.add_force(LennardJones(5.0, 1.0, rc), to_type(0));
+    env.add_interaction(LennardJones(5.0, 1.0, rc), to_type(0));
 
     auto sys = build_system(env, TypeParam::create(rc));
     const vec3 P0 = physics_test::calculate_total_momentum(sys);
@@ -177,7 +177,7 @@ TYPED_TEST(PhysicsConservationTest, HamiltonianEnergyConservation) {
         vec3 pos = {5.0 + (i%2)*2.0, 5.0 + ((i/2)%2)*2.0, 5.0 + (i/4)*2.0};
         env.add_particle(make_particle(0, pos, {0.1, -0.1, 0}, 1.0, ParticleState::ALIVE, i));
     }
-    env.add_force(LennardJones(eps, sig, rc), to_type(0));
+    env.add_interaction(LennardJones(eps, sig, rc), to_type(0));
 
     auto sys = build_system(env, TypeParam::create(rc));
     
@@ -218,7 +218,7 @@ TYPED_TEST(PhysicsConservationTest, StressTest_EnergyConservation) {
             }
         }
     }
-    env.add_force(LennardJones(eps, sig, rc), to_type(0));
+    env.add_interaction(LennardJones(eps, sig, rc), to_type(0));
 
     // 3. Build System & Integrator
     auto sys = build_system(env, TypeParam::create(rc));
@@ -259,7 +259,7 @@ TYPED_TEST(PhysicsConservationTest, TimeReversibility) {
     // Setup a small, interacting cluster
     env.add_particle(make_particle(0, {7.0, 7.5, 7.5}, {1.0, 0, 0}, 1.0, ParticleState::ALIVE, 0));
     env.add_particle(make_particle(0, {8.0, 7.5, 7.5}, {-1.0, 0, 0}, 1.0, ParticleState::ALIVE, 1));
-    env.add_force(LennardJones(5.0, 1.0, rc), to_type(0));
+    env.add_interaction(LennardJones(5.0, 1.0, rc), to_type(0));
 
     auto sys = build_system(env, TypeParam::create(rc));
 
@@ -302,7 +302,7 @@ TYPED_TEST(PhysicsConservationTest, RespectsStationaryState) {
     env.add_particle(make_particle(0, {5,5,5}, {0,0,0}, 1.0, ParticleState::ALIVE, 1));
 
     // Push both particles in the +X direction
-    env.add_force(ConstantForce(10.0, 0.0, 0.0), to_type(0));
+    env.add_interaction(ConstantForce(10.0, 0.0, 0.0), to_type(0));
 
     auto sys = build_system(env, TypeParam::create(5.0));
     auto integrator = TypeParam::make_integrator(sys);
@@ -373,7 +373,7 @@ TYPED_TEST(IntegratorConvergenceTest, OrderOfAccuracy) {
         Environment env(forces<Gravity>);
         env.add_particle(make_particle(0, {0,0,0}, {0,0,0}, M, ParticleState::STATIONARY, 0));
         env.add_particle(make_particle(0, {0,R,0}, {v,0,0}, 1e-6, ParticleState::ALIVE, 1));
-        env.add_force(Gravity(G), to_type(0));
+        env.add_interaction(Gravity(G), to_type(0));
         env.set_extent({10,10,10});
 
         auto sys = build_system(env, TypeParam::create(R*2));

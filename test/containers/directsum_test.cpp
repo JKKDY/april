@@ -26,7 +26,7 @@ TYPED_TEST_SUITE(DirectSumTest, ContainerTypes);
 TYPED_TEST(DirectSumTest, SingleParticle_NoForce) {
     Environment e (forces<NoForce>);
 	e.add_particle(make_particle(0, {1,2,3}, {}, 1, ParticleState::ALIVE, 0));
-	e.add_force(NoForce(), to_type(0));
+	e.add_interaction(NoForce(), to_type(0));
 	e.set_extent(1,1,1);
 
 	auto sys = build_system(e, TypeParam());
@@ -41,7 +41,7 @@ TYPED_TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
     Environment e (forces<ConstantForce>);
 	e.add_particle(make_particle(7, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
 	e.add_particle(make_particle(7, {1,0,0}, {}, 1, ParticleState::ALIVE, 1));
-	e.add_force(ConstantForce(3,4,5), to_type(7));
+	e.add_interaction(ConstantForce(3,4,5), to_type(7));
 	e.set_extent(1,1,1);
 
 	auto sys = build_system(e, TypeParam());
@@ -61,8 +61,8 @@ TYPED_TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
     Environment e (forces<ConstantForce, NoForce>);
 	e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 42));
 	e.add_particle(make_particle(0, {0,1,0}, {}, 1, ParticleState::ALIVE, 99));
-	e.add_force(NoForce(), to_type(0));
-	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
+	e.add_interaction(NoForce(), to_type(0));
+	e.add_interaction(ConstantForce(-1,2,-3), between_ids(42, 99));
 	e.set_extent(1,1,1);
 
 	auto sys = build_system(e, TypeParam());
@@ -88,9 +88,9 @@ TYPED_TEST(DirectSumTest, TwoParticles_InverseSquare) {
 	e.add_particle(make_particle(1, {2,0,0}, {}, 2, ParticleState::ALIVE, 1));
 
 
-	e.add_force(NoForce(), to_type(0));
-	e.add_force(NoForce(), to_type(1));
-	e.add_force(Gravity(5.0), between_types(0, 1));
+	e.add_interaction(NoForce(), to_type(0));
+	e.add_interaction(NoForce(), to_type(1));
+	e.add_interaction(Gravity(5.0), between_types(0, 1));
 
 	auto sys = build_system(e, TypeParam());
     sys.update_forces();
@@ -122,7 +122,7 @@ TYPED_TEST(DirectSumTest, CollectIndicesInRegion) {
     e.set_origin({0, 0, 0});
     e.set_extent({5, 5, 5});
 	e.add_particles(cuboid);
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
 
     auto sys = build_system(e, TypeParam());
 
@@ -196,7 +196,7 @@ TYPED_TEST(DirectSumTest, PeriodicForceWrap_X) {
 	e.add_particle(make_particle(0, vec3{0.5, 5, 5}, {}, 1, ParticleState::ALIVE, 0));
 	e.add_particle(make_particle(0, vec3{9.5, 5, 5}, {}, 1, ParticleState::ALIVE, 1));
 
-	e.add_force(Harmonic(1, 0, 2), to_type(0)); // simple directional force
+	e.add_interaction(Harmonic(1, 0, 2), to_type(0)); // simple directional force
 	e.set_boundaries(DummyPeriodicBoundary(), {DomainFace::XMinus, DomainFace::XPlus});
 
 	BuildInfo mapping;
@@ -227,7 +227,7 @@ TYPED_TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 	e.add_particle(make_particle(0, {9.5, 9.5, 9.5}, {}, 1, ParticleState::ALIVE, 1));
 
 	// Hooke-like spring with k=1, r0=0, cutoff=2
-	e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));
+	e.add_interaction(Harmonic(1.0, 0.0, 2.0), to_type(0));
 
 	// Activate periodic wrapping on all faces
 	e.set_boundaries(DummyPeriodicBoundary(), {
@@ -278,11 +278,11 @@ TYPED_TEST(DirectSumTest, Asymmetric_ChunkBoundaries_Counting) {
         e.add_particle(make_particle(1, {1,0,0}, {}, 1, ParticleState::ALIVE, 100 + i));
     }
 
-    e.add_force(ConstantForce(1, 2, 3), between_types(0, 1));
+    e.add_interaction(ConstantForce(1, 2, 3), between_types(0, 1));
 
     // Explicitly define self-interactions as NoForce
-    e.add_force(NoForce(), to_type(0));
-    e.add_force(NoForce(), to_type(1));
+    e.add_interaction(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(1));
 
 	BuildInfo info;
     auto sys = build_system(e, TypeParam(), &info);
@@ -320,9 +320,9 @@ TYPED_TEST(DirectSumTest, Asymmetric_MultiChunk_Gravity) {
         e.add_particle(make_particle(1, {static_cast<double>(i), 10, 0}, {}, 1.0, ParticleState::ALIVE, 100+i));
     }
 
-    e.add_force(Gravity(1.0), between_types(0, 1));
-    e.add_force(NoForce(), to_type(0));
-    e.add_force(NoForce(), to_type(1));
+    e.add_interaction(Gravity(1.0), between_types(0, 1));
+    e.add_interaction(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(1));
 
     BuildInfo info;
     auto sys = build_system(e, TypeParam(), &info);
@@ -360,13 +360,13 @@ TYPED_TEST(DirectSumTest, Asymmetric_TypeChaining) {
     e.add_particle(make_particle(1, {1,0,0}, {}, 1, ParticleState::ALIVE, 1));
     e.add_particle(make_particle(2, {1,1,0}, {}, 1, ParticleState::ALIVE, 2));
 
-    e.add_force(Harmonic(100, 0, 5), between_types(0, 1));
-    e.add_force(Harmonic(10, 0, 5),  between_types(1, 2));
+    e.add_interaction(Harmonic(100, 0, 5), between_types(0, 1));
+    e.add_interaction(Harmonic(10, 0, 5),  between_types(1, 2));
 
-    e.add_force(NoForce(), to_type(0));
-    e.add_force(NoForce(), to_type(1));
-    e.add_force(NoForce(), to_type(2));
-    e.add_force(NoForce(), between_types(0, 2));
+    e.add_interaction(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(1));
+    e.add_interaction(NoForce(), to_type(2));
+    e.add_interaction(NoForce(), between_types(0, 2));
 
     BuildInfo info;
     auto sys = build_system(e, TypeParam(), &info);
@@ -400,7 +400,7 @@ TYPED_TEST(DirectSumTest, IdBasedAccess_ReadWrite) {
         const double coord = static_cast<double>(i) + 0.5;
         e.add_particle(make_particle(0, {coord, 0.5, 0.5}, {0, 0, 0}, 1.0, ParticleState::ALIVE, i));
     }
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
 
     BuildInfo info;
     auto sys = build_system(e, TypeParam(), &info);
@@ -450,7 +450,7 @@ TYPED_TEST(DirectSumTest, SIMDTail_N33) {
 		e.add_particle(vec3(static_cast<float>(i), 0, 0), {}, 1.0, 0);
 	}
 
-	e.add_force(ConstantForce(push), to_type(0));
+	e.add_interaction(ConstantForce(push), to_type(0));
 	e.set_extent(100, 100, 100);
 
 	auto sys = build_system(e, TypeParam());
@@ -479,7 +479,7 @@ TYPED_TEST(DirectSumTest, LargeN_ParallelConsistency) {
 		e.add_particle(vec3(d), {}, 1.0, 0);
 	}
 
-	e.add_force(ConstantForce(push), to_type(0));
+	e.add_interaction(ConstantForce(push), to_type(0));
 	e.set_extent(1000, 1000, 1000);
 
 	auto sys = build_system(e, TypeParam());

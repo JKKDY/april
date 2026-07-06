@@ -1,4 +1,4 @@
-# APRIL -  A Particle Runtime Interaction Library
+# APRIL -  A Particle Runtime Integration Library
 
 [![C++ CI](https://github.com/JKKDY/april/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/JKKDY/april/actions/workflows/cmake-multi-platform.yml)
 [![codecov](https://codecov.io/github/JKKDY/april/graph/badge.svg?token=B8PK7KTAMP)](https://codecov.io/github/JKKDY/april)
@@ -237,11 +237,11 @@ The standard timestep benchmark (`dt = 0.005`) represents the main end-to-end co
 
 The small-timestep benchmark (`dt = 10^-7`) is diagnostic: particle displacements are minimal, reducing neighbor-list and rebuild effects and making traversal, scheduling, and synchronization overhead more visible. In this case, LAMMPS is faster at one thread, but APRIL scales substantially better across the node.
 
-| Configuration | 1 Thread | Peak Throughput | 56 Threads |
-| :--- | ---: | ---: | ---: |
+| Configuration |  1 Thread | Peak Throughput | 56 Threads |
+| :--- |----------:| ---: | ---: |
 | APRIL, `dt = 0.005` | 2.65 MUPS | 52.22 MUPS @ 50 threads | 52.00 MUPS |
 | LAMMPS OpenMP, `dt = 0.005` | 1.87 MUPS | 25.95 MUPS @ 45 threads | 24.24 MUPS |
-| APRIL, `dt = 10^-7` | 4.6467 MUPS | 127.86 MUPS @ 56 threads | 127.86 MUPS |
+| APRIL, `dt = 10^-7` | 4.65 MUPS | 127.86 MUPS @ 56 threads | 127.86 MUPS |
 | LAMMPS OpenMP, `dt = 10^-7` | 7.21 MUPS | 44.66 MUPS @ 16 threads | 29.72 MUPS |
 
 These benchmarks are not intended to claim that APRIL is generally faster than LAMMPS. LAMMPS is a mature distributed molecular dynamics package with many optimized modes and algorithms. The comparison shows that APRIL's statically composed shared-memory CPU path is competitive and can scale very well in the evaluated single-rank configuration.
@@ -296,7 +296,7 @@ APRIL follows a staged `declare → build → run` lifecycle:
 3. **Run**: An `Integrator` advances the `System` in time. Attached `Monitors` can emit output or diagnostics based on trigger policies. After a run, the system remains valid and can be queried, resumed, or advanced with another integrator.
 
 
-### Design Notes
+### 2. Design Notes
 
 APRIL is built around static composition rather than runtime polymorphism. Component categories that may be used, such as forces, fields, boundaries, monitors, containers, and executors, are declared at compile time through named parameter packs. Concrete component objects and parameters are assigned at runtime.
 

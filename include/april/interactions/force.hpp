@@ -1,8 +1,12 @@
 #pragma once
 
-#include <variant>
 #include <concepts>
+#include <cstdint>
+#include <stdexcept>
+#include <type_traits>
 #include <utility>
+#include <variant>
+
 
 #include "april/base/types.hpp"
 #include "april/particle/packed_access.hpp"
@@ -23,6 +27,13 @@ namespace april::interactions {
         Nonsymmetric // no relation
     };
 
+    /**
+     * @brief Base class for pairwise particle interactions.
+     *
+     * Custom forces derive from Force, declare the particle fields they need through
+     * `static constexpr ParticleField fields`, and implement `eval(p1, p2, r)`.
+     * The same implementation may be used for scalar and SIMD particle views.
+     */
     struct Force {
         static constexpr auto symmetry = ForceSymmetry::Antisymmetric;
         static constexpr auto vector_mode = exec::ExecutionMode::Hybrid; // scalar only must be a deliberate opt-out
@@ -125,7 +136,7 @@ namespace april::interactions {
             return force_cutoff2;
         }
 
-        auto with_cutoff(this auto && self, const double c) {
+        auto&& with_cutoff(this auto && self, const double c) {
             self.force_cutoff = c;
             self.force_cutoff2 = c*c;
             return self;

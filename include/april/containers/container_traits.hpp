@@ -1,6 +1,5 @@
 #pragma once
 
-#include "april/base/types.hpp"
 #include "april/core/domain.hpp"
 #include "april/particle/attributes.hpp"
 #include "april/interactions/interaction_table.hpp"

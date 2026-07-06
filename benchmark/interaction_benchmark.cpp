@@ -60,7 +60,7 @@ int main() {
 		env.add_particles(grid);
 		env.set_origin(origin);
 		env.set_extent(extent);
-		env.add_force(LJNoCutoff(epsilon, sigma, r_cut), to_type(0));
+		env.add_interaction(LJNoCutoff(epsilon, sigma, r_cut), to_type(0));
 		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 		const auto container = container::LinkedCellsAoS()

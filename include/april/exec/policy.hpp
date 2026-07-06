@@ -1,6 +1,9 @@
 #pragma once
 
+#include <concepts>
 #include <cstdint>
+#include <utility>
+
 #include "april/base/bitmask.hpp"
 
 namespace april {

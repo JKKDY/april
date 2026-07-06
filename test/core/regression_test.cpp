@@ -107,12 +107,12 @@ double run_april_benchmark() {
 
     Environment env(forces<LennardJones>, boundaries<OpenBoundary>);
     env.add_particles(grid);
-    env.add_force(LennardJones(EPSILON, SIGMA, R_CUT), to_type(0));
+    env.add_interaction(LennardJones(EPSILON, SIGMA, R_CUT), to_type(0));
     env.set_boundaries(OpenBoundary(), all_faces);
 
     // Force strict Sequential/Scalar execution to match the handcoded baseline
     auto container = DirectSum<Layout::AoS>();
-    struct Cfg : RunTimeConfig<exec::SequentialExecutor>, 
+    struct Cfg : RuntimeConfig<exec::SequentialExecutor>, 
                  CompileTimeConfig<ParallelPolicy::Serial, VectorPolicy::Scalar> {};
     
     auto system = build_system(env, container, Cfg{});

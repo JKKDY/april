@@ -170,7 +170,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, EachFace_WrapsPositionsAcrossDomain) {
 	Environment env(forces<NoForce>, boundaries<PeriodicBoundary>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
-	env.add_force(NoForce{}, to_type(0));
+	env.add_interaction(NoForce{}, to_type(0));
 
 	// One particle near each face moving outward
 	env.add_particle(make_particle(0, {0.4,5,5}, {-1,0,0}, 1, ParticleState::ALIVE, 0)); // X−
@@ -217,7 +217,7 @@ TYPED_TEST(PeriodicBoundarySystemTestT, Integration_CrossAndWrapMaintainsContinu
 	Environment env(forces<NoForce>, boundaries<PeriodicBoundary>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
-	env.add_force(NoForce{}, to_type(0));
+	env.add_interaction(NoForce{}, to_type(0));
 
 	// Single particle heading out +X
 	env.add_particle(make_particle(0, {9.8,5,5}, {+1,0,0}, 1, ParticleState::ALIVE, 0));

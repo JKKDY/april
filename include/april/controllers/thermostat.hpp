@@ -1,5 +1,9 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+
 #include "april/controllers/controller.hpp"
 #include "april/math/statistics.hpp"
 namespace april {
@@ -57,17 +61,17 @@ namespace april {
 			}
 		}
 
-		auto init_temp(const double temp) {
+		auto&& init_temp(const double temp) {
 			_init_temp = temp;
 			return *this;
 		};
 
-		auto target_temp(const double temp) {
+		auto&& target_temp(const double temp) {
 			_target_temp = temp;
 			return *this;
 		};
 
-		auto max_temp_change(const double temp) {
+		auto&& max_temp_change(const double temp) {
 			_max_temp_change = temp;
 			return *this;
 		};

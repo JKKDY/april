@@ -46,8 +46,8 @@ int main() {
 		fields<UniformField>);
 
 	env.with_extent(303,180, 0)
-		.with_force(LennardJones(3, 1.2), to_type(0))
-		.with_force(LennardJones(1, 1), to_type(1))
+		.with_interaction(LennardJones(3, 1.2), to_type(0))
+		.with_interaction(LennardJones(1, 1), to_type(1))
 		.with_particles(liquid)
 		.with_particles(drop)
 		.with_boundaries(ReflectiveBoundary(), all_faces)

@@ -14,7 +14,7 @@ int main() {
 	                 .with_particle({0.0, 1.0, 0.0},     {-1.0, 0.0, 0.0},    3.0e-6)
 	                 .with_particle({0.0, 5.36, 0.0},    {-0.425, 0.0, 0.0},  9.55e-4)
 	                 .with_particle({34.75, 0.0, 0.0},   {0.0, 0.0296, 0.0},  1.0e-14)
-	                 .with_force(Gravity(), to_type(0))
+	                 .with_interaction(Gravity(), to_type(0))
 	                 .with_extent({50,50, 0});
 
 	constexpr auto algo = DirectSum();

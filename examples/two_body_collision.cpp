@@ -33,14 +33,14 @@ int main() {
 	   .with_particles(cuboid2)
 	   .with_extent(100,80,40)
 	   .with_origin(-20,-20,-20)
-	   .with_force(LennardJones(5, 1), to_type(0))
+	   .with_interaction(LennardJones(5, 1), to_type(0))
 	   .with_boundaries(ReflectiveBoundary(), all_faces);
 
 	struct :
-			RunTimeConfig<exec::Executor>,
+			RuntimeConfig<exec::Executor>,
 			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
 		{} cfg;
-	cfg.executer_config.n_threads = 1;
+	cfg.executor_config.n_threads = 1;
 
 	auto container = LinkedCells<Layout::AoSoA<>>();
 	auto system = build_system(env, container, cfg);

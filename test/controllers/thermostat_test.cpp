@@ -58,7 +58,7 @@ TEST(ThermostatCalculationTest, InitialTemperatureTest1) {
        .with_particle(Particle().at({70, 10, 0}).with_velocity({ 1, 0, 0}).with_mass(1).as_type(0))
        .with_particle(Particle().at({30, 90, 0}).with_velocity({-1, 0, 0}).with_mass(1).as_type(0))
        .with_particle(Particle().at({70, 90, 0}).with_velocity({ 1, 0, 0}).with_mass(1).as_type(0))
-       .with_force(NoForce(), to_type(0))
+       .with_interaction(NoForce(), to_type(0))
        .with_extent(100, 100, 0); // 2D system
 
     auto system = build_system(env, DirectSum());
@@ -82,7 +82,7 @@ TEST(ThermostatCalculationTest, InitialTemperatureTest2) {
        .with_particle(Particle().at({70, 10, 0}).with_velocity({1, 0, 0}).with_mass(1).as_type(0))
        .with_particle(Particle().at({30, 90, 0}).with_velocity({1, 0, 0}).with_mass(1).as_type(0))
        .with_particle(Particle().at({70, 90, 0}).with_velocity({1, 0, 0}).with_mass(1).as_type(0))
-       .with_force(NoForce(), to_type(0))
+       .with_interaction(NoForce(), to_type(0))
        .with_extent(100, 100, 0); // 2D system
 
     auto system = build_system(env, DirectSum());
@@ -114,7 +114,7 @@ TEST(ThermostatBehaviorTest, SetInitialTemperature) {
 
         const auto env = Environment (forces<NoForce>, controllers<VelocityScalingThermostat>)
             .with_particles(cuboid)
-            .with_force(NoForce(), to_type(0))
+            .with_interaction(NoForce(), to_type(0))
             .with_extent(100, 100, 100)
             .with_controller(VelocityScalingThermostat(thermostat));
         auto system = build_system(env, DirectSum());
@@ -143,7 +143,7 @@ TEST(ThermostatBehaviorTest, HoldingTemperature) {
     const auto env = Environment (forces<NoForce>, boundaries<ReflectiveBoundary>, controllers<VelocityScalingThermostat>)
         .with_particles(cuboid)
         .with_boundaries(ReflectiveBoundary(), all_faces)
-        .with_force(NoForce(), to_type(0))
+        .with_interaction(NoForce(), to_type(0))
         .with_extent(100, 100, 100)
         .with_controller(VelocityScalingThermostat(
              20, 20, 0.5, Trigger::every(10)
@@ -173,7 +173,7 @@ TEST(ThermostatBehaviorTest, CoolingSystem) {
     const auto env = Environment (forces<NoForce>, boundaries<ReflectiveBoundary>, controllers<VelocityScalingThermostat>)
         .with_particles(cuboid)
         .with_boundaries(ReflectiveBoundary(), all_faces)
-        .with_force(NoForce(), to_type(0))
+        .with_interaction(NoForce(), to_type(0))
         .with_extent(100, 100, 100)
         .with_controller(VelocityScalingThermostat(
              20, 5, 10, Trigger::every(10)
@@ -202,7 +202,7 @@ TEST(ThermostatBehaviorTest, HeatingSystem) {
     const auto env = Environment (forces<NoForce>, boundaries<ReflectiveBoundary>, controllers<VelocityScalingThermostat>)
         .with_particles(cuboid)
         .with_boundaries(ReflectiveBoundary(), all_faces)
-        .with_force(NoForce(), to_type(0))
+        .with_interaction(NoForce(), to_type(0))
         .with_extent(100, 100, 100)
         .with_controller(VelocityScalingThermostat(
             20, 80, 10, Trigger::every(10)
@@ -236,7 +236,7 @@ TEST(ThermostatBehaviorTest, Apply_HeatsThenCoolsWithTriggers) {
     auto env = Environment (forces<NoForce>, boundaries<ReflectiveBoundary>, controllers<VelocityScalingThermostat>)
         .with_particles(cuboid)
         .with_boundaries(ReflectiveBoundary(), all_faces)
-        .with_force(NoForce(), to_type(0))
+        .with_interaction(NoForce(), to_type(0))
         .with_extent(100, 100, 100);
 
     // Controller 1: Heats to 40.0 between steps 0 and 19

@@ -21,6 +21,18 @@
 
 namespace april::container {
 
+
+	/**
+	 * @brief CRTP-style base class for APRIL containers.
+	 *
+	 * Container implementations derive from this class to provide particle storage,
+	 * traversal, ID lookup, and optional spatial acceleration structures. The base
+	 * class supplies common particle accessors, kernel adaptation, fallback
+	 * dispatch, and integration with APRIL's execution policies.
+	 *
+	 * Most simulation users interact with concrete containers such as DirectSum or
+	 * LinkedCells rather than this base class directly.
+	 */
 	template<IsContainerBuildConfig BuildConfiguration>
 	class Container {
 	public:
@@ -73,7 +85,7 @@ namespace april::container {
 
 		template<ParticleField Read>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t index) {
-			return particle::internal::PackedParticleRef<Read, ParticleField::none, ParticleAttributes> { // Assuming you kept the View alias
+			return particle::internal::PackedParticleRef<Read, ParticleField::none, ParticleAttributes> {
 				self.template access_particle<Read, ParticleField::none>(index)
 			};
 		}

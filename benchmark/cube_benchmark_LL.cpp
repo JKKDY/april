@@ -44,7 +44,7 @@ int main() {
 	env.add_particles(grid);
 	env.set_origin(origin);
 	env.set_extent(extent);
-	env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
+	env.add_interaction(LennardJones(epsilon, sigma, r_cut), to_type(0));
 	env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 	const auto container = LinkedCells<Layout::SoA>()
@@ -56,12 +56,12 @@ int main() {
 	std::vector t = {1,2,4,6,8};
 	for (int _ :t) {
 		struct :
-			RunTimeConfig<exec::Executor>,
+			RuntimeConfig<exec::Executor>,
 			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
 		{} cfg;
-		cfg.executer_config.n_threads = 4;
+		cfg.executor_config.n_threads = 4;
 
-		std::cout << " core: " << cfg.executer_config.n_threads << std::endl;
+		std::cout << " core: " << cfg.executor_config.n_threads << std::endl;
 
 		auto system = build_system(env, container, cfg);
 		constexpr double dt = 0.005;

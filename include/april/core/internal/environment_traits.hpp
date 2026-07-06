@@ -1,6 +1,6 @@
 #pragma once
 
-#include "april/base/traits.hpp"
+#include "april/base/concepts.hpp"
 
 #include "environment_data.hpp"
 #include "april/particle/particle_types.hpp"

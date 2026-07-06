@@ -1,10 +1,15 @@
 #pragma once
+
 #include <concepts>
+#include <cstddef>
+#include <stdexcept>
+#include <string>
+#include <utility>
 
 #include "april/core/system.hpp"
 #include "april/monitors/monitor.hpp"
 #include "april/base/types.hpp"
-#include "april/base/traits.hpp"
+#include "april/base/concepts.hpp"
 
 #include "april/utility/pack_storage.hpp"
 
@@ -142,7 +147,7 @@ namespace april::integrator {
 		utility::internal::PackStorage<TMonitors...> monitors;
 
 		void init_monitors() {
-			monitors.for_each_item([&](auto& mon){mon.init(dt, 0, duration, num_steps); } );
+			monitors.for_each_item([&](auto& mon){mon.init(dt, sys.time(), duration, num_steps); } );
 		}
 
 		void dispatch_initialize_monitors() {

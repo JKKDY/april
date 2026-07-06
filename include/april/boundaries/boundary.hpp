@@ -5,7 +5,7 @@
 #include <vector>
 #include <variant>
 
-#include "april/base/traits.hpp"
+#include "april/base/concepts.hpp"
 #include "april/particle/particle_types.hpp"
 #include "april/particle/scalar_access.hpp"
 #include "april/core/domain.hpp"

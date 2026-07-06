@@ -100,7 +100,7 @@ int main() {
         .with_extent(300, 300, 300)        // Large enough domain to contain the galaxy
         .with_origin(-150, -150, -150)     // Centered at 0,0,0
         // Apply SoftGravity with G=1.0 and epsilon=0.1 to all particles of type 0
-        .with_force(SoftGravity(G_CONST, 0.1), to_type(0));
+        .with_interaction(SoftGravity(G_CONST, 0.1), to_type(0));
 
     // 5. Build System using DirectSum (for exact O(n^2) gravity)
     auto container = DirectSum<Layout::AoS>();

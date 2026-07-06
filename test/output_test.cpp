@@ -223,7 +223,7 @@ TEST(BenchmarkTest, Integration_CapturesStatistics) {
 	auto env = Environment(forces<LennardJones>, boundaries<ReflectiveBoundary>)
 	   .with_particles({p1, p2})
 	   .with_extent(10, 10, 10)
-	   .with_force(LennardJones(1, 1), to_type(0));
+	   .with_interaction(LennardJones(1, 1), to_type(0));
 
 	// Using AoS for simplicity
 	auto container = LinkedCells();
@@ -260,7 +260,7 @@ TEST(TerminalOutputTest, terminal_test) {
 	auto env = Environment(forces<LennardJones>, boundaries<ReflectiveBoundary>)
 	   .with_particles({p1, p2})
 	   .with_extent(10, 10, 10)
-	   .with_force(LennardJones(1, 1), to_type(0));
+	   .with_interaction(LennardJones(1, 1), to_type(0));
 
 	// Using AoS for simplicity
 	auto container = LinkedCells();

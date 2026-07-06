@@ -92,13 +92,13 @@ int main() {
 	auto force = LennardJones(epsilon, sigma, interactions::no_cutoff);
 
 	const struct:
-		 RunTimeConfig<exec::SequentialExecutor>,
+		 RuntimeConfig<exec::SequentialExecutor>,
 		 CompileTimeConfig<ParallelPolicy::Serial, VectorPolicy::Scalar>
 	 {} cfg;
 
 	{
 		Environment env (forces<LennardJones>, boundaries<ReflectiveBoundary>);
-		env.add_force(force, to_type(0));
+		env.add_interaction(force, to_type(0));
 		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 		for (size_t i = 0; i < N; i++) {
@@ -124,7 +124,7 @@ int main() {
 
 	{
 		Environment env (forces<LennardJones>, boundaries<ReflectiveBoundary>);
-		env.add_force(force, to_type(0));
+		env.add_interaction(force, to_type(0));
 		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 		for (size_t i = 0; i < N; i++) {

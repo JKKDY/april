@@ -1,6 +1,9 @@
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
+
 #include "april/base/types.hpp"
 
 namespace april {
@@ -18,6 +21,16 @@ namespace april {
         }
     }
 
+    /**
+     * @brief Storage layout tags used to select a container memory layout.
+     *
+     * Layout tags are passed as template arguments to containers, for example:
+     *
+     * @code
+     * auto container = LinkedCells<Layout::SoA>();
+     * auto container = DirectSum<Layout::AoSoA<16>>();
+     * @endcode
+     */
     struct Layout {
         struct AoS {};
         struct SoA {};

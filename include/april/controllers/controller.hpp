@@ -1,5 +1,7 @@
 #pragma once
 
+#include <concepts>
+#include <type_traits>
 #include <utility>
 
 #include "april/utility/trigger.hpp"
@@ -7,6 +9,13 @@
 
 namespace april::controller  {
 
+	/**
+	 * @brief Base class for runtime state modifiers.
+	 *
+	 * Controllers are triggered during integration and may modify the system state.
+	 * Custom controllers implement `apply(system_context)` and may optionally
+	 * implement `init(system_context)` and `update(system_context)`.
+	 */
 	class Controller {
 	public:
 		explicit Controller(Trigger trig) : trigger(std::move(trig)) {}
@@ -18,7 +27,7 @@ namespace april::controller  {
 		template<class S>
 		void dispatch_init(this auto && self, core::SystemContext<S> & sys) {
 			if constexpr (requires { self.init(sys); }) {
-				self.template init<S>(sys);
+				self.init(sys);
 			}
 		}
 
@@ -35,7 +44,7 @@ namespace april::controller  {
 				requires { self.apply(sys); },
 				"Controller subclass must implement: void apply(const core::SystemContext<S> & sys)"
 			);
-			self.template apply<S>(sys);
+			self.apply(sys);
 		}
 
 	private:

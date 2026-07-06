@@ -27,7 +27,7 @@ TEST(LocalFieldTest, SpatialCheck) {
     // p2 is outside the region
     env.with_particle(Particle().at({1, 1, 1}).as_type(0).with_mass(1).with_id(2));
     
-    env.with_force(NoForce(), to_type(0))
+    env.with_interaction(NoForce(), to_type(0))
        .with_extent(20, 20, 20)
        // Add the field, active from t=0.0 to t=10.0
        .with_field(LocalForceField(field_force, local_region, 0.0, 10.0));
@@ -72,7 +72,7 @@ TEST(LocalFieldTest, TimeCheck) {
     // Particle is always inside the region
     env.with_particle(Particle().at({5, 5, 5}).as_type(0).with_mass(1).with_id(1));
     
-    env.with_force(NoForce(), to_type(0))
+    env.with_interaction(NoForce(), to_type(0))
        .with_extent(20, 20, 20)
        // Field is active ONLY between t=0.025 and t=0.045
        .with_field(LocalForceField(field_force, local_region, 0.025, 0.045));

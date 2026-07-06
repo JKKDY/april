@@ -7,7 +7,17 @@
 
 namespace april::monitor {
 
-
+	/**
+	 * @brief Base class for output and diagnostic monitors.
+	 *
+	 * Custom monitors derive from Monitor and implement:
+	 *   void record(const auto& system_context);
+	 *
+	 * They may optionally implement:
+	 *   void initialize();
+	 *   void before_step(const auto& system_context);
+	 *   void finalize();
+	 */
 	class Monitor {
 	public:
 		explicit Monitor(Trigger  trig) : trigger(std::move(trig)) {}
@@ -44,7 +54,7 @@ namespace april::monitor {
 		void dispatch_record(this auto&& self, const core::SystemContext<S> & sys) {
 			static_assert(
 				requires { self.record(sys); },
-				"Monitor subclass must implement: void dispatch_record(const core::SimulationContext &)"
+				"APRIL ERROR: Monitor subclasses must implement record(const core::SystemContext<S>&)."
 			);
 			self.record(sys);
 		}

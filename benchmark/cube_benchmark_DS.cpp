@@ -44,7 +44,7 @@ int main() {
 		env.add_particles(grid);
 		env.set_origin(origin);
 		env.set_extent(extent);
-		env.add_force(LennardJones(epsilon, sigma, r_cut), to_type(0));
+		env.add_interaction(LennardJones(epsilon, sigma, r_cut), to_type(0));
 		env.set_boundaries(ReflectiveBoundary(), all_faces);
 
 		constexpr auto container = DirectSum<Layout::AoSoA<>>();

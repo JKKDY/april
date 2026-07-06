@@ -1,6 +1,14 @@
 #pragma once
-#include <functional>
+
+#include <algorithm>
+#include <cstddef>
+#include <stdexcept>
+#include <type_traits>
+#include <unordered_map>
 #include <unordered_set>
+#include <utility>
+#include <variant>
+#include <vector>
 
 #include "april/interactions/force.hpp"
 #include "april/interactions/no_force.hpp"

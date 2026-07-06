@@ -62,7 +62,7 @@ protected:
         // 2. Set up a minimal environment
         return Environment(forces<NoForce>, controllers<SpyController>)
             .with_particle(Particle().at({}).as_type(0).with_mass(1)) // Need one particle
-            .with_force(NoForce(), to_type(0))
+            .with_interaction(NoForce(), to_type(0))
             .with_controller(SpyController(trigger, &sinks))
             .with_extent(1,1,1);
     }
@@ -271,7 +271,7 @@ TEST_F(ControllerTest, MultipleSameTypeControllers) {
         fields<>
     );
     env.with_particle(Particle().at({}).as_type(0).with_mass(1))
-       .with_force(NoForce(), to_type(0))
+       .with_interaction(NoForce(), to_type(0))
        .with_boundaries(OpenBoundary(), all_faces)
        .with_extent(1,1,1);
 
@@ -306,7 +306,7 @@ TEST_F(ControllerTest, MultipleDifferentControllers) {
         fields<>
     );
     env.with_particle(Particle().at({}).as_type(0).with_mass(1))
-       .with_force(NoForce(), to_type(0))
+       .with_interaction(NoForce(), to_type(0))
        .with_boundaries(OpenBoundary(), all_faces)
        .with_extent(1,1,1);
 
@@ -345,7 +345,7 @@ TEST_F(ControllerTest, ContextAccess_ModifiesParticles) {
     env.with_particle(
            Particle().at({}).as_type(0).with_mass(1).with_id(target_id)
        )
-       .with_force(NoForce(), to_type(0))
+       .with_interaction(NoForce(), to_type(0))
        .with_boundaries(OpenBoundary(), all_faces)
        .with_extent(1,1,1);
 

@@ -1,8 +1,17 @@
 #pragma once
 
 #include <concepts>
+#include <type_traits>
 
 namespace april::field {
+
+	/**
+	 * @brief Base class for external force fields.
+	 *
+	 * Custom fields derive from Field, declare the fields they access, and implement
+	 * `apply(particle)`. They may optionally implement `init(system_context)` and
+	 * `update(system_context)`.
+	 */
 	class Field {
 	public:
 		// TODO add filters for region, types and ids. Right now dispatch apply is applied to everything

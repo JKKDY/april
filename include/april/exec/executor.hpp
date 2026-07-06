@@ -1,6 +1,6 @@
 #pragma once
 
-#include "april/base/config.hpp"
+#include "april/base/backends.hpp"
 #include "april/exec/policy.hpp"
 #include "executors/executor_traits.hpp"
 
@@ -54,10 +54,10 @@ static_assert(april::exec::IsExecutor<april::exec::Executor>);
 namespace april {
 
     template<exec::IsExecutor E = exec::Executor>
-    struct RunTimeConfig {
+    struct RuntimeConfig {
         using ThreadExecutor = E;
         using ExecutorConfig = E::Config;
-        ExecutorConfig executer_config;
+        ExecutorConfig executor_config;
     };
 
     template<ParallelPolicy P = ParallelPolicy::Threaded, VectorPolicy V = VectorPolicy::Auto>
@@ -66,7 +66,7 @@ namespace april {
         static constexpr ParallelPolicy parallel_policy = P;
     };
 
-    struct ExecutionConfig : RunTimeConfig<>, CompileTimeConfig<> {};
+    struct ExecutionConfig : RuntimeConfig<>, CompileTimeConfig<> {};
 
     namespace exec {
 
@@ -74,7 +74,7 @@ namespace april {
         concept IsExecutionConfig = requires (C c) {
             { C::vector_policy } -> std::convertible_to<VectorPolicy>;
             { C::parallel_policy } -> std::convertible_to<ParallelPolicy>;
-            { c.executer_config };
+            { c.executor_config };
         } && IsExecutor<typename C::ThreadExecutor>;
 
 

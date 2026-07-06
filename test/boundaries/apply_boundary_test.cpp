@@ -46,7 +46,7 @@ TYPED_TEST(BoundaryTestT, InsideSlab_XMinus_AppliesOnlyToSlabParticles) {
 	env.add_particle(make_particle(0, {0.4,5,5}, {}, 1, ParticleState::ALIVE, 0));
 	env.add_particle(make_particle(0, {1.1,5,5}, {}, 1, ParticleState::ALIVE, 1));
 
-	env.add_force(NoForce{}, to_type(0));
+	env.add_interaction(NoForce{}, to_type(0));
 
 	// External sinks for each face
 	std::vector<ParticleID> sxm, sxp, sym, syp, szm, szp;
@@ -82,7 +82,7 @@ TYPED_TEST(BoundaryTestT, OutsideHalfspace_XPlus_TouchesOnlyActualExiters) {
 	Environment env (forces<NoForce>, boundaries<TouchSpy>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
-	env.add_force(NoForce{}, to_type(0));
+	env.add_interaction(NoForce{}, to_type(0));
 
 	// p0: crosses X+ this step
 	env.add_particle(make_particle(0, {9.5,5,5}, {+2,0,0}, 1, ParticleState::ALIVE, 0));
@@ -128,7 +128,7 @@ TYPED_TEST(BoundaryTestT, CornerExit_TriggersRelevantFaces) {
 	Environment env (forces<NoForce>, boundaries<TouchSpy>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
-	env.add_force(NoForce{}, to_type(0));
+	env.add_interaction(NoForce{}, to_type(0));
 
 	// One particle moving diagonally out through the X+Y+ edge
 	// env.add_particle({.id=42, .type=0, .position={9.7,9.7,5}, .velocity={+1,+1,0}, .mass=1, .state=ParticleState::ALIVE});
@@ -174,7 +174,7 @@ TYPED_TEST(BoundaryTestT, InsideCorner_TouchesAllOverlappingFaces) {
 	Environment env(forces<NoForce>, boundaries<TouchSpy>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
-	env.add_force(NoForce{}, to_type(0));
+	env.add_interaction(NoForce{}, to_type(0));
 
 	// Place a particle inside the corner region (X−, Y−, Z−)
 	// so it's within all three inside slabs of thickness=1.
@@ -218,7 +218,7 @@ TYPED_TEST(BoundaryTestT, NearCornerExit_TriggersCorrectFace) {
 	Environment env (forces<NoForce>, boundaries<TouchSpy>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
-	env.add_force(NoForce{}, to_type(0));
+	env.add_interaction(NoForce{}, to_type(0));
 
 	// One particle moving diagonally through the +z face but ending up in the overlap region of the +x,+y,+z boundaries
 	env.add_particle(make_particle(0, {9.7,9.7,9.8}, {1,1,1}, 1, ParticleState::ALIVE, 42));
@@ -261,7 +261,7 @@ TYPED_TEST(BoundaryTestT, InsideSlab_AllFaces_OneParticleEach) {
 	Environment env(forces<NoForce>, boundaries<TouchSpy>);
 	env.set_origin({0,0,0});
 	env.set_extent({10,10,10});
-	env.add_force(NoForce{}, to_type(0));
+	env.add_interaction(NoForce{}, to_type(0));
 
 	// Six particles, one for each face region.
 	// Positions are clearly inside their slabs (thickness = 1)

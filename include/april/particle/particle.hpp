@@ -8,15 +8,21 @@
 
 namespace april {
 
-    // user facing declaration with optional fields and non typed field for user data
+    /**
+     * @brief User-facing particle declaration used during environment setup.
+     *
+     * Particle is a declarative input object. During build_system(...), particles
+     * are converted into the container-specific storage representation used by the
+     * simulation System.
+     */
     struct Particle {
-        std::optional<ParticleID> id;			// The id of the particle.
-        ParticleType type = 0;  				// The type of the particle.
+        std::optional<ParticleID> id;        ///< Optional user-defined particle ID.
+        ParticleType type = 0;               ///< User-defined particle type used for interaction lookup.
 
-        vec3 position;      					// The position of the particle.
-        vec3 velocity;      					// The velocity of the particle.
+        vec3 position{};                     ///< Initial position.
+        vec3 velocity{};                     ///< Initial velocity.
 
-        double mass{};        					// The mass of the particle.
+        double mass = 1.0;                   ///< Particle mass.
         ParticleState state = ParticleState::ALIVE;	// The state of the particle.
 
         // optional data e.g. if initializing from a simulation snapshot
@@ -55,8 +61,9 @@ namespace april {
         Particle& with_force(const vec3& v) noexcept {
             force = v; return *this;
         }
-        Particle& with_data(const std::any& v) noexcept {
-            user_data = v; return *this;
+        Particle& with_data(std::any v) {
+            user_data = std::move(v);
+            return *this;
         }
     };
 

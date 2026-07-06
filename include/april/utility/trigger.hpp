@@ -54,6 +54,9 @@ namespace april{
 		// step based triggers:
 		// trigger every N steps
 		static Trigger every(const size_t N, const size_t offset = 0) {
+			if (N == 0) {
+				throw std::invalid_argument("[APRIL] Trigger::every requires N > 0.");
+			}
 			return Trigger{[=](const TriggerContext&sys) { return (sys.step() + offset) % N == 0; }};
 		}
 
@@ -82,6 +85,9 @@ namespace april{
 		// time based triggers:
 		// trigger after given time period
 		static Trigger periodically(const double period, const double offset = 0.0) {
+			if (period <= 0.0) {
+				throw std::invalid_argument("[APRIL] Trigger::periodically requires period > 0.");
+			}
 			return Trigger{[=, last = offset - period](const TriggerContext& sys) mutable {
 				if (sys.time() - last >= period) {
 					last = sys.time();

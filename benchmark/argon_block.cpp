@@ -149,7 +149,7 @@ auto create_argon_environment(const size_t n_dim, const double temperature = 1.0
     auto env = Environment(forces<LennardJones>, boundaries<PeriodicBoundary>)
         .with_extent(extent)
         .with_particles(particle_grid)
-        .with_force(LennardJones(epsilon, sigma, r_cut), to_type(TYPE_ARGON))
+        .with_interaction(LennardJones(epsilon, sigma, r_cut), to_type(TYPE_ARGON))
         .with_boundaries(PeriodicBoundary(), all_faces);
 
     return env;
@@ -189,7 +189,7 @@ void run_argon_bench_suite() {
 
                 // 2. Setup Config
                 ExecutionConfig cfg;
-                cfg.executer_config.n_threads = t;
+                cfg.executor_config.n_threads = t;
 
                 auto env = create_argon_environment(n, rho);
                 auto container = LinkedCells<Layout::SoA>().with_absolute_skin(0.3);
@@ -219,7 +219,7 @@ int main() {
     // run_argon_bench_suite();
 
     ExecutionConfig cfg;
-    cfg.executer_config.n_threads = 1;
+    cfg.executor_config.n_threads = 1;
 
     auto env = create_argon_environment(100, 1);
     auto container = LinkedCells<Layout::SoA>().with_absolute_skin(0.3);

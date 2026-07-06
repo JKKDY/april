@@ -21,7 +21,7 @@ using namespace april;
 
 // Execution Strategy Wrapper
 template<ParallelPolicy P, VectorPolicy V = VectorPolicy::Auto>
-struct CustomExecConfig : RunTimeConfig<>, CompileTimeConfig<P, V> {};
+struct CustomExecConfig : RuntimeConfig<>, CompileTimeConfig<P, V> {};
 
 // Ordering Policies
 struct OrderDefault {
@@ -87,7 +87,7 @@ TYPED_TEST_SUITE(LinkedCellsTest, Matrix);
 TYPED_TEST(LinkedCellsTest, SingleParticle_NoForce) {
     Environment e (forces<NoForce>);
 	e.add_particle(make_particle(0, {1,2,3}, {}, 1, ParticleState::ALIVE, 0));
-	e.add_force(NoForce(), to_type(0));
+	e.add_interaction(NoForce(), to_type(0));
 	e.set_extent({4,4,4});
 
 	auto sys = build_system(e, TypeParam::create_container(4), TypeParam::create_exec());
@@ -104,7 +104,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_SameCell) {
 	e.set_origin({0,0,0});
 	e.add_particle(make_particle(7, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
 	e.add_particle(make_particle(7, {1.5,0,0}, {}, 2, ParticleState::ALIVE, 1));
-	e.add_force(ConstantForce(3,4,5), to_type(7));
+	e.add_interaction(ConstantForce(3,4,5), to_type(7));
 
 	auto sys = build_system(e, TypeParam::create_container(2), TypeParam::create_exec());
 	sys.update_forces();
@@ -126,7 +126,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NeighbouringCell) {
 	e.set_origin({0,0,0});
 	e.add_particle(make_particle(7, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
 	e.add_particle(make_particle(7, {1.5,0,0}, {}, 2, ParticleState::ALIVE, 1));
-	e.add_force(ConstantForce(3,4,5), to_type(7));
+	e.add_interaction(ConstantForce(3,4,5), to_type(7));
 
 	auto sys = build_system(e, TypeParam::create_container(1), TypeParam::create_exec());
 	sys.update_forces();
@@ -148,7 +148,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_ConstantTypeForce_NoNeighbouringCell) {
 	e.set_origin({0,0,0});
 	e.add_particle(make_particle(7, {0.25,0,0}, {}, 1, ParticleState::ALIVE, 0));
 	e.add_particle(make_particle(7, {1.25,0,0}, {}, 1, ParticleState::ALIVE, 1));
-	e.add_force(ConstantForce(3,4,5), to_type(7));
+	e.add_interaction(ConstantForce(3,4,5), to_type(7));
 
 	auto sys = build_system(e, TypeParam::create_container(0.5), TypeParam::create_exec());
 	sys.update_forces();
@@ -167,9 +167,9 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
     Environment e(forces<NoForce, ConstantForce>);
 	e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 42));
 	e.add_particle(make_particle(0, {0,1,0}, {}, 1, ParticleState::ALIVE, 99));
-	e.add_force(NoForce(), to_type(0));
-	e.add_force(ConstantForce(-1,2,-3), between_ids(42, 99));
-	e.auto_domain(2);
+	e.add_interaction(NoForce(), to_type(0));
+	e.add_interaction(ConstantForce(-1,2,-3), between_ids(42, 99));
+	e.domain_padding(2);
 
 	auto sys = build_system(e, TypeParam::create_container(), TypeParam::create_exec());
 	sys.update_forces();
@@ -192,10 +192,10 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_InverseSquare) {
 	e.add_particle(make_particle(1, {2,0,0}, {}, 2, ParticleState::ALIVE, 1));
 
 
-	e.add_force(NoForce(), to_type(0));
-	e.add_force(NoForce(), to_type(1));
+	e.add_interaction(NoForce(), to_type(0));
+	e.add_interaction(NoForce(), to_type(1));
 
-	e.add_force(Gravity(5.0), between_types(0, 1));
+	e.add_interaction(Gravity(5.0), between_types(0, 1));
 
 	auto sys = build_system(e, TypeParam::create_container(), TypeParam::create_exec());
 	sys.update_forces();
@@ -226,7 +226,7 @@ TYPED_TEST(LinkedCellsTest, OrbitTest) {
 	env.add_particle(make_particle(0, {0,R,0}, {v, 0, 0}, m));
 	env.add_particle(make_particle(0, {0,0,0}, {0, 0, 0}, M));
 
-	env.add_force(Gravity(G), to_type(0));
+	env.add_interaction(Gravity(G), to_type(0));
 
 	env.set_origin({-1.5*v,-1.5*v,0});
 	env.set_extent({3*v,3*v,1});
@@ -280,7 +280,7 @@ TYPED_TEST(LinkedCellsTest, CollectIndicesInRegion) {
         e.set_origin({0, 0, 0});
         e.set_extent({5, 5, 5});
 		e.add_particles(cuboid);
-        e.add_force(NoForce(), to_type(0));
+        e.add_interaction(NoForce(), to_type(0));
 
         auto sys = build_system(e, TypeParam::create_container(cell_size), TypeParam::create_exec());
 
@@ -358,7 +358,7 @@ TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_X) {
 		e.add_particle(make_particle(0, {9.5, 5, 5}, {}, 1, ParticleState::ALIVE, 1));
 
 		// Simple harmonic force
-		e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));
+		e.add_interaction(Harmonic(1.0, 0.0, 2.0), to_type(0));
 
 		// Enable periodic boundaries on both x faces
 		e.set_boundaries(DummyPeriodicBoundary(), {DomainFace::XMinus, DomainFace::XPlus});
@@ -390,7 +390,7 @@ TYPED_TEST(LinkedCellsTest, PeriodicForceWrap_AllAxes) {
 		e.add_particle(make_particle(0, {0.5, 0.5, 0.5}, {}, 1, ParticleState::ALIVE, 0));
 		e.add_particle(make_particle(0, {9.5, 9.5, 9.5}, {}, 1, ParticleState::ALIVE, 1));
 
-		e.add_force(Harmonic(1.0, 0.0, 2.0), to_type(0));
+		e.add_interaction(Harmonic(1.0, 0.0, 2.0), to_type(0));
 
 		// Enable full periodicity on all faces
 		e.set_boundaries(DummyPeriodicBoundary(), {
@@ -437,10 +437,10 @@ TYPED_TEST(LinkedCellsTest, Asymmetric_ChunkBoundaries_Counting) {
     }
 
     // Spring k=1, r0=0, cutoff=1.5 (covers dist=1.0)
-    e.add_force(Harmonic(1, 0, 1.5), between_types(0, 1));
+    e.add_interaction(Harmonic(1, 0, 1.5), between_types(0, 1));
 
-    e.add_force(NoForce(), to_type(0));
-    e.add_force(NoForce(), to_type(1));
+    e.add_interaction(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(1));
 
     BuildInfo info;
     // Set cell size >= cutoff
@@ -478,9 +478,9 @@ TYPED_TEST(LinkedCellsTest, Asymmetric_MultiChunk_Gravity_WithCutoff) {
     }
 
     // Gravity G=1, Cutoff=12 (covers the gap of 10)
-    e.add_force(Gravity(1.0, cutoff), between_types(0, 1));
-    e.add_force(NoForce(), to_type(0));
-    e.add_force(NoForce(), to_type(1));
+    e.add_interaction(Gravity(1.0, cutoff), between_types(0, 1));
+    e.add_interaction(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(1));
 
     BuildInfo info;
     auto sys = build_system(e, TypeParam::create_container(cutoff), TypeParam::create_exec(), &info);
@@ -520,13 +520,13 @@ TYPED_TEST(LinkedCellsTest, Asymmetric_TypeChaining) {
     e.add_particle(make_particle(2, {1,1,0}, {}, 1, ParticleState::ALIVE, 2));
 
     // Cutoff 1.5 covers the distance of 1.0
-    e.add_force(Harmonic(100, 0, 1.5), between_types(0, 1));
-    e.add_force(Harmonic(10, 0, 1.5),  between_types(1, 2));
+    e.add_interaction(Harmonic(100, 0, 1.5), between_types(0, 1));
+    e.add_interaction(Harmonic(10, 0, 1.5),  between_types(1, 2));
 
-    e.add_force(NoForce(), to_type(0));
-    e.add_force(NoForce(), to_type(1));
-    e.add_force(NoForce(), to_type(2));
-    e.add_force(NoForce(), between_types(0, 2));
+    e.add_interaction(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(1));
+    e.add_interaction(NoForce(), to_type(2));
+    e.add_interaction(NoForce(), between_types(0, 2));
 
     BuildInfo info;
     auto sys = build_system(e, TypeParam::create_container(1.5), TypeParam::create_exec(), &info);
@@ -555,7 +555,7 @@ TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
 		const double coord = static_cast<double>(i) + 0.5;
 		e.add_particle(make_particle(0, {coord, 0.5, 0.5}, {0, 0, 0}, 1.0, ParticleState::ALIVE, i));
 	}
-	e.add_force(NoForce(), to_type(0));
+	e.add_interaction(NoForce(), to_type(0));
 
 	BuildInfo info;
 	auto sys = build_system(e, TypeParam::create_container(1.0), TypeParam::create_exec(), &info);
@@ -597,7 +597,7 @@ TYPED_TEST(LinkedCellsTest, IdBasedAccess_ReadWrite) {
 TYPED_TEST(LinkedCellsTest, Sparse_SIMD_Mask_Check) {
 	// This specifically targets the AoSoA padding logic.
 	Environment env(forces<LennardJones>, boundaries<OpenBoundary>);
-	env.add_force(LennardJones(5.0, 1.0, 3.0), to_type(0));
+	env.add_interaction(LennardJones(5.0, 1.0, 3.0), to_type(0));
 
 	// Massive extent, tiny number of particles = lots of empty cells
 	env.set_extent({100, 100, 100});
@@ -638,7 +638,7 @@ TYPED_TEST(LinkedCellsTest, ParticleMigration_BetweenCells) {
 	// Distance initially is 1.6 (within 2.0 cutoff)
 	e.add_particle(make_particle(0, {3.5, 5.0, 5.0}, {0, 0, 0}, 1.0, ParticleState::ALIVE, 1));
 
-	e.add_force(ConstantForce(1, 0, 0), to_type(0));
+	e.add_interaction(ConstantForce(1, 0, 0), to_type(0));
 
 	auto sys = build_system(e, TypeParam::create_container(2.0), TypeParam::create_exec());
 
@@ -668,7 +668,7 @@ TYPED_TEST(LinkedCellsTest, LinkedCells_vs_DirectSum_Parity_Open) {
 	// Setup Environment with OpenBoundary
 	// This ensures both LC and DS only see the "real" distances.
 	Environment env(forces<LennardJones>, boundaries<OpenBoundary>);
-	env.add_force(LennardJones(5.0, 1.0, 3.0), to_type(0));
+	env.add_interaction(LennardJones(5.0, 1.0, 3.0), to_type(0));
 
 	// Safe Jittered Grid Initialization
 	const int nx = 10, ny = 10, nz = 10;

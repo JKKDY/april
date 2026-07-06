@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vector>
+#include <unordered_map>
+#include <utility>
 
 #include "april/core/system.hpp"
 #include "april/core/environment.hpp"
@@ -33,7 +35,6 @@ namespace april {
         using namespace april::core::internal;
         using BoundaryTable = Env::traits::boundary_table_t;
         using ForceTable = Env::traits::force_table_t;
-        using ParticleRecord = Env::traits::particle_record_t;
         using ParticleAttributes = Env::traits::particle_attributes_t;
 
         // explicit type for IDE code completion
@@ -66,8 +67,7 @@ namespace april {
         );
 
         // create particles
-        const std::vector<ParticleRecord> particles = build_particles<ParticleAttributes>(
-            env.particles, type_map, id_map);
+        auto particles = build_particles<ParticleAttributes>(env.particles, type_map, id_map);
 
         // create force table
         ForceTable forces(env.type_interactions, env.id_interactions, type_map, id_map);

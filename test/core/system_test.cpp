@@ -21,7 +21,7 @@ TEST(EnvTest, one_particle_test) {
     Environment e (forces<LennardJones>);
     e.add_particle(make_particle(0, {3,4,5}, {1,2,3}, 10 ));
 
-    e.add_force(LennardJones(3, 5), to_type(0));
+    e.add_interaction(LennardJones(3, 5), to_type(0));
     e.set_extent(1,1,1);
 
     auto sys = build_system(e, container::DirectSumAoS());
@@ -43,7 +43,7 @@ TEST(EnvTest, negative_mass_throws) {
     Environment e (forces<NoForce>);
     e.add_particle(make_particle(0, {}, {}, -5));
 
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
     e.set_extent(1,1,1);
 
     EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
@@ -57,7 +57,7 @@ TEST(EnvTest, type_force_missing) {
     e.add_particle(make_particle(0, {1,2,3}, {0,1,2}, 1, ParticleState::DEAD, -1));
     e.add_particle(make_particle(0, {3,4,5}, {1,2,3}, 10, ParticleState::ALIVE, 0));
 
-    e.add_force(Gravity(), between_ids(-1, 0));
+    e.add_interaction(Gravity(), between_ids(-1, 0));
 
     EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
 }
@@ -70,8 +70,8 @@ TEST(EnvTest, two_particle_force_test) {
     e.add_particle(make_particle(0, {1,2,3}, {0,1,2}, 1, ParticleState::DEAD, 1));
     e.add_particle(make_particle(0, {3,4,5}, {1,2,3}, 10, ParticleState::ALIVE, 0));
 
-    e.add_force(Gravity(), between_ids(1, 0));
-    e.add_force(Gravity(), to_type(0));
+    e.add_interaction(Gravity(), between_ids(1, 0));
+    e.add_interaction(Gravity(), to_type(0));
 
     auto sys = build_system(e, container::DirectSumAoS());
 
@@ -95,7 +95,7 @@ TEST(EnvTest, ExtentTooSmallThrows) {
     // Set extent too small to cover span=2
     e.set_origin({0,0,0});
     e.set_extent({1,1,1});
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
     EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
 }
 
@@ -108,7 +108,7 @@ TEST(EnvTest, OriginOutsideThrows) {
     // Set origin outside that box
     e.set_origin({2,2,2});
     e.set_extent({2,2,2});
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
     EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
 }
 
@@ -119,7 +119,7 @@ TEST(EnvTest, OnlyExtentCentersOrigin) {
 
     // Only extent given
     e.set_extent({4,4,4});
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
     const auto sys = build_system(e, container::DirectSumAoS());
 
     // bbox_min = (3,4,5), bbox_center = same
@@ -135,8 +135,8 @@ TEST(EnvTest, OnlyOriginSymmetricExtent) {
 
     // Only origin given
     e.set_origin({0,0,0});
-    e.add_force(NoForce(), to_type(0));
-    e.auto_domain(1);
+    e.add_interaction(NoForce(), to_type(0));
+    e.domain_padding(1);
 
     const auto sys = build_system(e, container::DirectSumAoS());
 
@@ -145,23 +145,28 @@ TEST(EnvTest, OnlyOriginSymmetricExtent) {
     EXPECT_EQ(sys.domain().extent, vec3(4,5,6));
 }
 
-TEST(EnvTest, AutoOriginExtentDoublesBBox) {
-    Environment e (forces<NoForce>);
-    // Two particles at (1,2,3) and (3,4,5)
+TEST(EnvTest, DomainPaddingFactorAddsRelativePaddingPerSide) {
+    Environment e(forces<NoForce>);
+
     e.add_particle(make_particle(0, {1,2,3}, {}, 1, ParticleState::ALIVE));
     e.add_particle(make_particle(0, {3,4,5}, {}, 1, ParticleState::ALIVE));
 
-    e.add_force(NoForce(), to_type(0));
-    e.auto_domain_factor(1);
+    e.add_interaction(NoForce(), to_type(0));
+    e.domain_padding_factor(2);
 
-    // neither origin nor extent set
+    // Neither origin nor extent set.
     const auto sys = build_system(e, container::DirectSumAoS());
 
-    // bbox_min = (1,2,3), bbox_max = (3,4,5), bbox_center = (2,3,4), bbox_extent = (2,2,2)
-    // extent = bbox_extent * 2 = (4,4,4)
-    // origin = center - extent/2 = (2,3,4) - (2,2,2) = (0,1,2)
-    EXPECT_EQ(sys.domain().origin, vec3(0,1,2));
-    EXPECT_EQ(sys.domain().extent, vec3(4,4,4));
+    // bbox_min    = (1,2,3)
+    // bbox_max    = (3,4,5)
+    // bbox_center = (2,3,4)
+    // bbox_extent = (2,2,2)
+    //
+    // padding_per_side = bbox_extent * 2 = (4,4,4)
+    // extent           = bbox_extent + 2 * padding_per_side = (10,10,10)
+    // origin           = center - extent/2 = (2,3,4) - (5,5,5) = (-3,-2,-1)
+    EXPECT_EQ(sys.domain().origin, vec3(-3,-2,-1));
+    EXPECT_EQ(sys.domain().extent, vec3(10,10,10));
 }
 
 
@@ -176,8 +181,8 @@ TEST(EnvTest, IdentityMappingForDenseInput) {
     e.add_particle(make_particle(0, {2,2,2}, {}, 1, ParticleState::ALIVE, 2));
 
     // Self-interactions only (no ID-to-ID to trigger reordering)
-    e.add_force(NoForce(), to_type(0));
-    e.add_force(NoForce(), to_type(1));
+    e.add_interaction(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(1));
     e.set_extent(10, 10, 10);
 
     BuildInfo info;
@@ -212,10 +217,10 @@ TEST(EnvTest, StableMappingAndInteractionPrioritization) {
     e.add_particle(make_particle(2, {3,3,3}, {}, 1, ParticleState::ALIVE, 100));
 
     // Define interactions to trigger prioritization
-    e.add_force(NoForce(), between_ids(10, 50));
+    e.add_interaction(NoForce(), between_ids(10, 50));
     // Self-interactions required by validation
-    e.add_force(NoForce(), to_type(2));
-    e.add_force(NoForce(), to_type(5));
+    e.add_interaction(NoForce(), to_type(2));
+    e.add_interaction(NoForce(), to_type(5));
 
     e.set_extent(10, 10, 10);
 
@@ -246,7 +251,7 @@ TEST(EnvTest, SparseAndAutoIDMix) {
     e.add_particle(make_particle(0, {2,2,2}, {}, 1, ParticleState::ALIVE, 10));
     e.add_particle(make_particle(0, {3,3,3}, {}, 1, ParticleState::ALIVE, std::nullopt));
 
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
     e.set_extent(10,10,10);
 
     BuildInfo info;
@@ -268,7 +273,7 @@ TEST(EnvTest, MissingSelfInteractionThrows) {
     e.add_particle(make_particle(1, {1,1,1}, {}, 1));
 
     // Interaction between 0 and 1 exists, but 0-0 and 1-1 are missing
-    e.add_force(NoForce(), between_types(0, 1));
+    e.add_interaction(NoForce(), between_types(0, 1));
 
     e.set_extent(10, 10, 10);
     EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
@@ -276,7 +281,7 @@ TEST(EnvTest, MissingSelfInteractionThrows) {
 
 TEST(EnvTest, InvalidStateThrows) {
     Environment e(forces<NoForce>);
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
     e.set_extent(10,10,10);
 
     // Case A: INVALID sentinel
@@ -285,7 +290,7 @@ TEST(EnvTest, InvalidStateThrows) {
 
     // Case B: Undefined bits
     Environment e2(forces<NoForce>);
-    e2.add_force(NoForce(), to_type(0));
+    e2.add_interaction(NoForce(), to_type(0));
     e2.set_extent(10,10,10);
     e2.add_particle(make_particle(0, {0,0,0}, {}, 1, static_cast<ParticleState>(0b10101010), 1));
     EXPECT_THROW(build_system(e2, container::DirectSumAoS()), std::invalid_argument);
@@ -298,9 +303,9 @@ TEST(EnvTest, IDInteractionPriority) {
     e.add_particle(make_particle(0, {1,1,1}, {}, 1, ParticleState::ALIVE, 1));
     e.add_particle(make_particle(0, {2,2,2}, {}, 1, ParticleState::ALIVE, 2));
 
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
     // Force between 1 and 2 should move them to system indices 0 and 1
-    e.add_force(NoForce(), between_ids(1, 2));
+    e.add_interaction(NoForce(), between_ids(1, 2));
 
     e.set_extent(10,10,10);
 
@@ -318,10 +323,10 @@ TEST(EnvTest, IDInteractionPriority) {
 TEST(EnvTest, AbsoluteMarginExpansion) {
     Environment e(forces<NoForce>);
     e.add_particle(vec3(0,0,0), vec3(0,0,0), 1.0);
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
 
     // Uses your API: auto_domain(double) sets absolute margin
-    e.auto_domain(1.0);
+    e.domain_padding(1.0);
 
     const auto sys = build_system(e, container::DirectSumAoS());
 
@@ -333,10 +338,10 @@ TEST(EnvTest, AbsoluteMarginExpansion) {
 TEST(EnvTest, ZeroExtentThrows) {
     Environment e(forces<NoForce>);
     e.add_particle(vec3(0,0,0), vec3(0,0,0), 1.0);
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
 
     // Use chaining to set both to zero
-    e.with_auto_domain(0.0).auto_domain_factor(vec3(0,0,0));
+    e.with_domain_padding(0.0).domain_padding_factor(vec3(0,0,0));
 
     EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::logic_error);
 }
@@ -344,10 +349,10 @@ TEST(EnvTest, ZeroExtentThrows) {
 TEST(EnvTest, NegativeMarginsThrow) {
     Environment e(forces<NoForce>);
     e.add_particle(vec3(0,0,0), vec3(0,0,0), 1.0);
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
 
     // Passing negative to the vec3 overload
-    e.auto_domain(vec3(-1, 0, 0));
+    e.domain_padding(vec3(-1, 0, 0));
     EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::logic_error);
 }
 
@@ -356,12 +361,12 @@ TEST(EnvTest, MarginPriorityMax) {
     // BBox extent is 10.0
     e.add_particle(vec3(0,0,0), vec3(0,0,0), 1.0);
     e.add_particle(vec3(10,0,0), vec3(0,0,0), 1.0);
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
 
     // Factor 0.1 of 10 = 1.0
     // Absolute margin = 5.0
-    e.auto_domain_factor(vec3(0.1, 0.1, 0.1));
-    e.auto_domain(5.0);
+    e.domain_padding_factor(vec3(0.1, 0.1, 0.1));
+    e.domain_padding(5.0);
 
     const auto sys = build_system(e, container::DirectSumAoS());
 
@@ -386,7 +391,7 @@ TEST(EnvTest, NonExistingTypeInteractionThrows) {
     e.add_particle(vec3(0), vec3(0), 1.0, 0); // Only Type 0 exists
 
     // Force assigned to Type 999
-    e.add_force(NoForce(), to_type(999));
+    e.add_interaction(NoForce(), to_type(999));
     e.set_extent(1,1,1);
 
     EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
@@ -398,7 +403,7 @@ TEST(EnvTest, NonExistingIDInteractionThrows) {
     e.add_particle(make_particle(0, {0,0,0}, {0,0,0}, 1.0, ParticleState::ALIVE, 1));
 
     // Force between existing ID 1 and non-existing ID 999
-    e.add_force(NoForce(), between_ids(1, 999));
+    e.add_interaction(NoForce(), between_ids(1, 999));
     e.set_extent(1,1,1);
 
     EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
@@ -409,7 +414,7 @@ TEST(EnvTest, ZeroStateThrows) {
     // Manual cast to bypass ALIVE default
     e.add_particle(make_particle(0, {0,0,0}, {0,0,0}, 1.0, static_cast<ParticleState>(0), 1));
 
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
     e.set_extent(1,1,1);
 
     EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::invalid_argument);
@@ -419,7 +424,7 @@ TEST(EnvTest, ZeroStateThrows) {
 TEST(EnvTest, DefaultToOpenBoundary) {
     Environment e(forces<NoForce>);
     e.add_particle(vec3(0), vec3(0), 1.0);
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
     e.set_extent(1,1,1);
 
     // No boundaries set manually
@@ -430,7 +435,7 @@ TEST(EnvTest, AsymmetricPeriodicThrows) {
     // Assuming PeriodicBoundary is available in your traits
     Environment e(forces<NoForce>, boundaries<PeriodicBoundary, OpenBoundary>);
     e.add_particle(vec3(0.5), vec3(0), 1.0);
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
     e.set_extent(1,1,1);
 
     // Set only X- to Periodic; X+ defaults to Open
@@ -442,7 +447,7 @@ TEST(EnvTest, AsymmetricPeriodicThrows) {
 TEST(EnvTest, PeriodicityFlagsPropagate) {
     Environment e(forces<NoForce>, boundaries<PeriodicBoundary>);
     e.add_particle(vec3(0.5), vec3(0), 1.0);
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
     e.set_extent(1,1,1);
 
     // Symmetrically set X axis to Periodic
@@ -455,7 +460,7 @@ TEST(EnvTest, PeriodicityFlagsPropagate) {
 TEST(EnvTest, MixedBoundaries) {
     Environment e(forces<NoForce>, boundaries<PeriodicBoundary, ReflectiveBoundary>);
     e.add_particle(vec3(0.5), vec3(0), 1.0);
-    e.add_force(NoForce(), to_type(0));
+    e.add_interaction(NoForce(), to_type(0));
     e.set_extent(1,1,1);
 
     // x-axis: Periodic

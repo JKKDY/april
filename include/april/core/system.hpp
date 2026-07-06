@@ -132,7 +132,7 @@ namespace april {
 
 		/// @brief Internal constructor used by build_system.
 		explicit System(SystemConfig&& config)
-		  : thread_executor(typename ExecutionConfig::ThreadExecutor(config.execution_config.executer_config)),
+		  : thread_executor(typename ExecutionConfig::ThreadExecutor(config.execution_config.executor_config)),
 			boundary_table(std::move(config.boundaries)),
 			force_table(std::move(config.interactions)),
 			controllers(std::move(config.controllers)),

@@ -13,7 +13,7 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	Environment env (forces<NoForce>);
 	env.add_particle({}, {}, 1);
 	env.add_particle({}, {}, 1);
-	env.add_force(NoForce(), to_type(0));
+	env.add_interaction(NoForce(), to_type(0));
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
@@ -34,7 +34,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 	Environment env (forces<NoForce>);
 	env.add_particle({}, {1,2,3}, 1);
 	env.add_particle({}, {4,5,6}, 2);
-	env.add_force(NoForce(), to_type(0));
+	env.add_interaction(NoForce(), to_type(0));
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
@@ -66,7 +66,7 @@ TEST(StoermerVerletTest, SingleStepWithForceTest) {
 	Environment env (forces<Gravity>);
 	env.add_particle({-1,0,0}, {}, 1 );
 	env.add_particle({1,0,0}, {}, 1);
-	env.add_force(Gravity(), to_type(0));
+	env.add_interaction(Gravity(), to_type(0));
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
@@ -113,7 +113,7 @@ TEST(StoermerVerletTest, OrbitTest) {
 	Environment env (forces<Gravity>);
 	env.add_particle({0,0,0}, {0, 0, 0}, M);
 	env.add_particle({0,R,0}, {v, 0, 0}, m);
-	env.add_force(Gravity(G), to_type(0));
+	env.add_interaction(Gravity(G), to_type(0));
 	env.set_extent(vec3{R,R,R}*4);
 	env.set_origin(vec3{-R,-R,-R} * 2);
 
@@ -160,7 +160,7 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	Environment env (forces<Gravity>);
 	env.add_particle({0,0,0}, {0, 0, 0}, M);
 	env.add_particle({0,R,0}, {v, 0, 0}, m);
-	env.add_force(Gravity(G), to_type(0));
+	env.add_interaction(Gravity(G), to_type(0));
 	env.set_extent(vec3{R,R,R}*4);
 	env.set_origin(vec3{-R,-R,-R} * 2);
 

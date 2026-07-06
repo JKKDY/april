@@ -1,15 +1,21 @@
 /**
-* @file environment.hpp
+ * @file environment.hpp
  * @brief User-facing staging area for simulation configuration.
- * * The Environment class collects particles, interactions,
- * boundary conditions, and global controllers. It acts as a high-level
- * blueprint that is later "lowered" into an optimized april::System.
+ *
+ * An Environment collects particles, interactions, fields, boundaries,
+ * controllers, and domain information before they are materialized into
+ * a simulation-ready System by build_system(...).
  */
 
 #pragma once
 
-#include <vector>
 #include <any>
+#include <array>
+#include <optional>
+#include <stdexcept>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 #include "april/base/types.hpp"
 #include "april/core/domain.hpp"
@@ -29,14 +35,30 @@ namespace april {
 
     // scoping markers for interactions
     /// @brief Target a single particle type for self-interaction.
-    struct to_type { ParticleType type; };
+    struct to_type {
+        ParticleType type;
+        constexpr explicit to_type(ParticleType t) noexcept : type(t) {}
+    };
+
     /// @brief Target interactions between two particle types.
-    struct between_types { ParticleType t1, t2; };
+    struct between_types {
+        ParticleType t1, t2;
+        constexpr between_types(ParticleType a, ParticleType b) noexcept : t1(a), t2(b) {}
+    };
+
     /// @brief Target interactions between two specific particles.
-    struct between_ids { ParticleID id1, id2; };
+    struct between_ids {
+        ParticleID id1, id2;
+        constexpr between_ids(ParticleID a, ParticleID b) noexcept : id1(a), id2(b) {}
+    };
 
     /**
-      * @brief Container for simulation metadata and initial state.
+      * @brief Declarative staging object for simulation setup.
+      *
+      * Environment stores the particles, interactions, fields, boundaries,
+      * controllers, and domain description that are later materialized into a
+      * simulation-ready System by build_system(...).
+      *
       * @tparam FPack Forces pack: the set of force types supported by this environment.
       * @tparam BPack Boundaries pack: the set of boundary types supported by this environment.
       * @tparam CPack Controllers pack: the set of controller types supported by this environment.
@@ -53,15 +75,14 @@ namespace april {
     public:
         using traits = core::internal::EnvironmentTraits<FPack, BPack, CPack, FFPack, ParticleData>;
 
-        /// @brief Construct an environment with specific type packs.
         explicit Environment(FPack, BPack, CPack, FFPack, ParticleData) {}
-
-        /// @brief Convenience constructor for an empty, default environment.
         Environment() : Environment(forces<>, boundaries<>, controllers<>, fields<>, NoParticleAttributes{}) {}
 
         /**
-         * @brief Variadic constructor. Accepts any subset of packs in any order.
-         * Uses internal template-metaprogramming to sort arguments into the correct class slots.
+         * @brief Deduce Environment template parameters from component type packs.
+         *
+         * Enables:
+         * auto env = Environment(forces<LennardJones>, boundaries<ReflectiveBoundary>);
          */
         template<class... Args>
         requires (core::internal::is_any_pack_v<std::remove_cvref_t<Args>> && ...) &&
@@ -100,14 +121,21 @@ namespace april {
 
         /// @brief Construct and add a particle from raw scalars.
         void add_particle(
-         const vec3& position, const vec3& velocity, const double mass, const ParticleType type = 0, const std::any& user_data = {}) {
+            const vec3& position,
+            const vec3& velocity,
+            const double mass,
+            const ParticleType type = 0,
+            const std::optional<ParticleID> id = {},
+            const std::any& user_data = {}
+        ) {
             Particle p;
-            p.type = type,
-            p.position =  position,
-            p.velocity = velocity,
-            p.mass = mass,
-            p.state = ParticleState::ALIVE,
-            p.user_data = user_data,
+            p.id = id;
+            p.type = type;
+            p.position = position;
+            p.velocity = velocity;
+            p.mass = mass;
+            p.state = ParticleState::ALIVE;
+            p.user_data = std::move(user_data);
             add_particle(p);
         }
 
@@ -129,19 +157,19 @@ namespace april {
         //-----------------
         /// @brief Define self-interaction for a specific particle type.
         template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
-        void add_force(F force, to_type scope) {
+        void add_interaction(F force, to_type scope) {
             data.type_interactions.emplace_back(scope.type, scope.type, typename traits::force_variant_t{std::move(force)});
         }
 
         /// @brief Define interaction between two distinct particle types.
         template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
-        void add_force(F force, between_types scope) {
+        void add_interaction(F force, between_types scope) {
             data.type_interactions.emplace_back(scope.t1, scope.t2, typename traits::force_variant_t{std::move(force)});
         }
 
         /// @brief Define interaction between two specific particle IDs (Bonds).
         template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
-        void add_force(F force, between_ids scope) {
+        void add_interaction(F force, between_ids scope) {
             data.id_interactions.emplace_back(scope.id1, scope.id2, typename traits::force_variant_t{std::move(force)});
         }
 
@@ -176,8 +204,8 @@ namespace april {
         // ADD CONTROLLERS
         //----------------
         /// @brief Add a controller (e.g., Thermostat) to the system.
-        template<controller::IsController C> requires traits::template is_valid_controller_v<C>
-        void add_controller(C controller) {
+        template<controller::IsController C> requires traits::template is_valid_controller_v<std::remove_cvref_t<C>>
+        void add_controller(C && controller) {
             data.controllers.add(controller);
         }
 
@@ -193,8 +221,8 @@ namespace april {
         // ADD FIELDS
         //-----------
         /// @brief Add a global force field (e.g., Uniform Gravity).
-        template<field::IsField F>  requires traits::template is_valid_field_v<F>
-        void add_field(F field) {
+        template<field::IsField F>  requires traits::template is_valid_field_v<std::remove_cvref_t<F>>
+        void add_field(F && field) {
             data.fields.add(field);
         }
 
@@ -236,10 +264,10 @@ namespace april {
          * @details During the build phase, the domain will be at least the particle AABB
          * expanded by this absolute value in all directions.
          */
-        void auto_domain(const vec3d& margin_abs) {
+        void domain_padding(const vec3d& margin_abs) {
             data.margin_abs = margin_abs;
         }
-        void auto_domain(const double margin_abs) {
+        void domain_padding(const double margin_abs) {
             data.margin_abs = vec3d{margin_abs};
         }
 
@@ -249,133 +277,158 @@ namespace april {
          * width as padding to each side.
          * @note If both margin_abs and margin_fac are set, the larger of the two is used per axis.
          */
-        void auto_domain_factor(const vec3d& margin_fac) {
-            auto_domain(margin_fac);
+        void domain_padding_factor(const vec3d& margin_fac) {
+            data.margin_fac = margin_fac;
         }
 
-        void auto_domain_factor(const double margin_fac) {
-            auto_domain(vec3d{margin_fac});
+        void domain_padding_factor(const double margin_fac) {
+            domain_padding_factor(vec3d{margin_fac});
         }
 
 
         //-------------------
         // DSL-STYLE CHAINING
         //-------------------
-        Environment& with_particle(const Particle& p) {
-            add_particle(p);
-            return *this;
+        auto&& with_particle(this auto&& self, const Particle& p) {
+            self.add_particle(p);
+            return std::forward<decltype(self)>(self);
         }
 
-        Environment& with_particle (
-        const vec3& position, const vec3& velocity, const double mass, const ParticleType type = 0, const std::optional<ParticleID> id = {}) {
-            add_particle(position, velocity, mass, type, id);
-            return *this;
+        auto&& with_particle(
+            this auto&& self,
+            const vec3& position,
+            const vec3& velocity,
+            double mass,
+            ParticleType type = 0,
+            std::optional<ParticleID> id = {},
+            std::any user_data = {}
+        ) {
+            self.add_particle(position, velocity, mass, type, id, std::move(user_data));
+            return std::forward<decltype(self)>(self);
         }
 
-        Environment& with_particles(const std::vector<Particle>& ps) {
-            add_particles(ps);
-            return *this;
+        auto&& with_particles(this auto&& self, const std::vector<Particle>& ps) {
+            self.add_particles(ps);
+            return std::forward<decltype(self)>(self);
         }
 
         template<IsParticleGenerator G>
-        Environment& with_particles(const G& particles) {
-            add_particles(particles);
-            return *this;
+        auto&& with_particles(this auto&& self, const G& particles) {
+            self.add_particles(particles);
+            return std::forward<decltype(self)>(self);
         }
 
-        template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
-        Environment& with_force(F&& force, to_type scope) {
-            add_force(std::forward<F>(force), scope);
-            return *this;
+        template<interactions::IsForce F>
+            requires traits::template is_valid_force_v<std::remove_cvref_t<F>>
+        auto&& with_interaction(this auto&& self, F&& force, to_type scope) {
+            self.add_interaction(std::forward<F>(force), scope);
+            return std::forward<decltype(self)>(self);
         }
 
-        template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
-        Environment& with_force(F&& force, between_types scope) {
-            add_force(std::forward<F>(force), scope);
-            return *this;
+        template<interactions::IsForce F>
+            requires traits::template is_valid_force_v<std::remove_cvref_t<F>>
+        auto&& with_interaction(this auto&& self, F&& force, between_types scope) {
+            self.add_interaction(std::forward<F>(force), scope);
+            return std::forward<decltype(self)>(self);
         }
 
-        template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
-        Environment& with_force(F&& force, between_ids scope) {
-            add_force(std::forward<F>(force), scope);
-            return *this;
+        template<interactions::IsForce F>
+            requires traits::template is_valid_force_v<std::remove_cvref_t<F>>
+        auto&& with_interaction(this auto&& self, F&& force, between_ids scope) {
+            self.add_interaction(std::forward<F>(force), scope);
+            return std::forward<decltype(self)>(self);
         }
 
-        template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
-        Environment& with_boundary(B&& boundary, DomainFace face) {
-            set_boundary(std::forward<B>(boundary), face);
-            return *this;
+        template<boundary::IsBoundary B>
+            requires traits::template is_valid_boundary_v<std::remove_cvref_t<B>>
+        auto&& with_boundary(this auto&& self, B&& boundary, DomainFace face) {
+            self.set_boundary(std::forward<B>(boundary), face);
+            return std::forward<decltype(self)>(self);
         }
 
-        template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
-        Environment& with_boundaries(B&& boundary, const std::vector<DomainFace>& faces) {
-            set_boundaries(std::forward<B>(boundary), faces);
-            return *this;
+        template<boundary::IsBoundary B>
+            requires traits::template is_valid_boundary_v<std::remove_cvref_t<B>>
+        auto&& with_boundaries(this auto&& self, B&& boundary, const std::vector<DomainFace>& faces) {
+            self.set_boundaries(std::forward<B>(boundary), faces);
+            return std::forward<decltype(self)>(self);
         }
 
-        template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
-        Environment& with_boundaries(const std::array<B, 6>& boundaries) {
-            set_boundaries(boundaries);
-            return *this;
+        template<boundary::IsBoundary B>
+            requires traits::template is_valid_boundary_v<B>
+        auto&& with_boundaries(this auto&& self, const std::array<B, 6>& boundaries) {
+            self.set_boundaries(boundaries);
+            return std::forward<decltype(self)>(self);
         }
 
-        template<controller::IsController C> requires traits::template is_valid_controller_v<C>
-        Environment& with_controller(C controller) {
-            add_controller(controller);
-            return *this;
+        template<controller::IsController C>
+            requires traits::template is_valid_controller_v<std::remove_cvref_t<C>>
+        auto&& with_controller(this auto&& self, C&& controller) {
+            self.add_controller(std::forward<C>(controller));
+            return std::forward<decltype(self)>(self);
         }
 
         template<controller::IsController... C>
-        Environment& with_controllers(C&&... controllers) {
-            add_controllers(std::forward<C>(controllers)...);
-            return *this;
+        auto&& with_controllers(this auto&& self, C&&... controllers) {
+            self.add_controllers(std::forward<C>(controllers)...);
+            return std::forward<decltype(self)>(self);
         }
 
-        template<field::IsField F> requires traits::template is_valid_field_v<F>
-        Environment& with_field(F field) {
-            add_field(field);
-            return *this;
+        template<field::IsField F>
+            requires traits::template is_valid_field_v<std::remove_cvref_t<F>>
+        auto&& with_field(this auto&& self, F&& field) {
+            self.add_field(std::forward<F>(field));
+            return std::forward<decltype(self)>(self);
         }
 
         template<field::IsField... F>
-        Environment& with_fields(F&&... fields) {
-            add_fields(std::forward<F>(fields)...);
-            return *this;
+        auto&& with_fields(this auto&& self, F&&... fields) {
+            self.add_fields(std::forward<F>(fields)...);
+            return std::forward<decltype(self)>(self);
         }
 
-        Environment& with_origin(const vec3& o) {
-            set_origin(o);
-            return *this;
+        auto&& with_origin(this auto&& self, const vec3& o) {
+            self.set_origin(o);
+            return std::forward<decltype(self)>(self);
         }
 
-        Environment& with_extent(const vec3& e) {
-            set_extent(e);
-            return *this;
+        auto&& with_extent(this auto&& self, const vec3& e) {
+            self.set_extent(e);
+            return std::forward<decltype(self)>(self);
         }
 
-        Environment& with_origin(const double x,const double y, const double z) {
-            set_origin(x,y,z);
-            return *this;
+        auto&& with_origin(this auto&& self, double x, double y, double z) {
+            self.set_origin(x, y, z);
+            return std::forward<decltype(self)>(self);
         }
 
-        Environment& with_extent(const double x, const double y, const double z) {
-            set_extent(x,y,z);
-            return *this;
+        auto&& with_extent(this auto&& self, double x, double y, double z) {
+            self.set_extent(x, y, z);
+            return std::forward<decltype(self)>(self);
         }
 
-        Environment& with_domain(const Domain& domain) {
-            set_domain(domain);
-            return *this;
+        auto&& with_domain(this auto&& self, const Domain& domain) {
+            self.set_domain(domain);
+            return std::forward<decltype(self)>(self);
         }
 
-        Environment& with_auto_domain(const double margin) {
-            auto_domain(margin);
-            return *this;
+        auto&& with_domain_padding(this auto&& self, double margin) {
+            self.domain_padding(margin);
+            return std::forward<decltype(self)>(self);
         }
 
-        Environment& with_auto_domain(const vec3& margin) {
-            auto_domain(margin);
-            return *this;
+        auto&& with_domain_padding(this auto&& self, const vec3& margin) {
+            self.domain_padding(margin);
+            return std::forward<decltype(self)>(self);
+        }
+
+        auto&& with_domain_padding_factor(this auto&& self, double factor) {
+            self.domain_padding_factor(factor);
+            return std::forward<decltype(self)>(self);
+        }
+
+        auto&& with_domain_padding_factor(this auto&& self, const vec3& factor) {
+            self.domain_padding_factor(factor);
+            return std::forward<decltype(self)>(self);
         }
     };
 

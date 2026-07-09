@@ -3,8 +3,9 @@
 #include <type_traits> // std::is_same_v
 
 #include "april/base/types.hpp"
-#include "april/particle/scalar_access.hpp"
+#include "../../include/april/particle/access/scalar_access.hpp"
 #include "april/particle/particle.hpp"
+#include "../../include/april/particle/record.hpp"
 
 using namespace april::particle::internal;
 using namespace april;

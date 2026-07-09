@@ -21,12 +21,12 @@
  */
 #pragma once
 #include "april/base/types.hpp"
-#include "april/particle/source.hpp"
 #include "april/simd/packed.hpp"
 #include "april/simd/packed_ref.hpp"
 #include "april/math/vec3.hpp"
-#include "april/particle/particle_types.hpp"
-#include "april/particle/scalar_access.hpp"
+#include "april/particle/access/source.hpp"
+#include "april/particle/properties.hpp"
+#include "scalar_access.hpp"
 #include "april/particle/attributes.hpp"
 
 namespace april::particle::internal {

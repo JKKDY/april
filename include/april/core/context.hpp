@@ -4,7 +4,7 @@
 #include "domain.hpp"
 #include "april/exec/policy.hpp"
 #include "april/exec/particle_kernel.hpp"
-#include "april/particle/particle_types.hpp"
+#include "april/particle/properties.hpp"
 
 namespace april::core {
 

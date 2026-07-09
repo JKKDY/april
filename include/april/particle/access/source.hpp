@@ -15,7 +15,7 @@
 
 #include "april/base/types.hpp"
 #include "april/base/macros.hpp"
-#include "april/particle/particle_types.hpp"
+#include "april/particle/properties.hpp"
 #include "april/particle/attributes.hpp"
 
 

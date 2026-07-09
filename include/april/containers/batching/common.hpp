@@ -2,7 +2,7 @@
 #include <concepts>
 
 #include "april/exec/policy.hpp"
-#include "april/particle/particle_types.hpp"
+#include "april/particle/properties.hpp"
 
 
 namespace april::container::batching {

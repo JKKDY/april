@@ -1,5 +1,5 @@
 #pragma once
-#include "april/particle/particle_types.hpp"
+#include "april/particle/properties.hpp"
 #include "april/containers/layout/aos.hpp"
 #include "april/containers/direct_sum/ds_core.hpp"
 #include "april/containers/batching/scalar_batch.hpp"

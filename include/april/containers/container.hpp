@@ -13,8 +13,8 @@
 #include "april/core/domain.hpp"
 #include "april/core/internal/environment_traits.hpp"
 
-#include "april/particle/scalar_access.hpp"
-#include "april/particle/packed_access.hpp"
+#include "../particle/access/scalar_access.hpp"
+#include "../particle/access/packed_access.hpp"
 
 #include "april/containers/container_traits.hpp"
 

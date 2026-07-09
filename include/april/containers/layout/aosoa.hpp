@@ -7,7 +7,7 @@
 
 #include "april/containers/container.hpp"
 #include "april/base/types.hpp"
-#include "april/particle/particle_types.hpp"
+#include "april/particle/properties.hpp"
 #include "april/exec/policy.hpp"
 #include "april/exec/parallel_utils.hpp"
 

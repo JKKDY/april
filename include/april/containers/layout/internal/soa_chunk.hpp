@@ -6,7 +6,7 @@
 #include <bit>
 
 #include "april/base/types.hpp"
-#include "april/particle/particle_types.hpp"
+#include "april/particle/properties.hpp"
 #include "april/exec/info.hpp"
 #include "april/particle/attributes.hpp"
 

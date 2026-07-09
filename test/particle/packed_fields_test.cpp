@@ -2,8 +2,8 @@
 #include <vector>
 #include <algorithm>
 
-#include "april/particle/source.hpp"
-#include "april/particle/packed_access.hpp"
+#include "../../include/april/particle/access/source.hpp"
+#include "../../include/april/particle/access/packed_access.hpp"
 #include "april/base/types.hpp"
 
 using namespace april;

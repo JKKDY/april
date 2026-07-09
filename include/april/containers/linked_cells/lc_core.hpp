@@ -10,7 +10,7 @@
 #include "lc_batching.hpp"
 #include "april/base/types.hpp"
 #include "april/containers/batching/topology_batch.hpp"
-#include "april/particle/particle_types.hpp"
+#include "april/particle/properties.hpp"
 #include "april/core/domain.hpp"
 #include "april/exec/particle_kernel.hpp"
 #include "april/exec/parallel_utils.hpp"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "april/particle/particle.hpp"
+#include "../../particle/record.hpp"
 #include "april/containers/container.hpp"
 #include "april/math/range.hpp"
 #include "april/exec/policy.hpp"

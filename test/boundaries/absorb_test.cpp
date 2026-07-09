@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "april/particle/scalar_access.hpp"
+#include "../../include/april/particle/access/scalar_access.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/absorb.hpp"

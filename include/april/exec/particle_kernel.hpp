@@ -5,8 +5,8 @@
 #include <utility>
 
 #include "april/exec/policy.hpp"
-#include "april/particle/packed_access.hpp"
-#include "april/particle/particle_types.hpp"
+#include "../particle/access/packed_access.hpp"
+#include "april/particle/properties.hpp"
 
 
 namespace april {

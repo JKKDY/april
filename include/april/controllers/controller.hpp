@@ -54,7 +54,7 @@ namespace april::controller  {
 
 
 	template <class C>
-	concept IsController = std::derived_from<C, Controller>;
+	concept IsController = std::derived_from<std::remove_cvref_t<C>, Controller>;
 
 
 	namespace internal {

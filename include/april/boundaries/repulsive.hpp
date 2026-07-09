@@ -1,6 +1,6 @@
 #pragma once
 
-#include "april/particle/scalar_access.hpp"
+#include "../particle/access/scalar_access.hpp"
 #include "april/boundaries/boundary.hpp"
 
 namespace april {

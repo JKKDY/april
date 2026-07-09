@@ -41,8 +41,8 @@ namespace april::field {
 	};
 
 	// define field concept
-	template <class FFs>
-	concept IsField = std::derived_from<FFs, Field>;
+	template <class F>
+	concept IsField = std::derived_from<std::remove_cvref_t<F>, Field>;
 
 	namespace  internal {
 		// define field Pack

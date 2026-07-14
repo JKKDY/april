@@ -1,4 +1,4 @@
-# APRIL -  A Particle Runtime Integration Library
+# APRIL -  A Particle Runtime Interaction Library
 
 [![C++ CI](https://github.com/JKKDY/april/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/JKKDY/april/actions/workflows/cmake-multi-platform.yml)
 [![codecov](https://codecov.io/github/JKKDY/april/graph/badge.svg?token=B8PK7KTAMP)](https://codecov.io/github/JKKDY/april)

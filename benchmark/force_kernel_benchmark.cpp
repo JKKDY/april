@@ -5,7 +5,7 @@
 #include "april/containers/direct_sum/ds_aos.hpp"
 #include "april/containers/direct_sum/ds_soa.hpp"
 #include "april/containers/direct_sum/ds_aosoa.hpp"
-#include "april/exec/executors/sequential_executor.hpp"
+#include "../include/april/exec/threading/backends/sequential_executor.hpp"
 
 using namespace april;
 namespace fs = std::filesystem;

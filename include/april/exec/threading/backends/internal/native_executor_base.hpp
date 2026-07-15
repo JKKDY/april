@@ -5,10 +5,11 @@
 #include <algorithm>
 #include <type_traits>
 
-#include "april/exec/info.hpp"
-#include "april/exec/executors/executor_traits.hpp"
+#include "april/exec/hardware.hpp"
+#include "april/exec/threading/executor_concepts.hpp"
 
 
+// platform specific includes for thread pinning
 #if defined(_WIN32)
 #ifndef NOMINMAX
 #  define NOMINMAX
@@ -17,6 +18,16 @@
 #elif defined(__linux__) || defined(__APPLE__)
     #include <pthread.h>
 #endif
+
+// platform specific includes for no-op
+#if defined(__x86_64__) || defined(__i386__) || \
+defined(_M_X64) || defined(_M_IX86)
+    #include <immintrin.h>
+#elif defined(_MSC_VER)
+    // Provides __yield() on ARM and _ReadWriteBarrier() for the fallback.
+    #include <intrin.h>
+#endif
+
 
 namespace april::exec::internal {
 
@@ -55,37 +66,45 @@ namespace april::exec::internal {
     }
 }
 
+
 namespace april::exec::internal {
-    // cross platform no-op
-    // x86 / x86_64 (Intel & AMD)
-    #if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
-        #if !defined(_MSC_VER)
-            #include <immintrin.h>
-        #endif
-        inline void cpu_pause() noexcept {
+
+    /**
+     * @brief Provides a processor hint while waiting in a spin loop.
+     *
+     * On unsupported architectures, this falls back to a compiler barrier.
+     */
+    inline void cpu_pause() noexcept {
+        // x86 / x86-64
+        #if defined(__x86_64__) || defined(__i386__) || \
+            defined(_M_X64) || defined(_M_IX86)
+
             _mm_pause();
-        }
 
-    // ARM / AArch64 (Apple Silicon, AWS Graviton, Windows ARM)
-    #elif defined(__aarch64__) || defined(__arm__) || defined(_M_ARM64) || defined(_M_ARM)
-        inline void cpu_pause() noexcept {
-            #if defined(_MSC_VER)
-                __yield(); // MSVC ARM intrinsic
-            #else
-                __asm__ volatile("yield" ::: "memory"); // GCC/Clang ARM asm
-            #endif
-        }
+        // ARM / AArch64
+        #elif defined(__aarch64__) || defined(__arm__) || \
+              defined(_M_ARM64) || defined(_M_ARM)
 
-    // Fallback for unknown architectures
-    #else
-        inline void cpu_pause() noexcept {
             #if defined(_MSC_VER)
-                _ReadWriteBarrier(); // MSVC compiler memory barrier
-            #else
-                __asm__ volatile("" ::: "memory"); // GCC/Clang compiler memory barrier
+                __yield();
+            #elif defined(__GNUC__) || defined(__clang__)
+                __asm__ volatile("yield" ::: "memory");
             #endif
-        }
-    #endif
+
+        // Unknown architecture
+        #else
+
+            #if defined(_MSC_VER)
+                _ReadWriteBarrier();
+            #elif defined(__GNUC__) || defined(__clang__)
+                __asm__ volatile("" ::: "memory");
+            #else
+                // No portable processor-pause instruction is available.
+            #endif
+
+        #endif
+    }
+
 } // namespace april::exec::internal
 
 namespace april::exec::internal {
@@ -117,10 +136,10 @@ namespace april::exec::internal {
         mutable TaskWrapper active_task{};
 
         // Mutable contended state (Isolated in its own cache line)
-        alignas(CACHE_LINE_SIZE) mutable std::atomic<size_t> current_idx{0};
+        alignas(assumed_cache_line_size) mutable std::atomic<size_t> current_idx{0};
 
         // Sets up the type-erased lambda and calculates chunk sizes
-        template <IsWorkAtom F>
+        template <IsIndexedWork F>
         void prepare_task(const size_t batch_count, F&& task) const {
             active_task.callable = &task; // type erase the task
             active_task.invoke = [](void* ctx, size_t task_idx) {

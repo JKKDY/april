@@ -17,9 +17,9 @@
 #include "april/containers/container.hpp"
 #include "april/containers/batching/common.hpp"
 #include "april/exec/policy.hpp"
-#include "april/exec/particle_kernel.hpp"
+#include "april/exec/kernel.hpp"
 #include "april/core/context.hpp"
-#include "april/exec/executor.hpp"
+#include "april/exec/thread_executor.hpp"
 
 namespace april {
 	struct BuildInfo;

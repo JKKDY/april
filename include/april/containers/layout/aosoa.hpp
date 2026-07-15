@@ -9,7 +9,7 @@
 #include "april/base/types.hpp"
 #include "april/particle/properties.hpp"
 #include "april/exec/policy.hpp"
-#include "april/exec/parallel_utils.hpp"
+#include "../../exec/threading/scheduling.hpp"
 
 
 #include "april/containers/layout/internal/soa_chunk.hpp"
@@ -456,7 +456,8 @@ namespace april::container::layout {
             auto process_sub_range = [&](const size_t r_start, const size_t r_end) APRIL_FORCE_INLINE {
                 if constexpr (V == exec::ExecutionMode::Scalar) {
                     self.template iterate_range_scalar<P, is_const>(kernel, r_start, r_end);
-                } else if constexpr (V == exec::ExecutionMode::Vector || V == exec::ExecutionMode::Hybrid) {
+                } else if constexpr (V == exec::ExecutionMode::Vector ||
+                    V == (exec::ExecutionMode::Scalar | exec::ExecutionMode::Vector)) {
                     self.template iterate_range_vector<P, is_const>(kernel, r_start, r_end);
                 } else {
                     static_assert(false,"[APRIL] invalid ExecutionMode in AoSoA::iterate_range");

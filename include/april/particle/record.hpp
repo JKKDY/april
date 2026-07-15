@@ -6,7 +6,13 @@
 
 namespace april::particle
 {
-    // used internally in system. Holds all data of a particle
+    /**
+     * @brief Materialized particle record passed to container implementations.
+     *
+     * ParticleRecord is part of APRIL's container extension API. It represents the
+     * normalized particle data produced during build_system(...), before a container
+     * stores the data in its chosen memory layout.
+     */
     template<IsParticleAttributes A>
     struct ParticleRecord {
         using particle_attributes_t = A;
@@ -24,8 +30,6 @@ namespace april::particle
 
         [[no_unique_address]] A attributes; // optional user data
 
-        bool operator==(const ParticleRecord& other) const {
-            return id == other.id;
-        }
+        bool operator==(const ParticleRecord&) const = default;
     };
 }

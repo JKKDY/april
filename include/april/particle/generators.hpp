@@ -143,7 +143,7 @@ namespace april {
         ParticleSphere& state(const ParticleState s) noexcept {
             particle_state = s; return *this;
         }
-        ParticleSphere& with_data(const std::any & data) noexcept {
+        ParticleSphere& with_data(const std::any & data) {
             user_data = data; return *this;
         }
         [[nodiscard]] std::vector<Particle> to_particles() const {

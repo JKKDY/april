@@ -2,8 +2,11 @@
 
 #include "april/core/domain.hpp"
 #include "april/particle/attributes.hpp"
+#include "april/particle/record.hpp"
 #include "april/interactions/interaction_table.hpp"
 #include <vector>
+
+#include "april/exec/config.hpp"
 
 namespace april::container {
     struct ContainerFlags {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "april/exec/policy.hpp"
-#include "april/exec/executors/executor_traits.hpp"
+#include "april/exec/threading/executor_concepts.hpp"
 
 namespace april::exec {
     struct SequentialExecutor {
@@ -9,7 +9,7 @@ namespace april::exec {
 
         explicit SequentialExecutor(const Config&) {}
 
-        template<ParallelPolicy P = ParallelPolicy::Serial, IsWorkAtom F>
+        template<ParallelPolicy P = ParallelPolicy::Serial, IsIndexedWork F>
         void execute(const size_t batch_count, F&& task) const {
             for (size_t i = 0; i < batch_count; ++i) {
                 task(i);

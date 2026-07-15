@@ -6,8 +6,9 @@
 #include <bit>
 
 #include "april/base/types.hpp"
+#include "april/particle/record.hpp"
 #include "april/particle/properties.hpp"
-#include "april/exec/info.hpp"
+#include "april/exec/hardware.hpp"
 #include "april/particle/attributes.hpp"
 
 
@@ -17,7 +18,7 @@ namespace april::container::layout {
         // Enforce alignment requirements (Size 8 * double 8 bytes = 64 bytes = 1 AVX-512 Register)
         static_assert(std::has_single_bit(Size),
                       "Chunk Size must be a Power of 2 (e.g., 8, 16) for bitwise indexing optimizations.");
-        static_assert(Size * sizeof(vec3::type) >= exec::CACHE_LINE_SIZE,
+        static_assert(Size * sizeof(vec3::type) >= exec::assumed_cache_line_size,
                       "Chunk Size must be at least 8 to fill a standard 64-byte Cache Line / AVX-512 register.");
 
         static constexpr size_t size = Size;

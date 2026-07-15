@@ -49,7 +49,7 @@ namespace april::particle::internal {
     template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes>
     struct PackedParticleRef {
         static constexpr ParticleField ReadAccess  = ReadMask;
-        static constexpr ParticleField WriteAccess = WriteMask;
+        static constexpr ParticleField WriteAccess = WriteMask & ~ParticleField::id;
 
     private:
         /**
@@ -705,7 +705,7 @@ namespace april::particle::internal {
 
     public:
         static constexpr ParticleField ReadAccess  = ReadMask;
-        static constexpr ParticleField WriteAccess = WriteMask;
+        static constexpr ParticleField WriteAccess = WriteMask & ~ParticleField::id;
 
         // Mapping of Buffer registers to View references.
 		// APRIL_NO_UNIQUE_ADDRESS ensures forbidden fields do not increase object size.

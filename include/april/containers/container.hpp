@@ -4,8 +4,8 @@
 #include <vector>
 
 #include "april/exec/policy.hpp"
-#include "april/exec/particle_kernel.hpp"
-#include "april/exec/executor.hpp"
+#include "april/exec/kernel.hpp"
+#include "april/exec/thread_executor.hpp"
 
 #include "april/math/range.hpp"
 
@@ -13,10 +13,11 @@
 #include "april/core/domain.hpp"
 #include "april/core/internal/environment_traits.hpp"
 
-#include "../particle/access/scalar_access.hpp"
-#include "../particle/access/packed_access.hpp"
+#include "april/particle/access/scalar_access.hpp"
+#include "april/particle/access/packed_access.hpp"
 
 #include "april/containers/container_traits.hpp"
+#include "april/exec/threading/executor_reference.hpp"
 
 
 namespace april::container {
@@ -344,7 +345,7 @@ namespace april::container {
 		const ContainerHints hints;
 		const interactions::internal::InteractionMap interaction_map;
 		const core::Box domain; // Note: in the future this may be adjustable during run time
-		exec::ExecutorRef<ThreadExecutor> thread_executor;
+		exec::ThreadExecutorRef<ThreadExecutor> thread_executor;
 
 		// Helper to evaluate and execute Standard Prefetches at compile time
 		template <typename T>

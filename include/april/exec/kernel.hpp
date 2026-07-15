@@ -5,7 +5,7 @@
 #include <utility>
 
 #include "april/exec/policy.hpp"
-#include "../particle/access/packed_access.hpp"
+#include "april/particle/access/packed_access.hpp"
 #include "april/particle/properties.hpp"
 
 
@@ -57,7 +57,7 @@ namespace april {
         template<ParticleField Read, ParticleField Write, typename F> using VectorKernel =
             KernelWrapper<Read, Write, ExecutionMode::Vector, std::remove_cvref_t<F>>;
         template<ParticleField Read, ParticleField Write, typename F> using UniversalKernel =
-            KernelWrapper<Read, Write, ExecutionMode::Hybrid, std::remove_cvref_t<F>>;
+            KernelWrapper<Read, Write, ExecutionMode::Vector | ExecutionMode::Scalar, std::remove_cvref_t<F>>;
 
 
         // Trait to identify if a type is one of our specific wrappers
@@ -87,6 +87,7 @@ namespace april {
     }
 
 
+    // public facing kernel wrappers
     template<ParticleField Read=ParticleField::none, ParticleField Write=ParticleField::none, typename F> auto scalar_kernel(F&& f) {
         return exec::internal::ScalarKernel<Read, Write, F>{std::forward<F>(f)};
     }

@@ -21,7 +21,7 @@ namespace april::exec {
         };
     }
 
-    // get current index of thread (within its executor) (unsafe: may return -1)
+    // get current index of thread (within its executor) (unsafe: may return -1. Mainly used for debugging)
     [[nodiscard]] inline int thread_index_direct() noexcept {
         return internal::current_thread_id;
     }

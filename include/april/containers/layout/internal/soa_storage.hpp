@@ -1,7 +1,7 @@
 #pragma once
-#include <memory>
 #include <vector>
-#include "april/particle/particle.hpp"
+
+#include "april/particle/record.hpp"
 
 
 namespace april::container::layout {

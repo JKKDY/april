@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../../particle/record.hpp"
+#include "april/particle/record.hpp"
 #include "april/containers/container.hpp"
 #include "april/math/range.hpp"
 #include "april/exec/policy.hpp"
-#include "april/exec/parallel_utils.hpp"
+#include "april/exec/threading/scheduling.hpp"
 
 namespace april::container::layout {
     template <typename ContainerConfig>

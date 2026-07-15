@@ -3,7 +3,7 @@
 #include <vector>
 #include "domain.hpp"
 #include "april/exec/policy.hpp"
-#include "april/exec/particle_kernel.hpp"
+#include "april/exec/kernel.hpp"
 #include "april/particle/properties.hpp"
 
 namespace april::core {

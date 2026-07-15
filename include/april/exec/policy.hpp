@@ -1,6 +1,5 @@
 #pragma once
 
-#include <concepts>
 #include <cstdint>
 #include <utility>
 
@@ -10,7 +9,7 @@ namespace april {
     enum class VectorPolicy {
     	Scalar,
     	Vector,	// force fully vectorized execution
-    	Auto	// best effort vectorization
+    	Auto	// best effort vectorization. Default.
     };
 
     enum class ParallelPolicy {
@@ -42,7 +41,9 @@ namespace april {
 		enum class ExecutionMode : uint8_t {
 			Scalar = 1 << 0,       // supports scalar execution
 			Vector = 1 << 1,       // supports vector execution
-			Hybrid = Scalar | Vector // supports both scalar and vector execution
+
+			// Future:
+			// Group = 1u << 2
 		};
 		AP_ENABLE_BITMASK_OPERATORS(ExecutionMode)
 	}
@@ -73,7 +74,7 @@ namespace april {
 		template <VectorTrait Trait>
 		consteval ExecutionMode required_execution_modes() {
 			if constexpr (static_cast<bool>(Trait & VectorTrait::HybridPath)) {
-				return ExecutionMode::Hybrid; // requires both scalar and vector
+				return ExecutionMode::Scalar | ExecutionMode::Vector; // requires both scalar and vector
 			}
 			if constexpr (static_cast<bool>(Trait & VectorTrait::ScalarPath) &&
 				static_cast<bool>(Trait & VectorTrait::VectorPath)) {

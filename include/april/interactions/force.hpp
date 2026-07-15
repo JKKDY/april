@@ -36,7 +36,7 @@ namespace april::interactions {
      */
     struct Force {
         static constexpr auto symmetry = ForceSymmetry::Antisymmetric;
-        static constexpr auto vector_mode = exec::ExecutionMode::Hybrid; // scalar only must be a deliberate opt-out
+        static constexpr auto vector_mode = exec::ExecutionMode::Scalar | exec::ExecutionMode::Vector; // scalar only must be a deliberate opt-out
 
         explicit Force(const double cutoff): force_cutoff(cutoff), force_cutoff2(cutoff*cutoff) {}
 

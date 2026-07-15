@@ -2,11 +2,12 @@
 #include <atomic>
 #include <thread>
 #include <vector>
+#include <stdexcept>
 
-#include "context.hpp"
-#include "april/exec/info.hpp"
-#include "april/exec/executors/executor_traits.hpp"
-#include "native_executor_base.hpp"
+#include "april/exec/threading/threading_context.hpp"
+#include "april/exec/hardware.hpp"
+#include "april/exec/threading/executor_concepts.hpp"
+#include "internal/native_executor_base.hpp"
 #include "april/exec/policy.hpp"
 
 
@@ -14,11 +15,15 @@ namespace april::exec {
     class NativeSpinExecutor : public internal::NativeExecutorBase {
     public:
         struct Config {
-            size_t n_threads = N_CPU_THREADS;
+            size_t n_threads = default_thread_count;
             bool pin_threads = true;
         };
 
         explicit NativeSpinExecutor(const Config & config) {
+            if (config.n_threads < 1) {
+                throw std::invalid_argument("Executor thread count must be greater than zero.");
+            }
+
             if (config.pin_threads) internal::pin_current_thread(0);
             threads.reserve(config.n_threads - 1);
 
@@ -34,7 +39,7 @@ namespace april::exec {
             run_signal.fetch_add(1, std::memory_order_release);
         }
 
-        template <ParallelPolicy P = ParallelPolicy::Threaded, IsWorkAtom F>
+        template <ParallelPolicy P = ParallelPolicy::Threaded, IsIndexedWork F>
         void execute(const size_t batch_count, F&& task) const {
             if (batch_count == 0) return;
             if constexpr (P == ParallelPolicy::Serial) {
@@ -62,8 +67,8 @@ namespace april::exec {
 
     private:
         // synchronization signals
-        alignas(CACHE_LINE_SIZE) mutable std::atomic<uint32_t> run_signal{0}; // increment to wake up threads
-        alignas(CACHE_LINE_SIZE) mutable std::atomic<uint32_t> threads_finished{0}; // if == #threads we are done
+        alignas(assumed_cache_line_size) mutable std::atomic<uint32_t> run_signal{0}; // increment to wake up threads
+        alignas(assumed_cache_line_size) mutable std::atomic<uint32_t> threads_finished{0}; // if == #threads we are done
 
         void worker_loop(const int thread_idx) {
             internal::ScopedThreadContext ctx(thread_idx);

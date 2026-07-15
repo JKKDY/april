@@ -13,6 +13,9 @@
  */
 #pragma once
 
+#include <ostream>
+#include <type_traits>
+
 #include "april/base/types.hpp"
 #include "april/base/macros.hpp"
 #include "april/particle/properties.hpp"
@@ -114,9 +117,9 @@ namespace april::particle::internal {
 	 * PackedParticleRef. Thanks to APRIL_NO_UNIQUE_ADDRESS and the poisoning system,
 	 * fields that are not requested compile down to zero bytes with no overhead.
 	 *
-	 * The masks (ReadMask / WriteMask) are typically supplied by a particle kernel (see exec/particle_kernel.hpp)
-	 * via its static `fields` member.
-	 */
+	 * The masks are supplied by APRIL's kernel wrappers through their static
+	 * `Read` and `Write` members.
+	 * */
 	template<ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes>
 	struct ParticleSource {
 

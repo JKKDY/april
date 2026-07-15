@@ -9,8 +9,8 @@
 #include "april/containers/batching/topology_batch.hpp"
 #include "april/particle/properties.hpp"
 #include "april/core/domain.hpp"
-#include "april/exec/particle_kernel.hpp"
-#include "april/exec/parallel_utils.hpp"
+#include "april/exec/kernel.hpp"
+#include "april/exec/threading/scheduling.hpp"
 
 namespace april::container::internal {
 

@@ -6,7 +6,7 @@
 #include <iostream>
 #include "april/core/context.hpp"
 #include "april/monitors/monitor.hpp"
-#include "april/exec/particle_kernel.hpp"
+#include "april/exec/kernel.hpp"
 
 namespace april {
 

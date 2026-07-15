@@ -3,9 +3,9 @@
 #include <set>
 #include <mutex>
 
-#include "april/exec/executors/context.hpp"
-#include "april/exec/executors/native_barrier_executor.hpp"
-#include "april/exec/executors/native_spin_executor.hpp"
+#include "april/exec/threading/threading_context.hpp"
+#include "../../include/april/exec/threading/backends/native_barrier_executor.hpp"
+#include "../../include/april/exec/threading/backends/native_spin_executor.hpp"
 
 using namespace april;
 using namespace april::exec;

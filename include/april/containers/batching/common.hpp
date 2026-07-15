@@ -33,7 +33,7 @@ namespace april::container::batching {
 		{ std::remove_cvref_t<T>::vector_trait } -> std::convertible_to<exec::VectorTrait>;
 
 		// must have a for_each_pair function
-		b.template for_each_pair<exec::ExecutionMode::Hybrid>(
+		b.template for_each_pair<exec::ExecutionMode::Scalar | exec::ExecutionMode::Vector>(
 			universal_kernel([](auto&&, auto&&) {})
 		);
 	};

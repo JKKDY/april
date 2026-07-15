@@ -37,7 +37,7 @@ int main() {
 	   .with_boundaries(ReflectiveBoundary(), all_faces);
 
 	struct :
-			RuntimeConfig<exec::Executor>,
+			RuntimeConfig<exec::DefaultThreadExecutor>,
 			CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Auto>
 		{} cfg;
 	cfg.executor_config.n_threads = 1;

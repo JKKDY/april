@@ -2,22 +2,26 @@
 
 #include <omp.h>
 
-#include "april/exec/info.hpp"
+#include "april/exec/hardware.hpp"
 #include "april/exec/policy.hpp"
-#include "april/exec/executors/executor_traits.hpp"
-#include "april/exec/executors/context.hpp"
+#include "april/exec/threading/executor_concepts.hpp"
+#include "april/exec/threading/threading_context.hpp"
 
 namespace april::exec {
     struct OmpExecutor {
 
         struct Config {
-            size_t n_threads = N_CPU_THREADS;
+            size_t n_threads = default_thread_count;
         };
 
         explicit OmpExecutor(const Config & config):
-            n_threads(config.n_threads) {}
+            n_threads(config.n_threads) {
+            if (n_threads < 1) {
+                throw std::invalid_argument("Executor thread count must be greater than zero.");
+            }
+        }
 
-        template<ParallelPolicy P=ParallelPolicy::Threaded, IsWorkAtom F>
+        template<ParallelPolicy P=ParallelPolicy::Threaded, IsIndexedWork F>
         void execute(const size_t batch_count, F&& task) const {
             if constexpr (P == ParallelPolicy::Serial) {
                 for (int i = 0; i < static_cast<int>(batch_count); ++i) {

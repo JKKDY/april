@@ -4,10 +4,10 @@
 #include <thread>
 #include <vector>
 
-#include "context.hpp"
-#include "april/exec/info.hpp"
-#include "april/exec/executors/executor_traits.hpp"
-#include "native_executor_base.hpp"
+#include "april/exec/hardware.hpp"
+#include "april/exec/threading/threading_context.hpp"
+#include "april/exec/threading/executor_concepts.hpp"
+#include "april/exec/threading/backends/internal/native_executor_base.hpp"
 #include "april/exec/policy.hpp"
 
 
@@ -15,12 +15,16 @@ namespace april::exec {
     class NativeBarrierExecutor : public internal::NativeExecutorBase {
     public:
         struct Config {
-            size_t n_threads = N_CPU_THREADS;
+            size_t n_threads = default_thread_count;
             bool pin_threads = true;
         };
 
         explicit NativeBarrierExecutor(const Config & config)
             : start_sync(config.n_threads), end_sync(config.n_threads) {
+
+            if (config.n_threads < 1) {
+                throw std::invalid_argument("Executor thread count must be greater than zero.");
+            }
 
             if (config.pin_threads) internal::pin_current_thread(0);
             threads.reserve(config.n_threads - 1);
@@ -37,7 +41,7 @@ namespace april::exec {
             start_sync.arrive_and_wait();
         }
 
-        template <ParallelPolicy P=ParallelPolicy::Threaded, IsWorkAtom F>
+        template <ParallelPolicy P=ParallelPolicy::Threaded, IsIndexedWork F>
         void execute(const size_t batch_count, F&& task) const {
             if (batch_count == 0) return;
             if constexpr (P == ParallelPolicy::Serial) {
@@ -54,8 +58,8 @@ namespace april::exec {
         }
 
     private:
-        alignas(CACHE_LINE_SIZE) mutable std::barrier<> start_sync;
-        alignas(CACHE_LINE_SIZE) mutable std::barrier<> end_sync;
+        alignas(assumed_cache_line_size) mutable std::barrier<> start_sync;
+        alignas(assumed_cache_line_size) mutable std::barrier<> end_sync;
 
         void worker_loop(const int thread_idx) const {
             internal::ScopedThreadContext ctx(thread_idx);

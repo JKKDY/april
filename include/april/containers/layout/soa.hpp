@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include "april/containers/container.hpp"
-#include "april/exec/parallel_utils.hpp"
+#include "../../exec/threading/scheduling.hpp"
 #include "april/particle/particle.hpp"
 #include "april/exec/policy.hpp"
 
@@ -235,7 +235,8 @@ namespace april::container::layout {
                 }
 
                 // process a chunk of work in vector mode
-                else if constexpr (E == exec::ExecutionMode::Vector || E == exec::ExecutionMode::Hybrid) {
+                else if constexpr (E == exec::ExecutionMode::Vector ||
+                    E == (exec::ExecutionMode::Scalar | exec::ExecutionMode::Vector)) {
                     const size_t body = chunk.size() / packed::size();
                     const size_t tail = chunk.size() % packed::size();
 

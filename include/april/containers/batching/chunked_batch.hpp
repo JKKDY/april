@@ -15,7 +15,7 @@
 #include "april/math/range.hpp"
 
 #include "april/exec/policy.hpp"
-#include "april/exec/particle_kernel.hpp"
+#include "april/exec/kernel.hpp"
 
 
 namespace april::container::batching {

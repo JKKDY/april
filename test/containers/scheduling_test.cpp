@@ -4,7 +4,7 @@
 #include <unordered_set>
 
 #include "april/containers/batching/topology_batch.hpp"
-#include "april/exec/parallel_utils.hpp"
+#include "../../include/april/exec/threading/scheduling.hpp"
 #include "april/math/range.hpp"
 
 // Dummy config to force deterministic testing

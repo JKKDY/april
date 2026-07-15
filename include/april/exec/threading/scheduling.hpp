@@ -6,7 +6,7 @@
 
 #include "april/base/types.hpp"
 #include "april/math/range.hpp"
-#include "april/exec/info.hpp"
+#include "april/exec/hardware.hpp"
 
 namespace april::exec {
 
@@ -26,7 +26,7 @@ namespace april::exec {
         explicit BlockConfig(const size_t n_threads,  const size_t oversubscription = 4, const size_t target_size = 512)
             : min_tasks(n_threads * oversubscription),
               target_elements_per_task(target_size),
-              alignment(CACHE_LINE_SIZE / sizeof(vec3::type)) {}  // aligned to cache line width
+              alignment(assumed_cache_line_size / sizeof(vec3::type)) {}  // aligned to cache line width
 
         // heuristic for determining optimal partition count
         [[nodiscard]] size_t calculate_num_blocks(const size_t total_elements) const {

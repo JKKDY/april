@@ -12,8 +12,8 @@ namespace april::container::internal {
     template <class Config>
     class LinkedCellsAoSImpl : public LinkedCellsCore<layout::AoS<Config>> {
     public:
-		using AsymBatch = batching::AsymmetricScalarBatch<LinkedCellsAoSImpl, exec::VectorTrait::ScalarPath>;
-    	using SymBatch = batching::SymmetricScalarBatch<LinkedCellsAoSImpl, exec::VectorTrait::ScalarPath>;
+		using AsymBatch = batching::AsymmetricScalarBatch<LinkedCellsAoSImpl, exec::ExecutionTrait::ScalarPath>;
+    	using SymBatch = batching::SymmetricScalarBatch<LinkedCellsAoSImpl, exec::ExecutionTrait::ScalarPath>;
 
     	using Base = LinkedCellsCore<layout::AoS<Config>>;
 

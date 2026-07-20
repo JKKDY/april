@@ -2,7 +2,7 @@
 
 #include <type_traits>
 
-#define AP_ENABLE_BITMASK_OPERATORS(T)                                         \
+#define APRIL_ENABLE_BITMASK_OPERATORS(T)                                         \
     using T##_u = std::underlying_type_t<T>;                                   \
                                                                                \
     /* bitwise logic */                                                        \

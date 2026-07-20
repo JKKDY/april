@@ -19,7 +19,6 @@
 #include "april/exec/policy.hpp"
 #include "april/exec/kernel.hpp"
 #include "april/core/context.hpp"
-#include "april/exec/thread_executor.hpp"
 
 namespace april {
 	struct BuildInfo;

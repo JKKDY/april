@@ -12,8 +12,8 @@ namespace april::container::internal {
     public:
         using Base = DirectSumCore<layout::AoS<Config>>;
 
-        using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumAoSImpl, exec::VectorTrait::ScalarPath>;
-        using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumAoSImpl, exec::VectorTrait::ScalarPath>;
+        using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumAoSImpl, exec::ExecutionTrait::ScalarPath>;
+        using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumAoSImpl, exec::ExecutionTrait::ScalarPath>;
 
         using SymTaskGroup = SymmetricTaskGroup<SymmetricBatch, AsymmetricBatch>;
         using AsymTaskGroup = AsymmetricTaskGroup<AsymmetricBatch>;

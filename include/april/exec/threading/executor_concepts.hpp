@@ -3,6 +3,7 @@
 #include <concepts>
 
 #include "april/exec/policy.hpp"
+#include "april/exec/threading/executor_concepts.hpp"
 
 namespace april::exec {
     template<typename F>

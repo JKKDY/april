@@ -11,7 +11,7 @@ namespace april::container::batching {
 	//-----------------------
 	// CONVENIENCE DEFINITION
 	//-----------------------
-	template<exec::VectorTrait V>
+	template<exec::ExecutionTrait V>
 	struct BatchBase {
 		static constexpr auto vector_trait = V;
 		std::pair<ParticleType, ParticleType> types {};
@@ -24,16 +24,16 @@ namespace april::container::batching {
 	template<typename T>
 	concept IsBatch =requires(const T& b) {
 		// must have static constexpr trait flags
-		{ T::vector_trait }	-> std::convertible_to<exec::VectorTrait>;
+		{ T::vector_trait }	-> std::convertible_to<exec::ExecutionTrait>;
 
 		// must have type pair
 		{ b.types } -> std::convertible_to<std::pair<ParticleType, ParticleType>>;
 
 		// must have vector trait exists
-		{ std::remove_cvref_t<T>::vector_trait } -> std::convertible_to<exec::VectorTrait>;
+		{ std::remove_cvref_t<T>::vector_trait } -> std::convertible_to<exec::ExecutionTrait>;
 
 		// must have a for_each_pair function
-		b.template for_each_pair<exec::ExecutionMode::Scalar | exec::ExecutionMode::Vector>(
+		b.template for_each_pair<exec::ExecutionMode::Scalar | exec::ExecutionMode::Packed>(
 			universal_kernel([](auto&&, auto&&) {})
 		);
 	};

@@ -37,7 +37,7 @@ namespace april {
             | id
             | attributes
     };
-    AP_ENABLE_BITMASK_OPERATORS(ParticleField)
+    APRIL_ENABLE_BITMASK_OPERATORS(ParticleField)
 
 
     /**
@@ -59,7 +59,7 @@ namespace april {
 
         ALL = ALIVE | DEAD | PASSIVE | STATIONARY
     };
-    AP_ENABLE_BITMASK_OPERATORS(ParticleState)
+    APRIL_ENABLE_BITMASK_OPERATORS(ParticleState)
 
 
     /// User-facing particle type used for interaction lookup.

@@ -10,7 +10,7 @@
 namespace april::container::batching {
 
 	template<typename Container,
-		exec::VectorTrait VectorTrait = exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath>
+		exec::ExecutionTrait VectorTrait = exec::ExecutionTrait::ScalarPath | exec::ExecutionTrait::VectorPath>
 	struct AsymmetricScalarBatch : BatchBase<VectorTrait> {
 		explicit AsymmetricScalarBatch(Container & container) : container(container) {
 			for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
@@ -20,7 +20,7 @@ namespace april::container::batching {
 		APRIL_FORCE_INLINE void for_each_pair(Kernel && f) const {
 			if (range1.start == range1.stop || range2.start == range2.stop) return;
 
-			if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector)) {
+			if constexpr (static_cast<bool>(E & exec::ExecutionMode::Packed)) {
 				for_each_pair_packed(std::forward<Kernel>(f));
 			} else {
 				for_each_pair_scalar(std::forward<Kernel>(f));
@@ -165,7 +165,7 @@ namespace april::container::batching {
 	// SYMMETRIC BATCH
 	//----------------
 	template<typename Container,
-		exec::VectorTrait VectorTrait = exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath>
+		exec::ExecutionTrait VectorTrait = exec::ExecutionTrait::ScalarPath | exec::ExecutionTrait::VectorPath>
 	struct SymmetricScalarBatch : BatchBase<VectorTrait> {
 		explicit SymmetricScalarBatch(Container & container) : container(container) {
 			for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
@@ -175,7 +175,7 @@ namespace april::container::batching {
 		APRIL_FORCE_INLINE void for_each_pair(Kernel && f) const {
 			if (range.start == range.stop) return;
 
-			if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector)) {
+			if constexpr (static_cast<bool>(E & exec::ExecutionMode::Packed)) {
 				for_each_pair_packed(std::forward<Kernel>(f));
 			} else {
 				for_each_pair_scalar(std::forward<Kernel>(f));

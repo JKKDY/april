@@ -456,8 +456,8 @@ namespace april::container::layout {
             auto process_sub_range = [&](const size_t r_start, const size_t r_end) APRIL_FORCE_INLINE {
                 if constexpr (V == exec::ExecutionMode::Scalar) {
                     self.template iterate_range_scalar<P, is_const>(kernel, r_start, r_end);
-                } else if constexpr (V == exec::ExecutionMode::Vector ||
-                    V == (exec::ExecutionMode::Scalar | exec::ExecutionMode::Vector)) {
+                } else if constexpr (V == exec::ExecutionMode::Packed ||
+                    V == (exec::ExecutionMode::Scalar | exec::ExecutionMode::Packed)) {
                     self.template iterate_range_vector<P, is_const>(kernel, r_start, r_end);
                 } else {
                     static_assert(false,"[APRIL] invalid ExecutionMode in AoSoA::iterate_range");

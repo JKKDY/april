@@ -235,8 +235,8 @@ namespace april::container::layout {
                 }
 
                 // process a chunk of work in vector mode
-                else if constexpr (E == exec::ExecutionMode::Vector ||
-                    E == (exec::ExecutionMode::Scalar | exec::ExecutionMode::Vector)) {
+                else if constexpr (E == exec::ExecutionMode::Packed ||
+                    E == (exec::ExecutionMode::Scalar | exec::ExecutionMode::Packed)) {
                     const size_t body = chunk.size() / packed::size();
                     const size_t tail = chunk.size() % packed::size();
 

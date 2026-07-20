@@ -6,58 +6,61 @@
 #include "april/base/bitmask.hpp"
 
 namespace april {
-    enum class VectorPolicy {
+
+    enum class VectorPolicy : std::uint8_t {
     	Scalar,
     	Vector,	// force fully vectorized execution
     	Auto	// best effort vectorization. Default.
     };
 
-    enum class ParallelPolicy {
+    enum class ParallelPolicy : std::uint8_t {
     	Serial,
-    	Threaded, // On-Node (Shared Memory) - e.g. std::thread, OpenMP, TBB
-    	// Distributed, // Multi-Node (Distributed Memory) - e.g. MPI (Future stub - no support)
-    	// Hybrid // Both Threaded and Distributed (Future stub - no support)
+    	Threaded
     };
 
+	// future stub for distributed memory parallelism
+	enum class DistributionPolicy : std::uint8_t {
+		SingleProcess,
+		Distributed
+	};
+
+	// future stub for accelerators e.g. GPUs
+	enum class AcceleratorPolicy : std::uint8_t {
+		Disabled,
+		Preferred,
+		Required
+	};
 
 	namespace exec {
 		// describes the structural execution path(s) offered by the dispatcher
-		enum class VectorTrait : uint8_t {
-			ScalarPath = 1 << 0,   // dispatcher provides a scalar execution path -> kernel must support Scalar
-			VectorPath = 1 << 1,   // dispatcher provides a vector execution path -> kernel must support Vector
-			HybridPath = 1 << 2    // scalar + vector occur in the same path (e.g. peel + SIMD body) -> kernel must support both
+		enum class ExecutionTrait : uint8_t {
+			ScalarPath = 1 << 0,  // dispatcher provides a scalar execution path -> kernel must support Scalar
+			VectorPath = 1 << 1,  // dispatcher provides a vector execution path -> kernel must support Vector
+			HybridPath = 1 << 2   // scalar + vector occur in the same path (e.g. SIMD body + scalar tail) -> kernel must support both
 		};
-		AP_ENABLE_BITMASK_OPERATORS(VectorTrait)
-
-		// describes which parallel execution strategies a dispatcher supports
-		enum class ParallelTrait : uint8_t {
-			None       = 0,			// no safe parallelism -> requires atomic updates
-			IntraBatch = 1 << 0,	// safe parallelism within a batch
-			InterBatch = 1 << 1		// safe parallelism across batches
-		};
-		AP_ENABLE_BITMASK_OPERATORS(ParallelTrait)
+		APRIL_ENABLE_BITMASK_OPERATORS(ExecutionTrait)
 
 		// describes which execution modes a kernel implementation supports
 		enum class ExecutionMode : uint8_t {
-			Scalar = 1 << 0,       // supports scalar execution
-			Vector = 1 << 1,       // supports vector execution
-
-			// Future:
-			// Group = 1u << 2
+			Scalar = 1 << 0,    // supports scalar execution
+			Packed = 1 << 1,    // supports vector execution
+			Group = 1 << 2		// Future stub: supports grouped execution (e.g. GPU SIMT)
 		};
-		AP_ENABLE_BITMASK_OPERATORS(ExecutionMode)
+		APRIL_ENABLE_BITMASK_OPERATORS(ExecutionMode)
+
+
 	}
 
 
 	namespace exec::internal {
 		// given a policy and execution mode(s), return a valid mode
 		template <VectorPolicy Policy, ExecutionMode Mode>
-		constexpr ExecutionMode valid_execution_modes() {
+		constexpr ExecutionMode allowed_execution_modes() {
 			// user requests vectorized execution
 			if constexpr (Policy == VectorPolicy::Vector) {
-				static_assert(static_cast<bool>(Mode & ExecutionMode::Vector),
+				static_assert(static_cast<bool>(Mode & ExecutionMode::Packed),
 					"Error: VectorPolicy::Vector was requested, but the provided Kernel does not support Vector execution.");
-				return ExecutionMode::Vector;
+				return ExecutionMode::Packed;
 			}
 			// user requests scalar execution
 			else if constexpr (Policy == VectorPolicy::Scalar) {
@@ -71,20 +74,20 @@ namespace april {
 			}
 		}
 
-		template <VectorTrait Trait>
+		template <ExecutionTrait Trait>
 		consteval ExecutionMode required_execution_modes() {
-			if constexpr (static_cast<bool>(Trait & VectorTrait::HybridPath)) {
-				return ExecutionMode::Scalar | ExecutionMode::Vector; // requires both scalar and vector
+			if constexpr (static_cast<bool>(Trait & ExecutionTrait::HybridPath)) {
+				return ExecutionMode::Scalar | ExecutionMode::Packed; // requires both scalar and vector
 			}
-			if constexpr (static_cast<bool>(Trait & VectorTrait::ScalarPath) &&
-				static_cast<bool>(Trait & VectorTrait::VectorPath)) {
+			if constexpr (static_cast<bool>(Trait & ExecutionTrait::ScalarPath) &&
+				static_cast<bool>(Trait & ExecutionTrait::VectorPath)) {
 				return  static_cast<ExecutionMode>(0); // dont care which mode is used
 			}
-			if constexpr (static_cast<bool>(Trait & VectorTrait::ScalarPath)) {
+			if constexpr (static_cast<bool>(Trait & ExecutionTrait::ScalarPath)) {
 				return ExecutionMode::Scalar;
 			}
-			if constexpr (static_cast<bool>(Trait & VectorTrait::VectorPath)) {
-				return ExecutionMode::Vector;
+			if constexpr (static_cast<bool>(Trait & ExecutionTrait::VectorPath)) {
+				return ExecutionMode::Packed;
 			}
 			std::unreachable();
 		}
@@ -97,8 +100,8 @@ namespace april {
 			}
 
 			// Batch provides independent paths (Required == 0).
-			if constexpr (static_cast<bool>(Valid & ExecutionMode::Vector)) {
-				return ExecutionMode::Vector; // Prefer Vector
+			if constexpr (static_cast<bool>(Valid & ExecutionMode::Packed)) {
+				return ExecutionMode::Packed; // Prefer Vector
 			} else {
 				return ExecutionMode::Scalar; // Fallback to pure Scalar
 			}

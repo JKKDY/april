@@ -81,7 +81,7 @@ namespace april::container::batching {
          * in partial chunks.
          */
         template <typename Container, typename ChunkPtr>
-        struct ChunkedBatchBase : BatchBase<exec::VectorTrait::ScalarPath | exec::VectorTrait::VectorPath> {
+        struct ChunkedBatchBase : BatchBase<exec::ExecutionTrait::ScalarPath | exec::ExecutionTrait::VectorPath> {
             explicit ChunkedBatchBase(Container& container, ChunkPtr* chunks)
                 : container(container), chunks(chunks) {
                 for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
@@ -95,7 +95,7 @@ namespace april::container::batching {
             void for_each_pair(this const auto & self, Func&& f) {
                 if (self.empty()) return;
 
-                if constexpr (static_cast<bool>(E & exec::ExecutionMode::Vector))
+                if constexpr (static_cast<bool>(E & exec::ExecutionMode::Packed))
                     self.for_each_pair_packed(std::forward<Func>(f));
                 else
                     self.for_each_pair_scalar(std::forward<Func>(f));

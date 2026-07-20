@@ -15,7 +15,7 @@ namespace april::container::batching {
 
     template <typename Container>
     struct TopologyBatch {
-        static constexpr auto vector_trait = exec::VectorTrait::ScalarPath;
+        static constexpr auto vector_trait = exec::ExecutionTrait::ScalarPath;
 
         std::pair<ParticleType, ParticleType> representatives;
         std::vector<std::pair<ParticleID, ParticleID>> pairs;

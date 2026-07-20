@@ -20,11 +20,11 @@ namespace april {
 		using namespace april::exec::internal;
 
 		// check kernel compatibility with batch (in regard to scalar/vector mode)
-		constexpr VectorTrait batch_traits = std::remove_cvref_t<Batch>::vector_trait;
+		constexpr ExecutionTrait batch_traits = std::remove_cvref_t<Batch>::vector_trait;
 		constexpr ExecutionMode kernel_modes = std::remove_cvref_t<Kernel>::Mode;
 
 		constexpr ExecutionMode required_modes = required_execution_modes<batch_traits>();
-		constexpr ExecutionMode valid_modes = valid_execution_modes<V, kernel_modes>();
+		constexpr ExecutionMode valid_modes = allowed_execution_modes<V, kernel_modes>();
 
 		static_assert((valid_modes & required_modes) == required_modes, // required modes must be a subset of valid modes
 			"[APRIL] Compatibility Failure: No valid execution path found between Batch and Kernel capability sets.");
@@ -32,7 +32,7 @@ namespace april {
 		constexpr ExecutionMode exec_mode = resolve_execution_mode<valid_modes, required_modes>();
 
 		// run kernel on batches
-		batch.template for_each_pair<exec_mode>(kernel); // TODO deduce parallel policy from batch capabilitiy and Policy P
+		batch.template for_each_pair<exec_mode>(kernel); // TODO deduce parallel policy from batch capability and Policy P
 	}
 
 

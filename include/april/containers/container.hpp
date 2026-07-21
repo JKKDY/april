@@ -415,7 +415,7 @@ namespace april::container {
 
 		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
 		void invoke_iterate_range(this auto&& self, Kernel && func, size_t start, size_t end) {
-			constexpr auto mode = exec::internal::allowed_execution_modes<V, std::remove_cvref_t<Kernel>::Mode>();
+			constexpr auto mode = exec::internal::allowed_execution_modes<V, std::remove_cvref_t<Kernel>::Modes>();
 			auto kernel = adapt_iterator_kernel(func);
 			self.template iterate_range<P, mode, is_const>(kernel, start, end);
 		}
@@ -424,7 +424,7 @@ namespace april::container {
 		void invoke_iterate_state(this auto&& self, Kernel && func, const ParticleState state) {
 			using K = std::remove_cvref_t<Kernel>;
 			auto kernel = adapt_iterator_kernel(func);
-			constexpr auto mode = exec::internal::allowed_execution_modes<V, K::Mode>();
+			constexpr auto mode = exec::internal::allowed_execution_modes<V, K::Modes>();
 
 			// try optimized implementation else fallback to default. Default assumes valid data for the entire iteration range
 			if constexpr (requires {self.template iterate<P, V, is_const>(kernel, state);}) {

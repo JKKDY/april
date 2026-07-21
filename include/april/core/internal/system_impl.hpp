@@ -13,26 +13,41 @@ namespace april {
 	// EXECUTE BATCH
 	//--------------
 	// ToDO extract this method to a free convenience function that maps a kernel & policies to a batch for_each_pair call
-	template <class SystemConfig>
-	template <VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
-	void System<SystemConfig>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
-		using namespace april::exec;
-		using namespace april::exec::internal;
+	// template <class SystemConfig>
+	// template <VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
+	// void System<SystemConfig>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
+	// 	using namespace april::exec;
+	// 	using namespace april::exec::internal;
+	//
+	// 	// check kernel compatibility with batch (in regard to scalar/vector mode)
+	// 	constexpr ExecutionTrait batch_traits = std::remove_cvref_t<Batch>::vector_trait;
+	// 	constexpr ExecutionMode kernel_modes = std::remove_cvref_t<Kernel>::Mode;
+	//
+	// 	constexpr ExecutionMode required_modes = required_execution_modes<batch_traits>();
+	// 	constexpr ExecutionMode valid_modes = allowed_execution_modes<V, kernel_modes>();
+	//
+	// 	static_assert((valid_modes & required_modes) == required_modes, // required modes must be a subset of valid modes
+	// 		"[APRIL] Compatibility Failure: No valid execution path found between Batch and Kernel capability sets.");
+	//
+	// 	constexpr ExecutionMode exec_mode = resolve_execution_mode<valid_modes, required_modes>();
+	//
+	// 	// run kernel on batches
+	// 	batch.template for_each<exec_mode>(kernel); // TODO deduce parallel policy from batch capability and Policy P
+	// }
 
-		// check kernel compatibility with batch (in regard to scalar/vector mode)
-		constexpr ExecutionTrait batch_traits = std::remove_cvref_t<Batch>::vector_trait;
-		constexpr ExecutionMode kernel_modes = std::remove_cvref_t<Kernel>::Mode;
+	template<class SystemConfig>
+	template<VectorPolicy V,container::batching::IsBatch Batch,exec::IsKernel Kernel>
+	void System<SystemConfig>::execute_batch_kernel(const Batch& batch,Kernel&& kernel) {
+		using B = std::remove_cvref_t<Batch>;
+		using K = std::remove_cvref_t<Kernel>;
+		using Paths = B::execution_paths;
 
-		constexpr ExecutionMode required_modes = required_execution_modes<batch_traits>();
-		constexpr ExecutionMode valid_modes = allowed_execution_modes<V, kernel_modes>();
+		constexpr exec::ExecutionMode allowed_modes = exec::internal::allowed_execution_modes<V, K::Modes>();
+		constexpr exec::ExecutionMode selected_path = exec::internal::resolve_execution_path<allowed_modes, Paths>();
 
-		static_assert((valid_modes & required_modes) == required_modes, // required modes must be a subset of valid modes
-			"[APRIL] Compatibility Failure: No valid execution path found between Batch and Kernel capability sets.");
-
-		constexpr ExecutionMode exec_mode = resolve_execution_mode<valid_modes, required_modes>();
-
-		// run kernel on batches
-		batch.template for_each_pair<exec_mode>(kernel); // TODO deduce parallel policy from batch capability and Policy P
+		batch.template for_each<selected_path>(
+			std::forward<Kernel>(kernel)
+		);
 	}
 
 
@@ -44,12 +59,15 @@ namespace april {
 	void System<SystemConfig>::update_forces() {
 
 		// handle pair wise (type-type) interactions
-		auto update_forces_batch = [&]<container::batching::IsBatch Batch, container::batching::IsBCP BCP>(const Batch& batch, BCP && apply_bcp) {
+		auto update_forces_batch = [&]<container::batching::IsBatch Batch, container::batching::IsBCP BCP>(
+			const Batch& batch, BCP&& apply_bcp
+		) {
+			static_assert(Batch::arity == 2, "Pair-wise force interactions require a batch with arity 2.");
 
-			auto apply_batch_update =  [&] <interactions::IsForce ForceT> (const ForceT & force) APRIL_FORCE_INLINE {
+			auto apply_batch_update = [&]<interactions::IsForce ForceT>(const ForceT& force) APRIL_FORCE_INLINE {
 				constexpr ParticleField M = ForceT::fields | ParticleField::position;
 
-				auto kernel = [&]<bool is_packed>(auto && p1, auto && p2) APRIL_FORCE_INLINE {
+				auto kernel = [&]<bool is_packed>(auto&& p1, auto&& p2) APRIL_FORCE_INLINE {
 					auto diff = p2.position - p1.position;
 
 					const auto r = [&] {
@@ -61,31 +79,32 @@ namespace april {
 					}();
 
 					if constexpr (is_packed) {
-						auto outside  = r.norm_squared() > force.cutoff2();
-						if (all(outside )) return;
+						auto outside = r.norm_squared() > force.cutoff2();
+						if (all(outside)) return;
 
 						if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Nonsymmetric) {
 							auto f1 = force(p1, p2, r);
 							auto f2 = force(p2, p1, -r);
 
 							p1.force += pvec3 {
-								select(outside , packed(0), f1.x),
-								select(outside , packed(0), f1.y),
-								select(outside , packed(0), f1.z)
+								select(outside, packed(0), f1.x),
+								select(outside, packed(0), f1.y),
+								select(outside, packed(0), f1.z)
 							};
 
 							p2.force += pvec3 {
-								select(outside , packed(0), f2.x),
-								select(outside , packed(0), f2.y),
-								select(outside , packed(0), f2.z)
+								select(outside, packed(0), f2.x),
+								select(outside, packed(0), f2.y),
+								select(outside, packed(0), f2.z)
 							};
 						} else {
 							auto f = force(p1, p2, r);
 							auto f_masked = pvec3 {
-								select(outside , packed(0), f.x),
-								select(outside , packed(0), f.y),
-								select(outside , packed(0), f.z)
+								select(outside, packed(0), f.x),
+								select(outside, packed(0), f.y),
+								select(outside, packed(0), f.z)
 							};
+
 							if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Antisymmetric) {
 								p1.force += f_masked;
 								p2.force -= f_masked;
@@ -98,15 +117,16 @@ namespace april {
 						if (r.norm_squared() > force.cutoff2()) {
 							return;
 						}
+
 						if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Antisymmetric) {
 							vec3 f = force(p1.to_view(), p2.to_view(), r);
 							p1.force += f;
 							p2.force -= f;
-						}  else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Symmetric) {
+						} else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Symmetric) {
 							vec3 f = force(p1.to_view(), p2.to_view(), r);
 							p1.force += f;
 							p2.force += f;
-						}  else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Nonsymmetric) {
+						} else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Nonsymmetric) {
 							p1.force += force(p1.to_view(), p2.to_view(), r);
 							p2.force += force(p2.to_view(), p1.to_view(), -r);
 						}
@@ -117,45 +137,60 @@ namespace april {
 					(static_cast<bool>(M & ParticleField::attributes) && !particle::IsVectorizable<ParticleAttributes>)
 					|| ForceT::vector_mode == exec::ExecutionMode::Scalar
 					|| vector_policy == VectorPolicy::Scalar;
+
 				constexpr VectorPolicy vp = force_scalar ? VectorPolicy::Scalar : VectorPolicy::Auto;
-				execute_batch_kernel<vp>(batch, april::universal_kernel<M, ParticleField::force>(kernel));
+
+				execute_batch_kernel<vp>(
+					batch,
+					april::universal_kernel<M, ParticleField::force>(kernel)
+				);
 			};
 
-			auto [t1, t2] = batch.types;
+			const auto [t1, t2] = batch.types;
 			force_table.dispatch(t1, t2, apply_batch_update);
 		};
 
 		// handle id-id interactions
-		auto update_forces_topology_batch = [&](const container::batching::IsTopologyBatch auto & batch) {
-			auto apply_batch_update = [&] <interactions::IsForce ForceT> (const ForceT & force) {
+		auto update_forces_topology_batch = [&]<container::batching::IsTopologyBatch B>(const B& batch) {
+			using Batch = std::remove_cvref_t<B>;
+			static_assert(Batch::arity == 2, "Pair-wise topology interactions require a batch with arity 2.");
+
+			auto apply_batch_update = [&]<interactions::IsForce ForceT>(const ForceT& force) {
 				constexpr auto Read = ForceT::fields | ParticleField::position;
 				constexpr auto Write = ParticleField::force;
 
-				auto kernel = [&](auto && p1, auto && p2) APRIL_FORCE_INLINE {
+				auto kernel = [&](auto&& p1, auto&& p2) APRIL_FORCE_INLINE {
 					vec3 r = p2.position - p1.position;
 
 					if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Antisymmetric) {
 						vec3 f = force(p1.to_view(), p2.to_view(), r);
 						p1.force += f;
 						p2.force -= f;
-					}  else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Symmetric) {
+					} else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Symmetric) {
 						vec3 f = force(p1.to_view(), p2.to_view(), r);
 						p1.force += f;
 						p2.force += f;
-					}  else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Nonsymmetric) {
+					} else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Nonsymmetric) {
 						p1.force += force(p1.to_view(), p2.to_view(), r);
 						p2.force += force(p2.to_view(), p1.to_view(), -r);
 					}
 				};
-				batch.for_each_pair(april::scalar_kernel<Read, Write>(kernel));
+
+				batch.template for_each<exec::ExecutionMode::Scalar>(
+					april::scalar_kernel<Read, Write>(kernel)
+				);
 			};
 
-			force_table.dispatch_id(batch.representatives.first, batch.representatives.second, apply_batch_update);
+			force_table.dispatch_id(
+				batch.representatives[0],
+				batch.representatives[1],
+				apply_batch_update
+			);
 		};
 
 		for_each_particle<parallel_policy>(
 			april::universal_kernel<ParticleField::force, ParticleField::force>(
-				[](auto && p) { p.force = {}; } // reset forces
+				[](auto&& p) { p.force = {}; } // reset forces
 			)
 		);
 

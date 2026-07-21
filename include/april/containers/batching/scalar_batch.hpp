@@ -1,7 +1,7 @@
 #pragma once
 
 #include "april/base/macros.hpp"
-#include "april/containers/batching/common.hpp"
+#include "april/containers/batching/batch.hpp"
 #include "april/math/range.hpp"
 
 #include "april/exec/policy.hpp"
@@ -9,21 +9,26 @@
 
 namespace april::container::batching {
 
-	template<typename Container,
-		exec::ExecutionTrait VectorTrait = exec::ExecutionTrait::ScalarPath | exec::ExecutionTrait::VectorPath>
-	struct AsymmetricScalarBatch : BatchBase<VectorTrait> {
+	template<
+		typename Container,
+		exec::IsExecutionPaths Paths =
+		exec::ExecutionPaths<exec::ExecutionMode::Packed, exec::ExecutionMode::Scalar>
+	>
+	struct AsymmetricScalarBatch : BatchBase<2, Paths> {
 		explicit AsymmetricScalarBatch(Container & container) : container(container) {
 			for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
 		}
 
-		template<exec::ExecutionMode E, exec::IsKernel Kernel>
-		APRIL_FORCE_INLINE void for_each_pair(Kernel && f) const {
+		template<exec::ExecutionMode Mode, exec::IsKernel Kernel>
+		APRIL_FORCE_INLINE void for_each(Kernel && f) const {
 			if (range1.start == range1.stop || range2.start == range2.stop) return;
 
-			if constexpr (static_cast<bool>(E & exec::ExecutionMode::Packed)) {
+			if constexpr (Mode == exec::ExecutionMode::Packed) {
 				for_each_pair_packed(std::forward<Kernel>(f));
-			} else {
+			} else if constexpr (Mode == exec::ExecutionMode::Scalar){
 				for_each_pair_scalar(std::forward<Kernel>(f));
+			} else {
+				static_assert(false, "AsymmetricScalarBatch only implements scalar and packed paths.");
 			}
 		}
 
@@ -164,21 +169,26 @@ namespace april::container::batching {
 	//----------------
 	// SYMMETRIC BATCH
 	//----------------
-	template<typename Container,
-		exec::ExecutionTrait VectorTrait = exec::ExecutionTrait::ScalarPath | exec::ExecutionTrait::VectorPath>
-	struct SymmetricScalarBatch : BatchBase<VectorTrait> {
+	template<
+		typename Container,
+		exec::IsExecutionPaths Paths =
+		exec::ExecutionPaths<exec::ExecutionMode::Packed, exec::ExecutionMode::Scalar>
+	>
+	struct SymmetricScalarBatch : BatchBase<2, Paths> {
 		explicit SymmetricScalarBatch(Container & container) : container(container) {
 			for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
 		}
 
-		template<exec::ExecutionMode E, exec::IsKernel Kernel>
-		APRIL_FORCE_INLINE void for_each_pair(Kernel && f) const {
+		template<exec::ExecutionMode Mode, exec::IsKernel Kernel>
+		APRIL_FORCE_INLINE void for_each(Kernel && f) const {
 			if (range.start == range.stop) return;
 
-			if constexpr (static_cast<bool>(E & exec::ExecutionMode::Packed)) {
+			if constexpr (Mode == exec::ExecutionMode::Packed) {
 				for_each_pair_packed(std::forward<Kernel>(f));
-			} else {
+			} else if constexpr (Mode == exec::ExecutionMode::Scalar){
 				for_each_pair_scalar(std::forward<Kernel>(f));
+			} else {
+				static_assert(false, "SymmetricScalarBatch only implements scalar and packed paths.");
 			}
 		}
 

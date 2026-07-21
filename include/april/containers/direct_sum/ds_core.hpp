@@ -173,10 +173,9 @@ namespace april::container::internal {
 		void rebuild_structure() { /*NoOp: nothing to rebuild for direct sum*/ }
 
 	private:
-		std::vector<std::vector<batching::TopologyBatch<DirectSumCore>>> topology_phases;
+		std::vector<std::vector<batching::TopologyBatch<2, DirectSumCore>>> topology_phases;
 
 		void build_topology_batches() {
-
 			// collect all interaction topologies into a single vector
 			std::vector<utility::graph::EdgeList<ParticleID>> global_topologies;
 			global_topologies.reserve(this->interaction_map.interactions.size());
@@ -200,19 +199,29 @@ namespace april::container::internal {
 			using ContainerType = std::remove_cvref_t<decltype(*this)>;
 
 			for (auto& phase : scheduled_phases) {
-				std::vector<batching::TopologyBatch<ContainerType>> current_phase_batches;
+				std::vector<batching::TopologyBatch<2, ContainerType>> current_phase_batches;
 				current_phase_batches.reserve(phase.size());
 
 				for (auto& batch_pairs : phase) {
 					if (batch_pairs.empty()) continue;
 
-					batching::TopologyBatch<ContainerType> batch;
+					const auto& [representative1, representative2] = batch_pairs.front();
+
+					batching::TopologyBatch<2, ContainerType> batch;
 					batch.container_ptr = this;
-					batch.representatives = batch_pairs[0];
-					batch.pairs = std::move(batch_pairs);
+					batch.representatives = {
+						static_cast<ParticleType>(representative1),
+						static_cast<ParticleType>(representative2)
+					};
+
+					batch.interactions.reserve(batch_pairs.size());
+					for (const auto& [id1, id2] : batch_pairs) {
+						batch.interactions.push_back({id1, id2});
+					}
 
 					current_phase_batches.push_back(std::move(batch));
 				}
+
 				topology_phases.push_back(std::move(current_phase_batches));
 			}
 		}

@@ -4,21 +4,26 @@
 
 #include "april/exec/policy.hpp"
 #include "april/exec/kernel.hpp"
-#include "april/containers/batching/common.hpp"
+#include "april/containers/batching/batch.hpp"
 
 
 namespace april::container::internal {
 
 	template<typename AsymmetricBatch, typename SymmetricBatch>
-	struct LinkedCellsBatch : batching::BatchBase<AsymmetricBatch::vector_trait & SymmetricBatch::vector_trait> {
+	struct LinkedCellsBatch : batching::BatchBase<2,
+		exec::execution_paths_intersection_t<
+			typename AsymmetricBatch::execution_paths,
+			typename SymmetricBatch::execution_paths
+		>
+	> {
 
 		template<exec::ExecutionMode E, exec::IsKernel Func>
-		void for_each_pair (Func && f) const {
+		void for_each (Func && f) const {
 			for (const auto& chunk : sym_chunks)
-				chunk.template for_each_pair<E>(f);
+				chunk.template for_each<E>(f);
 
 			for (const auto & chunk : asym_chunks)
-				chunk.template for_each_pair<E>(f);
+				chunk.template for_each<E>(f);
 		}
 
 		void clear() {

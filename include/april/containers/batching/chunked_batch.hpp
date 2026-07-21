@@ -11,7 +11,7 @@
 #pragma once
 
 #include "april/base/macros.hpp"
-#include "april/containers/batching/common.hpp"
+#include "april/containers/batching/batch.hpp"
 #include "april/math/range.hpp"
 
 #include "april/exec/policy.hpp"
@@ -80,25 +80,32 @@ namespace april::container::batching {
          * Handles shared constants and the static lane-index array used for SIMD masking
          * in partial chunks.
          */
-        template <typename Container, typename ChunkPtr>
-        struct ChunkedBatchBase : BatchBase<exec::ExecutionTrait::ScalarPath | exec::ExecutionTrait::VectorPath> {
+        template<typename Container, typename ChunkPtr>
+        struct ChunkedBatchBase
+        : BatchBase<
+            2, // arity
+            exec::ExecutionPaths<exec::ExecutionMode::Packed,exec::ExecutionMode::Scalar>
+        >{
             explicit ChunkedBatchBase(Container& container, ChunkPtr* chunks)
                 : container(container), chunks(chunks) {
                 for (size_t k = 0; k < packed_size; ++k) idx_arr[k] = static_cast<double>(k);
             }
 
-            /**
-             * Dispatch for pair-wise iteration. Applies a kernel f to each pair
-             * Branches to the vectorized path if the policy allows and the kernel supports it.
-             */
-            template <exec::ExecutionMode E, exec::IsKernel Func>
-            void for_each_pair(this const auto & self, Func&& f) {
+
+
+            //Dispatch for pair-wise iteration. Applies a kernel f to each pair
+            //Branches to the vectorized path if the policy allows and the kernel supports it.
+            template <exec::ExecutionMode Mode, exec::IsKernel Kernel>
+            void for_each(this const auto & self, Kernel&& f) {
                 if (self.empty()) return;
 
-                if constexpr (static_cast<bool>(E & exec::ExecutionMode::Packed))
-                    self.for_each_pair_packed(std::forward<Func>(f));
-                else
-                    self.for_each_pair_scalar(std::forward<Func>(f));
+                if constexpr (Mode == exec::ExecutionMode::Packed) {
+                    self.for_each_pair_packed(std::forward<Kernel>(f));
+                } else if constexpr (Mode == exec::ExecutionMode::Scalar){
+                    self.for_each_pair_scalar(std::forward<Kernel>(f));
+                } else {
+                    static_assert(false, "ChunkedBatchBase only implements scalar and packed paths.");
+                }
             }
 
         protected:

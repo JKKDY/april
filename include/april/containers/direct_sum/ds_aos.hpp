@@ -9,11 +9,12 @@ namespace april::container::internal {
 
     template <class Config>
     class DirectSumAoSImpl : public DirectSumCore<layout::AoS<Config>> {
+        using ScalarPath =  exec::ExecutionPaths<exec::ExecutionMode::Scalar>; // AoS only supports scalar execution
     public:
         using Base = DirectSumCore<layout::AoS<Config>>;
 
-        using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumAoSImpl, exec::ExecutionTrait::ScalarPath>;
-        using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumAoSImpl, exec::ExecutionTrait::ScalarPath>;
+        using SymmetricBatch = batching::SymmetricScalarBatch<DirectSumAoSImpl, ScalarPath>;
+        using AsymmetricBatch = batching::AsymmetricScalarBatch<DirectSumAoSImpl, ScalarPath>;
 
         using SymTaskGroup = SymmetricTaskGroup<SymmetricBatch, AsymmetricBatch>;
         using AsymTaskGroup = AsymmetricTaskGroup<AsymmetricBatch>;

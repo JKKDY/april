@@ -10,8 +10,6 @@ namespace april::math::sfc {
     // -----------------------------
     // 1. MORTON (Z-Curve) UTILITIES
     // -----------------------------
-
-
     [[nodiscard]] APRIL_FORCE_INLINE inline uint64_t split_by_3(const uint32_t a) {
         uint64_t x = a & 0x1fffff; // mask to 21 bits
         x = (x | x << 32) & 0x1f00000000ffff;

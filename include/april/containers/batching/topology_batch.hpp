@@ -7,27 +7,52 @@
 #include "april/exec/policy.hpp"
 #include "april/particle/properties.hpp"
 #include "april/utility/graph.hpp"
+#include "april/exec/kernel.hpp"
 
 namespace april::container::batching {
 
     using ParticleGraph = utility::graph::EdgeList<ParticleID>;
     using ParticleSet = std::vector<ParticleID>;
 
-    template <typename Container>
+
+    template<std::size_t Arity, typename Container>
     struct TopologyBatch {
-        static constexpr auto vector_trait = exec::ExecutionTrait::ScalarPath;
+        static constexpr std::size_t arity = Arity;
 
-        std::pair<ParticleType, ParticleType> representatives;
-        std::vector<std::pair<ParticleID, ParticleID>> pairs;
-        Container* container_ptr;
+        using execution_paths = exec::ExecutionPaths<exec::ExecutionMode::Scalar>;
 
-        template<ParallelPolicy P = ParallelPolicy::Serial, typename Kernel>
-        void for_each_pair(Kernel&& kernel) const {
-            for (const auto& [id1, id2] : pairs) {
-                auto p1 = container_ptr->template at_id<Kernel::Read, Kernel::Write>(id1);
-                auto p2 = container_ptr->template at_id<Kernel::Read, Kernel::Write>(id2);
-                kernel(p1, p2);
+        std::array<ParticleType, Arity> representatives{};
+        std::vector<std::array<ParticleID, Arity>> interactions;
+        Container* container_ptr = nullptr;
+
+        template<exec::ExecutionMode Mode, exec::IsKernel Kernel>
+        void for_each(Kernel&& kernel) const {
+            static_assert(Mode == exec::ExecutionMode::Scalar, "TopologyBatch only supports scalar execution.");
+
+            for (const auto& ids : interactions) {
+                invoke(
+                    ids,
+                    std::forward<Kernel>(kernel),
+                    std::make_index_sequence<Arity>{}
+                );
             }
+        }
+
+    private:
+        template<exec::IsKernel Kernel, std::size_t... I>
+        void invoke(
+            const std::array<ParticleID, Arity>& ids,
+            Kernel&& kernel,
+            std::index_sequence<I...>
+        ) const {
+            using K = std::remove_cvref_t<Kernel>;
+
+            std::forward<Kernel>(kernel)(
+                container_ptr->template at_id<
+                    K::Read,
+                    K::Write
+                >(ids[I])...
+            );
         }
     };
 

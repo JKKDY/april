@@ -26,7 +26,7 @@ namespace april {
         template<ParticleField access_fields, ParticleField update_fields, ExecutionMode exec_mode, typename Func>
         struct KernelWrapper {
             const Func func;
-            static constexpr auto Mode = exec_mode;
+            static constexpr auto Modes = exec_mode;
             static constexpr auto Read = access_fields;
             static constexpr auto Write = update_fields;
 
@@ -36,9 +36,9 @@ namespace april {
                 constexpr bool packed = (particle::IsPackedParticleAccessor<std::remove_cvref_t<Args>> || ...);
 
                 // Mode checks
-                if constexpr (Mode == ExecutionMode::Scalar)
+                if constexpr (Modes == ExecutionMode::Scalar)
                     static_assert(!packed, "Error: ScalarKernel invoked with SIMD data!");
-                if constexpr (Mode == ExecutionMode::Packed)
+                if constexpr (Modes == ExecutionMode::Packed)
                     static_assert(packed, "Error: VectorKernel invoked with Scalar data!");
 
                 // Dispatch
@@ -70,7 +70,7 @@ namespace april {
             return exec::internal::KernelWrapper<
                 KernelType::Read,
                 KernelType::Write,
-                KernelType::Mode,
+                KernelType::Modes,
                 std::remove_cvref_t<F>
             >{std::forward<F>(func)};
         }
@@ -91,13 +91,13 @@ namespace april {
     }
 
     template<ParticleField Read=ParticleField::none, ParticleField Write=ParticleField::none, typename F> auto scalar_kernel(F&& f) {
-        return particle_kernel<exec::ExecutionMode::Scalar, Read, Write, F>(f);
+        return particle_kernel<exec::ExecutionMode::Scalar, Read, Write, F>(std::forward<F>(f));
     }
     template<ParticleField Read=ParticleField::none, ParticleField Write=ParticleField::none, typename F> auto vector_kernel(F&& f) {
-        return particle_kernel<exec::ExecutionMode::Packed, Read, Write, F>(f);
+        return particle_kernel<exec::ExecutionMode::Packed, Read, Write, F>(std::forward<F>(f));
     }
     template<ParticleField Read=ParticleField::none, ParticleField Write=ParticleField::none, typename F> auto universal_kernel(F&& f) {
-        return particle_kernel<exec::ExecutionMode::Scalar | exec::ExecutionMode::Packed, Read, Write, F>(f);
+        return particle_kernel<exec::ExecutionMode::Scalar | exec::ExecutionMode::Packed, Read, Write, F>(std::forward<F>(f));
     }
 } //namespace april
 

@@ -7,14 +7,17 @@
 #include <functional>
 #include <limits>
 
-#include "lc_batching.hpp"
 #include "april/base/types.hpp"
-#include "april/containers/batching/topology_batch.hpp"
-#include "april/particle/properties.hpp"
 #include "april/core/domain.hpp"
+
+#include "april/containers/linked_cells/lc_batching.hpp"
+#include "april/containers/batching/topology_batch.hpp"
+
 #include "april/exec/kernel.hpp"
-#include "../../exec/threading/scheduling.hpp"
+#include "april/exec/threading/scheduling.hpp"
 #include "april/exec/threading/threading_context.hpp"
+
+#include "april/particle/properties.hpp"
 
 namespace april::math {
 	struct Range;
@@ -269,19 +272,29 @@ namespace april::container::internal {
 			using ContainerType = std::remove_cvref_t<decltype(*this)>;
 
 			for (auto& phase : scheduled_phases) {
-				std::vector<batching::TopologyBatch<ContainerType>> current_phase_batches;
+				std::vector<batching::TopologyBatch<2, ContainerType>> current_phase_batches;
 				current_phase_batches.reserve(phase.size());
 
 				for (auto& batch_pairs : phase) {
 					if (batch_pairs.empty()) continue;
 
-					batching::TopologyBatch<ContainerType> batch;
+					const auto& [t1, t2] = batch_pairs.front();
+
+					batching::TopologyBatch<2, ContainerType> batch;
 					batch.container_ptr = this;
-					batch.representatives = batch_pairs[0];
-					batch.pairs = std::move(batch_pairs);
+					batch.representatives = {
+						static_cast<ParticleType>(t1),
+						static_cast<ParticleType>(t2)
+					};
+
+					batch.interactions.reserve(batch_pairs.size());
+					for (auto& [id1, id2] : batch_pairs) {
+						batch.interactions.push_back({id1, id2});
+					}
 
 					current_phase_batches.push_back(std::move(batch));
 				}
+
 				topology_phases.push_back(std::move(current_phase_batches));
 			}
 		}
@@ -755,7 +768,7 @@ namespace april::container::internal {
 			return self.cell_pos_to_idx(x, y, z);
 		}
 	private:
-		std::vector<std::vector<batching::TopologyBatch<LinkedCellsCore>>> topology_phases;
+		std::vector<std::vector<batching::TopologyBatch<2, LinkedCellsCore>>> topology_phases;
 	};
 }
 

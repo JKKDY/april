@@ -15,7 +15,7 @@
 #include "april/core/environment.hpp"
 #include "april/core/domain.hpp"
 #include "april/containers/container.hpp"
-#include "april/containers/batching/common.hpp"
+#include "april/containers/batching/batch.hpp"
 #include "april/exec/policy.hpp"
 #include "april/exec/kernel.hpp"
 #include "april/core/context.hpp"
@@ -444,7 +444,7 @@ namespace april {
 					}
 				};
 
-				auto kernel = exec::internal::KernelWrapper<K::Read, K::Write, K::Mode, decltype(bridge)>{bridge};
+				auto kernel = exec::internal::KernelWrapper<K::Read, K::Write, K::Modes, decltype(bridge)>{bridge};
 				execute_batch_kernel<vector_policy>(batch, kernel);
 			};
 

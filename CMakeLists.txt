@@ -35,7 +35,6 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithD
 # ---------------
 # Component Options
 option(APRIL_BUILD_TESTS      "Build the test suite" ${PROJECT_IS_TOP_LEVEL})
-option(APRIL_BUILD_BENCHMARKS "Build benchmarks" OFF)
 option(APRIL_BUILD_EXAMPLES   "Build examples" OFF)
 
 # Backend Options (Bridges to C++ Preprocessor)
@@ -231,10 +230,6 @@ if(APRIL_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-if(APRIL_BUILD_BENCHMARKS)
-    add_subdirectory(benchmark)
-endif()
-
 if(APRIL_BUILD_TESTS)
     enable_testing()
     add_subdirectory(test)
@@ -276,6 +271,5 @@ message(STATUS "  Sanitizers:        ASan:${APRIL_USE_ASAN} | TSan:${APRIL_USE_T
 message(STATUS "  Coverage:          ${APRIL_ENABLE_COVERAGE}")
 message(STATUS "")
 message(STATUS "  Build Tests:       ${APRIL_BUILD_TESTS}")
-message(STATUS "  Build Benchmarks:  ${APRIL_BUILD_BENCHMARKS}")
 message(STATUS "  Build Examples:    ${APRIL_BUILD_EXAMPLES}")
 message(STATUS "===========================================================")

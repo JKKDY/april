@@ -3,8 +3,10 @@ name: April CI
 on:
   push:
     branches: [ "main", "dev" ]
+
   pull_request:
     branches: [ "main", "dev" ]
+
   workflow_dispatch:
 
 jobs:
@@ -18,7 +20,7 @@ jobs:
       matrix:
         include:
           # -------------------------------------------
-          #  RELEASE BUILDS (run on Linux, MacOS, MSVC)
+          # RELEASE BUILDS
           # -------------------------------------------
           - name: Linux (Clang 18, Release)
             os: ubuntu-24.04
@@ -28,22 +30,22 @@ jobs:
             cmake_flags: ""
 
           - name: macOS (Apple Clang, Release)
-            # Tests the default out-of-the-box Mac experience + NEON SIMD
+            # Tests the default out-of-the-box Mac experience and NEON SIMD
             os: macos-latest
             build_type: Release
             cxx: clang++
             cc: clang
-            cmake_flags: ""
-            env:
-              MACOSX_DEPLOYMENT_TARGET: "14.0"
+            cmake_flags: "-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0"
 
           - name: macOS (GCC 14, Release)
-            # The modern C++23 fallback for Mac users
-            os: macos-latest
+            # GCC 14 is paired with Xcode 16.4 and the macOS 15 SDK.
+            # Newer macOS SDK headers are currently incompatible with GCC 14.
+            os: macos-15
             build_type: Release
             cxx: g++-14
             cc: gcc-14
-            cmake_flags: ""
+            cmake_flags: "-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0"
+            xcode_version: "16.4"
 
           - name: Windows (MSVC, Release)
             os: windows-latest
@@ -60,7 +62,7 @@ jobs:
             cmake_flags: ""
 
           # -----------------------------------------
-          # DEBUG BUILDS (Memory & Thread Sanitizers)
+          # DEBUG BUILDS
           # -----------------------------------------
           - name: Linux (Clang 18, ASAN + UBSAN)
             os: ubuntu-24.04
@@ -77,7 +79,7 @@ jobs:
             cmake_flags: "-DAPRIL_USE_TSAN=ON"
 
           # -----------------------------------------
-          # NON DEFAULT BACKENDS (OpenMP & std::simd)
+          # NON-DEFAULT BACKENDS
           # -----------------------------------------
           - name: Linux (GCC 14, std::simd + OpenMP)
             os: ubuntu-24.04
@@ -97,96 +99,153 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          submodules: recursive
 
-      - name: Install Compilers (Linux)
+      - name: Install compilers (Linux)
         if: runner.os == 'Linux'
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-14 g++-14 clang-18
+          sudo apt-get install -y \
+            gcc-14 \
+            g++-14 \
+            clang-18
 
-      - name: Install Compilers (macOS)
-        if: runner.os == 'macOS'
+      - name: Install GCC 14 (macOS)
+        if: runner.os == 'macOS' && matrix.cxx == 'g++-14'
         shell: bash
-        run: brew install gcc@14
+        run: |
+          if ! command -v g++-14 >/dev/null 2>&1; then
+            brew install gcc@14
+          fi
+
+          g++-14 --version
+
+      - name: Select macOS SDK for GCC
+        if: runner.os == 'macOS' && matrix.cxx == 'g++-14'
+        shell: bash
+        run: |
+          DEVELOPER_DIR="/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
+
+          if [[ ! -d "$DEVELOPER_DIR" ]]; then
+            echo "Xcode developer directory not found: $DEVELOPER_DIR"
+            exit 1
+          fi
+
+          SDKROOT="$(
+            DEVELOPER_DIR="$DEVELOPER_DIR" \
+              xcrun --sdk macosx --show-sdk-path
+          )"
+
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+          echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
+
+          echo "Selected developer directory: $DEVELOPER_DIR"
+          echo "Selected SDK: $SDKROOT"
 
       - name: Set up MSVC Developer Command Prompt
         if: matrix.cxx == 'cl'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Set Compiler Environment Variables
-        shell: bash
-        run: |
-          echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
-          echo "CXX=${{ matrix.cxx }}" >> $GITHUB_ENV
-
       - name: Configure CMake
         shell: bash
         run: |
-          cmake -G Ninja -S . -B build \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DAPRIL_BUILD_EXAMPLES=ON \
-            ${{ matrix.cmake_flags }}
+          cmake_args=(
+            -G Ninja
+            -S .
+            -B build
+            "-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}"
+            "-DCMAKE_C_COMPILER=${{ matrix.cc }}"
+            "-DCMAKE_CXX_COMPILER=${{ matrix.cxx }}"
+            -DAPRIL_BUILD_EXAMPLES=ON
+          )
 
-      - name: Build (All Targets)
-        shell: bash
-        # This compiles the engine, tests and examples
-        run: cmake --build build --config ${{ matrix.build_type }} -j 4
+          if [[ -n "${SDKROOT:-}" ]]; then
+            cmake_args+=("-DCMAKE_OSX_SYSROOT=$SDKROOT")
+          fi
 
-      - name: Run Tests
+          extra_flags="${{ matrix.cmake_flags }}"
+
+          if [[ -n "$extra_flags" ]]; then
+            read -ra parsed_flags <<< "$extra_flags"
+            cmake_args+=("${parsed_flags[@]}")
+          fi
+
+          cmake "${cmake_args[@]}"
+
+      - name: Build all targets
         shell: bash
-        # This executes the compiled tests using CTest.
         run: |
-          cd build
-          ctest --output-on-failure --build-config ${{ matrix.build_type }}
+          cmake --build build \
+            --config "${{ matrix.build_type }}" \
+            -j 4
+
+      - name: Run tests
+        shell: bash
+        run: |
+          ctest \
+            --test-dir build \
+            --output-on-failure \
+            --build-config "${{ matrix.build_type }}"
 
   coverage:
     name: Linux (Clang 18, Coverage)
     runs-on: ubuntu-24.04
+
     steps:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          submodules: recursive
 
       - name: Install Clang 18
         shell: bash
-        run: sudo apt-get install -y clang-18 llvm-18
-
-      - name: Configure CMake (Coverage)
-        shell: bash
-        # Added Ninja here too for consistency and speed
         run: |
-          cmake -G Ninja -S . -B build-coverage \
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-18 \
+            llvm-18
+
+      - name: Configure CMake
+        shell: bash
+        run: |
+          cmake \
+            -G Ninja \
+            -S . \
+            -B build-coverage \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_CXX_COMPILER=clang++-18 \
             -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
             -DAPRIL_ENABLE_COVERAGE=ON
 
       - name: Build
         shell: bash
-        run: cmake --build build-coverage -j 4
+        run: |
+          cmake --build build-coverage -j 4
 
-      - name: Run Tests (Generate .profraw)
+      - name: Run tests
         shell: bash
         run: |
-          export LLVM_PROFILE_FILE="$(pwd)/build-coverage/test_april-%p.profraw"
-          cd build-coverage
-          ctest --output-on-failure
-          cd ..
+          export LLVM_PROFILE_FILE="$GITHUB_WORKSPACE/build-coverage/test_april-%p.profraw"
 
-      - name: Merge Profile Data
+          ctest \
+            --test-dir build-coverage \
+            --output-on-failure
+
+      - name: Merge profile data
         shell: bash
         run: |
-          llvm-profdata-18 merge -sparse \
-            build-coverage/*.profraw -o build-coverage/coverage.profdata
+          llvm-profdata-18 merge \
+            -sparse \
+            build-coverage/*.profraw \
+            -o build-coverage/coverage.profdata
 
-      - name: Generate Coverage Report
+      - name: Generate coverage report
         shell: bash
         run: |
-          llvm-cov-18 export -format=lcov \
-            "build-coverage/test/test_april" \
+          llvm-cov-18 export \
+            -format=lcov \
+            build-coverage/test/test_april \
             -instr-profile=build-coverage/coverage.profdata \
             -ignore-filename-regex="test/|external/|build-coverage/" \
             > build-coverage/coverage.lcov

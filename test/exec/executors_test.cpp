@@ -4,8 +4,8 @@
 #include <mutex>
 
 #include "april/exec/threading/threading_context.hpp"
-#include "../../include/april/exec/threading/backends/native_barrier_executor.hpp"
-#include "../../include/april/exec/threading/backends/native_spin_executor.hpp"
+#include "april/exec/threading/backends/native_barrier_executor.hpp"
+#include "april/exec/threading/backends/native_spin_executor.hpp"
 
 using namespace april;
 using namespace april::exec;
@@ -20,7 +20,7 @@ protected:
 
 // Define the list of executors to test
 #ifdef _OPENMP
-#include "april/exec/executors/omp_executor.hpp"
+#include "april/exec/threading/backends/omp_executor.hpp"
 using ExecutorTypes = testing::Types<NativeBarrierExecutor, NativeSpinExecutor, OmpExecutor>;
 #else
 using ExecutorTypes = testing::Types<NativeBarrierExecutor, NativeSpinExecutor>;

@@ -23,7 +23,7 @@ namespace april::interactions {
 
     enum class ForceSymmetry : uint8_t {
         Antisymmetric, // f(p1, p2) = - f(p2, p1) -> N3 applicable
-        Symmetric, // f(p1, p2) = f(p2, p1) -> maybe in some esoteric active matter or graph sym
+        Symmetric, // f(p1, p2) = f(p2, p1) -> maybe in some esoteric active matter or graph sim
         Nonsymmetric // no relation
     };
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "april/containers/layout.hpp"
+#include "april/containers/layout/layout.hpp"
 
 #include "april/containers/linked_cells/lc_aos.hpp"
 #include "april/containers/linked_cells/lc_soa.hpp"

@@ -6,7 +6,7 @@
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/reflective.hpp"
 #include "april/containers/direct_sum.hpp"
-#include "april/containers/layout.hpp"
+#include "../../include/april/containers/layout/layout.hpp"
 #include "april/containers/linked_cells.hpp"
 
 #include "utils.h"

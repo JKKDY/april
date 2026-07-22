@@ -1,26 +1,74 @@
 #pragma once
 
-#include <bit>
 #include <vector>
 
 #include "april/exec/policy.hpp"
 #include "april/exec/kernel.hpp"
-#include "april/exec/threading/executor.hpp"
+#include "april/exec/threading/executor_config.hpp"
+#include "april/exec/threading/executor_reference.hpp"
+#include "april/exec/config.hpp"
 
 #include "april/math/range.hpp"
 
 #include "april/interactions/interaction_table.hpp"
+
 #include "april/core/domain.hpp"
 #include "april/core/internal/environment_traits.hpp"
 
 #include "april/particle/access/scalar_access.hpp"
 #include "april/particle/access/packed_access.hpp"
 
-#include "april/containers/container_traits.hpp"
-#include "april/exec/threading/executor_reference.hpp"
 
 
 namespace april::container {
+	struct ContainerFlags {
+		bool periodic_x;			// domain is periodic along x-axis
+		bool periodic_y;			// domain is periodic along y-axis
+		bool periodic_z;			// domain is periodic along z-axis
+		bool infinite_domain;		// particles outside of domain still interact normally (time complexity may go to O(n^2)
+		bool particle_addable;		// particles can be added during run time
+		bool particle_deletable;	// particles can be deleted during run time
+	};
+
+	struct ContainerHints {
+		// TODO add regions that will be queried in the future so the container can keep track of particles better
+		std::vector<ParticleID> interacting_particles;
+		std::vector<core::Box> query_regions;
+	};
+
+	template<class ContainerCfg, class ExecutionCfg, particle::IsParticleAttributes Attributes>
+	struct ContainerBuildConfig {
+		using ContainerConfig = ContainerCfg;
+		using ExecutionConfig = ExecutionCfg;
+		using ParticleAttributes = Attributes;
+		using ThreadExecutor = ExecutionConfig::ThreadExecutor;
+		using Container = ContainerCfg::template impl<ContainerBuildConfig>;
+
+		ExecutionConfig exec;
+		ContainerConfig config;
+		ContainerFlags flags {};
+		ContainerHints hints {};
+		interactions::internal::InteractionMap interaction_map {};
+		core::Box domain {};
+	};
+
+
+
+	namespace internal {
+		// check if T is a ContainerBuildConfig
+		template<typename T>
+		struct is_container_build_context : std::false_type {};
+
+		template<typename Cfg, typename Exec, typename Attributes>
+		struct is_container_build_context<
+			ContainerBuildConfig<Cfg, Exec, Attributes>
+		> : std::true_type {};
+	}
+
+	template<typename T>
+	concept IsContainerBuildConfig =
+		internal::is_container_build_context<std::remove_cvref_t<T>>::value;
+
 
 
 	/**
@@ -112,69 +160,10 @@ namespace april::container {
 		// PREFETCHING
 		// ----------------
 		template <ParticleField Mask>
-	    APRIL_FORCE_INLINE void prefetch_particle(this const auto& self, auto... args) {
-
-	        // Standard prefetch (Temporal Locality = 3) - Use for outer loops
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
-	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::force>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
-	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::position>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
-	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::velocity>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
-	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::old_position>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
-	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::mass>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
-	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::state>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
-	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::type>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
-	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::id>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
-	            execute_prefetch(self.template invoke_get_field_ptr<ParticleField::attributes>(args...));
-	    }
+	    APRIL_FORCE_INLINE void prefetch_particle(this const auto& self, auto... args);
 
 	    template <ParticleField Mask>
-	    APRIL_FORCE_INLINE void prefetch_particle_nta(this const auto& self, auto... args) {
-
-	        // Non-Temporal Access prefetch (Locality = 0) - Use for inner streaming loops
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
-	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::force>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
-	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::position>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
-	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::velocity>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
-	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::old_position>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
-	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::mass>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
-	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::state>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
-	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::type>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
-	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::id>(args...));
-
-	        if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
-	            execute_prefetch_nta(self.template invoke_get_field_ptr<ParticleField::attributes>(args...));
-	    }
-
+	    APRIL_FORCE_INLINE void prefetch_particle_nta(this const auto& self, auto... args);
 
 
 		// ------------------
@@ -347,219 +336,90 @@ namespace april::container {
 		const core::Box domain; // Note: in the future this may be adjustable during run time
 		exec::ThreadExecutorRef<ThreadExecutor> thread_executor;
 
-		// Helper to evaluate and execute Standard Prefetches at compile time
-		template <typename T>
-		APRIL_FORCE_INLINE static void execute_prefetch(const T& field_data) {
-			if constexpr (requires { field_data.prefetch(); }) {
-				// It has a prefetch method (e.g., Vec3Ptr)
-				field_data.prefetch();
-			} else if constexpr (std::is_pointer_v<std::decay_t<T>>) {
-				// It's a raw pointer (e.g., double*)
-				APRIL_PREFETCH(field_data);
-			}
-			// If neither, do nothing
-		}
-
-		// Helper to evaluate and execute NTA Prefetches at compile time
-		template <typename T>
-		APRIL_FORCE_INLINE static void execute_prefetch_nta(const T& field_data) {
-			if constexpr (requires { field_data.prefetch_nta(); }) {
-				field_data.prefetch_nta();
-			} else if constexpr (std::is_pointer_v<std::decay_t<T>>) {
-				APRIL_PREFETCH_NTA(field_data);
-			}
-		}
-
-		template<exec::IsKernel Kernel>
-		static auto adapt_indexed_kernel(Kernel && kernel) {
-			return exec::make_kernel_wrapper<Kernel>(
-				[kernel = std::forward<Kernel>(kernel)]<bool is_packed>(size_t i, auto && p) {
-					if constexpr (requires { kernel(i, p); }) {
-						return kernel(i, p); // user wants index
-					} else if constexpr (requires { kernel(p); }) {
-						return kernel(p); // user only wants particle
-					} else {
-						// TODO in C++26 use std::format and introspection to print out received signature
-						// TODO print kernel name by implementing a name demangler
-						static_assert(false, "[APRIL] Kernel is malformed! it must either have signature (size_t, auto && p) or (auto && p)");
-					}
-				}
-			);
-		}
-
-		template<exec::IsKernel Kernel>
-		static auto adapt_buffered_kernel(Kernel && kernel) {
-			return exec::make_kernel_wrapper<Kernel>(
-				[kernel = std::forward<Kernel>(kernel)]<bool is_packed>(size_t i, auto && p) {
-					if constexpr (particle::IsPackedParticleRef<decltype(p)>) {
-						static_assert(particle::IsPackedParticleAccessor<decltype(p)>);
-						auto buffer = p.load_buffer();
-						auto view = buffer.to_view();
-						kernel(i, view);
-						buffer.update_into(p);
-					} else {
-						static_assert(particle::IsScalarParticleAccessor<decltype(p)>);
-						kernel(i, p);
-					}
-				}
-			);
-		}
-
-		template<exec::IsKernel Kernel>
-		static auto adapt_iterator_kernel(Kernel && kernel) {
-			auto indexed_kernel = adapt_indexed_kernel(std::forward<Kernel>(kernel));
-			auto buffered_kernel = adapt_buffered_kernel(std::move(indexed_kernel));
-			return buffered_kernel;
-		}
-
 
 		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
-		void invoke_iterate_range(this auto&& self, Kernel && func, size_t start, size_t end) {
-			constexpr auto mode = exec::internal::allowed_execution_modes<V, std::remove_cvref_t<Kernel>::Modes>();
-			auto kernel = adapt_iterator_kernel(func);
-			self.template iterate_range<P, mode, is_const>(kernel, start, end);
-		}
+		void invoke_iterate_range(this auto&& self, Kernel && func, size_t start, size_t end);
 
 		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
-		void invoke_iterate_state(this auto&& self, Kernel && func, const ParticleState state) {
-			using K = std::remove_cvref_t<Kernel>;
-			auto kernel = adapt_iterator_kernel(func);
-			constexpr auto mode = exec::internal::allowed_execution_modes<V, K::Modes>();
-
-			// try optimized implementation else fallback to default. Default assumes valid data for the entire iteration range
-			if constexpr (requires {self.template iterate<P, V, is_const>(kernel, state);}) {
-				self.template iterate<P, mode, is_const>(kernel, state);
-			} else {
-				// note: iterate_range makes no checks so if it encounters memory that cannot be interpreted as
-				// particle data or memory it is not allowed to access it can crash
-				// meaning the following default implementation is only safe if the container can guarantee that
-				// only valid memory will be accessed (The build in AoS, SoA, AoSoA layouts support this)
-				auto state_filter = [&]<typename Part>(size_t i, Part && p) {
-					if constexpr (particle::IsPackedParticleAccessor<Part>) {
-						static_assert(particle::IsPackedParticleRef<Part>);
-
-						// const auto mask = (p.state.load() & +state) != 0;
-						// if (!any(mask)) return; // if no particle is in requested state, skip this execution
-						auto temp_buf = p.load_buffer();
-						const auto mask = (temp_buf.state & +state) != 0;
-
-						kernel(i, p.mask_with(mask));
-					} else {
-						static_assert(particle::IsScalarParticleAccessor<decltype(p)>);
-						if (self.index_is_valid(i) && static_cast<int>(p.state & state)) {
-							kernel(i, p);
-						}
-
-					}
-				};
-
-				self.template iterate_range<P, mode, is_const>(
-					exec::internal::KernelWrapper<K::Read | ParticleField::state, K::Write, mode, decltype(state_filter)>(state_filter),
-					0, self.capacity());
-			}
-		}
+		void invoke_iterate_state(this auto&& self, Kernel && func, ParticleState state);
 
 		template<ParticleField F>
-		auto invoke_get_field_ptr(this auto&& self, auto ... args) {
-			return self.template get_field_ptr<F>(args...);
-		}
+		auto invoke_get_field_ptr(this auto&& self, auto ... args);
 
 		template<ParticleField F>
-		auto invoke_get_field_ptr_id(this auto&& self, ParticleID id) {
-			APRIL_ASSERT(self.contains_id(id), "Got invalid Id: " + std::to_string(id));
-			return self.template get_field_ptr_id<F>(id);
-		}
+		auto invoke_get_field_ptr_id(this auto&& self, ParticleID id);
 
 		//------------------------
 		// PARTICLE DATA ACCESSORS
 		//------------------------
 		template<ParticleField Read, ParticleField Write>
-		[[nodiscard]] auto access_particle(this auto&& self, const auto ... args) {
-
-			constexpr bool is_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-
-			static_assert(!(is_const && Write != ParticleField::none),
-				"APRIL ERROR: Cannot request write permissions (WriteMask != none) on a const Container. "
-				"Either drop the write mask or ensure the container is mutable.");
-
-			particle::internal::ParticleSource<Read, Write, ParticleAttributes> src;
-			constexpr auto Mask = Read | Write;
-
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
-				src.force = self.template invoke_get_field_ptr<ParticleField::force>(args...);
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
-				src.position = self.template invoke_get_field_ptr<ParticleField::position>(args...);
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
-				src.velocity = self.template invoke_get_field_ptr<ParticleField::velocity>(args...);
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
-				src.old_position = self.template invoke_get_field_ptr<ParticleField::old_position>(args...);
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
-				src.mass = self.template invoke_get_field_ptr<ParticleField::mass>(args...);
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
-				src.state = self.template invoke_get_field_ptr<ParticleField::state>(args...);
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
-				src.type = self.template invoke_get_field_ptr<ParticleField::type>(args...);
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
-				src.id = self.template invoke_get_field_ptr<ParticleField::id>(args...);
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
-				src.attributes = self.template invoke_get_field_ptr<ParticleField::attributes>(args...);
-
-			return src;
-		}
+		[[nodiscard]] auto access_particle(this auto&& self, const auto ... args);
 
 		template<ParticleField Read, ParticleField Write>
-		[[nodiscard]] auto access_particle_id(this auto&& self, const ParticleID id) {
-			// it's optional to implement get_field_ptr_id. The fallback is to use id -> index and access_particle
-
-			constexpr auto Mask = Read | Write;
-			if constexpr (Mask == ParticleField::none) { // guard against none because 1 << std::countr_zero would produce UB
-				return particle::internal::ParticleSource<Read, Write, ParticleAttributes>{};
-			}
-
-			// We pick the first active field in the Mask to test if 'get_field_ptr_id' exists.
-			// We cannot check the function "in general" because it is a template.
-			[[maybe_unused]] constexpr auto TestMask = static_cast<ParticleField>(1 << std::countr_zero(+(Read|Write)));
-
-		    // does get_field_ptr_id<TestF>(id) compile?
-		    if constexpr (requires { self.template get_field_ptr_id<TestMask>(id); }) {
-
-		        // specialized path (direct ID access)
-				constexpr bool is_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;
-
-		    	static_assert(!(is_const && Write != ParticleField::none),
-		    		"APRIL ERROR: Cannot request write permissions (WriteMask != none) on a const Container. "
-					"Either drop the write mask or ensure the container is mutable.");
-
-		    	particle::internal::ParticleSource<Read, Write, ParticleAttributes> src;
-
-		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
-        			src.force = self.template invoke_get_field_ptr_id<ParticleField::force>(id);
-		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
-        			src.position = self.template invoke_get_field_ptr_id<ParticleField::position>(id);
-		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
-        			src.velocity = self.template invoke_get_field_ptr_id<ParticleField::velocity>(id);
-		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
-        			src.old_position = self.template invoke_get_field_ptr_id<ParticleField::old_position>(id);
-		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
-        			src.mass = self.template invoke_get_field_ptr_id<ParticleField::mass>(id);
-		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
-        			src.state = self.template invoke_get_field_ptr_id<ParticleField::state>(id);
-		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
-        			src.type = self.template invoke_get_field_ptr_id<ParticleField::type>(id);
-		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
-        			src.id = self.template invoke_get_field_ptr_id<ParticleField::id>(id);
-		        if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
-        			src.attributes = self.template invoke_get_field_ptr_id<ParticleField::attributes>(id);
-
-		        return src;
-
-		    } else {
-
-		        // fallback path (ID -> Index -> Access)
-		        return self.template access_particle<Read, Write>(self.invoke_id_to_index(id));
-		    }
-		}
+		[[nodiscard]] auto access_particle_id(this auto&& self, const ParticleID id);
 	};
+
+
+
+	template<typename C>
+	concept HasContainerOps = requires (
+	    C c,
+	    const C cc,
+	    ParticleID id,
+	    size_t index,
+	    const core::Box& region,
+	    const particle::ParticleRecord<typename C::ParticleAttributes>& p,
+	    const std::vector<particle::ParticleRecord<typename C::ParticleAttributes>>& particles
+	) {
+		// minimal implemented interface (except get_field_ptr since that is not part of the public API)
+	    { c.build(particles) };
+	    { c.rebuild_structure() };
+
+		{ cc.capacity() } -> std::convertible_to<size_t>;
+	    { cc.particle_count() } -> std::convertible_to<size_t>;
+		{ cc.min_id() } -> std::convertible_to<ParticleID>;
+	    { cc.max_id() } -> std::convertible_to<ParticleID>;
+
+	    { cc.id_to_index(id) } -> std::convertible_to<size_t>;
+		{ cc.contains_id(id) } -> std::convertible_to<bool>;
+		{ cc.index_is_valid(id) } -> std::convertible_to<bool>;
+
+	    { c.collect_indices_in_region(region) } -> std::convertible_to<std::vector<size_t>>;
+
+	    { c.template for_each_interaction_batch<ParallelPolicy::Serial>([](auto&&){}) };
+		{ c.template for_each_topology_batch<ParallelPolicy::Serial>([](auto&&){}) };
+	};
+
+
+	template<typename C>
+	concept IsContainer =
+		requires {
+			typename C::Config;
+			typename C::ExecutionConfig;
+			typename C::ParticleAttributes;
+		}
+		&& HasContainerOps<C> // has implemented minimal interface
+		&& std::derived_from<C, // is derived from container base class
+			Container<ContainerBuildConfig<typename C::Config, typename C::ExecutionConfig, typename C::ParticleAttributes>>
+		>;
+
+
+	template<typename ContainerDecl, typename Traits, typename ExecCfg>
+	concept IsContainerDecl =
+		core::internal::IsEnvironmentTraits<Traits> &&
+		exec::IsExecutionConfig<ExecCfg> &&
+		requires { // check if ContainerDecl has an impl member that is template-able on a build configuration
+			typename ContainerBuildConfig<ContainerDecl, ExecCfg, typename Traits::particle_attributes_t>;
+
+			typename ContainerDecl::template impl<
+				ContainerBuildConfig<ContainerDecl, ExecCfg, typename Traits::particle_attributes_t>
+			>;
+		} &&
+		IsContainer< // and has represents a valid container
+			typename ContainerDecl::template impl<
+				ContainerBuildConfig<ContainerDecl, ExecCfg, typename Traits::particle_attributes_t>
+			>
+		>;
 } // namespace april::container
 
-
+#include "april/containers/internal/container_impl.hpp"

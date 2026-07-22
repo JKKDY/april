@@ -23,8 +23,8 @@
 // Containers & Layouts
 #include "april/containers/linked_cells.hpp"
 #include "april/containers/direct_sum.hpp"
-#include "april/containers/layout.hpp"
-#include "april/containers/cell_orderings.hpp"
+#include "april/containers/layout/layout.hpp"
+#include "containers/linked_cells/cell_orderings.hpp"
 
 // Integration
 #include "april/integrators/velocity_verlet.hpp"

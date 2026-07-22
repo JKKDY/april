@@ -75,7 +75,7 @@ namespace april::monitor {
 	};
 
 
-	template <class M> concept IsMonitor = std::derived_from<M, Monitor>;
+	template <class M> concept IsMonitor = std::derived_from<std::remove_cvref_t<M>, Monitor>;
 
 	namespace internal {
 		template<IsMonitor... Ms> struct MonitorPack {};

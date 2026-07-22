@@ -2,11 +2,9 @@
 
 #include <concepts>
 
-#include "april/exec/threading/executor.hpp"
 #include "april/exec/policy.hpp"
+#include "april/exec/threading/executor_config.hpp"
 #include "april/exec/threading/executor_concepts.hpp"
-
-
 
 
 

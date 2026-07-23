@@ -169,7 +169,7 @@ TYPED_TEST(LinkedCellsTest, TwoParticles_IdSpecificForce) {
 	e.add_particle(make_particle(0, {0,1,0}, {}, 1, ParticleState::ALIVE, 99));
 	e.add_interaction(NoForce(), to_type(0));
 	e.add_interaction(ConstantForce(-1,2,-3), between_ids(42, 99));
-	e.domain_padding(2);
+	e.set_domain_padding(2);
 
 	auto sys = build_system(e, TypeParam::create_container(), TypeParam::create_exec());
 	sys.update_forces();

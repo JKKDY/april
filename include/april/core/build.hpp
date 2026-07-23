@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vector>
 #include <unordered_map>
 #include <utility>
 
@@ -100,7 +99,7 @@ namespace april {
         auto container = typename ContainerConfig::Container(container_build_config);
 
         // build system
-        SystemConfig<typename ContainerConfig::Container, typename Env::traits, ExecCfg> system_config{
+        SystemBuildConfig<typename ContainerConfig::Container, typename Env::traits, ExecCfg> system_config{
             .container = std::move(container),
             .execution_config = execution_config,
             .particles = std::move(particles),

@@ -1,10 +1,13 @@
 /**
- * @file environment.hpp
- * @brief User-facing staging area for simulation configuration.
+* @file environment.hpp
+ * @brief Defines APRIL's declarative simulation-configuration interface.
  *
- * An Environment collects particles, interactions, fields, boundaries,
- * controllers, and domain information before they are materialized into
- * a simulation-ready System by build_system(...).
+ * Environment collects particles, interactions, boundaries, controllers,
+ * fields, particle attributes, and domain settings before runtime resources
+ * are created. It acts as a staging area.
+ *
+ * An Environment does not own a running simulation. Its contents are validated
+ * and materialized into a System by build_system().
  */
 
 #pragma once
@@ -33,56 +36,125 @@
 
 namespace april {
 
-    // scoping markers for interactions
-    /// @brief Target a single particle type for self-interaction.
+    /**
+     * @brief Selects interactions within one particle type.
+     *
+     * When passed to Environment::add_interaction(), the force is registered for
+     * pairs in which both particles have `type`.
+     */
     struct to_type {
-        ParticleType type;
-        constexpr explicit to_type(ParticleType t) noexcept : type(t) {}
-    };
-
-    /// @brief Target interactions between two particle types.
-    struct between_types {
-        ParticleType t1, t2;
-        constexpr between_types(ParticleType a, ParticleType b) noexcept : t1(a), t2(b) {}
-    };
-
-    /// @brief Target interactions between two specific particles.
-    struct between_ids {
-        ParticleID id1, id2;
-        constexpr between_ids(ParticleID a, ParticleID b) noexcept : id1(a), id2(b) {}
+        ParticleType type;  /// Particle type participating in the self-interaction.
+        constexpr explicit to_type(const ParticleType type) noexcept
+            : type(type) {}
     };
 
     /**
-      * @brief Declarative staging object for simulation setup.
+     * @brief Selects interactions between two particle types.
+     *
+     * The ordering of `t1` and `t2` does not define an interaction direction unless
+     * the configured force explicitly has directional semantics.
+     */
+    struct between_types {
+        ParticleType t1;
+        ParticleType t2;
+
+        constexpr between_types(const ParticleType first, const ParticleType second) noexcept
+            : t1(first),
+              t2(second)
+        {}
+    };
+
+    /**
+     * @brief Selects an interaction between two persistent particle identifiers.
+     *
+     * ID-scoped interactions are commonly used for bonds and other topology-based
+     * relationships.
+     */
+    struct between_ids {
+        ParticleID id1;
+        ParticleID id2;
+
+        constexpr between_ids(const ParticleID first, const ParticleID second) noexcept
+            : id1(first),
+              id2(second)
+        {}
+    };
+
+
+    /**
+      * @brief Collects a declarative APRIL simulation definition.
       *
-      * Environment stores the particles, interactions, fields, boundaries,
-      * controllers, and domain description that are later materialized into a
-      * simulation-ready System by build_system(...).
+      * Environment stores initial particles, interaction instances, boundary
+      * conditions, controllers, fields, particle attributes, and domain settings.
+      * Calling build_system() validates and transforms this definition into the
+      * concrete resources owned by a running System.
       *
-      * @tparam FPack Forces pack: the set of force types supported by this environment.
-      * @tparam BPack Boundaries pack: the set of boundary types supported by this environment.
-      * @tparam CPack Controllers pack: the set of controller types supported by this environment.
-      * @tparam FFPack Global Fields pack: the set of force field types supported by this environment.
-      * @tparam ParticleData User-defined particle attributes.
+      * The component packs specify which concrete component types may be added.
+      * They do not themselves add component instances to the environment.
+      *
+      * @tparam FPack Force types accepted by add_interaction().
+      * @tparam BPack Boundary types accepted by set_boundary() and set_boundaries().
+      * @tparam CPack Controller types accepted by add_controller().
+      * @tparam FFPack Field types accepted by add_field().
+      * @tparam ParticleAttributes User-defined per-particle attribute definition.
       */
     template<
         interactions::internal::IsForcePack FPack,
         boundary::internal::IsBoundaryPack BPack,
         controller::internal::IsControllerPack CPack,
         field::internal::IsFieldPack FFPack,
-        particle::IsParticleAttributes ParticleData>
+        particle::IsParticleAttributes ParticleAttributes>
     class Environment {
     public:
-        using traits = core::internal::EnvironmentTraits<FPack, BPack, CPack, FFPack, ParticleData>;
-
-        explicit Environment(FPack, BPack, CPack, FFPack, ParticleData) {}
-        Environment() : Environment(forces<>, boundaries<>, controllers<>, fields<>, NoParticleAttributes{}) {}
+        using traits = core::internal::EnvironmentTraits<
+            FPack,
+            BPack,
+            CPack,
+            FFPack,
+            ParticleAttributes
+        >;
 
         /**
-         * @brief Deduce Environment template parameters from component type packs.
+         * @brief Constructs an empty environment with the specified component packs.
          *
-         * Enables:
-         * auto env = Environment(forces<LennardJones>, boundaries<ReflectiveBoundary>);
+         * The constructor arguments are type markers used to select the environment's
+         * supported component and particle-attribute types. Their values are not
+         * retained.
+         */
+        explicit Environment(
+            FPack,
+            BPack,
+            CPack,
+            FFPack,
+            ParticleAttributes
+        ) {}
+
+        /// Constructs an empty environment with no custom component types or attributes.
+        Environment()
+            : Environment(
+                forces<>,
+                boundaries<>,
+                controllers<>,
+                fields<>,
+                NoParticleAttributes{}
+            )
+        {}
+
+        /**
+         * @brief Constructs an empty environment and deduces its supported types.
+         *
+         * @code
+         * auto environment = Environment(
+         *     forces<LennardJones>,
+         *     boundaries<ReflectiveBoundary>
+         * );
+         * @endcode
+         *
+         * Constructor arguments must be APRIL component packs or a particle-attribute
+         * definition. Missing pack categories are replaced by empty packs.
+         *
+         * @tparam Args Component-pack and particle-attribute marker types.
+         * @param args Type-selection markers. Their runtime values are not retained.
          */
         template<class... Args>
         requires (core::internal::is_any_pack_v<std::remove_cvref_t<Args>> && ...) &&
@@ -105,28 +177,49 @@ namespace april {
         //--------------
         // ADD PARTICLES
         //--------------
-        /// @brief Add a single particle to the environment.
+        /**
+         * @brief Adds one particle to the environment.
+         *
+         * A user-specified identifier must be unique among all particles already
+         * present in the environment. Particles without identifiers receive IDs during
+         * the system build process.
+         *
+         * @param particle Particle definition to add.
+         *
+         * @throws std::invalid_argument If `particle.id` is present and already used.
+         */
         void add_particle(const Particle& particle) {
             if (particle.id.has_value() && data.user_particle_ids.contains(particle.id.value())) {
                 throw std::invalid_argument("specified id is not unique");
             }
             data.particles.push_back(particle);
 
-            // register particle type and id (if available)
             data.user_particle_types.insert(particle.type);
             if (particle.id.has_value()) {
                 data.user_particle_ids.insert(particle.id.value());
             }
         }
 
-        /// @brief Construct and add a particle from raw scalars.
+        /**
+         * @brief Constructs and adds one active particle.
+         *
+         * @param position Initial particle position.
+         * @param velocity Initial particle velocity.
+         * @param mass Initial particle mass.
+         * @param type Particle type identifier.
+         * @param id Optional persistent particle identifier.
+         * @param user_data Optional type-erased user data consumed while building the
+         * configured particle attributes.
+         *
+         * @throws std::invalid_argument If `id` is present and already used.
+         */
         void add_particle(
             const vec3& position,
             const vec3& velocity,
             const double mass,
             const ParticleType type = 0,
             const std::optional<ParticleID> id = {},
-            const std::any& user_data = {}
+            std::any user_data = {}
         ) {
             Particle p;
             p.id = id;
@@ -139,15 +232,36 @@ namespace april {
             add_particle(p);
         }
 
-        /// @brief Add a collection of particles.
+        /**
+         * @brief Adds a collection of particle definitions.
+         *
+         * Particles are validated and inserted in input order.
+         *
+         * @param particles Particle definitions to add.
+         *
+         * @throws std::invalid_argument If any explicitly specified identifier is
+         * duplicated.
+         *
+         * @note If insertion fails partway through, particles inserted before the
+         * failing particle remain in the environment.
+         */
         void add_particles(const std::vector<Particle>& particles) {
             this->data.particles.reserve(this->data.particles.size() + particles.size());
-            for (auto & p : particles)  add_particle(p);
+            for (const auto& particle : particles)
+                add_particle(particle);
         }
 
-        /// @brief Add particles generated by a primitive (e.g., Cuboid, Sphere).
-        template<IsParticleGenerator T>
-        void add_particles(const T& generator) {
+        /**
+         * @brief Generates and adds particles from a particle generator.
+         *
+         * @tparam G Particle-generator type.
+         * @param generator Generator whose output is added to the environment.
+         *
+         * @throws std::invalid_argument If generated particles contain duplicate
+         * explicitly specified identifiers.
+         */
+        template<IsParticleGenerator G>
+        void add_particles(const G& generator) {
             add_particles(generator.to_particles());
         }
 
@@ -155,19 +269,41 @@ namespace april {
         //-----------------
         // ADD INTERACTIONS
         //-----------------
-        /// @brief Define self-interaction for a specific particle type.
-        template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
-        void add_interaction(F force, to_type scope) {
+        /**
+         * @brief Registers a force for pairs of one particle type.
+         *
+         * @tparam F Force type declared in this environment's force pack.
+         * @param force Force instance to store.
+         * @param scope Particle type to which the self-interaction applies.
+         */
+        template<interactions::IsForce F>
+        requires traits::template is_valid_force_v<F>
+        void add_interaction(F && force, to_type scope) {
             data.type_interactions.emplace_back(scope.type, scope.type, typename traits::force_variant_t{std::move(force)});
         }
 
-        /// @brief Define interaction between two distinct particle types.
+        /**
+         * @brief Registers a force between two particle types.
+         *
+         * @tparam F Force type declared in this environment's force pack.
+         * @param force Force instance to store.
+         * @param scope Pair of particle types to which the force applies.
+         */
         template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
         void add_interaction(F force, between_types scope) {
             data.type_interactions.emplace_back(scope.t1, scope.t2, typename traits::force_variant_t{std::move(force)});
         }
 
-        /// @brief Define interaction between two specific particle IDs (Bonds).
+        /**
+         * @brief Registers a force between two specific particles.
+         *
+         * ID-scoped interactions are stored as topology interactions and remain tied to
+         * persistent identifiers rather than physical particle indices.
+         *
+         * @tparam F Force type declared in this environment's force pack.
+         * @param force Force instance to store.
+         * @param scope Persistent particle identifiers defining the interaction.
+         */
         template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
         void add_interaction(F force, between_ids scope) {
             data.id_interactions.emplace_back(scope.id1, scope.id2, typename traits::force_variant_t{std::move(force)});
@@ -177,13 +313,31 @@ namespace april {
         //---------------
         // ADD BOUNDARIES
         //---------------
-        /// @brief Apply a boundary condition to a specific face of the domain.
+        /**
+         * @brief Sets the boundary condition for one domain face.
+         *
+         * Replaces any boundary condition currently assigned to the selected face.
+         *
+         * @tparam B Boundary type declared in this environment's boundary pack.
+         * @param boundary Boundary instance to store.
+         * @param face Domain face to configure.
+         */
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
         void set_boundary(B boundary, const DomainFace face) {
             data.boundaries[boundary::face_to_int(face)].template emplace<B>(std::move(boundary));
         }
 
-        /// @brief Apply a boundary condition to multiple faces simultaneously.
+        /**
+         * @brief Sets the same boundary condition on multiple domain faces.
+         *
+         * A copy of `boundary` is stored for each selected face. Any existing boundary
+         * on those faces is replaced.
+         *
+         * @tparam B Copy-constructible boundary type declared in this environment's
+         * boundary pack.
+         * @param boundary Boundary instance copied to each face.
+         * @param faces Domain faces to configure.
+         */
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
         void set_boundaries(B boundary, const std::vector<DomainFace> & faces) {
             for (const DomainFace face : faces) {
@@ -191,7 +345,14 @@ namespace april {
             }
         }
 
-        /// @brief Apply per-face boundaries from an array. Order is -X, +X, -Y, +Y, -Z, +Z
+        /**
+         * @brief Sets one boundary condition for each domain face.
+         *
+         * Array order is `-X`, `+X`, `-Y`, `+Y`, `-Z`, `+Z`.
+         *
+         * @tparam B Boundary type declared in this environment's boundary pack.
+         * @param boundaries Boundary instances indexed in domain-face order.
+         */
         template<boundary::IsBoundary B> requires traits::template is_valid_boundary_v<B>
         void set_boundaries(const std::array<B, 6> & boundaries) {
             for (const DomainFace face : all_faces) {
@@ -203,14 +364,26 @@ namespace april {
         //----------------
         // ADD CONTROLLERS
         //----------------
-        /// @brief Add a controller (e.g., Thermostat) to the system.
-        template<controller::IsController C> requires traits::template is_valid_controller_v<std::remove_cvref_t<C>>
+        /**
+         * @brief Adds a controller instance.
+         *
+         * @tparam C Controller type declared in this environment's controller pack.
+         * @param controller Controller instance to store.
+         */
+        template<controller::IsController C>
+        requires traits::template is_valid_controller_v<std::remove_cvref_t<C>>
         void add_controller(C && controller) {
-            data.controllers.add(controller);
+            data.controllers.add(std::forward<C>(controller));
         }
 
-        /// @brief Add multiple controllers
+        /**
+         * @brief Adds multiple controller instances.
+         *
+         * @tparam C Controller types declared in this environment's controller pack.
+         * @param controllers Controller instances to store, in argument order.
+         */
         template<controller::IsController... C>
+        requires (traits::template is_valid_controller_v<std::remove_cvref_t<C>> && ...)
         void add_controllers(C&&... controllers) {
             (data.controllers.add(std::forward<C>(controllers)), ...);
         }
@@ -220,14 +393,26 @@ namespace april {
         //-----------
         // ADD FIELDS
         //-----------
-        /// @brief Add a global force field (e.g., Uniform Gravity).
-        template<field::IsField F>  requires traits::template is_valid_field_v<std::remove_cvref_t<F>>
+        /**
+         * @brief Adds a global field instance.
+         *
+         * @tparam F Field type declared in this environment's field pack.
+         * @param field Field instance to store.
+         */
+        template<field::IsField F>
+        requires traits::template is_valid_field_v<std::remove_cvref_t<F>>
         void add_field(F && field) {
-            data.fields.add(field);
+            data.fields.add(std::forward<F>(field));
         }
 
-        /// @brief Add multiple fields
+        /**
+         * @brief Adds multiple field instances.
+         *
+         * @tparam F Field types declared in this environment's field pack.
+         * @param fields Field instances to store, in argument order.
+         */
         template<field::IsField... F>
+        requires (traits::template is_valid_field_v<std::remove_cvref_t<F>> && ...)
         void add_fields(F&&... fields) {
             (data.fields.add(std::forward<F>(fields)), ...);
         }
@@ -236,7 +421,11 @@ namespace april {
         //-----------
         // SET DOMAIN
         //-----------
-        /// @brief Set the coordinate of the minimum corner.
+        /**
+         * @brief Sets the minimum corner of the simulation domain.
+         *
+         * @param origin Coordinates of the domain's minimum corner.
+         */
         void set_origin(const vec3d& origin) {
             this->data.domain.origin = origin;
         }
@@ -245,7 +434,13 @@ namespace april {
             set_origin({x,y,z});
         }
 
-        /// @brief Set the dimensions of the simulation box.
+        /**
+         * @brief Sets the dimensions of the simulation domain.
+         *
+         * @param extent Domain width along each coordinate axis.
+         *
+         * @pre Every component of `extent` must be non-negative.
+         */
         void set_extent(const vec3d& extent) {
             this->data.domain.extent = extent;
         }
@@ -254,41 +449,73 @@ namespace april {
             set_extent({x,y,z});
         }
 
-        /// @brief Set the full domain geometry.
+        /**
+         * @brief Replaces the complete simulation-domain definition.
+         *
+         * @param domain Domain geometry to store.
+         */
         void set_domain(const Domain& domain) {
             data.domain = domain;
         }
 
         /**
-         * @brief Define a fixed minimum distance between the particles and the domain boundaries.
-         * @details During the build phase, the domain will be at least the particle AABB
-         * expanded by this absolute value in all directions.
+         * @brief Sets absolute padding used when deriving a domain from the particles.
+         *
+         * During build, the particle bounding box is expanded by the specified amount
+         * on each side of each axis.
+         *
+         * @param padding Absolute per-axis padding.
          */
-        void domain_padding(const vec3d& margin_abs) {
-            data.margin_abs = margin_abs;
+        void set_domain_padding(const vec3d& padding) {
+            data.margin_abs = padding;
         }
-        void domain_padding(const double margin_abs) {
-            data.margin_abs = vec3d{margin_abs};
+        /// Sets the same absolute domain padding on every axis.
+        void set_domain_padding(const double padding) {
+            data.margin_abs = vec3d{padding};
         }
 
         /**
-         * @brief Define a relative margin based on the current particle distribution size.
-         * @details For example, a factor of 0.5 adds 50% of the particle distribution's
-         * width as padding to each side.
-         * @note If both margin_abs and margin_fac are set, the larger of the two is used per axis.
+         * @brief Sets relative padding used when deriving the domain from particles.
+         *
+         * Each component is multiplied by the corresponding extent of the particle
+         * bounding box and added to both sides of that axis.
+         *
+         * For example, a factor of `0.5` adds half of the particle extent to each side,
+         * producing a final domain extent equal to twice the particle extent.
+         *
+         * When both absolute and relative padding are configured, the larger resulting
+         * padding is selected independently for each axis.
+         *
+         * @param factor Relative per-axis padding factor.
          */
-        void domain_padding_factor(const vec3d& margin_fac) {
-            data.margin_fac = margin_fac;
+        void set_domain_padding_factor(const vec3d& factor) {
+            data.margin_fac = factor;
+        }
+        /// Sets the same relative domain-padding factor on every axis.
+        void set_domain_padding_factor(const double factor) {
+            set_domain_padding_factor(vec3d{factor});
         }
 
-        void domain_padding_factor(const double margin_fac) {
-            domain_padding_factor(vec3d{margin_fac});
-        }
 
+        // ------------------
+        // CHAINING INTERFACE
+        // ------------------
+        //
+        // The with_* functions are value-category-preserving wrappers around the
+        // corresponding add_*, set_*, and domain-configuration functions.
 
-        //-------------------
-        // DSL-STYLE CHAINING
-        //-------------------
+        /**
+         * @name Chaining interface
+         *
+         * Value-category-preserving alternatives to the corresponding mutating
+         * operations. Each function applies the requested change and returns the same
+         * Environment object, allowing configuration calls to be chained.
+         *
+         * @warning A reference returned from chaining on a temporary must not be stored
+         * beyond the full expression.
+         *
+         * @{
+         */
         auto&& with_particle(this auto&& self, const Particle& p) {
             self.add_particle(p);
             return std::forward<decltype(self)>(self);
@@ -368,19 +595,21 @@ namespace april {
         }
 
         template<controller::IsController... C>
+        requires (traits::template is_valid_controller_v<std::remove_cvref_t<C>> && ...)
         auto&& with_controllers(this auto&& self, C&&... controllers) {
             self.add_controllers(std::forward<C>(controllers)...);
             return std::forward<decltype(self)>(self);
         }
 
         template<field::IsField F>
-            requires traits::template is_valid_field_v<std::remove_cvref_t<F>>
+        requires traits::template is_valid_field_v<std::remove_cvref_t<F>>
         auto&& with_field(this auto&& self, F&& field) {
             self.add_field(std::forward<F>(field));
             return std::forward<decltype(self)>(self);
         }
 
         template<field::IsField... F>
+        requires (traits::template is_valid_field_v<std::remove_cvref_t<F>> && ...)
         auto&& with_fields(this auto&& self, F&&... fields) {
             self.add_fields(std::forward<F>(fields)...);
             return std::forward<decltype(self)>(self);
@@ -412,24 +641,26 @@ namespace april {
         }
 
         auto&& with_domain_padding(this auto&& self, double margin) {
-            self.domain_padding(margin);
+            self.set_domain_padding(margin);
             return std::forward<decltype(self)>(self);
         }
 
         auto&& with_domain_padding(this auto&& self, const vec3& margin) {
-            self.domain_padding(margin);
+            self.set_domain_padding(margin);
             return std::forward<decltype(self)>(self);
         }
 
         auto&& with_domain_padding_factor(this auto&& self, double factor) {
-            self.domain_padding_factor(factor);
+            self.set_domain_padding_factor(factor);
             return std::forward<decltype(self)>(self);
         }
 
         auto&& with_domain_padding_factor(this auto&& self, const vec3& factor) {
-            self.domain_padding_factor(factor);
+            self.set_domain_padding_factor(factor);
             return std::forward<decltype(self)>(self);
         }
+
+        /** @} */
     };
 
 
@@ -453,16 +684,30 @@ namespace april {
             template<typename T>
             inline constexpr bool is_environment_v = false;
 
+
+            // Recognize concrete Environment specializations.
             template<
                 interactions::internal::IsForcePack FPack,
                 boundary::internal::IsBoundaryPack BPack,
                 controller::internal::IsControllerPack CPack,
                 field::internal::IsFieldPack FFPack,
-                particle::IsParticleAttributes ParticleData
-            >
-            inline constexpr bool is_environment_v<Environment<FPack, BPack, CPack, FFPack, ParticleData>> = true;
+                particle::IsParticleAttributes ParticleAttributes>
+            inline constexpr bool is_environment_v<
+                Environment<
+                    FPack,
+                    BPack,
+                    CPack,
+                    FFPack,
+                    ParticleAttributes
+                >
+            > = true;
         }
 
+        /**
+         * @brief Identifies concrete APRIL Environment types.
+         *
+         * @tparam T Type to test.
+         */
         template<typename T>
         concept IsEnvironment = internal::is_environment_v<std::remove_cvref_t<T>>;
     }

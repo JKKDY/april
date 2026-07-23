@@ -136,7 +136,7 @@ TEST(EnvTest, OnlyOriginSymmetricExtent) {
     // Only origin given
     e.set_origin({0,0,0});
     e.add_interaction(NoForce(), to_type(0));
-    e.domain_padding(1);
+    e.set_domain_padding(1);
 
     const auto sys = build_system(e, container::DirectSumAoS());
 
@@ -152,7 +152,7 @@ TEST(EnvTest, DomainPaddingFactorAddsRelativePaddingPerSide) {
     e.add_particle(make_particle(0, {3,4,5}, {}, 1, ParticleState::ALIVE));
 
     e.add_interaction(NoForce(), to_type(0));
-    e.domain_padding_factor(2);
+    e.set_domain_padding_factor(2);
 
     // Neither origin nor extent set.
     const auto sys = build_system(e, container::DirectSumAoS());
@@ -326,7 +326,7 @@ TEST(EnvTest, AbsoluteMarginExpansion) {
     e.add_interaction(NoForce(), to_type(0));
 
     // Uses your API: auto_domain(double) sets absolute margin
-    e.domain_padding(1.0);
+    e.set_domain_padding(1.0);
 
     const auto sys = build_system(e, container::DirectSumAoS());
 
@@ -341,7 +341,7 @@ TEST(EnvTest, ZeroExtentThrows) {
     e.add_interaction(NoForce(), to_type(0));
 
     // Use chaining to set both to zero
-    e.with_domain_padding(0.0).domain_padding_factor(vec3(0,0,0));
+    e.with_domain_padding(0.0).set_domain_padding_factor(vec3(0,0,0));
 
     EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::logic_error);
 }
@@ -352,7 +352,7 @@ TEST(EnvTest, NegativeMarginsThrow) {
     e.add_interaction(NoForce(), to_type(0));
 
     // Passing negative to the vec3 overload
-    e.domain_padding(vec3(-1, 0, 0));
+    e.set_domain_padding(vec3(-1, 0, 0));
     EXPECT_THROW(build_system(e, container::DirectSumAoS()), std::logic_error);
 }
 
@@ -365,8 +365,8 @@ TEST(EnvTest, MarginPriorityMax) {
 
     // Factor 0.1 of 10 = 1.0
     // Absolute margin = 5.0
-    e.domain_padding_factor(vec3(0.1, 0.1, 0.1));
-    e.domain_padding(5.0);
+    e.set_domain_padding_factor(vec3(0.1, 0.1, 0.1));
+    e.set_domain_padding(5.0);
 
     const auto sys = build_system(e, container::DirectSumAoS());
 

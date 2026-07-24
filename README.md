@@ -197,7 +197,7 @@ APRIL is organized into distinct component categories:
   *Built-ins*: Velocity scaling thermostat.
 
 * **Monitors**: Non-intrusive observers used for output or diagnostics.
-  *Built-ins*: Binary snapshots, benchmarking, progress bar.
+  *Built-ins*: Binary snapshots, benchmarking, progress bar, XYZ output.
 
 * **Executors**: Shared-memory execution backends.
   *Built-ins*: Sequential, OpenMP, native threading executors.

@@ -59,6 +59,7 @@ add_executable(test_april
         forces/simd_forces_test.cpp
 
         utility/graph_test.cpp
+        utility/xml_test.cpp
 )
 
 target_include_directories(test_april PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common)

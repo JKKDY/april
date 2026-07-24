@@ -15,7 +15,8 @@ namespace april {
 		template<class S>
 		void record(const core::SystemContext<S> & sys) const {
 			constexpr size_t bar_width = 50;
-			const float progress = static_cast<float>(sys.step() + 1) / static_cast<float>(num_steps);
+			const auto completed_steps = sys.step() - start_step;
+			const double progress =static_cast<double>(completed_steps) / static_cast<double>(num_steps);
 			const auto pos = static_cast<size_t>(bar_width * progress);
 
 			std::cout << "\r[";

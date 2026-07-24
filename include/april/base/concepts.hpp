@@ -8,7 +8,6 @@ namespace april {
 
     template <typename T>
     concept IsScalar =  std::floating_point<T> || std::integral<T>;
-
 }
 
 

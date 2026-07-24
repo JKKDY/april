@@ -42,13 +42,14 @@ namespace april::integrator {
 		requires same_as_any<T, TMonitors...>
 		auto&& with_monitor(this auto&& self, T monitor) {
 			self.add_monitor(std::move(monitor));
-			return self;
+			return std::forward<decltype(self)>(self);
 		}
 
 		template<typename... Ts>
+		requires (same_as_any<Ts, TMonitors...> && ...)
 		auto&& with_monitors(this auto&& self, Ts&&... ms) {
 			(self.add_monitor(std::forward<Ts>(ms)), ...);
-			return self;
+			return std::forward<decltype(self)>(self);
 		}
 
 		void clear_monitors() {
@@ -109,9 +110,11 @@ namespace april::integrator {
 			for (self.step = 0; self.step < self.num_steps; ++self.step) {
 				self.dispatch_monitor_preparation();
 				self.integration_step();
-				self.dispatch_monitor_recording();
+
 				self.sys.update_time(self.dt);
 				self.sys.increment_step();
+
+				self.dispatch_monitor_recording();
 			}
 
 			self.finalize_monitors();
@@ -147,7 +150,12 @@ namespace april::integrator {
 		utility::internal::PackStorage<TMonitors...> monitors;
 
 		void init_monitors() {
-			monitors.for_each_item([&](auto& mon){mon.init(dt, sys.time(), duration, num_steps); } );
+			const double start_time = sys.time();
+			const double end_time = start_time + duration;
+
+			monitors.for_each_item([&](auto& monitor) {
+				monitor.init(dt, start_time, end_time, sys.step(), num_steps);
+			});
 		}
 
 		void dispatch_initialize_monitors() {

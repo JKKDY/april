@@ -7,8 +7,22 @@
 namespace april::utility::internal {
 
 
+	template<typename... Ts>
+	inline constexpr bool unique_types_v = true;
+
+	template<typename T, typename... Ts>
+	inline constexpr bool unique_types_v<T, Ts...> =
+		(!same_as_any<T, Ts...>) &&
+		unique_types_v<Ts...>;
+
+
+
 	template<class... Ts>
 	class PackStorage {
+		static_assert(
+			unique_types_v<Ts...>,
+			"PackStorage component types must be unique."
+		);
 	public:
 		PackStorage() = default;
 
@@ -32,6 +46,16 @@ namespace april::utility::internal {
 			std::apply(
 				[&](auto&... list) {
 					(f(list), ...);
+				},
+				components
+			);
+		}
+
+		template<typename Func>
+		void for_each_list(Func&& function) const {
+			std::apply(
+				[&](const auto&... lists) {
+					(function(lists), ...);
 				},
 				components
 			);

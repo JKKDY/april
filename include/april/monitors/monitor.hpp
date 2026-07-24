@@ -27,10 +27,17 @@ namespace april::monitor {
 		}
 
 		// Called once at the start to set integration parameters
-		void init(const double delta_t, const double start_t, const double end_t, const size_t steps) {
+		void init(
+			const double delta_t,
+			const double start_t,
+			const double end_t,
+			const size_t initial_step,
+			const size_t steps
+		) {
 			dt = delta_t;
 			start_time = start_t;
 			end_time = end_t;
+			start_step = initial_step;
 			num_steps = steps;
 		}
 
@@ -70,6 +77,7 @@ namespace april::monitor {
 		double dt{};
 		double start_time{};
 		double end_time{};
+		size_t start_step{};
 		size_t num_steps{};
 		Trigger trigger;
 	};

@@ -14,6 +14,7 @@ add_executable(test_april
         test_april.cpp
         monitors/output_test.cpp
         monitors/xyz_test.cpp
+        monitors/vtp_test.cpp
 
         core/system_test.cpp
         core/regression_test.cpp

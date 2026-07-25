@@ -2,7 +2,6 @@
 #include <gmock/gmock.h>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
 #include <string>
 #include <vector>
 #include <type_traits>

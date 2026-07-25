@@ -73,19 +73,11 @@ namespace april {
 
 
 		template<class S>
-		void record(const core::SystemContext<S> & sys) {
+	void record(const core::SystemContext<S> & sys) {
 			const std::size_t particle_count = sys.size();
+			const std::filesystem::path relative_path =
+				make_frame_file_name(sys.step());
 
-			std::ostringstream file_name;
-			file_name
-				<< base_name
-				<< '_'
-				<< std::setfill('0')
-				<< std::setw(5)
-				<< sys.step()
-				<< ".vtp";
-
-			const std::filesystem::path relative_path = file_name.str();
 			const std::filesystem::path frame_path =
 				output_directory /
 				relative_path;
@@ -109,194 +101,11 @@ namespace april {
 
 			utility::XMLWriter xml(output);
 
-			xml.declaration();
-
-			xml.open(
-				"VTKFile",
-				utility::attribute("type", "PolyData"),
-				utility::attribute("version", "0.1"),
-				utility::attribute("byte_order", "LittleEndian")
-			);
-
-			xml.open("PolyData");
-
-			xml.open(
-				"Piece",
-				utility::attribute("NumberOfPoints", particle_count),
-				utility::attribute("NumberOfVerts", particle_count),
-				utility::attribute("NumberOfLines", 0),
-				utility::attribute("NumberOfStrips", 0),
-				utility::attribute("NumberOfPolys", 0)
-			);
-
-
-			// Particle fields
-			xml.open("PointData");
-
-			if constexpr (
-				particle::internal::has_field_v<
-					Fields,
-					ParticleField::velocity
-				>
-			) {
-				xml.open(
-					"DataArray",
-					utility::attribute("type", "Float64"),
-					utility::attribute("Name", "velocity"),
-					utility::attribute("NumberOfComponents", 3),
-					utility::attribute("format", "ascii")
-				);
-
-				sys.for_each_particle_view(scalar_kernel<fields>(
-					[&](const auto & p) {
-						output
-							<< p.velocity.x << ' '
-							<< p.velocity.y << ' '
-							<< p.velocity.z << '\n';
-					}
-				));
-
-				xml.close("DataArray");
-			}
-
-			if constexpr (
-				particle::internal::has_field_v<
-					Fields,
-					ParticleField::force
-				>
-			) {
-				xml.open(
-					"DataArray",
-					utility::attribute("type", "Float64"),
-					utility::attribute("Name", "force"),
-					utility::attribute("NumberOfComponents", 3),
-					utility::attribute("format", "ascii")
-				);
-
-				sys.for_each_particle_view(scalar_kernel<fields>(
-					[&](const auto & p) {
-						output
-							<< p.force.x << ' '
-							<< p.force.y << ' '
-							<< p.force.z << '\n';
-					}
-				));
-
-				xml.close("DataArray");
-			}
-
-			if constexpr (
-				particle::internal::has_field_v<
-					Fields,
-					ParticleField::type
-				>
-			) {
-				xml.open(
-					"DataArray",
-					utility::attribute("type", "UInt32"),
-					utility::attribute("Name", "type"),
-					utility::attribute("format", "ascii")
-				);
-
-				sys.for_each_particle_view(scalar_kernel<fields>(
-					[&](const auto & p) {
-						output
-							<< static_cast<std::uint32_t>(p.type)
-							<< '\n';
-					}
-				));
-
-				xml.close("DataArray");
-			}
-
-			if constexpr (
-				particle::internal::has_field_v<
-					Fields,
-					ParticleField::id
-				>
-			) {
-				xml.open(
-					"DataArray",
-					utility::attribute("type", "UInt32"),
-					utility::attribute("Name", "id"),
-					utility::attribute("format", "ascii")
-				);
-
-				sys.for_each_particle_view(scalar_kernel<fields>(
-					[&](const auto & p) {
-						output
-							<< static_cast<std::uint32_t>(p.id)
-							<< '\n';
-					}
-				));
-
-				xml.close("DataArray");
-			}
-
-			xml.close("PointData");
-
-
-			// Particle positions
-			xml.open("Points");
-
-			xml.open(
-				"DataArray",
-				utility::attribute("type", "Float64"),
-				utility::attribute("NumberOfComponents", 3),
-				utility::attribute("format", "ascii")
-			);
-
-			sys.for_each_particle_view(scalar_kernel<fields>(
-				[&](const auto & p) {
-					output
-						<< p.position.x << ' '
-						<< p.position.y << ' '
-						<< p.position.z << '\n';
-				}
-			));
-
-			xml.close("DataArray");
-			xml.close("Points");
-
-
-			// One vertex cell per particle
-			xml.open("Verts");
-
-			xml.open(
-				"DataArray",
-				utility::attribute("type", "Int64"),
-				utility::attribute("Name", "connectivity"),
-				utility::attribute("format", "ascii")
-			);
-
-			for (std::size_t i = 0; i < particle_count; i++) {
-				output
-					<< static_cast<std::int64_t>(i)
-					<< '\n';
-			}
-
-			xml.close("DataArray");
-
-			xml.open(
-				"DataArray",
-				utility::attribute("type", "Int64"),
-				utility::attribute("Name", "offsets"),
-				utility::attribute("format", "ascii")
-			);
-
-			for (std::size_t i = 0; i < particle_count; i++) {
-				output
-					<< static_cast<std::int64_t>(i + 1)
-					<< '\n';
-			}
-
-			xml.close("DataArray");
-			xml.close("Verts");
-
-
-			xml.close("Piece");
-			xml.close("PolyData");
-			xml.close("VTKFile");
+			write_preamble(xml, particle_count);
+			write_point_data(sys, xml, output);
+			write_points(sys, xml, output);
+			write_vertices(xml, output, particle_count);
+			write_postamble(xml);
 
 			output.flush();
 
@@ -377,6 +186,222 @@ namespace april {
 		std::filesystem::path collection_path;
 		std::string base_name;
 		std::vector<Frame> frames;
+
+
+		[[nodiscard]] std::filesystem::path make_frame_file_name(const std::size_t step) const {
+			std::ostringstream file_name;
+
+			file_name
+				<< base_name
+				<< '_'
+				<< std::setfill('0')
+				<< std::setw(5)
+				<< step
+				<< ".vtp";
+
+			return file_name.str();
+		}
+
+
+		static void write_preamble(utility::XMLWriter & xml, const std::size_t particle_count) {
+			xml.declaration();
+
+			xml.open(
+				"VTKFile",
+				utility::attribute("type", "PolyData"),
+				utility::attribute("version", "0.1"),
+				utility::attribute("byte_order", "LittleEndian")
+			);
+
+			xml.open("PolyData");
+
+			xml.open(
+				"Piece",
+				utility::attribute("NumberOfPoints", particle_count),
+				utility::attribute("NumberOfVerts", particle_count),
+				utility::attribute("NumberOfLines", 0),
+				utility::attribute("NumberOfStrips", 0),
+				utility::attribute("NumberOfPolys", 0)
+			);
+		}
+
+
+		template<class S>
+		static void write_point_data(
+			const core::SystemContext<S> & sys,
+			utility::XMLWriter & xml,
+			std::ostream & output
+		) {
+			xml.open("PointData");
+
+			if constexpr (particle::internal::has_field_v<Fields,ParticleField::velocity>) {
+				write_vector_data_array(sys, xml, output, "velocity",
+					[](std::ostream & out, const auto & p) {
+						out << p.velocity.x << ' '
+							<< p.velocity.y << ' '
+							<< p.velocity.z << '\n';
+					}
+				);
+			}
+
+			if constexpr (particle::internal::has_field_v<Fields, ParticleField::force>) {
+				write_vector_data_array(sys, xml, output, "force",
+					[](std::ostream & out, const auto & p) {
+						out << p.force.x << ' '
+							<< p.force.y << ' '
+							<< p.force.z << '\n';
+					}
+				);
+			}
+
+			if constexpr (particle::internal::has_field_v<Fields, ParticleField::type>) {
+				write_scalar_data_array(sys, xml, output, "UInt32", "type",
+					[](std::ostream & out, const auto & p) {
+						out  << static_cast<std::uint32_t>(p.type)
+							<< '\n';
+					}
+				);
+			}
+
+			if constexpr (particle::internal::has_field_v<Fields, ParticleField::id>) {
+				write_scalar_data_array(sys, xml, output, "UInt32", "id",
+					[](std::ostream & out, const auto & p) {
+						out << static_cast<std::uint32_t>(p.id)
+							<< '\n';
+					}
+				);
+			}
+
+			xml.close("PointData");
+		}
+
+
+		template<class S, typename F>
+		static void write_vector_data_array(
+			const core::SystemContext<S> & sys,
+			utility::XMLWriter & xml,
+			std::ostream & output,
+			const std::string_view name,
+			F && write_particle
+		) {
+			xml.open(
+				"DataArray",
+				utility::attribute("type", "Float64"),
+				utility::attribute("Name", name),
+				utility::attribute("NumberOfComponents", 3),
+				utility::attribute("format", "ascii")
+			);
+
+			sys.for_each_particle_view(scalar_kernel<fields>(
+				[&](const auto & p) {
+					write_particle(output, p);
+				}
+			));
+
+			xml.close("DataArray");
+		}
+
+
+		template<class S, typename F>
+		static void write_scalar_data_array(
+			const core::SystemContext<S> & sys,
+			utility::XMLWriter & xml,
+			std::ostream & output,
+			const std::string_view type,
+			const std::string_view name,
+			F && write_particle
+		) {
+			xml.open(
+				"DataArray",
+				utility::attribute("type", type),
+				utility::attribute("Name", name),
+				utility::attribute("format", "ascii")
+			);
+
+			sys.for_each_particle_view(scalar_kernel<fields>(
+				[&](const auto & p) {
+					write_particle(output, p);
+				}
+			));
+
+			xml.close("DataArray");
+		}
+
+
+		template<class S>
+		static void write_points(
+			const core::SystemContext<S> & sys,
+			utility::XMLWriter & xml,
+			std::ostream & output
+		) {
+			xml.open("Points");
+
+			xml.open(
+				"DataArray",
+				utility::attribute("type", "Float64"),
+				utility::attribute("NumberOfComponents", 3),
+				utility::attribute("format", "ascii")
+			);
+
+			sys.for_each_particle_view(scalar_kernel<fields>(
+				[&](const auto & p) {
+					output
+						<< p.position.x << ' '
+						<< p.position.y << ' '
+						<< p.position.z << '\n';
+				}
+			));
+
+			xml.close("DataArray");
+			xml.close("Points");
+		}
+
+
+		static void write_vertices(
+			utility::XMLWriter & xml,
+			std::ostream & output,
+			const std::size_t particle_count
+		) {
+			xml.open("Verts");
+
+			xml.open(
+				"DataArray",
+				utility::attribute("type", "Int64"),
+				utility::attribute("Name", "connectivity"),
+				utility::attribute("format", "ascii")
+			);
+
+			for (std::size_t i = 0; i < particle_count; i++) {
+				output
+					<< static_cast<std::int64_t>(i)
+					<< '\n';
+			}
+
+			xml.close("DataArray");
+
+			xml.open(
+				"DataArray",
+				utility::attribute("type", "Int64"),
+				utility::attribute("Name", "offsets"),
+				utility::attribute("format", "ascii")
+			);
+
+			for (std::size_t i = 0; i < particle_count; i++) {
+				output
+					<< static_cast<std::int64_t>(i + 1)
+					<< '\n';
+			}
+
+			xml.close("DataArray");
+			xml.close("Verts");
+		}
+
+
+		static void write_postamble(utility::XMLWriter & xml) {
+			xml.close("Piece");
+			xml.close("PolyData");
+			xml.close("VTKFile");
+		}
 	};
 
 } // namespace april

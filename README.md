@@ -363,19 +363,19 @@ Planned additions (subject to change)
 - [x] SIMD support
 - [x] Shared-memory Parallelism
 - [ ] Distributed-memory Parallelism
+- [ ] GPU support
 
 **Features**: 
 - [x] Yoshida4
 - [ ] Boris Pusher Integrator
 - [ ] Barnes-Hut Container
 - [ ] Verlet Cluster Container
-- [ ] Compute Pipelines
 
 **Secondary Features**: 
 - [x] Extendable particles via template parameter (e.g. add charge property)
 - [ ] ~~C++ Modules~~ (wait for more widespread compiler support)
 - [ ] more build feedback from `build_system` (e.g. spatial partition parameters) 
-- [ ] VTU output
+- [x] VTP output
 
 **Project**:
 - [x] Continuous integration

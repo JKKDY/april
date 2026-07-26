@@ -14,6 +14,7 @@ add_executable(test_april
         test_april.cpp
         monitors/output_test.cpp
         monitors/xyz_test.cpp
+        monitors/vtp_test.cpp
 
         core/system_test.cpp
         core/regression_test.cpp
@@ -59,6 +60,7 @@ add_executable(test_april
         forces/simd_forces_test.cpp
 
         utility/graph_test.cpp
+        utility/xml_test.cpp
 )
 
 target_include_directories(test_april PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common)

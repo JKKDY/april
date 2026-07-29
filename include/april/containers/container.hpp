@@ -169,7 +169,8 @@ namespace april::container {
 		// ------------------
 		// PARTICLE ITERATION
 		// ------------------
-		// filter by state (safe, performs checks to skip garbage data)
+
+		/// @brief filter by state (safe, performs checks to skip garbage data)
 		template<
 			ParallelPolicy P = ParallelPolicy::Serial,
 			VectorPolicy V = vector_policy,
@@ -178,7 +179,16 @@ namespace april::container {
 			self.template invoke_iterate_state<P, V, false>(func, state);
 		} // TODO add shortcuiting (if kernel returns a bool, stop when a true is encountered)
 
-		// direct range based access (fast & branchless but unsafe; will not perform any checks)
+		// /// @brief
+		// template<
+		// 	ParallelPolicy P = parallel_policy,
+		// 	VectorPolicy V = vector_policy,
+		// 	exec::IsKernel Kernel>
+		// void for_each_particle_until(this auto&& self, Kernel && func) const {
+		//
+		// }
+
+		/// @brief direct range based access (fast & branchless but unsafe; will not perform any checks)
 		template<
 			ParallelPolicy P = ParallelPolicy::Serial,
 			VectorPolicy V = vector_policy,
@@ -190,6 +200,8 @@ namespace april::container {
 
 			self.template invoke_iterate_range<P, V, false>(func, start, stop);
 		}
+
+
 
 
 		template<ParticleField M, typename T, typename Mapper, typename Reducer = std::plus<T>>

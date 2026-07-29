@@ -13,28 +13,6 @@ namespace april {
 	// EXECUTE BATCH
 	//--------------
 	// ToDO extract this method to a free convenience function that maps a kernel & policies to a batch for_each_pair call
-	// template <class SystemConfig>
-	// template <VectorPolicy V, container::batching::IsBatch Batch, exec::IsKernel Kernel>
-	// void System<SystemConfig>::execute_batch_kernel(const Batch& batch, Kernel&& kernel)  {
-	// 	using namespace april::exec;
-	// 	using namespace april::exec::internal;
-	//
-	// 	// check kernel compatibility with batch (in regard to scalar/vector mode)
-	// 	constexpr ExecutionTrait batch_traits = std::remove_cvref_t<Batch>::vector_trait;
-	// 	constexpr ExecutionMode kernel_modes = std::remove_cvref_t<Kernel>::Mode;
-	//
-	// 	constexpr ExecutionMode required_modes = required_execution_modes<batch_traits>();
-	// 	constexpr ExecutionMode valid_modes = allowed_execution_modes<V, kernel_modes>();
-	//
-	// 	static_assert((valid_modes & required_modes) == required_modes, // required modes must be a subset of valid modes
-	// 		"[APRIL] Compatibility Failure: No valid execution path found between Batch and Kernel capability sets.");
-	//
-	// 	constexpr ExecutionMode exec_mode = resolve_execution_mode<valid_modes, required_modes>();
-	//
-	// 	// run kernel on batches
-	// 	batch.template for_each<exec_mode>(kernel); // TODO deduce parallel policy from batch capability and Policy P
-	// }
-
 	template<class SystemConfig>
 	template<VectorPolicy V,container::batching::IsBatch Batch,exec::IsKernel Kernel>
 	void System<SystemConfig>::execute_batch_kernel(const Batch& batch,Kernel&& kernel) {

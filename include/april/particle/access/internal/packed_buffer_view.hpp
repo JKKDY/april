@@ -77,6 +77,9 @@ namespace april::particle::internal {
         }
         // ==== STOP GAP SOLUTION END ====
 
+        packed_mask & write_mask;
+        bool & is_masked;
+
     public:
         static constexpr ParticleField ReadAccess  = ReadMask;
         static constexpr ParticleField WriteAccess = WriteMask & ~ParticleField::id;
@@ -98,20 +101,27 @@ namespace april::particle::internal {
           * Binds the buffer's registers to the view's references.
           * Extremely lightweight — usually completely elided by the optimizer.
           */
-        APRIL_FORCE_INLINE explicit PackedBufferView(Buffer& buf)
-            : position(buf.position),
-              old_position(buf.old_position),
-              velocity(buf.velocity),
-              force(buf.force),
-              mass(buf.mass),
-              state(buf.state),
-              type(buf.type),
-              id(buf.id),
-              attributes(bind_attributes(buf))
-            {}
+        APRIL_FORCE_INLINE explicit PackedBufferView(Buffer& buf, packed_mask & write_mask, bool & is_masked):
+            write_mask(write_mask),
+            is_masked(is_masked),
+            position(buf.position),
+            old_position(buf.old_position),
+            velocity(buf.velocity),
+            force(buf.force),
+            mass(buf.mass),
+            state(buf.state),
+            type(buf.type),
+            id(buf.id),
+            attributes(bind_attributes(buf))
+        {}
 
-        auto mask_with(const packed_mask mask) {
-            return MaskedPackedBufferView(*this, mask);
+        void mask_with(const packed_mask new_mask) const {
+            if (is_masked) {
+                write_mask = write_mask & new_mask;
+            } else {
+                write_mask = new_mask;
+                is_masked = true;
+            }
         }
     };
 

@@ -21,31 +21,11 @@
  */
 #pragma once
 
-#include "april/particle/access/internal/packed_reference.hpp"
 #include "april/particle/access/internal/packed_buffer.hpp"
+#include "april/particle/access/internal/packed_reference.hpp"
 #include "april/particle/access/internal/packed_buffer_view.hpp"
 
 namespace april::particle::internal {
-
-
-    /**
-     * @brief Decorator for propagating SIMD masks through layered calls.
-     * * This allows filters (e.g., state checks) to be applied once and
-     * carried down through the kernel call chain, avoiding redundant
-     * mask re-computation in deeply nested user code.
-     * Currently unused as it is a future stub.
-     */
-    template <typename Ref, typename Mask>
-    struct MaskedPackedParticleRef : Ref {
-        Mask mask;
-
-        explicit MaskedPackedParticleRef(const Ref& r, const Mask& m) noexcept
-            : Ref(r), mask(m) {}
-
-        auto mask_with(const Mask & m) const noexcept {
-            return MaskedPackedParticleRef{static_cast<const Ref&>(*this), mask & m};
-        }
-    };
 
 
     //---------

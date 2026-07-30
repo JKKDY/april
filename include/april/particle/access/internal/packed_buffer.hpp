@@ -13,6 +13,7 @@ namespace april::particle::internal {
     // forward declaration
     template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes> struct PackedBufferView;
     template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes> struct PackedParticleRef;
+    template <typename Ref, typename Mask> struct MaskedPackedParticleRef;
 
 
     //-----------------------
@@ -196,17 +197,9 @@ namespace april::particle::internal {
                 }
             };
 
-            rotate_vec.template operator()<ParticleField::position>(position);
-            rotate_vec.template operator()<ParticleField::old_position>(old_position);
-            rotate_vec.template operator()<ParticleField::velocity>(velocity);
-            rotate_vec.template operator()<ParticleField::force>(force);
-
-            rotate_scalar.template operator()<ParticleField::mass>(mass);
-            rotate_scalar.template operator()<ParticleField::state>(state);
-            rotate_scalar.template operator()<ParticleField::type>(type);
-            rotate_scalar.template operator()<ParticleField::id>(id);
-            rotate_scalar.template operator()<ParticleField::attributes>(attributes);
+            rotate(rotate_vec, rotate_scalar);
         }
+
         template <unsigned K = 1>
         APRIL_FORCE_INLINE void rotate_right() {
             auto rotate_vec = [&]<ParticleField field>(auto && vec) APRIL_FORCE_INLINE {
@@ -223,17 +216,9 @@ namespace april::particle::internal {
                 }
             };
 
-            rotate_vec.template operator()<ParticleField::position>(position);
-            rotate_vec.template operator()<ParticleField::old_position>(old_position);
-            rotate_vec.template operator()<ParticleField::velocity>(velocity);
-            rotate_vec.template operator()<ParticleField::force>(force);
-
-            rotate_scalar.template operator()<ParticleField::mass>(mass);
-            rotate_scalar.template operator()<ParticleField::state>(state);
-            rotate_scalar.template operator()<ParticleField::type>(type);
-            rotate_scalar.template operator()<ParticleField::id>(id);
-            rotate_scalar.template operator()<ParticleField::attributes>(attributes);
+            rotate(rotate_vec, rotate_scalar);
         }
+
 
         /**
          * Accumulate reciprocal deltas from another buffer.
@@ -349,7 +334,7 @@ namespace april::particle::internal {
             }
         }
 
-        // future stub
+
         template <typename Ref, typename Mask>
         APRIL_FORCE_INLINE void update_into(MaskedPackedParticleRef<Ref, Mask>& masked_ref) const {
             update_into(masked_ref, masked_ref.mask);
@@ -433,7 +418,7 @@ namespace april::particle::internal {
                 dest.y += src.y.reduce_add();
                 dest.z += src.z.reduce_add();
             } else if constexpr (has_field_v<RWMask, F>) {
-                static_assert(sizeof(ScalarT) == 0, "FATAL: Cannot reduce a Read-Write vector field from a SIMD register to a scalar.");
+                static_assert(sizeof(ScalarT) == 0, "Cannot reduce a Read-Write vector field from a SIMD register to a scalar.");
             }
         }
 
@@ -446,8 +431,25 @@ namespace april::particle::internal {
                 dest.y += select(mask, src.y, null).reduce_add();
                 dest.z += select(mask, src.z, null).reduce_add();
             } else if constexpr (has_field_v<RWMask, F>) {
-                static_assert(sizeof(ScalarT) == 0, "FATAL: Cannot perform masked reduction on a Read-Write vector field.");
+                static_assert(sizeof(ScalarT) == 0, "Cannot perform masked reduction on a Read-Write vector field.");
             }
         }
+
+
+        template<typename RotateVec, typename RotateScalar>
+        APRIL_FORCE_INLINE void rotate(RotateVec && rotate_vec, RotateScalar && rotate_scalar) {
+            rotate_vec.template operator()<ParticleField::position>(position);
+            rotate_vec.template operator()<ParticleField::old_position>(old_position);
+            rotate_vec.template operator()<ParticleField::velocity>(velocity);
+            rotate_vec.template operator()<ParticleField::force>(force);
+
+            rotate_scalar.template operator()<ParticleField::mass>(mass);
+            rotate_scalar.template operator()<ParticleField::state>(state);
+            rotate_scalar.template operator()<ParticleField::type>(type);
+            rotate_scalar.template operator()<ParticleField::id>(id);
+            rotate_scalar.template operator()<ParticleField::attributes>(attributes);
+        }
+
+
     };
 }

@@ -8,7 +8,7 @@ namespace april::simd {
 
     // mask concept
     template<typename T>
-        concept IsSimdMask = requires(T m, T m2, bool* ptr, const bool* cptr) {
+    concept IsSimdMask = requires(T m, T m2, bool* ptr, const bool* cptr) {
         // Static Size Query
         { T::size() } -> std::same_as<size_t>;
 

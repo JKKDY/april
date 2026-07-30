@@ -19,17 +19,6 @@ add_executable(test_april
         core/system_test.cpp
         core/regression_test.cpp
 
-        containers/directsum_test.cpp
-        containers/linkedcells_test.cpp
-        containers/cell_ordering_test.cpp
-        containers/scheduling_test.cpp
-
-        exec/executors_test.cpp
-
-        integrators/conservation_test.cpp
-        integrators/stoermerverlet_test.cpp
-        integrators/yoshida_test.cpp
-
         boundaries/apply_boundary_test.cpp
         boundaries/absorb_test.cpp
         boundaries/periodic_test.cpp
@@ -54,6 +43,7 @@ add_executable(test_april
         math/simd_ref_test.cpp
         math/vec3_ref_test.cpp
         math/simd_vec3_ref_tests.cpp
+        math/simd_masked_test.cpp
 
         forces/interaction_test.cpp
         forces/forces_test.cpp
@@ -61,6 +51,17 @@ add_executable(test_april
 
         utility/graph_test.cpp
         utility/xml_test.cpp
+
+        containers/directsum_test.cpp
+        containers/linkedcells_test.cpp
+        containers/cell_ordering_test.cpp
+        containers/scheduling_test.cpp
+
+        exec/executors_test.cpp
+
+        integrators/conservation_test.cpp
+        integrators/stoermerverlet_test.cpp
+        integrators/yoshida_test.cpp
 )
 
 target_include_directories(test_april PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common)

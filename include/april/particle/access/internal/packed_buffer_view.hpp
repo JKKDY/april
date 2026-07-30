@@ -1,7 +1,5 @@
 #pragma once
 
-#include "april/base/types.hpp"
-#include "april/simd/packed.hpp"
 #include "april/particle/access/source.hpp"
 #include "april/particle/properties.hpp"
 #include "april/particle/attributes.hpp"
@@ -109,10 +107,6 @@ namespace april::particle::internal {
               id(buf.id),
               attributes(bind_attributes(buf))
             {}
-
-        auto mask_with(const packed_mask mask) {
-            return MaskedPackedBufferView(*this, mask);
-        }
     };
 
 }

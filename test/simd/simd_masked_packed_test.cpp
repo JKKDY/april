@@ -9,7 +9,7 @@
 #include "april/simd/masked_packed.hpp"
 #include "april/simd/packed.hpp"
 #include "april/simd/packed_ref.hpp"
-#include "april/simd/simd_traits.hpp"
+#include "april/simd/packed_concept.hpp"
 
 
 using MaskedPackedBackendTypes = testing::Types<

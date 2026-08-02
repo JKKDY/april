@@ -1,30 +1,43 @@
 #pragma once
-#include <xsimd/xsimd.hpp>
-#include <utility>
-#include <string>
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <sstream>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <xsimd/xsimd.hpp>
 
-#include "april/simd/simd_traits.hpp"
+
+#include "april/simd/packed_concept.hpp"
 
 namespace april::simd::internal::xsimd {
+    template<typename T, size_t Width = 0> struct Packed;
 
-    template<typename T>
+
+    template<typename T, size_t Width = 0>
     struct Mask {
-        using native_type = ::xsimd::batch_bool<T>;
-        native_type data;
+        using native_type = Packed<T, Width>::native_type::batch_bool_type;
 
         Mask() = default;
         Mask(native_type d) : data(d) {}
         Mask(bool val) : data(val) {}
 
-        template<typename U>
-        requires (sizeof(T) == sizeof(U))
-        operator Mask<U>() const {
-            return { ::xsimd::bitwise_cast<::xsimd::batch_bool<U>>(data) };
-        }
-
         operator native_type() const { return data; }
         static constexpr size_t size() { return native_type::size; }
+
+        template<typename U>
+        requires (size() == Mask<U, Width>::size())
+        operator Mask<U, Width>() const {
+            if constexpr (sizeof(T) == sizeof(U)) {
+                // Zero-cost hardware reinterpret for same-size types
+                return { ::xsimd::bitwise_cast<typename Mask<U, Width>::native_type>(data) };
+            } else {
+                // Generates hardware widening/narrowing instructions
+                return { ::xsimd::batch_bool_cast<U>(data) };
+            }
+        }
+
 
         // DATA LOADS
         static Mask load(const bool* ptr) { return { native_type::load_unaligned(ptr) }; }
@@ -54,9 +67,31 @@ namespace april::simd::internal::xsimd {
         friend Mask operator==(const Mask& lhs, const Mask& rhs) { return { lhs.data == rhs.data }; }
         friend Mask operator!=(const Mask& lhs, const Mask& rhs) { return { lhs.data != rhs.data }; }
 
+        // rotates
+        template<unsigned K = 1>
+        void rotate_right() {
+            rotate<K>();
+        }
+
+        template<unsigned K = 1>
+        void rotate_left() {
+            rotate<(size() - (K % size())) % size()>();
+        }
+
+
         // EXPORTS / DEBUGGING
         [[nodiscard]] uint64_t to_bitmask() const {
             return data.mask();
+        }
+
+        static Mask from_bitmask(uint64_t bits) {
+            std::array<bool, size()> lanes{};
+
+            for (size_t i = 0; i < size(); ++i) {
+                lanes[i] = ((bits >> i) & uint64_t{1}) != 0;
+            }
+
+            return load_unaligned(lanes.data());
         }
 
         [[nodiscard]] std::array<bool, size()> to_array() const {
@@ -76,34 +111,64 @@ namespace april::simd::internal::xsimd {
             ss << "]";
             return ss.str();
         }
+
+        native_type data;
+    private:
+        template<unsigned K>
+        void rotate() {
+            constexpr unsigned Shift = K % size();
+
+            if constexpr (Shift == 0) {} else if constexpr (
+                sizeof(typename native_type::register_type) <
+                sizeof(typename native_type::batch_type::register_type)
+            ) {
+                // AVX-512 stores masks as compact predicate bits.
+                constexpr uint64_t ValidBits = [] {
+                    if constexpr (size() == 64) return ~uint64_t{0};
+                    else return (uint64_t{1} << size()) - 1;
+                }();
+
+                const uint64_t bits = data.mask();
+
+                // Right lane rotation corresponds to a left rotation of mask bits.
+                data = native_type::from_mask(
+                    ((bits << Shift) | (bits >> (size() - Shift))) & ValidBits
+                );
+            } else {
+                // SSE/AVX masks occupy full SIMD lanes, where native rotation is cheaper.
+                using Batch = native_type::batch_type;
+                data = ::xsimd::rotate_right<Shift>(Batch(data)) != Batch(T{0});
+            }
+        }
     };
 
-    // Mixed-type bitwise AND
-    template <typename T, typename U>
+    // Mixed-type bitwise operators
+    template <typename T, typename U, size_t Width>
     requires (sizeof(T) == sizeof(U) && !std::is_same_v<T, U>)
-    Mask<T> operator&(const Mask<T>& lhs, const Mask<U>& rhs) {
-        return lhs & static_cast<Mask<T>>(rhs);
+    Mask<T, Width> operator&(const Mask<T, Width>& lhs, const Mask<U, Width>& rhs) {
+        return lhs & static_cast<Mask<T, Width>>(rhs);
     }
 
-    // Mixed-type bitwise OR
-    template <typename T, typename U>
+    template <typename T, typename U, size_t Width>
     requires (sizeof(T) == sizeof(U) && !std::is_same_v<T, U>)
-    Mask<T> operator|(const Mask<T>& lhs, const Mask<U>& rhs) {
-        return lhs | static_cast<Mask<T>>(rhs);
+    Mask<T, Width> operator|(const Mask<T, Width>& lhs, const Mask<U, Width>& rhs) {
+        return lhs | static_cast<Mask<T, Width>>(rhs);
     }
 
-    // Mixed-type bitwise XOR
-    template <typename T, typename U>
+    template <typename T, typename U, size_t Width>
     requires (sizeof(T) == sizeof(U) && !std::is_same_v<T, U>)
-    Mask<T> operator^(const Mask<T>& lhs, const Mask<U>& rhs) {
-        return lhs ^ static_cast<Mask<T>>(rhs);
+    Mask<T, Width> operator^(const Mask<T, Width>& lhs, const Mask<U, Width>& rhs) {
+        return lhs ^ static_cast<Mask<T, Width>>(rhs);
     }
 
 
 
-    template<typename T, size_t Width = 0>
+
+    template<typename T, size_t Width>
     struct Packed {
         using value_type = std::remove_cv_t<T>;
+        using mask_type = Mask<value_type, Width>;
+
         using native_type = std::conditional_t<
             Width == 0,
             ::xsimd::batch<value_type>,
@@ -132,14 +197,15 @@ namespace april::simd::internal::xsimd {
         requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
         static Packed load_unaligned(const PtrT* ptr) {
             if constexpr (sizeof(PtrT) < sizeof(value_type)) {
-                // Safely upcast element-by-element into a wide padded buffer
                 alignas(alignof(native_type)) value_type temp[size()];
-                for (size_t i = 0; i < size(); ++i) {
+                for (size_t i = 0; i < size(); ++i)
                     temp[i] = static_cast<value_type>(ptr[i]);
-                }
-                return { ::xsimd::load_aligned(temp) };
+
+                return { native_type::load_aligned(temp) };
             } else {
-                return { ::xsimd::load_unaligned(reinterpret_cast<const value_type*>(ptr)) };
+                return { native_type::load_unaligned(
+                    reinterpret_cast<const value_type*>(ptr)
+                ) };
             }
         }
 
@@ -147,9 +213,11 @@ namespace april::simd::internal::xsimd {
         requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
         static Packed load_aligned(const PtrT* ptr) {
             if constexpr (sizeof(PtrT) < sizeof(value_type)) {
-                return load_unaligned(ptr); // Alignment doesn't matter for the scalar fallback
+                return load_unaligned(ptr);
             } else {
-                return { ::xsimd::load_aligned(reinterpret_cast<const value_type*>(ptr)) };
+                return { native_type::load_aligned(
+                    reinterpret_cast<const value_type*>(ptr)
+                ) };
             }
         }
 
@@ -168,7 +236,7 @@ namespace april::simd::internal::xsimd {
                 }
                 return { ::xsimd::load_aligned(temp) };
             } else {
-                return { ::xsimd::batch<value_type>::gather(reinterpret_cast<const value_type*>(base_addr), offsets.data) };
+                return { native_type::gather(reinterpret_cast<const value_type*>(base_addr), offsets.data) };
             }
         }
 
@@ -256,12 +324,12 @@ namespace april::simd::internal::xsimd {
         Packed& operator/=(const Packed& rhs) { data /= rhs.data; return *this; }
 
         // COMPARISONS
-        friend Mask<T> operator==(const Packed& lhs, const Packed& rhs) { return { lhs.data == rhs.data }; }
-        friend Mask<T> operator!=(const Packed& lhs, const Packed& rhs) { return { lhs.data != rhs.data }; }
-        friend Mask<T> operator<(const Packed& lhs, const Packed& rhs)  { return { lhs.data < rhs.data }; }
-        friend Mask<T> operator<=(const Packed& lhs, const Packed& rhs) { return { lhs.data <= rhs.data }; }
-        friend Mask<T> operator>(const Packed& lhs, const Packed& rhs)  { return { lhs.data > rhs.data }; }
-        friend Mask<T> operator>=(const Packed& lhs, const Packed& rhs) { return { lhs.data >= rhs.data }; }
+        friend mask_type operator==(const Packed& lhs, const Packed& rhs) { return { lhs.data == rhs.data }; }
+        friend mask_type operator!=(const Packed& lhs, const Packed& rhs) { return { lhs.data != rhs.data }; }
+        friend mask_type operator<(const Packed& lhs, const Packed& rhs)  { return { lhs.data < rhs.data }; }
+        friend mask_type operator<=(const Packed& lhs, const Packed& rhs) { return { lhs.data <= rhs.data }; }
+        friend mask_type operator>(const Packed& lhs, const Packed& rhs)  { return { lhs.data > rhs.data }; }
+        friend mask_type operator>=(const Packed& lhs, const Packed& rhs) { return { lhs.data >= rhs.data }; }
 
         // MATH FUNCTIONS
         friend Packed sqrt(const Packed& x) { return { ::xsimd::sqrt(x.data) }; }
@@ -296,8 +364,8 @@ namespace april::simd::internal::xsimd {
 
         // MASKING
         // Performs: result[i] = mask[i] ? true_val[i] : false_val[i]
-        friend Packed select(const Mask<T>& m, const Packed& true_val, const Packed& false_val) {
-            return { ::xsimd::select(m.data, true_val.data, false_val.data) };
+        friend Packed select(const mask_type& mask, const Packed& true_value, const Packed& false_value) {
+            return { ::xsimd::select(mask.data, true_value.data, false_value.data) };
         }
 
         // DEBUGGING

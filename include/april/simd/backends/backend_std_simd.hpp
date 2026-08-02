@@ -14,7 +14,7 @@
 
 #include <string>
 
-#include "april/simd/simd_traits.hpp"
+#include "april/simd/packed_concept.hpp"
 
 namespace april::simd::internal::std_simd {
 

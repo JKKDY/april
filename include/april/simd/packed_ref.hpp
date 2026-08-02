@@ -1,5 +1,5 @@
 #pragma once
-#include <april/simd/simd_traits.hpp>
+#include <april/simd/packed_concept.hpp>
 #include <april/simd/packed.hpp>
 
 

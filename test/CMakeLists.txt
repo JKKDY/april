@@ -38,12 +38,15 @@ add_executable(test_april
         particle/packed_fields_test.cpp
 
         math/range_test.cpp
-        math/simd_test.cpp
         math/vec3_test.cpp
-        math/simd_ref_test.cpp
         math/vec3_ref_test.cpp
-        math/simd_vec3_ref_tests.cpp
-        math/simd_masked_test.cpp
+
+        simd/simd_test.cpp
+        simd/simd_ref_test.cpp
+        simd/simd_vec3_ref_tests.cpp
+        simd/simd_masked_packed_test.cpp
+        simd/simd_mask_test.cpp
+
 
         forces/interaction_test.cpp
         forces/forces_test.cpp

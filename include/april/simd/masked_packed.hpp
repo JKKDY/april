@@ -4,16 +4,16 @@
 
 namespace april::simd {
 
-    template<typename T>
+    template<typename T, size_t Width = 0>
     struct MaskedPacked {
         using S = std::remove_const_t<T>;
-        using PackedT = Packed<S>;
-        using MaskT = PackedMask<S>;
+        using PackedT = Packed<S, Width>;
+        using MaskT = PackedMask<S, Width>;
 
         explicit MaskedPacked(const PackedT& value, const MaskT& mask) noexcept
            : data(value), mask(mask) {}
 
-        
+
         MaskedPacked() = delete;
         MaskedPacked(const PackedT&, MaskT&&) = delete;
 

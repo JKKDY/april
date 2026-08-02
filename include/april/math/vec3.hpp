@@ -5,7 +5,7 @@
 #include <concepts>
 
 #include "april/base/macros.hpp"
-#include "april/simd/simd_traits.hpp"
+#include "april/simd/packed_concept.hpp"
 #include "april/simd/packed_ref.hpp"
 #include "april/utility/debug.hpp"
 

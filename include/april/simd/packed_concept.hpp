@@ -1,52 +1,68 @@
 #pragma once
+#include <array>
 #include <concepts>
 #include <cstddef>
+#include <cstdint>
 #include <string>
+#include <type_traits>
 
 
 namespace april::simd {
 
     // mask concept
     template<typename T>
-    concept IsSimdMask = requires(T m, T m2, bool* ptr, const bool* cptr) {
-        // Static Size Query
-        { T::size() } -> std::same_as<size_t>;
+    concept IsSimdMaskImpl =
+        std::default_initializable<T> &&
+        std::copyable<T> &&
+        requires(T m, T m2, const T cm, bool* ptr, const bool* cptr) {
+        // Type construction and width
+        { T{false} } -> std::same_as<T>;
+        { T::size() } -> std::same_as<std::size_t>;
 
-        // Memory Loads (Static)
+        // Memory
         { T::load(cptr) }           -> std::same_as<T>;
         { T::load_aligned(cptr) }   -> std::same_as<T>;
         { T::load_unaligned(cptr) } -> std::same_as<T>;
 
-        // Memory Stores
-        { m.store(ptr) }           -> std::same_as<void>;
-        { m.store_aligned(ptr) }   -> std::same_as<void>;
-        { m.store_unaligned(ptr) } -> std::same_as<void>;
+        { cm.store(ptr) }           -> std::same_as<void>;
+        { cm.store_aligned(ptr) }   -> std::same_as<void>;
+        { cm.store_unaligned(ptr) } -> std::same_as<void>;
 
-        // Exports
-        { m.to_bitmask() } -> std::same_as<uint64_t>;
-        { m.to_array() }  -> std::same_as<std::array<bool, T::size()>>;
-        { m.to_string() } -> std::same_as<std::string>;
+        // Bitmask import/export
+        { cm.to_bitmask() } -> std::same_as<std::uint64_t>;
+        { T::from_bitmask(std::uint64_t{}) } -> std::same_as<T>;
+        { cm.to_array() } -> std::same_as<std::array<bool, T::size()>>;
+        { cm.to_string() } -> std::same_as<std::string>;
 
         // Reductions
-        { all(m) }  -> std::same_as<bool>;
-        { any(m) }  -> std::same_as<bool>;
-        { none(m) } -> std::same_as<bool>;
+        { all(cm) }  -> std::same_as<bool>;
+        { any(cm) }  -> std::same_as<bool>;
+        { none(cm) } -> std::same_as<bool>;
 
-        // Logical Operators
-        { !m }      -> std::same_as<T>;
-        { m && m2 } -> std::same_as<T>;
-        { m || m2 } -> std::same_as<T>;
+        // Logical operators
+        { !cm }       -> std::same_as<T>;
+        { cm && m2 }  -> std::same_as<T>;
+        { cm || m2 }  -> std::same_as<T>;
 
-        // Bitwise Operators
-        { m & m2 } -> std::same_as<T>;
-        { m | m2 } -> std::same_as<T>;
-        { m ^ m2 } -> std::same_as<T>;
-        { ~m }     -> std::same_as<T>;
+        // Bitwise operators
+        { cm & m2 } -> std::same_as<T>;
+        { cm | m2 } -> std::same_as<T>;
+        { cm ^ m2 } -> std::same_as<T>;
+        { ~cm }     -> std::same_as<T>;
 
-        // Comparisons
-        { m == m2 } -> std::same_as<T>;
-        { m != m2 } -> std::same_as<T>;
-    };
+        // Lane-wise comparisons
+        { cm == m2 } -> std::same_as<T>;
+        { cm != m2 } -> std::same_as<T>;
+
+        // Mutating lane rotations
+        { m.rotate_left() }             -> std::same_as<void>;
+        { m.rotate_right() }            -> std::same_as<void>;
+        { m.template rotate_left<2>() } -> std::same_as<void>;
+        { m.template rotate_right<2>() }-> std::same_as<void>;
+        };
+
+    template<typename T>
+    concept IsSimdMask = IsSimdMaskImpl<std::remove_cvref_t<T>>;
 
     // check if all usual arithmetic ops exist
     template<typename T>
@@ -66,12 +82,15 @@ namespace april::simd {
     // check if comparator ops exist
     template<typename T>
     concept HasComparisonOps = requires(T a, T b) {
-        { a == b };
-        { a != b };
-        { a < b };
-        { a <= b };
-        { a > b };
-        { a >= b };
+        typename T::mask_type;
+        requires IsSimdMask<typename T::mask_type>;
+
+        { a == b } -> std::same_as<typename T::mask_type>;
+        { a != b } -> std::same_as<typename T::mask_type>;
+        { a < b }  -> std::same_as<typename T::mask_type>;
+        { a <= b } -> std::same_as<typename T::mask_type>;
+        { a > b }  -> std::same_as<typename T::mask_type>;
+        { a >= b } -> std::same_as<typename T::mask_type>;
     };
 
     template<typename T, typename Scalar>
@@ -93,12 +112,18 @@ namespace april::simd {
         { t /= s } -> std::same_as<T&>;
 
         // Comparison (Left & Right)
-        { t == s }; { s == t };
-        { t != s }; { s != t };
-        { t < s };  { s < t };
-        { t <= s }; { s <= t };
-        { t > s };  { s > t };
-        { t >= s }; { s >= t };
+        { t == s } -> std::same_as<typename T::mask_type>;
+        { s == t } -> std::same_as<typename T::mask_type>;
+        { t != s } -> std::same_as<typename T::mask_type>;
+        { s != t } -> std::same_as<typename T::mask_type>;
+        { t < s }  -> std::same_as<typename T::mask_type>;
+        { s < t }  -> std::same_as<typename T::mask_type>;
+        { t <= s } -> std::same_as<typename T::mask_type>;
+        { s <= t } -> std::same_as<typename T::mask_type>;
+        { t > s }  -> std::same_as<typename T::mask_type>;
+        { s > t }  -> std::same_as<typename T::mask_type>;
+        { t >= s } -> std::same_as<typename T::mask_type>;
+        { s >= t } -> std::same_as<typename T::mask_type>;
     };
 
 
@@ -148,7 +173,11 @@ namespace april::simd {
     template<typename T>
     concept IsSimdTypeImpl = requires(T t, const T ct, typename T::value_type scalar, const typename T::value_type* ptr) {
         typename T::value_type;
-        requires (std::is_arithmetic_v<typename T::value_type>);
+        typename T::mask_type;
+
+        requires std::is_arithmetic_v<typename T::value_type>;
+        requires IsSimdMask<typename T::mask_type>;
+
         { T::size() } -> std::convertible_to<std::size_t>;
         { ct.to_string() } -> std::convertible_to<std::string>;
 
@@ -177,8 +206,8 @@ namespace april::simd {
         { ct.scatter(const_cast<T::value_type*>(ptr), t) } -> std::same_as<void>;
 
         // masking
-        // t==t produces a mask
-        { select(t==t, t, t) } -> std::same_as<T>;
+        { t == t } -> std::same_as<typename T::mask_type>;
+        { select(t == t, t, t) } -> std::same_as<T>;
 
         // permutations
         { ct.rotate_left() } -> std::same_as<T>;

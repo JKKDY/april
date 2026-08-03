@@ -167,6 +167,7 @@ namespace april::simd::internal::xsimd {
     struct Packed {
         using value_type = std::remove_cv_t<T>;
         using mask_type = Mask<value_type, Width>;
+        using packed_type = Packed;
 
         using native_type = std::conditional_t<
             Width == 0,

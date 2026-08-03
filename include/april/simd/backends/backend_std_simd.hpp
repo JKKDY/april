@@ -244,6 +244,7 @@ namespace april::simd::internal::std_simd {
         using value_type = std::remove_cv_t<T>;
         using native_type = native_simd_t<value_type, Width>;
         using mask_type = Mask<value_type, Width>;
+        using packed_type = Packed;
 
         static constexpr size_t size() { return native_type::size(); }
 

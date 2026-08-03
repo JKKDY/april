@@ -7,15 +7,17 @@ namespace april::simd {
     template<typename T, size_t Width = 0>
     struct MaskedPacked {
         using S = std::remove_const_t<T>;
-        using PackedT = Packed<S, Width>;
-        using MaskT = PackedMask<S, Width>;
 
-        explicit MaskedPacked(const PackedT& value, const MaskT& mask) noexcept
+        using packed_type = Packed<S, Width>;
+        using mask_type = PackedMask<S, Width>;
+        using value_type = packed_type::value_type;
+
+        explicit MaskedPacked(const packed_type& value, const mask_type& mask) noexcept
            : data(value), mask(mask) {}
 
 
         MaskedPacked() = delete;
-        MaskedPacked(const PackedT&, MaskT&&) = delete;
+        MaskedPacked(const packed_type&, mask_type&&) = delete;
 
         MaskedPacked(const MaskedPacked&) = default;
         MaskedPacked(MaskedPacked&&) = default;
@@ -24,16 +26,16 @@ namespace april::simd {
         MaskedPacked& operator=(MaskedPacked&&) = delete;
 
         // implicit conversions
-        [[nodiscard]] operator PackedT() const noexcept {
+        [[nodiscard]] operator packed_type() const noexcept {
             return data;
         }
 
-        [[nodiscard]] const PackedT& value() const noexcept {
+        [[nodiscard]] const packed_type& value() const noexcept {
             return data;
         }
 
         // store data
-        MaskedPacked& operator=(const PackedT& rhs) noexcept {
+        MaskedPacked& operator=(const packed_type& rhs) noexcept {
             data = select(mask, rhs, data);
             return *this;
         }
@@ -41,26 +43,26 @@ namespace april::simd {
         template<typename Scalar>
         requires std::is_arithmetic_v<Scalar> || std::is_enum_v<Scalar>
         MaskedPacked& operator=(Scalar rhs) noexcept {
-            return *this = PackedT(static_cast<S>(rhs));
+            return *this = packed_type(static_cast<S>(rhs));
         }
 
         // Apply compound arithmetic only to active lanes.
-        MaskedPacked& operator+=(const PackedT& rhs) noexcept {
+        MaskedPacked& operator+=(const packed_type& rhs) noexcept {
             data = select(mask, data + rhs, data);
             return *this;
         }
 
-        MaskedPacked& operator-=(const PackedT& rhs) noexcept {
+        MaskedPacked& operator-=(const packed_type& rhs) noexcept {
             data = select(mask, data - rhs, data);
             return *this;
         }
 
-        MaskedPacked& operator*=(const PackedT& rhs) noexcept {
+        MaskedPacked& operator*=(const packed_type& rhs) noexcept {
             data = select(mask, data * rhs, data);
             return *this;
         }
 
-        MaskedPacked& operator/=(const PackedT& rhs) noexcept {
+        MaskedPacked& operator/=(const packed_type& rhs) noexcept {
             data = select(mask, data / rhs, data);
             return *this;
         }
@@ -68,58 +70,58 @@ namespace april::simd {
         template<typename Scalar>
         requires std::is_arithmetic_v<Scalar>
         MaskedPacked& operator+=(Scalar rhs) noexcept {
-            return *this += PackedT(static_cast<S>(rhs));
+            return *this += packed_type(static_cast<S>(rhs));
         }
 
         template<typename Scalar>
         requires std::is_arithmetic_v<Scalar>
         MaskedPacked& operator-=(Scalar rhs) noexcept {
-            return *this -= PackedT(static_cast<S>(rhs));
+            return *this -= packed_type(static_cast<S>(rhs));
         }
 
         template<typename Scalar>
         requires std::is_arithmetic_v<Scalar>
         MaskedPacked& operator*=(Scalar rhs) noexcept {
-            return *this *= PackedT(static_cast<S>(rhs));
+            return *this *= packed_type(static_cast<S>(rhs));
         }
 
         template<typename Scalar>
         requires std::is_arithmetic_v<Scalar>
         MaskedPacked& operator/=(Scalar rhs) noexcept {
-            return *this /= PackedT(static_cast<S>(rhs));
+            return *this /= packed_type(static_cast<S>(rhs));
         }
 
 
         // Arithmetic intentionally returns an ordinary packed value.
-        friend PackedT operator+(const MaskedPacked& lhs, const PackedT& rhs) noexcept {
+        friend packed_type operator+(const MaskedPacked& lhs, const packed_type& rhs) noexcept {
             return lhs.data + rhs;
         }
 
-        friend PackedT operator+(const PackedT& lhs, const MaskedPacked& rhs) noexcept {
+        friend packed_type operator+(const packed_type& lhs, const MaskedPacked& rhs) noexcept {
             return lhs + rhs.data;
         }
 
-        friend PackedT operator-(const MaskedPacked& lhs, const PackedT& rhs) noexcept {
+        friend packed_type operator-(const MaskedPacked& lhs, const packed_type& rhs) noexcept {
             return lhs.data - rhs;
         }
 
-        friend PackedT operator-(const PackedT& lhs, const MaskedPacked& rhs) noexcept {
+        friend packed_type operator-(const packed_type& lhs, const MaskedPacked& rhs) noexcept {
             return lhs - rhs.data;
         }
 
-        friend PackedT operator*(const MaskedPacked& lhs, const PackedT& rhs) noexcept {
+        friend packed_type operator*(const MaskedPacked& lhs, const packed_type& rhs) noexcept {
             return lhs.data * rhs;
         }
 
-        friend PackedT operator*(const PackedT& lhs, const MaskedPacked& rhs) noexcept {
+        friend packed_type operator*(const packed_type& lhs, const MaskedPacked& rhs) noexcept {
             return lhs * rhs.data;
         }
 
-        friend PackedT operator/(const MaskedPacked& lhs, const PackedT& rhs) noexcept {
+        friend packed_type operator/(const MaskedPacked& lhs, const packed_type& rhs) noexcept {
             return lhs.data / rhs;
         }
 
-        friend PackedT operator/(const PackedT& lhs, const MaskedPacked& rhs) noexcept {
+        friend packed_type operator/(const packed_type& lhs, const MaskedPacked& rhs) noexcept {
             return lhs / rhs.data;
         }
 
@@ -137,7 +139,7 @@ namespace april::simd {
 
     private:
         Packed<S> data;
-        const MaskT & mask;
+        const mask_type & mask;
 
     };
 

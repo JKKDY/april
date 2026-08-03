@@ -21,36 +21,36 @@ using MaskedPackedBackendTypes = testing::Types<
 template<typename T>
 class MaskedPackedTest : public testing::Test {
 public:
-    using PackedT = T;
-    using Scalar = PackedT::value_type;
-    using MaskT = april::simd::PackedMask<Scalar>;
-    using MaskedT = april::simd::MaskedPacked<Scalar>;
-    using RefT = april::simd::PackedRef<Scalar, PackedT>;
+    using packed_type = T;
+    using scalar_type = packed_type::value_type;
+    using mask_type = april::simd::PackedMask<scalar_type>;
+    using masked_type = april::simd::MaskedPacked<scalar_type>;
+    using ref_type = april::simd::PackedRef<scalar_type, packed_type>;
 
-    static constexpr std::size_t Size = PackedT::size();
+    static constexpr std::size_t Size = packed_type::size();
 
     static constexpr double Epsilon =
-        std::is_same_v<Scalar, float> ? 1e-5 : 1e-12;
+        std::is_same_v<scalar_type, float> ? 1e-5 : 1e-12;
 
-    static PackedT MakeSequence(Scalar start = Scalar{1}, Scalar step = Scalar{1}) {
-        std::array<Scalar, Size> values{};
+    static packed_type MakeSequence(scalar_type start = scalar_type{1}, scalar_type step = scalar_type{1}) {
+        std::array<scalar_type, Size> values{};
 
         for (std::size_t i = 0; i < Size; ++i) {
-            values[i] = start + static_cast<Scalar>(i) * step;
+            values[i] = start + static_cast<scalar_type>(i) * step;
         }
 
-        return PackedT::load_unaligned(values.data());
+        return packed_type::load_unaligned(values.data());
     }
 
-    static PackedT MakePacked(const std::array<Scalar, Size>& values) {
-        return PackedT::load_unaligned(values.data());
+    static packed_type MakePacked(const std::array<scalar_type, Size>& values) {
+        return packed_type::load_unaligned(values.data());
     }
 
-    static MaskT MakeMask(const std::array<bool, Size>& values) {
-        return MaskT::load_unaligned(values.data());
+    static mask_type MakeMask(const std::array<bool, Size>& values) {
+        return mask_type::load_unaligned(values.data());
     }
 
-    static MaskT AlternatingMask(bool first_lane_active = true) {
+    static mask_type AlternatingMask(bool first_lane_active = true) {
         std::array<bool, Size> values{};
 
         for (std::size_t i = 0; i < Size; ++i) {
@@ -60,7 +60,7 @@ public:
         return MakeMask(values);
     }
 
-    static MaskT FirstHalfMask() {
+    static mask_type FirstHalfMask() {
         std::array<bool, Size> values{};
 
         for (std::size_t i = 0; i < Size; ++i) {
@@ -80,7 +80,7 @@ public:
         return values;
     }
 
-    static void ExpectPacked(const PackedT& actual, const std::array<Scalar, Size>& expected) {
+    static void ExpectPacked(const packed_type& actual, const std::array<scalar_type, Size>& expected) {
         const auto values = actual.to_array();
 
         for (std::size_t i = 0; i < Size; ++i) {
@@ -92,7 +92,7 @@ public:
         }
     }
 
-    static void ExpectAll(const PackedT& actual, Scalar expected) {
+    static void ExpectAll(const packed_type& actual, scalar_type expected) {
         const auto values = actual.to_array();
 
         for (std::size_t i = 0; i < Size; ++i) {
@@ -114,9 +114,9 @@ TYPED_TEST_SUITE(MaskedPackedTest, MaskedPackedBackendTypes);
 // ---------------------------------------------------------
 
 TYPED_TEST(MaskedPackedTest, TypeContract) {
-    using PackedT = TestFixture::PackedT;
-    using MaskT = TestFixture::MaskT;
-    using MaskedT = TestFixture::MaskedT;
+    using PackedT = TestFixture::packed_type;
+    using MaskT = TestFixture::mask_type;
+    using MaskedT = TestFixture::masked_type;
 
     static_assert(std::is_constructible_v<MaskedT, const PackedT&, const MaskT&>);
     static_assert(std::is_copy_constructible_v<MaskedT>);
@@ -136,8 +136,8 @@ TYPED_TEST(MaskedPackedTest, TypeContract) {
 // ---------------------------------------------------------
 
 TYPED_TEST(MaskedPackedTest, ConstructFromPacked) {
-    using PackedT = TestFixture::PackedT;
-    using MaskedT = TestFixture::MaskedT;
+    using PackedT = TestFixture::packed_type;
+    using MaskedT = TestFixture::masked_type;
 
     auto mask = TestFixture::AlternatingMask();
     auto source = TestFixture::MakeSequence();
@@ -150,10 +150,10 @@ TYPED_TEST(MaskedPackedTest, ConstructFromPacked) {
 
 
 TYPED_TEST(MaskedPackedTest, ConstructFromPackedRef) {
-    using Scalar =  TestFixture::Scalar;
-    using PackedT = TestFixture::PackedT;
-    using MaskedT = TestFixture::MaskedT;
-    using RefT =    TestFixture::RefT;
+    using Scalar =  TestFixture::scalar_type;
+    using PackedT = TestFixture::packed_type;
+    using MaskedT = TestFixture::masked_type;
+    using RefT =    TestFixture::ref_type;
 
     std::array<Scalar, TestFixture::Size> memory{};
 
@@ -172,7 +172,7 @@ TYPED_TEST(MaskedPackedTest, ConstructFromPackedRef) {
 
 
 TYPED_TEST(MaskedPackedTest, ValueReturnsCompletePackedRegister) {
-    using MaskedT = TestFixture::MaskedT;
+    using MaskedT = TestFixture::masked_type;
 
     auto mask = TestFixture::AlternatingMask();
     auto source = TestFixture::MakeSequence();
@@ -188,8 +188,8 @@ TYPED_TEST(MaskedPackedTest, ValueReturnsCompletePackedRegister) {
 // ---------------------------------------------------------
 
 TYPED_TEST(MaskedPackedTest, PackedAssignmentReplacesOnlyActiveLanes) {
-    using Scalar = TestFixture::Scalar;
-    using MaskedT = TestFixture::MaskedT;
+    using Scalar = TestFixture::scalar_type;
+    using MaskedT = TestFixture::masked_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray();
     auto mask = TestFixture::MakeMask(mask_values);
@@ -214,8 +214,8 @@ TYPED_TEST(MaskedPackedTest, PackedAssignmentReplacesOnlyActiveLanes) {
 
 
 TYPED_TEST(MaskedPackedTest, ScalarAssignmentReplacesOnlyActiveLanes) {
-    using Scalar = typename TestFixture::Scalar;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray();
     auto mask = TestFixture::MakeMask(mask_values);
@@ -240,8 +240,8 @@ TYPED_TEST(MaskedPackedTest, ScalarAssignmentReplacesOnlyActiveLanes) {
 // ---------------------------------------------------------
 
 TYPED_TEST(MaskedPackedTest, PackedAdditionUpdatesOnlyActiveLanes) {
-    using Scalar = typename TestFixture::Scalar;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = TestFixture::scalar_type;
+    using MaskedT = TestFixture::masked_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray();
     auto mask = TestFixture::MakeMask(mask_values);
@@ -268,8 +268,8 @@ TYPED_TEST(MaskedPackedTest, PackedAdditionUpdatesOnlyActiveLanes) {
 
 
 TYPED_TEST(MaskedPackedTest, PackedSubtractionUpdatesOnlyActiveLanes) {
-    using Scalar = typename TestFixture::Scalar;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = TestFixture::scalar_type;
+    using MaskedT = TestFixture::masked_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray();
     auto mask = TestFixture::MakeMask(mask_values);
@@ -296,9 +296,9 @@ TYPED_TEST(MaskedPackedTest, PackedSubtractionUpdatesOnlyActiveLanes) {
 
 
 TYPED_TEST(MaskedPackedTest, PackedMultiplicationPreservesInactiveLanes) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = TestFixture::scalar_type;
+    using PackedT = TestFixture::packed_type;
+    using MaskedT = TestFixture::masked_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray();
     auto mask = TestFixture::MakeMask(mask_values);
@@ -323,9 +323,9 @@ TYPED_TEST(MaskedPackedTest, PackedMultiplicationPreservesInactiveLanes) {
 
 
 TYPED_TEST(MaskedPackedTest, PackedDivisionPreservesInactiveLanes) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = TestFixture::scalar_type;
+    using PackedT = TestFixture::packed_type;
+    using MaskedT = TestFixture::masked_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray();
     auto mask = TestFixture::MakeMask(mask_values);
@@ -354,8 +354,8 @@ TYPED_TEST(MaskedPackedTest, PackedDivisionPreservesInactiveLanes) {
 // ---------------------------------------------------------
 
 TYPED_TEST(MaskedPackedTest, ScalarAdditionUpdatesOnlyActiveLanes) {
-    using Scalar = typename TestFixture::Scalar;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray();
     auto mask = TestFixture::MakeMask(mask_values);
@@ -378,8 +378,8 @@ TYPED_TEST(MaskedPackedTest, ScalarAdditionUpdatesOnlyActiveLanes) {
 
 
 TYPED_TEST(MaskedPackedTest, ScalarSubtractionUpdatesOnlyActiveLanes) {
-    using Scalar = typename TestFixture::Scalar;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray();
     auto mask = TestFixture::MakeMask(mask_values);
@@ -402,8 +402,8 @@ TYPED_TEST(MaskedPackedTest, ScalarSubtractionUpdatesOnlyActiveLanes) {
 
 
 TYPED_TEST(MaskedPackedTest, ScalarMultiplicationUpdatesOnlyActiveLanes) {
-    using Scalar = typename TestFixture::Scalar;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray();
     auto mask = TestFixture::MakeMask(mask_values);
@@ -426,8 +426,8 @@ TYPED_TEST(MaskedPackedTest, ScalarMultiplicationUpdatesOnlyActiveLanes) {
 
 
 TYPED_TEST(MaskedPackedTest, ScalarDivisionUpdatesOnlyActiveLanes) {
-    using Scalar = typename TestFixture::Scalar;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray();
     auto mask = TestFixture::MakeMask(mask_values);
@@ -454,9 +454,9 @@ TYPED_TEST(MaskedPackedTest, ScalarDivisionUpdatesOnlyActiveLanes) {
 // ---------------------------------------------------------
 
 TYPED_TEST(MaskedPackedTest, AdditionReturnsOrdinaryPackedValue) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using PackedT = typename TestFixture::packed_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     auto mask = TestFixture::AlternatingMask();
     auto initial = TestFixture::MakeSequence(Scalar{1});
@@ -483,9 +483,9 @@ TYPED_TEST(MaskedPackedTest, AdditionReturnsOrdinaryPackedValue) {
 
 
 TYPED_TEST(MaskedPackedTest, SubtractionReturnsOrdinaryPackedValue) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using PackedT = typename TestFixture::packed_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     auto mask = TestFixture::AlternatingMask();
     auto initial = TestFixture::MakeSequence(Scalar{5});
@@ -514,9 +514,9 @@ TYPED_TEST(MaskedPackedTest, SubtractionReturnsOrdinaryPackedValue) {
 
 
 TYPED_TEST(MaskedPackedTest, MultiplicationReturnsOrdinaryPackedValue) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using PackedT = typename TestFixture::packed_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     auto mask = TestFixture::AlternatingMask();
     auto initial = TestFixture::MakeSequence(Scalar{1});
@@ -543,9 +543,9 @@ TYPED_TEST(MaskedPackedTest, MultiplicationReturnsOrdinaryPackedValue) {
 
 
 TYPED_TEST(MaskedPackedTest, DivisionReturnsOrdinaryPackedValue) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using PackedT = typename TestFixture::packed_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     auto mask = TestFixture::AlternatingMask();
     auto initial = TestFixture::MakeSequence(Scalar{2}, Scalar{2});
@@ -578,10 +578,10 @@ TYPED_TEST(MaskedPackedTest, DivisionReturnsOrdinaryPackedValue) {
 // ---------------------------------------------------------
 
 TYPED_TEST(MaskedPackedTest, ObservesChangesToExternalMask) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
-    using MaskT = typename TestFixture::MaskT;
+    using Scalar = typename TestFixture::scalar_type;
+    using PackedT = typename TestFixture::packed_type;
+    using MaskedT = typename TestFixture::masked_type;
+    using MaskT = typename TestFixture::mask_type;
 
     std::array<bool, TestFixture::Size> first_mask_values{};
     std::array<bool, TestFixture::Size> second_mask_values{};
@@ -621,9 +621,9 @@ TYPED_TEST(MaskedPackedTest, ObservesChangesToExternalMask) {
 // ---------------------------------------------------------
 
 TYPED_TEST(MaskedPackedTest, RotationRotatesDataButNotMask) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using PackedT = typename TestFixture::packed_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     std::array<bool, TestFixture::Size> mask_values{};
     mask_values[0] = true;
@@ -652,10 +652,10 @@ TYPED_TEST(MaskedPackedTest, RotationRotatesDataButNotMask) {
 
 
 TYPED_TEST(MaskedPackedTest, OwnerCanRotateDataAndReplaceSharedMask) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
-    using MaskT = typename TestFixture::MaskT;
+    using Scalar = typename TestFixture::scalar_type;
+    using PackedT = typename TestFixture::packed_type;
+    using MaskedT = typename TestFixture::masked_type;
+    using MaskT = typename TestFixture::mask_type;
 
     std::array<bool, TestFixture::Size> mask_values{};
     mask_values[0] = true;
@@ -693,10 +693,10 @@ TYPED_TEST(MaskedPackedTest, OwnerCanRotateDataAndReplaceSharedMask) {
 // ---------------------------------------------------------
 
 TYPED_TEST(MaskedPackedTest, StoreIntoCommitsRegisterToPackedRef) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
-    using RefT = typename TestFixture::RefT;
+    using Scalar = typename TestFixture::scalar_type;
+    using PackedT = typename TestFixture::packed_type;
+    using MaskedT = typename TestFixture::masked_type;
+    using RefT = typename TestFixture::ref_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray();
     auto mask = TestFixture::MakeMask(mask_values);
@@ -732,9 +732,9 @@ TYPED_TEST(MaskedPackedTest, StoreIntoCommitsRegisterToPackedRef) {
 // ---------------------------------------------------------
 
 TYPED_TEST(MaskedPackedTest, LinearIterationUpdatesOnlySelectedParticles) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using PackedT = typename TestFixture::packed_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray();
     auto mask = TestFixture::MakeMask(mask_values);
@@ -776,9 +776,9 @@ TYPED_TEST(MaskedPackedTest, LinearIterationUpdatesOnlySelectedParticles) {
 // ---------------------------------------------------------
 
 TYPED_TEST(MaskedPackedTest, PairOutputsCanUseIndependentMasks) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using PackedT = typename TestFixture::packed_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     std::array<bool, TestFixture::Size> p1_mask_values{};
     std::array<bool, TestFixture::Size> p2_mask_values{};
@@ -820,9 +820,9 @@ TYPED_TEST(MaskedPackedTest, PairOutputsCanUseIndependentMasks) {
 
 
 TYPED_TEST(MaskedPackedTest, PairOutputsCanShareOneInteractionMask) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
+    using Scalar = typename TestFixture::scalar_type;
+    using PackedT = typename TestFixture::packed_type;
+    using MaskedT = typename TestFixture::masked_type;
 
     auto mask_values = TestFixture::AlternatingMaskArray(false);
     auto active = TestFixture::MakeMask(mask_values);
@@ -862,10 +862,10 @@ TYPED_TEST(MaskedPackedTest, PairOutputsCanShareOneInteractionMask) {
 
 
 TYPED_TEST(MaskedPackedTest, RepeatedPairUpdatesRespectChangingExternalMask) {
-    using Scalar = typename TestFixture::Scalar;
-    using PackedT = typename TestFixture::PackedT;
-    using MaskedT = typename TestFixture::MaskedT;
-    using MaskT = typename TestFixture::MaskT;
+    using Scalar = typename TestFixture::scalar_type;
+    using PackedT = typename TestFixture::packed_type;
+    using MaskedT = typename TestFixture::masked_type;
+    using MaskT = typename TestFixture::mask_type;
 
     std::array<bool, TestFixture::Size> mask_values{};
     mask_values[0] = true;

@@ -63,9 +63,10 @@ namespace april::simd {
     // i.e. trivially convertable or narrower types e.g. loading floats from memory into a simd double register
     template <typename T, IsSimdType PackedT = Packed<std::remove_const_t<T>>>
     struct PackedRef {
+        using packed_type = PackedT;
         using memory_type = std::remove_const_t<T>;
         using value_type = PackedT::value_type;
-        using mask_type  = decltype(PackedT() == PackedT());
+        using mask_type = PackedT::mask_type;
 
         using ptr_type = std::conditional_t<std::is_const_v<PackedT>, const T*, T*>;
 

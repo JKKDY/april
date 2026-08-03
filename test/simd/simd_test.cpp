@@ -228,8 +228,8 @@ TYPED_TEST(SimdWideTest, MathFunctions) {
 
     // Using ADL (Argument Dependent Lookup) - No explicit namespace needed
     // The "Hidden Friend" functions inside the struct enable this.
-    Wide res_sqrt = sqrt(val);
-    Wide res_rsqrt = rsqrt(val);
+    Wide res_sqrt = april::sqrt(val);
+    Wide res_rsqrt = april::rsqrt(val);
 
     std::vector<Scalar> s_out(N), r_out(N);
     res_sqrt.store(s_out.data());

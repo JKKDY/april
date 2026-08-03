@@ -1,163 +1,143 @@
 #pragma once
 
+#include <concepts>
+#include <type_traits>
+
 
 namespace april::simd::internal {
-    template<typename... Ts>
-   struct packed_argument;
 
-    template<typename T, typename... Ts>
-    struct packed_argument<T, Ts...> : std::conditional_t<
-        IsSimdType<std::remove_cvref_t<T>>,
-        std::type_identity<std::remove_cvref_t<T>>,
-        packed_argument<Ts...>
-    > {};
+    template<typename T>
+    concept PackedLike = requires {
+        typename std::remove_cvref_t<T>::packed_type;
+        requires IsSimdType<typename std::remove_cvref_t<T>::packed_type>;
+    };
 
-    template<>
-    struct packed_argument<> {};
+    // Base case: no packed argument found.
+    template<typename... Args>
+    struct get_packed {};
 
-    template<typename... Ts>
-    using packed_argument_t = packed_argument<Ts...>::type;
+    // Skip scalars and unrelated arguments.
+    template<typename Head, typename... Tail>
+    requires (!PackedLike<Head>)
+    struct get_packed<Head, Tail...> : get_packed<Tail...> {};
 
-    template<typename... Ts>
+    // First SIMD value or proxy determines the packed type.
+    template<PackedLike Head, typename... Tail>
+    struct get_packed<Head, Tail...> {
+        using type = std::remove_cvref_t<Head>::packed_type;
+    };
+
+    template<typename... Args>
+    using get_packed_t = get_packed<Args...>::type;
+
+    template<typename... Args>
     concept CompatiblePackedArguments = requires {
-        typename packed_argument<Ts...>::type;
-
-        requires IsSimdType<packed_argument_t<Ts...>>;
-        requires (std::convertible_to<const Ts&, packed_argument_t<Ts...>> && ...);
+        typename get_packed<Args...>::type;
+        requires (
+            std::constructible_from<
+                typename get_packed<Args...>::type,
+                const Args&
+            > && ...
+        );
     };
 }
 
 namespace april::simd {
+
+#define AP_SIMD_UNARY(NAME) \
+template<internal::PackedLike X> \
+[[nodiscard]] auto NAME(const X& x) { \
+using P = internal::get_packed_t<X>; \
+return P::NAME(static_cast<P>(x)); \
+}
+
+#define AP_SIMD_BINARY(NAME) \
+template<typename A, typename B> \
+requires internal::CompatiblePackedArguments<A, B> \
+[[nodiscard]] auto NAME(const A& a, const B& b) { \
+using P = internal::get_packed_t<A, B>; \
+return P::NAME(static_cast<P>(a), static_cast<P>(b)); \
+}
+
+#define AP_SIMD_TERNARY(NAME) \
+template<typename A, typename B, typename C> \
+requires internal::CompatiblePackedArguments<A, B, C> \
+[[nodiscard]] auto NAME(const A& a, const B& b, const C& c) { \
+using P = internal::get_packed_t<A, B, C>; \
+return P::NAME(static_cast<P>(a), static_cast<P>(b), static_cast<P>(c)); \
+}
+
     // Selection
     template<typename M, typename A, typename B>
-    requires
-        internal::CompatiblePackedArguments<A, B> &&
-        internal::IsSimdMaskConvertibleTo<M, typename internal::packed_argument_t<A, B>::mask_type>
+    requires internal::CompatiblePackedArguments<A, B> &&
+        internal::IsSimdMaskConvertibleTo<M,typename internal::get_packed_t<A, B>::mask_type>
     [[nodiscard]] auto select(const M& mask, const A& true_value, const B& false_value) {
-        using Packed = internal::packed_argument_t<A, B>;
-        using Mask = Packed::mask_type;
+        using P = internal::get_packed_t<A, B>;
+        using Mask = P::mask_type;
 
-        return Packed::select(
+        return P::select(
             static_cast<Mask>(mask),
-            static_cast<Packed>(true_value),
-            static_cast<Packed>(false_value)
+            static_cast<P>(true_value),
+            static_cast<P>(false_value)
         );
     }
+    AP_SIMD_UNARY(abs)
 
+    AP_SIMD_BINARY(min)
+    AP_SIMD_BINARY(max)
+    AP_SIMD_TERNARY(clamp)
 
-    // Basic
-    template<typename T, size_t W> [[nodiscard]] auto abs(const Packed<T, W>& x) { return Packed<T, W>::abs(x); }
+    AP_SIMD_UNARY(sqrt)
+    AP_SIMD_UNARY(rsqrt)
+    AP_SIMD_UNARY(cbrt)
+    AP_SIMD_BINARY(hypot)
+    AP_SIMD_BINARY(pow)
 
-    template<typename A, typename B>
-    requires internal::CompatiblePackedArguments<A, B>
-    [[nodiscard]] auto min(const A& a, const B& b) {
-        using Packed = internal::packed_argument_t<A, B>;
-        return Packed::min(static_cast<Packed>(a), static_cast<Packed>(b));
+    AP_SIMD_UNARY(exp)
+    AP_SIMD_UNARY(exp2)
+    AP_SIMD_UNARY(expm1)
+    AP_SIMD_UNARY(log)
+    AP_SIMD_UNARY(ln)
+    AP_SIMD_UNARY(log2)
+    AP_SIMD_UNARY(log10)
+    AP_SIMD_UNARY(log1p)
+
+    AP_SIMD_UNARY(sin)
+    AP_SIMD_UNARY(cos)
+    AP_SIMD_UNARY(sincos)
+    AP_SIMD_UNARY(tan)
+    AP_SIMD_UNARY(asin)
+    AP_SIMD_UNARY(acos)
+    AP_SIMD_UNARY(atan)
+    AP_SIMD_BINARY(atan2)
+
+    AP_SIMD_UNARY(sinh)
+    AP_SIMD_UNARY(cosh)
+    AP_SIMD_UNARY(tanh)
+    AP_SIMD_UNARY(asinh)
+    AP_SIMD_UNARY(acosh)
+    AP_SIMD_UNARY(atanh)
+
+    AP_SIMD_UNARY(floor)
+    AP_SIMD_UNARY(ceil)
+    AP_SIMD_UNARY(round)
+    AP_SIMD_UNARY(trunc)
+    AP_SIMD_UNARY(nearbyint)
+
+    AP_SIMD_TERNARY(fma)
+    AP_SIMD_BINARY(fmod)
+    AP_SIMD_BINARY(remainder)
+    AP_SIMD_BINARY(copysign)
+
+    AP_SIMD_UNARY(isnan)
+    AP_SIMD_UNARY(isinf)
+    AP_SIMD_UNARY(isfinite)
+    AP_SIMD_UNARY(signbit)
+
+    #undef AP_SIMD_TERNARY
+    #undef AP_SIMD_BINARY
+    #undef AP_SIMD_UNARY
     }
-
-    template<typename A, typename B>
-    requires internal::CompatiblePackedArguments<A, B>
-    [[nodiscard]] auto max(const A& a, const B& b) {
-        using Packed = internal::packed_argument_t<A, B>;
-        return Packed::max(static_cast<Packed>(a), static_cast<Packed>(b));
-    }
-
-    template<typename X, typename L, typename H>
-    requires internal::CompatiblePackedArguments<X, L, H>
-    [[nodiscard]] auto clamp(const X& x, const L& lo, const H& hi) {
-        using Packed = internal::packed_argument_t<X, L, H>;
-
-        return Packed::clamp(static_cast<Packed>(x), static_cast<Packed>(lo), static_cast<Packed>(hi));
-    }
-
-
-    // Roots and powers
-    template<typename T, size_t W> [[nodiscard]] auto sqrt(const Packed<T, W>& x) { return Packed<T, W>::sqrt(x); }
-    template<typename T, size_t W> [[nodiscard]] auto rsqrt(const Packed<T, W>& x) { return Packed<T, W>::rsqrt(x); }
-    template<typename T, size_t W> [[nodiscard]] auto cbrt(const Packed<T, W>& x) { return Packed<T, W>::cbrt(x); }
-    template<typename T, size_t W> [[nodiscard]] auto hypot(const Packed<T, W>& x, const Packed<T, W>& y) { return Packed<T, W>::hypot(x, y); }
-    template<typename T, size_t W> [[nodiscard]] auto pow(const Packed<T, W>& x, const Packed<T, W>& y) { return Packed<T, W>::pow(x, y); }
-
-    // Exponential and logarithmic
-    template<typename T, size_t W> [[nodiscard]] auto exp(const Packed<T, W>& x) { return Packed<T, W>::exp(x); }
-    template<typename T, size_t W> [[nodiscard]] auto exp2(const Packed<T, W>& x) { return Packed<T, W>::exp2(x); }
-    template<typename T, size_t W> [[nodiscard]] auto expm1(const Packed<T, W>& x) { return Packed<T, W>::expm1(x); }
-    template<typename T, size_t W> [[nodiscard]] auto log(const Packed<T, W>& x) { return Packed<T, W>::log(x); }
-    template<typename T, size_t W> [[nodiscard]] auto ln(const Packed<T, W>& x) { return Packed<T, W>::log(x); }
-    template<typename T, size_t W> [[nodiscard]] auto log2(const Packed<T, W>& x) { return Packed<T, W>::log2(x); }
-    template<typename T, size_t W> [[nodiscard]] auto log10(const Packed<T, W>& x) { return Packed<T, W>::log10(x); }
-    template<typename T, size_t W> [[nodiscard]] auto log1p(const Packed<T, W>& x) { return Packed<T, W>::log1p(x); }
-
-    // Trigonometric
-    template<typename T, size_t W> [[nodiscard]] auto sin(const Packed<T, W>& x) { return Packed<T, W>::sin(x); }
-    template<typename T, size_t W> [[nodiscard]] auto cos(const Packed<T, W>& x) { return Packed<T, W>::cos(x); }
-    template<typename T, size_t W> [[nodiscard]] auto sincos(const Packed<T, W>& x) { return Packed<T, W>::sincos(x); }
-    template<typename T, size_t W> [[nodiscard]] auto tan(const Packed<T, W>& x) { return Packed<T, W>::tan(x); }
-    template<typename T, size_t W> [[nodiscard]] auto asin(const Packed<T, W>& x) { return Packed<T, W>::asin(x); }
-    template<typename T, size_t W> [[nodiscard]] auto acos(const Packed<T, W>& x) { return Packed<T, W>::acos(x); }
-    template<typename T, size_t W> [[nodiscard]] auto atan(const Packed<T, W>& x) { return Packed<T, W>::atan(x); }
-
-    template<typename Y, typename X>
-    requires internal::CompatiblePackedArguments<Y, X>
-    [[nodiscard]] auto atan2(const Y& y, const X& x) {
-        using Packed = internal::packed_argument_t<Y, X>;
-        return Packed::atan2(static_cast<Packed>(y), static_cast<Packed>(x));
-    }
-    // Hyperbolic
-    template<typename T, size_t W> [[nodiscard]] auto sinh(const Packed<T, W>& x) { return Packed<T, W>::sinh(x); }
-    template<typename T, size_t W> [[nodiscard]] auto cosh(const Packed<T, W>& x) { return Packed<T, W>::cosh(x); }
-    template<typename T, size_t W> [[nodiscard]] auto tanh(const Packed<T, W>& x) { return Packed<T, W>::tanh(x); }
-    template<typename T, size_t W> [[nodiscard]] auto asinh(const Packed<T, W>& x) { return Packed<T, W>::asinh(x); }
-    template<typename T, size_t W> [[nodiscard]] auto acosh(const Packed<T, W>& x) { return Packed<T, W>::acosh(x); }
-    template<typename T, size_t W> [[nodiscard]] auto atanh(const Packed<T, W>& x) { return Packed<T, W>::atanh(x); }
-
-    // Rounding
-    template<typename T, size_t W> [[nodiscard]] auto floor(const Packed<T, W>& x) { return Packed<T, W>::floor(x); }
-    template<typename T, size_t W> [[nodiscard]] auto ceil(const Packed<T, W>& x) { return Packed<T, W>::ceil(x); }
-    template<typename T, size_t W> [[nodiscard]] auto round(const Packed<T, W>& x) { return Packed<T, W>::round(x); }
-    template<typename T, size_t W> [[nodiscard]] auto trunc(const Packed<T, W>& x) { return Packed<T, W>::trunc(x); }
-    template<typename T, size_t W> [[nodiscard]] auto nearbyint(const Packed<T, W>& x) { return Packed<T, W>::nearbyint(x); }
-
-    // Numeric
-    template<typename X, typename Y, typename Z>
-    requires internal::CompatiblePackedArguments<X, Y, Z>
-    [[nodiscard]] auto fma(const X& x, const Y& y, const Z& z) {
-        using Packed = internal::packed_argument_t<X, Y, Z>;
-
-        return Packed::fma(
-            static_cast<Packed>(x),
-            static_cast<Packed>(y),
-            static_cast<Packed>(z)
-        );
-    }
-
-    template<typename X, typename Y>
-    requires internal::CompatiblePackedArguments<X, Y>
-    [[nodiscard]] auto fmod(const X& x, const Y& y) {
-        using Packed = internal::packed_argument_t<X, Y>;
-        return Packed::fmod(static_cast<Packed>(x), static_cast<Packed>(y));
-    }
-
-    template<typename X, typename Y>
-    requires internal::CompatiblePackedArguments<X, Y>
-    [[nodiscard]] auto remainder(const X& x, const Y& y) {
-        using Packed = internal::packed_argument_t<X, Y>;
-        return Packed::remainder(static_cast<Packed>(x), static_cast<Packed>(y));
-    }
-
-    template<typename X, typename Y>
-    requires internal::CompatiblePackedArguments<X, Y>
-    [[nodiscard]] auto copysign(const X& x, const Y& y) {
-        using Packed = internal::packed_argument_t<X, Y>;
-        return Packed::copysign(static_cast<Packed>(x), static_cast<Packed>(y));
-    }
-
-    // Classification
-    template<typename T, size_t W> [[nodiscard]] auto isnan(const Packed<T, W>& x) { return Packed<T, W>::isnan(x); }
-    template<typename T, size_t W> [[nodiscard]] auto isinf(const Packed<T, W>& x) { return Packed<T, W>::isinf(x); }
-    template<typename T, size_t W> [[nodiscard]] auto isfinite(const Packed<T, W>& x) { return Packed<T, W>::isfinite(x); }
-    template<typename T, size_t W> [[nodiscard]] auto signbit(const Packed<T, W>& x) { return Packed<T, W>::signbit(x); }
-}
 
 namespace april {
     using simd::select;

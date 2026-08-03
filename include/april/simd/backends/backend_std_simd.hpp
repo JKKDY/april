@@ -52,7 +52,7 @@ namespace april::simd::internal::std_simd {
 
         native_type data;
 
-        Mask() = default;
+        Mask() : data(false) {}
         Mask(native_type d) : data(d) {}
         Mask(bool val) : data(val) {}
 
@@ -62,7 +62,7 @@ namespace april::simd::internal::std_simd {
         template<typename U>
         requires (size() == Mask<U, Width>::size())
         operator Mask<U, Width>() const {
-            typename Mask<U, Width>::native_type converted;
+            typename Mask<U, Width>::native_type converted(false);
 
             // std::simd has no portable mask cast, so copy the logical lanes.
             // The fixed-size loop is compile-time bounded and optimizes well.
@@ -152,7 +152,7 @@ namespace april::simd::internal::std_simd {
         static Mask from_bitmask(uint64_t bits) {
             static_assert(size() <= 64, "Mask bit import supports at most 64 lanes");
 
-            native_type result;
+            native_type result(false);
             for (size_t i = 0; i < size(); ++i) {
                 result[i] = ((bits >> i) & uint64_t{1}) != 0;
             }
@@ -184,7 +184,7 @@ namespace april::simd::internal::std_simd {
             constexpr unsigned Shift = K % size();
 
             if constexpr (Shift != 0) {
-                native_type rotated;
+                native_type rotated(false);
 
                 // std::simd has no portable mask shuffle, so remap the lanes.
                 for (size_t i = 0; i < size(); ++i) {
@@ -584,7 +584,7 @@ namespace april::simd::internal::std_simd {
             // libstdc++ experimental::simd has a broken fixed-size comparison
             // path for unsigned 64-bit types on LP64 platforms.
             if constexpr (Width != 0 && sizeof(value_type) == 8) {
-                typename mask_type::native_type result;
+                typename mask_type::native_type result(false);
 
                 for (size_t i = 0; i < size(); ++i) {
                     result[i] = compare(lhs.data[i], rhs.data[i]);

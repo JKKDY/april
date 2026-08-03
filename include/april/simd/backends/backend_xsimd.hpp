@@ -1,6 +1,5 @@
 #pragma once
 #include <array>
-#include <cstddef>
 #include <cstdint>
 #include <sstream>
 #include <string>
@@ -331,20 +330,216 @@ namespace april::simd::internal::xsimd {
         friend mask_type operator>(const Packed& lhs, const Packed& rhs)  { return { lhs.data > rhs.data }; }
         friend mask_type operator>=(const Packed& lhs, const Packed& rhs) { return { lhs.data >= rhs.data }; }
 
-        // MATH FUNCTIONS
-        friend Packed sqrt(const Packed& x) { return { ::xsimd::sqrt(x.data) }; }
-        friend Packed rsqrt(const Packed& x) { return { ::xsimd::rsqrt(x.data) }; }
-        friend Packed abs(const Packed& x) { return { ::xsimd::abs(x.data) }; }
+        // SELECTION
+        [[nodiscard]] static Packed select(const mask_type& mask, const Packed& true_value, const Packed& false_value) {
+            return { ::xsimd::select(mask.data, true_value.data, false_value.data) };
+        }
+
+        // BASIC NUMERICS
+        [[nodiscard]] static Packed abs(const Packed& x) {
+            if constexpr (std::is_unsigned_v<value_type>) return x;
+            else return { ::xsimd::abs(x.data) };
+        }
+
+        [[nodiscard]] static Packed min(const Packed& a, const Packed& b) {
+            return { ::xsimd::min(a.data, b.data) };
+        }
+
+        [[nodiscard]] static Packed max(const Packed& a, const Packed& b) {
+            return { ::xsimd::max(a.data, b.data) };
+        }
+
+        [[nodiscard]] static Packed clamp(const Packed& x, const Packed& lo, const Packed& hi) {
+            return { ::xsimd::clip(x.data, lo.data, hi.data) };
+        }
+
+        // ROOTS AND POWERS
+        [[nodiscard]] static Packed sqrt(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::sqrt(x.data) };
+        }
+
+        [[nodiscard]] static Packed rsqrt(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::rsqrt(x.data) };
+        }
+
+        [[nodiscard]] static Packed fast_rsqrt(const Packed& x)
+        requires std::floating_point<value_type> {
+            return { ::xsimd::rsqrt(x.data) };
+        }
+
+        [[nodiscard]] static Packed cbrt(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::cbrt(x.data) };
+        }
+
+        [[nodiscard]] static Packed hypot(const Packed& x, const Packed& y) requires std::floating_point<value_type> {
+            return { ::xsimd::hypot(x.data, y.data) };
+        }
+
+        [[nodiscard]] static Packed pow(const Packed& x, const Packed& y) requires std::floating_point<value_type> {
+            return { ::xsimd::pow(x.data, y.data) };
+        }
+
+        // EXPONENTIAL AND LOGARITHMIC
+        [[nodiscard]] static Packed exp(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::exp(x.data) };
+        }
+
+        [[nodiscard]] static Packed exp2(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::exp2(x.data) };
+        }
+
+        [[nodiscard]] static Packed expm1(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::expm1(x.data) };
+        }
+
+        [[nodiscard]] static Packed log(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::log(x.data) };
+        }
+
+        [[nodiscard]] static Packed ln(const Packed& x) requires std::floating_point<value_type> {
+            return log(x);
+        }
+
+        [[nodiscard]] static Packed log2(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::log2(x.data) };
+        }
+
+        [[nodiscard]] static Packed log10(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::log10(x.data) };
+        }
+
+        [[nodiscard]] static Packed log1p(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::log1p(x.data) };
+        }
+
+        // TRIGONOMETRIC
+        [[nodiscard]] static Packed sin(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::sin(x.data) };
+        }
+
+        [[nodiscard]] static Packed cos(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::cos(x.data) };
+        }
+
+        [[nodiscard]] static std::pair<Packed, Packed> sincos(const Packed& x) requires std::floating_point<value_type> {
+            auto [sin_value, cos_value] = ::xsimd::sincos(x.data);
+            return { Packed{sin_value}, Packed{cos_value} };
+        }
+
+        [[nodiscard]] static Packed tan(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::tan(x.data) };
+        }
+
+        [[nodiscard]] static Packed asin(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::asin(x.data) };
+        }
+
+        [[nodiscard]] static Packed acos(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::acos(x.data) };
+        }
+
+        [[nodiscard]] static Packed atan(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::atan(x.data) };
+        }
+
+        [[nodiscard]] static Packed atan2(const Packed& y, const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::atan2(y.data, x.data) };
+        }
+
+        // HYPERBOLIC
+        [[nodiscard]] static Packed sinh(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::sinh(x.data) };
+        }
+
+        [[nodiscard]] static Packed cosh(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::cosh(x.data) };
+        }
+
+        [[nodiscard]] static Packed tanh(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::tanh(x.data) };
+        }
+
+        [[nodiscard]] static Packed asinh(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::asinh(x.data) };
+        }
+
+        [[nodiscard]] static Packed acosh(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::acosh(x.data) };
+        }
+
+        [[nodiscard]] static Packed atanh(const Packed& x) requires std::floating_point<value_type> {
+            return { ::xsimd::atanh(x.data) };
+        }
 
         // ROUNDING
-        friend Packed round(const Packed& x) { return { ::xsimd::round(x.data) }; }
-        friend Packed floor(const Packed& x) { return { ::xsimd::floor(x.data) }; }
-        friend Packed ceil(const Packed& x)  { return { ::xsimd::ceil(x.data) };  }
+        [[nodiscard]] static Packed floor(const Packed& x) {
+            if constexpr (std::integral<value_type>) return x;
+            else return { ::xsimd::floor(x.data) };
+        }
 
-        // Min/Max/FMA
-        friend Packed min(const Packed& a, const Packed& b) { return { ::xsimd::min(a.data, b.data) }; }
-        friend Packed max(const Packed& a, const Packed& b) { return { ::xsimd::max(a.data, b.data) }; }
-        friend Packed fma(const Packed& a, const Packed& b, const Packed& c) { return { ::xsimd::fma(a.data, b.data, c.data) }; }
+        [[nodiscard]] static Packed ceil(const Packed& x) {
+            if constexpr (std::integral<value_type>) return x;
+            else return { ::xsimd::ceil(x.data) };
+        }
+
+        [[nodiscard]] static Packed round(const Packed& x) {
+            if constexpr (std::integral<value_type>) return x;
+            else return { ::xsimd::round(x.data) };
+        }
+
+        [[nodiscard]] static Packed trunc(const Packed& x) {
+            if constexpr (std::integral<value_type>) return x;
+            else return { ::xsimd::trunc(x.data) };
+        }
+
+        [[nodiscard]] static Packed nearbyint(const Packed& x) {
+            if constexpr (std::integral<value_type>) return x;
+            else return { ::xsimd::nearbyint(x.data) };
+        }
+
+        // NUMERIC
+        [[nodiscard]] static Packed fma(const Packed& x, const Packed& y, const Packed& z) {
+            return { ::xsimd::fma(x.data, y.data, z.data) };
+        }
+
+        [[nodiscard]] static Packed fmod(const Packed& x, const Packed& y) requires std::floating_point<value_type> {
+            return { ::xsimd::fmod(x.data, y.data) };
+        }
+
+        [[nodiscard]] static Packed remainder(const Packed& x, const Packed& y)
+        requires std::floating_point<value_type> {
+            return { ::xsimd::remainder(x.data, y.data) };
+        }
+
+        [[nodiscard]] static Packed copysign(const Packed& magnitude, const Packed& sign)
+        requires std::floating_point<value_type> {
+            return { ::xsimd::copysign(magnitude.data, sign.data) };
+        }
+
+        // CLASSIFICATION
+        [[nodiscard]] static mask_type isnan(const Packed& x) {
+            if constexpr (std::floating_point<value_type>) return { ::xsimd::isnan(x.data) };
+            else return { false };
+        }
+
+        [[nodiscard]] static mask_type isinf(const Packed& x) {
+            if constexpr (std::floating_point<value_type>) return { ::xsimd::isinf(x.data) };
+            else return { false };
+        }
+
+        [[nodiscard]] static mask_type isfinite(const Packed& x) {
+            if constexpr (std::floating_point<value_type>) return { ::xsimd::isfinite(x.data) };
+            else return { true };
+        }
+
+        [[nodiscard]] static mask_type signbit(const Packed& x) {
+            if constexpr (std::is_unsigned_v<value_type>)
+                return { false };
+            else if constexpr (std::integral<value_type>)
+                return { x.data < native_type{0} };
+            else
+                return { ::xsimd::bitofsign(x.data) != native_type{0} };
+        }
 
         // BITWISE (strictly constrained to integer types)
         friend Packed operator~(const Packed& rhs) requires std::is_integral_v<T> { return { ~rhs.data }; }

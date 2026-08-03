@@ -1,6 +1,5 @@
 #pragma once
 
-#include "april/simd/packed.hpp"
 
 namespace april::simd::internal {
     template<typename... Ts>

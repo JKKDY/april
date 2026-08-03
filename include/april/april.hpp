@@ -40,6 +40,8 @@
 #include "april/monitors/progressbar.hpp"
 #include "april/monitors/benchmark.hpp"
 
+// common math functions
+#include "april/math/math.hpp"
 
 /**
  * Available in the april:: namespace:

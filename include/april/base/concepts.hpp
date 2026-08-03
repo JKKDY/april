@@ -8,9 +8,9 @@ namespace april {
 
     template<typename T>
     concept IsScalar =
-    !std::same_as<std::remove_cvref_t<T>, bool> &&
-    (std::floating_point<std::remove_cvref_t<T>> ||
-     std::integral<std::remove_cvref_t<T>>);
+        !std::same_as<std::remove_cvref_t<T>, bool> &&
+        (std::floating_point<std::remove_cvref_t<T>> ||
+         std::integral<std::remove_cvref_t<T>>);
 }
 
 

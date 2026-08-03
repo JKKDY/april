@@ -449,38 +449,221 @@ namespace april::simd::internal::std_simd {
             });
         }
 
-        // MATH FUNCTIONS
-        friend Packed sqrt(const Packed& x) {
-            return { stdx::sqrt(x.data) };
+        // SELECTION
+        [[nodiscard]] static Packed select(const mask_type& mask, const Packed& true_value, const Packed& false_value) {
+            native_type result = false_value.data;
+            stdx::where(mask.data, result) = true_value.data;
+            return { result };
         }
 
-        friend Packed rsqrt(const Packed& x) {
-            return {
-                native_type(value_type{1}) / stdx::sqrt(x.data)
-            };
+        // BASIC
+        [[nodiscard]] static Packed abs(const Packed& x) {
+            if constexpr (std::is_unsigned_v<value_type>) return x;
+            else return { stdx::abs(x.data) };
         }
 
-        friend Packed abs(const Packed& x) {
-            return { stdx::abs(x.data) };
-        }
-
-        // Min/Max/FMA
-        friend Packed min(const Packed& a, const Packed& b) {
+        [[nodiscard]] static Packed min(const Packed& a, const Packed& b) {
             return { stdx::min(a.data, b.data) };
         }
 
-        friend Packed max(const Packed& a, const Packed& b) {
+        [[nodiscard]] static Packed max(const Packed& a, const Packed& b) {
             return { stdx::max(a.data, b.data) };
         }
 
-        friend Packed fma(const Packed& a, const Packed& b, const Packed& c) {
-            return { stdx::fma(a.data, b.data, c.data) };
+        [[nodiscard]] static Packed clamp(const Packed& x, const Packed& lo, const Packed& hi) {
+            return { stdx::clamp(x.data, lo.data, hi.data) };
         }
 
-        // rounding
-        friend Packed round(const Packed& x) { return { stdx::round(x.data) }; }
-        friend Packed floor(const Packed& x) { return { stdx::floor(x.data) }; }
-        friend Packed ceil(const Packed& x)  { return { stdx::ceil(x.data) }; }
+        // ROOTS AND POWERS
+        [[nodiscard]] static Packed sqrt(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::sqrt(x.data) };
+        }
+
+        [[nodiscard]] static Packed rsqrt(const Packed& x) requires std::floating_point<value_type> {
+            return { native_type(value_type{1}) / stdx::sqrt(x.data) };
+        }
+
+        [[nodiscard]] static Packed cbrt(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::cbrt(x.data) };
+        }
+
+        [[nodiscard]] static Packed hypot(const Packed& x, const Packed& y) requires std::floating_point<value_type> {
+            return { stdx::hypot(x.data, y.data) };
+        }
+
+        [[nodiscard]] static Packed hypot(const Packed& x, const Packed& y, const Packed& z)
+        requires std::floating_point<value_type> {
+            return { stdx::hypot(x.data, y.data, z.data) };
+        }
+
+        [[nodiscard]] static Packed pow(const Packed& x, const Packed& y) requires std::floating_point<value_type> {
+            return { stdx::pow(x.data, y.data) };
+        }
+
+        // EXPONENTIAL AND LOGARITHMIC
+        [[nodiscard]] static Packed exp(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::exp(x.data) };
+        }
+
+        [[nodiscard]] static Packed exp2(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::exp2(x.data) };
+        }
+
+        [[nodiscard]] static Packed expm1(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::expm1(x.data) };
+        }
+
+        [[nodiscard]] static Packed log(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::log(x.data) };
+        }
+
+        [[nodiscard]] static Packed ln(const Packed& x) requires std::floating_point<value_type> {
+            return log(x);
+        }
+
+        [[nodiscard]] static Packed log2(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::log2(x.data) };
+        }
+
+        [[nodiscard]] static Packed log10(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::log10(x.data) };
+        }
+
+        [[nodiscard]] static Packed log1p(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::log1p(x.data) };
+        }
+
+        // TRIGONOMETRIC
+        [[nodiscard]] static Packed sin(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::sin(x.data) };
+        }
+
+        [[nodiscard]] static Packed cos(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::cos(x.data) };
+        }
+
+        [[nodiscard]] static std::pair<Packed, Packed> sincos(const Packed& x)
+        requires std::floating_point<value_type> {
+            return { sin(x), cos(x) };
+        }
+
+        [[nodiscard]] static Packed tan(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::tan(x.data) };
+        }
+
+        [[nodiscard]] static Packed asin(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::asin(x.data) };
+        }
+
+        [[nodiscard]] static Packed acos(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::acos(x.data) };
+        }
+
+        [[nodiscard]] static Packed atan(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::atan(x.data) };
+        }
+
+        [[nodiscard]] static Packed atan2(const Packed& y, const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::atan2(y.data, x.data) };
+        }
+
+        // HYPERBOLIC
+        [[nodiscard]] static Packed sinh(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::sinh(x.data) };
+        }
+
+        [[nodiscard]] static Packed cosh(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::cosh(x.data) };
+        }
+
+        [[nodiscard]] static Packed tanh(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::tanh(x.data) };
+        }
+
+        [[nodiscard]] static Packed asinh(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::asinh(x.data) };
+        }
+
+        [[nodiscard]] static Packed acosh(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::acosh(x.data) };
+        }
+
+        [[nodiscard]] static Packed atanh(const Packed& x) requires std::floating_point<value_type> {
+            return { stdx::atanh(x.data) };
+        }
+
+        // ROUNDING
+        [[nodiscard]] static Packed floor(const Packed& x) {
+            if constexpr (std::integral<value_type>) return x;
+            else return { stdx::floor(x.data) };
+        }
+
+        [[nodiscard]] static Packed ceil(const Packed& x) {
+            if constexpr (std::integral<value_type>) return x;
+            else return { stdx::ceil(x.data) };
+        }
+
+        [[nodiscard]] static Packed round(const Packed& x) {
+            if constexpr (std::integral<value_type>) return x;
+            else return { stdx::round(x.data) };
+        }
+
+        [[nodiscard]] static Packed trunc(const Packed& x) {
+            if constexpr (std::integral<value_type>) return x;
+            else return { stdx::trunc(x.data) };
+        }
+
+        [[nodiscard]] static Packed nearbyint(const Packed& x) {
+            if constexpr (std::integral<value_type>) return x;
+            else return { stdx::nearbyint(x.data) };
+        }
+
+        // NUMERIC
+        [[nodiscard]] static Packed fma(const Packed& x, const Packed& y, const Packed& z) {
+            if constexpr (std::integral<value_type>) return { x.data * y.data + z.data };
+            else return { stdx::fma(x.data, y.data, z.data) };
+        }
+
+        [[nodiscard]] static Packed fmod(const Packed& x, const Packed& y)
+        requires std::floating_point<value_type> {
+            return { stdx::fmod(x.data, y.data) };
+        }
+
+        [[nodiscard]] static Packed remainder(const Packed& x, const Packed& y)
+        requires std::floating_point<value_type> {
+            return { stdx::remainder(x.data, y.data) };
+        }
+
+        [[nodiscard]] static Packed copysign(const Packed& magnitude, const Packed& sign)
+        requires std::floating_point<value_type> {
+            return { stdx::copysign(magnitude.data, sign.data) };
+        }
+
+        // CLASSIFICATION
+        [[nodiscard]] static mask_type isnan(const Packed& x) {
+            if constexpr (std::floating_point<value_type>) return { stdx::isnan(x.data) };
+            else return { false };
+        }
+
+        [[nodiscard]] static mask_type isinf(const Packed& x) {
+            if constexpr (std::floating_point<value_type>) return { stdx::isinf(x.data) };
+            else return { false };
+        }
+
+        [[nodiscard]] static mask_type isfinite(const Packed& x) {
+            if constexpr (std::floating_point<value_type>) return { stdx::isfinite(x.data) };
+            else return { true };
+        }
+
+        [[nodiscard]] static mask_type signbit(const Packed& x) {
+            if constexpr (std::is_unsigned_v<value_type>) return { false };
+            else if constexpr (std::integral<value_type>) return { x.data < native_type(value_type{0}) };
+            else return { stdx::signbit(x.data) };
+        }
+
+
+
+
 
         // BITWISE OPS
         friend Packed operator~(const Packed& rhs)

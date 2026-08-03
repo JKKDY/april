@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <type_traits>
+#include <utility>
 
 
 namespace april::simd {
@@ -127,19 +128,87 @@ namespace april::simd {
     };
 
 
-    // check for free functions
     template<typename T>
-    concept HasMathFunctions = requires(T a, T b, T c) {
-        { sqrt(a) }     -> std::same_as<T>;
-        { rsqrt(a) }    -> std::same_as<T>;
-        { abs(a) }      -> std::same_as<T>;
-        { min(a, b) }   -> std::same_as<T>;
-        { max(a, b) }   -> std::same_as<T>;
-        { fma(a, b, c) }-> std::same_as<T>;
-        { round(a) }    -> std::same_as<T>;
-        { floor(a) }    -> std::same_as<T>;
-        { ceil(a) }     -> std::same_as<T>;
+    concept HasCommonMathFunctions = requires(
+        const T a, const T b, const T c,
+        const typename T::mask_type mask
+    ) {
+        // Selection
+        { T::select(mask, a, b) } -> std::same_as<T>;
+
+        // Basic
+        { T::abs(a) }       -> std::same_as<T>;
+        { T::min(a, b) }    -> std::same_as<T>;
+        { T::max(a, b) }    -> std::same_as<T>;
+        { T::clamp(a, b, c) } -> std::same_as<T>;
+
+        // Rounding: identity operations for integer packs
+        { T::floor(a) }     -> std::same_as<T>;
+        { T::ceil(a) }      -> std::same_as<T>;
+        { T::round(a) }     -> std::same_as<T>;
+        { T::trunc(a) }     -> std::same_as<T>;
+        { T::nearbyint(a) } -> std::same_as<T>;
+
+        // Numeric
+        { T::fma(a, b, c) } -> std::same_as<T>;
+
+        // Classification
+        { T::isnan(a) }    -> std::same_as<typename T::mask_type>;
+        { T::isinf(a) }    -> std::same_as<typename T::mask_type>;
+        { T::isfinite(a) } -> std::same_as<typename T::mask_type>;
+        { T::signbit(a) }  -> std::same_as<typename T::mask_type>;
     };
+
+    template<typename T>
+    concept HasFloatingMathFunctions =
+    std::floating_point<typename T::value_type> &&
+    requires(const T a, const T b) {
+        // Roots and powers
+        { T::sqrt(a) }     -> std::same_as<T>;
+        { T::rsqrt(a) }    -> std::same_as<T>;
+        { T::cbrt(a) }     -> std::same_as<T>;
+        { T::hypot(a, b) } -> std::same_as<T>;
+        { T::pow(a, b) }   -> std::same_as<T>;
+
+        // Exponential and logarithmic
+        { T::exp(a) }   -> std::same_as<T>;
+        { T::exp2(a) }  -> std::same_as<T>;
+        { T::expm1(a) } -> std::same_as<T>;
+        { T::log(a) }   -> std::same_as<T>;
+        { T::ln(a) }    -> std::same_as<T>;
+        { T::log2(a) }  -> std::same_as<T>;
+        { T::log10(a) } -> std::same_as<T>;
+        { T::log1p(a) } -> std::same_as<T>;
+
+        // Trigonometric
+        { T::sin(a) }       -> std::same_as<T>;
+        { T::cos(a) }       -> std::same_as<T>;
+        { T::sincos(a) }    -> std::same_as<std::pair<T, T>>;
+        { T::tan(a) }       -> std::same_as<T>;
+        { T::asin(a) }      -> std::same_as<T>;
+        { T::acos(a) }      -> std::same_as<T>;
+        { T::atan(a) }      -> std::same_as<T>;
+        { T::atan2(a, b) }  -> std::same_as<T>;
+
+        // Hyperbolic
+        { T::sinh(a) }  -> std::same_as<T>;
+        { T::cosh(a) }  -> std::same_as<T>;
+        { T::tanh(a) }  -> std::same_as<T>;
+        { T::asinh(a) } -> std::same_as<T>;
+        { T::acosh(a) } -> std::same_as<T>;
+        { T::atanh(a) } -> std::same_as<T>;
+
+        // Floating-point numeric operations
+        { T::fmod(a, b) }      -> std::same_as<T>;
+        { T::remainder(a, b) } -> std::same_as<T>;
+        { T::copysign(a, b) }  -> std::same_as<T>;
+    };
+
+    template<typename T>
+    concept HasMathFunctions =
+        HasCommonMathFunctions<T> &&
+        (!std::floating_point<typename T::value_type> || HasFloatingMathFunctions<T>);
+
 
     template<typename T>
     concept HasReductionsOps = requires(const T ct) {
@@ -165,9 +234,7 @@ namespace april::simd {
         && HasComparisonOps<T>
         && HasMathFunctions<T>
         && HasReductionsOps<T>
-        && HasScalarMixedOps<T, float>
-        && HasScalarMixedOps<T, double>
-        && HasScalarMixedOps<T, long double>;
+        && HasScalarMixedOps<T, typename T::value_type>;
 
     // The Main Concept
     template<typename T>
@@ -207,7 +274,7 @@ namespace april::simd {
 
         // masking
         { t == t } -> std::same_as<typename T::mask_type>;
-        { select(t == t, t, t) } -> std::same_as<T>;
+        { T::select(t == t, t, t) } -> std::same_as<T>;
 
         // permutations
         { ct.rotate_left() } -> std::same_as<T>;

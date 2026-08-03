@@ -9,6 +9,8 @@
 #include "april/simd/packed_ref.hpp"
 #include "april/utility/debug.hpp"
 
+#include "april/math/math.hpp"
+#include "april/simd/math.hpp"
 
 namespace april::math {
 
@@ -175,12 +177,11 @@ namespace april::math {
         }
 
         [[nodiscard]] Scalar norm(this const auto& self) noexcept {
-            using std::sqrt;
-            return sqrt(self.norm_squared());
+            return  april::sqrt(self.norm_squared());
         }
 
         [[nodiscard]] Scalar inv_norm(this const auto& self) noexcept {
-            return rsqrt(self.norm_squared()); // compiler may optimize with fast inverse square root
+            return april::rsqrt(self.norm_squared());
         }
 
         [[nodiscard]] Scalar inv_norm_sq(this const auto& self) noexcept {

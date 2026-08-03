@@ -157,10 +157,10 @@ TYPED_TEST(SimdRefTest, MathFunctions) {
 
     // min(Ref, Scalar) interaction
     // Relies on Ref converting to Wide, and implicit Wide(Scalar) ctor
-    Packed m = min(r, 5.0); // min(25, 5) -> 5
+    Packed m = april::min(r, 5.0); // min(25, 5) -> 5
     this->ExpectAll(m, 5.0);
 
-    Packed m2 = max(r, 5.0); // max(25, 5) -> 25
+    Packed m2 = april::max(r, 5.0); // max(25, 5) -> 25
     this->ExpectAll(m2, 25.0);
 }
 

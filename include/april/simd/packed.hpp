@@ -45,7 +45,9 @@ defined(APRIL_SIMD_BACKEND_STD_SIMD)) > 1
 #endif
 
 
+// static checks
 namespace april::simd::internal {
+
     template<typename From, typename To>
     concept IsSimdMaskConvertibleTo =
         IsSimdMask<std::remove_cvref_t<From>> &&
@@ -101,4 +103,4 @@ namespace april::simd::internal {
     static_assert(!IsSimdMaskCompatibleWith<PackedMask<double, 2>, Packed<float, 4>>);
 }
 
-
+#include "april/simd/math.hpp"

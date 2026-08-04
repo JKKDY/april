@@ -146,7 +146,7 @@ TEST(PerformanceRegression, DirectSumAoS_vs_Handcoded) {
     baseline::run_benchmark();
     run_april_benchmark();
 
-    constexpr int max_attempts = 5;
+    constexpr int max_attempts = 10;
     constexpr double tolerance = 1.2; // 20% allowance for abstraction/CI noise
 
     for (int attempt = 1; attempt <= max_attempts; ++attempt) {

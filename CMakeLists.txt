@@ -62,10 +62,6 @@ if(APRIL_ENABLE_COVERAGE AND (APRIL_USE_ASAN OR APRIL_USE_TSAN OR APRIL_USE_UBSA
     message(WARNING "[APRIL] Coverage is enabled. Sanitizers will be ignored.")
 endif()
 
-target_compile_definitions(April INTERFACE
-        APRIL_FAST_MATH_ENABLED=$<BOOL:${APRIL_ENABLE_FAST_MATH}>
-)
-
 
 
 # ------------------------
@@ -74,7 +70,9 @@ target_compile_definitions(April INTERFACE
 # define header only library library with name April. This is what targets can link against
 add_library(April INTERFACE)
 target_compile_features(April INTERFACE cxx_std_23) # enforce c++23 on any target that uses April
-
+target_compile_definitions(April INTERFACE
+        APRIL_FAST_MATH_ENABLED=$<BOOL:${APRIL_ENABLE_FAST_MATH}>
+)
 # IGlob headers and attach them to the target for IDE
 file(GLOB_RECURSE APRIL_HEADERS CONFIGURE_DEPENDS
     "${PROJECT_SOURCE_DIR}/include/april/*.h"

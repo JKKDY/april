@@ -167,30 +167,30 @@ TYPED_TEST(SimdMaskTest, SatisfiesPublicSimdContracts) {
 // ---------------------------------------------------------
 
 TYPED_TEST(SimdMaskTest, BooleanConstructorBroadcastsToAllLanes) {
-    using MaskT = typename TestFixture::MaskT;
+    using MaskT = TestFixture::MaskT;
 
     MaskT all_true(true);
     MaskT all_false(false);
 
-    EXPECT_TRUE(all(all_true));
-    EXPECT_TRUE(any(all_true));
-    EXPECT_FALSE(none(all_true));
+    EXPECT_TRUE(april::all(all_true));
+    EXPECT_TRUE(april::any(all_true));
+    EXPECT_FALSE(april::none(all_true));
 
-    EXPECT_FALSE(all(all_false));
-    EXPECT_FALSE(any(all_false));
-    EXPECT_TRUE(none(all_false));
+    EXPECT_FALSE(april::all(all_false));
+    EXPECT_FALSE(april::any(all_false));
+    EXPECT_TRUE(april::none(all_false));
 }
 
 
 TYPED_TEST(SimdMaskTest, MixedMaskReductionsAreCorrect) {
-    using MaskT = typename TestFixture::MaskT;
+    using MaskT = TestFixture::MaskT;
 
     if constexpr (TestFixture::Size > 1) {
         MaskT mask = TestFixture::MakeSingleLaneMask(0);
 
-        EXPECT_FALSE(all(mask));
-        EXPECT_TRUE(any(mask));
-        EXPECT_FALSE(none(mask));
+        EXPECT_FALSE(april::all(mask));
+        EXPECT_TRUE(april::any(mask));
+        EXPECT_FALSE(april::none(mask));
     } else {
         GTEST_SKIP() << "SIMD mask contains only one lane";
     }

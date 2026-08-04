@@ -187,11 +187,11 @@ TYPED_TEST(SimdRefTest, Comparisons) {
     // Verify values (assuming mask behaves like xsimd::batch_bool)
     // We can usually cast mask to boolean for specific lanes or use 'all/any'
     // This depends on your Mask API. Assuming 'all(mask)' exists:
-    EXPECT_TRUE(all(mask));
+    EXPECT_TRUE(april::all(mask));
 
     // Scalar comparison: a > 50 (False)
     auto mask2 = (a > 50.0);
-    EXPECT_FALSE(any(mask2));
+    EXPECT_FALSE(april::any(mask2));
 }
 
 

@@ -49,9 +49,9 @@ namespace april::simd::internal::xsimd {
         void store_unaligned(bool* ptr) const { data.store_unaligned(ptr); }
 
         // Logical Reductions
-        friend bool all(const Mask& m) { return ::xsimd::all(m.data); }
-        friend bool any(const Mask& m) { return ::xsimd::any(m.data); }
-        friend bool none(const Mask& m) { return !any(m); }
+        [[nodiscard]] static bool all(const Mask& mask) { return ::xsimd::all(mask.data); }
+        [[nodiscard]] static bool any(const Mask& mask) { return ::xsimd::any(mask.data); }
+        [[nodiscard]] static bool none(const Mask& mask) { return !::xsimd::any(mask.data); }
 
         // Bitwise/Logical Ops
         friend Mask operator~(const Mask& m) { return { ~m.data }; }

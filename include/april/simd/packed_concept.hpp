@@ -11,8 +11,15 @@
 namespace april::simd {
 
     // mask concept
+    template<typename M>
+    concept HasMaskReductions = requires(const std::remove_cvref_t<M>& mask) {
+        { std::remove_cvref_t<M>::all(mask) }  -> std::same_as<bool>;
+        { std::remove_cvref_t<M>::any(mask) }  -> std::same_as<bool>;
+        { std::remove_cvref_t<M>::none(mask) } -> std::same_as<bool>;
+    };
+
     template<typename T>
-    concept IsSimdMaskImpl =
+    concept IsSimdMaskImpl = HasMaskReductions<T> &&
         std::default_initializable<T> &&
         std::copyable<T> &&
         requires(T m, T m2, const T cm, bool* ptr, const bool* cptr) {
@@ -35,11 +42,6 @@ namespace april::simd {
         { cm.to_array() } -> std::same_as<std::array<bool, T::size()>>;
         { cm.to_string() } -> std::same_as<std::string>;
 
-        // Reductions
-        { all(cm) }  -> std::same_as<bool>;
-        { any(cm) }  -> std::same_as<bool>;
-        { none(cm) } -> std::same_as<bool>;
-
         // Logical operators
         { !cm }       -> std::same_as<T>;
         { cm && m2 }  -> std::same_as<T>;
@@ -60,7 +62,7 @@ namespace april::simd {
         { m.rotate_right() }            -> std::same_as<void>;
         { m.template rotate_left<2>() } -> std::same_as<void>;
         { m.template rotate_right<2>() }-> std::same_as<void>;
-        };
+    };
 
     template<typename T>
     concept IsSimdMask = IsSimdMaskImpl<std::remove_cvref_t<T>>;

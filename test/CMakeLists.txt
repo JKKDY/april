@@ -46,6 +46,7 @@ add_executable(test_april
         simd/simd_vec3_ref_tests.cpp
         simd/simd_masked_packed_test.cpp
         simd/simd_mask_test.cpp
+        simd/simd_math_test.cpp
 
 
         forces/interaction_test.cpp

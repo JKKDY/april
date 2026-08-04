@@ -3,6 +3,8 @@
 #include <concepts>
 #include <type_traits>
 
+#include "april/simd/packed_concept.hpp"
+
 
 namespace april::simd::internal {
 
@@ -137,7 +139,22 @@ return P::NAME(static_cast<P>(a), static_cast<P>(b), static_cast<P>(c)); \
     #undef AP_SIMD_TERNARY
     #undef AP_SIMD_BINARY
     #undef AP_SIMD_UNARY
+
+    template<HasMaskReductions M>
+    [[nodiscard]] bool all(const M& mask) {
+        return std::remove_cvref_t<M>::all(mask);
     }
+
+    template<HasMaskReductions M>
+    [[nodiscard]] bool any(const M& mask) {
+        return std::remove_cvref_t<M>::any(mask);
+    }
+
+    template<HasMaskReductions M>
+    [[nodiscard]] bool none(const M& mask) {
+        return std::remove_cvref_t<M>::none(mask);
+    }
+}
 
 namespace april {
     using simd::select;
@@ -193,4 +210,8 @@ namespace april {
     using simd::isinf;
     using simd::isfinite;
     using simd::signbit;
+
+    using simd::all;
+    using simd::any;
+    using simd::none;
 }

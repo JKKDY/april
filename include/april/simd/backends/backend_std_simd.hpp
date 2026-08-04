@@ -108,9 +108,9 @@ namespace april::simd::internal::std_simd {
         }
 
         // Logical Reductions
-        friend bool all(const Mask& m) { return stdx::all_of(m.data); }
-        friend bool any(const Mask& m) { return stdx::any_of(m.data); }
-        friend bool none(const Mask& m) { return !any(m); }
+        [[nodiscard]] static bool all(const Mask& mask) { return stdx::all_of(mask.data); }
+        [[nodiscard]] static bool any(const Mask& mask) { return stdx::any_of(mask.data); }
+        [[nodiscard]] static bool none(const Mask& mask) { return !stdx::any_of(mask.data); }
 
         // Bitwise/Logical Ops
         friend Mask operator~(const Mask& m) { return { !m.data }; }

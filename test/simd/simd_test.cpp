@@ -375,13 +375,13 @@ TYPED_TEST(SimdWideTest, LogicalMaskReductions) {
     auto mask_all_false = (zeros == ones);
 
     // Test homogeneous masks
-    EXPECT_TRUE(all(mask_all_true));
-    EXPECT_TRUE(any(mask_all_true));
-    EXPECT_FALSE(none(mask_all_true));
+    EXPECT_TRUE(april::all(mask_all_true));
+    EXPECT_TRUE(april::any(mask_all_true));
+    EXPECT_FALSE(april::none(mask_all_true));
 
-    EXPECT_FALSE(all(mask_all_false));
-    EXPECT_FALSE(any(mask_all_false));
-    EXPECT_TRUE(none(mask_all_false));
+    EXPECT_FALSE(april::all(mask_all_false));
+    EXPECT_FALSE(april::any(mask_all_false));
+    EXPECT_TRUE(april::none(mask_all_false));
 
     // Test heterogeneous mask (if vector size > 1)
     if constexpr (TestFixture::Size > 1) {
@@ -391,9 +391,9 @@ TYPED_TEST(SimdWideTest, LogicalMaskReductions) {
         Wide mix_val = Wide::load(vals.data());
         auto mask_mixed = (mix_val == ones);
 
-        EXPECT_FALSE(all(mask_mixed));
-        EXPECT_TRUE(any(mask_mixed));
-        EXPECT_FALSE(none(mask_mixed));
+        EXPECT_FALSE(april::all(mask_mixed));
+        EXPECT_TRUE(april::any(mask_mixed));
+        EXPECT_FALSE(april::none(mask_mixed));
     }
 }
 

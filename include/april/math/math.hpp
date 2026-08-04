@@ -104,4 +104,9 @@ namespace april {
     template<IsScalar T> [[nodiscard]] bool isinf(T x) { return std::isinf(x); }
     template<IsScalar T> [[nodiscard]] bool isfinite(T x) { return std::isfinite(x); }
     template<IsScalar T> [[nodiscard]] bool signbit(T x) { return std::signbit(x); }
+
+    // masking
+    [[nodiscard]] constexpr bool all(const bool mask)  { return mask; }
+    [[nodiscard]] constexpr bool any(const bool mask)  { return mask; }
+    [[nodiscard]] constexpr bool none(const bool mask) { return !mask; }
 }

@@ -48,7 +48,7 @@ option(APRIL_USE_UBSAN       "Enable Undefined Behavior Sanitizer" OFF)
 option(APRIL_USE_TSAN        "Enable Thread Sanitizer" OFF)
 
 # Hardware & Optimization
-option(APRIL_ENABLE_FAST_MATH "Enable unsafe floating-point optimizations (-ffast-math / /fp:fast)" ON)
+option(APRIL_ENABLE_FAST_MATH "Enable unsafe floating-point optimizations (-ffast-math / /fp:fast)" OFF)
 set(APRIL_MARCH "native" CACHE STRING "Target architecture for GCC/Clang (e.g., native, haswell, x86-64-v3)")
 set(APRIL_MSVC_ARCH "AVX2" CACHE STRING "Target instruction set for MSVC (e.g., AVX2, AVX512)")
 set(APRIL_MSVC_FAVOR "NONE" CACHE STRING "Optimize for specific MSVC architecture (NONE, INTEL64, AMD64)")

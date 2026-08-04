@@ -12,7 +12,7 @@
 
 
 #include <array>
-#include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <sstream>
 #include <string>
@@ -657,15 +657,9 @@ namespace april::simd::internal::std_simd {
         }
 
         [[nodiscard]] static mask_type signbit(const Packed& x) {
-            if constexpr (std::is_unsigned_v<value_type>) {
-                return { false };
-            } else if constexpr (std::integral<value_type>) {
-                return { x.data < native_type{value_type{0}} };
-            } else {
-                std::array<bool, size()> result{};
-                for (size_t i = 0; i < size(); ++i) result[i] = std::signbit(x.data.get(i));
-                return mask_type::load_unaligned(result.data());
-            }
+            if constexpr (std::is_unsigned_v<value_type>) return { false };
+            else if constexpr (std::integral<value_type>) return { x.data < native_type(value_type{0}) };
+            else return { stdx::signbit(x.data) };
         }
         
 

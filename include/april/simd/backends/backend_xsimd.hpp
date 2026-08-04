@@ -5,6 +5,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <cmath>
 #include <xsimd/xsimd.hpp>
 
 
@@ -534,12 +535,15 @@ namespace april::simd::internal::xsimd {
         }
 
         [[nodiscard]] static mask_type signbit(const Packed& x) {
-            if constexpr (std::is_unsigned_v<value_type>)
+            if constexpr (std::is_unsigned_v<value_type>) {
                 return { false };
-            else if constexpr (std::integral<value_type>)
-                return { x.data < native_type{0} };
-            else
-                return { ::xsimd::bitofsign(x.data) != native_type{0} };
+            } else if constexpr (std::integral<value_type>) {
+                return { x.data < native_type{value_type{0}} };
+            } else {
+                std::array<bool, size()> result = x.to_array();
+                for (size_t i = 0; i < size(); ++i) result[i] = std::signbit(x[i]);
+                return mask_type::load_unaligned(result.data());
+            }
         }
 
         // BITWISE (strictly constrained to integer types)

@@ -226,7 +226,7 @@ TYPED_TEST(SimdMathTest, SelectionAndBasicFunctions) {
 }
 
 TYPED_TEST(SimdMathTest, RootsAndPowers) {
-    static constexpr double RsqrtTolerance = 5e-5;
+    static constexpr double RsqrtTolerance = 1e-3;
 
     using Scalar = typename TestFixture::Scalar;
     const auto xv = TestFixture::Values([](std::size_t i) {

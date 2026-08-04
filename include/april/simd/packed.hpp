@@ -17,16 +17,25 @@ defined(APRIL_SIMD_BACKEND_STD_SIMD)) > 1
 //-----------------------
 #if defined(APRIL_SIMD_BACKEND_XSIMD)
 
-    #include "april/simd/backends/backend_xsimd.hpp"
+    // #include "april/simd/backends/backend_xsimd.hpp"
+    //
+    // namespace april::simd {
+    //     template<typename T, size_t W = 0>
+    //     using Packed = internal::xsimd::Packed<T, W>;
+    //
+    //     template<typename T, size_t W = 0>
+    //     using PackedMask = internal::xsimd::Mask<T, W>;
+    // }
 
-    namespace april::simd {
-        template<typename T, size_t W = 0>
-        using Packed = internal::xsimd::Packed<T, W>;
+#include "april/simd/backends/backend_std_simd.hpp"
 
-        template<typename T, size_t W = 0>
-        using PackedMask = internal::xsimd::Mask<T, W>;
-    }
+namespace april::simd {
+    template<typename T, size_t W = 0>
+    using Packed = internal::std_simd::Packed<T, W>;
 
+    template<typename T, size_t W = 0>
+    using PackedMask = internal::std_simd::Mask<T, W>;
+}
 
 #elif defined(APRIL_SIMD_BACKEND_STD_SIMD)
 

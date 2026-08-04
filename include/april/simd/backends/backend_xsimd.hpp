@@ -360,8 +360,13 @@ namespace april::simd::internal::xsimd {
             return { ::xsimd::sqrt(x.data) };
         }
 
-        [[nodiscard]] static Packed rsqrt(const Packed& x) requires std::floating_point<value_type> {
+        [[nodiscard]] static Packed rsqrt(const Packed& x)
+        requires std::floating_point<value_type> {
+        #if APRIL_FAST_MATH_ENABLED
             return { ::xsimd::rsqrt(x.data) };
+        #else
+            return { native_type(value_type{1}) / ::xsimd::sqrt(x.data) };
+        #endif
         }
 
         [[nodiscard]] static Packed fast_rsqrt(const Packed& x)

@@ -62,6 +62,10 @@ if(APRIL_ENABLE_COVERAGE AND (APRIL_USE_ASAN OR APRIL_USE_TSAN OR APRIL_USE_UBSA
     message(WARNING "[APRIL] Coverage is enabled. Sanitizers will be ignored.")
 endif()
 
+target_compile_definitions(April INTERFACE
+        APRIL_FAST_MATH_ENABLED=$<BOOL:${APRIL_ENABLE_FAST_MATH}>
+)
+
 
 
 # ------------------------

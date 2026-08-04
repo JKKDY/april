@@ -1,5 +1,18 @@
 #pragma once
 
+#ifndef APRIL_FAST_MATH_ENABLED
+
+    #if defined(__FAST_MATH__) || \
+    (defined(__FINITE_MATH_ONLY__) && __FINITE_MATH_ONLY__ > 0) || \
+    (defined(_M_FP_FAST) && _M_FP_FAST)
+
+        #define APRIL_FAST_MATH_ENABLED 1
+    #else
+        #define APRIL_FAST_MATH_ENABLED 0
+    #endif
+
+#endif
+
 
 // ----------------
 // EXECUTOR DEFAULT

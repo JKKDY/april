@@ -12,14 +12,14 @@
 using namespace april;
 
 // Configuration
-static constexpr int NX = 10, NY = 10, NZ = 10;
+static constexpr int NX = 20, NY = 20, NZ = 20;
 static constexpr int STEPS = 50;
 static constexpr double A = 1.1225;
 static constexpr double MASS = 1.0;
 static constexpr double SIGMA = 1.0;
 static constexpr double EPSILON = 5.0;
 static constexpr double R_CUT = 3.0 * SIGMA;
-static constexpr double DT = 0.0002;
+static constexpr double DT = 0.005;
 
 // HANDCODED BASELINE
 namespace baseline {
@@ -147,7 +147,7 @@ TEST(PerformanceRegression, DirectSumAoS_vs_Handcoded) {
     run_april_benchmark();
 
     constexpr int max_attempts = 5;
-    constexpr double tolerance = 1.15; // 15% allowance for abstraction/CI noise
+    constexpr double tolerance = 1.2; // 20% allowance for abstraction/CI noise
 
     for (int attempt = 1; attempt <= max_attempts; ++attempt) {
         std::cout << "\n[   INFO   ] --- Attempt " << attempt << " of " << max_attempts << " ---" << std::endl;

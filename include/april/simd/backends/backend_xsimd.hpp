@@ -540,9 +540,20 @@ namespace april::simd::internal::xsimd {
             } else if constexpr (std::integral<value_type>) {
                 return { x.data < native_type{value_type{0}} };
             } else {
-                std::array<bool, size()> result = x.to_array();
-                for (size_t i = 0; i < size(); ++i) result[i] = std::signbit(x[i]);
-                return mask_type::load_unaligned(result.data());
+                using integer_type = std::conditional_t<
+                    sizeof(value_type) == 4,
+                    std::uint32_t,
+                    std::uint64_t
+                >;
+
+                const auto sign_bits =
+                    ::xsimd::bitwise_cast<integer_type>(::xsimd::bitofsign(x.data));
+
+                return {
+                    ::xsimd::batch_bool_cast<value_type>(
+                        sign_bits != decltype(sign_bits){integer_type{0}}
+                    )
+                };
             }
         }
 

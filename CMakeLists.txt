@@ -1,3 +1,34 @@
+# April build configuration overview
+#
+# Typical usage:
+#   cmake -S . -B build
+#   cmake --build build -j
+#   ctest --test-dir build --output-on-failure
+#
+# Common configuration options:
+#   -DAPRIL_BUILD_TESTS=ON|OFF          Build the test suite
+#   -DAPRIL_BUILD_EXAMPLES=ON|OFF       Build example programs
+#   -DAPRIL_ENABLE_XSIMD=ON|OFF         Use xsimd; OFF selects std::simd
+#   -DAPRIL_ENABLE_OPENMP=ON|OFF        Enable the OpenMP executor backend
+#   -DAPRIL_ENABLE_FAST_MATH=ON|OFF     Enable unsafe floating-point optimizations
+#   -DAPRIL_MARCH=native|x86-64-v3      Select the GCC/Clang target architecture
+#   -DAPRIL_MSVC_ARCH=AVX2|AVX512       Select the MSVC target instruction set
+#
+# Development options:
+#   -DAPRIL_USE_ASAN=ON                 Enable AddressSanitizer
+#   -DAPRIL_USE_UBSAN=ON                Enable UndefinedBehaviorSanitizer
+#   -DAPRIL_USE_TSAN=ON                 Enable ThreadSanitizer
+#   -DAPRIL_ENABLE_COVERAGE=ON          Enable coverage instrumentation
+#
+# Examples:
+#   cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+#   cmake -S . -B build-debug -DCMAKE_BUILD_TYPE=Debug -DAPRIL_USE_ASAN=ON -DAPRIL_USE_UBSAN=ON
+#   cmake -S . -B build-fast -DCMAKE_BUILD_TYPE=Release -DAPRIL_ENABLE_FAST_MATH=ON -DAPRIL_MARCH=native
+#
+# April is header-only. Consumers link against the April target. Tests and
+# examples additionally link against April_dev_configs to receive warnings,
+# optimizations, sanitizer flags, and other development-only configuration.
+
 # This is the top level cmake
 cmake_minimum_required(VERSION 3.28)
 
@@ -6,16 +37,15 @@ cmake_minimum_required(VERSION 3.28)
 # PROJECT DEFINITION
 # ------------------
 # Deployment Target on MacOS
-if(APPLE)
-    # Force the deployment target to macOS 14
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0" CACHE STRING "Minimum macOS version" FORCE)
+if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0" CACHE STRING "Minimum macOS version")
 endif()
 
 project(
-    April # project name: April
-    VERSION 0.1.0
-    DESCRIPTION "A high-performance C++23 Engine for Particle-based Simulations"
-    LANGUAGES CXX # Language: C++
+        April # project name: April
+        VERSION 0.1.0
+        DESCRIPTION "A high-performance C++23 Engine for Particle-based Simulations"
+        LANGUAGES CXX # Language: C++
 )
 
 if(PROJECT_IS_TOP_LEVEL)
@@ -27,7 +57,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
 endif()
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "Profile" "Assembly")
-
 
 
 # ---------------
@@ -49,19 +78,18 @@ option(APRIL_USE_TSAN        "Enable Thread Sanitizer" OFF)
 
 # Hardware & Optimization
 option(APRIL_ENABLE_FAST_MATH "Enable unsafe floating-point optimizations (-ffast-math / /fp:fast)" OFF)
-set(APRIL_MARCH "native" CACHE STRING "Target architecture for GCC/Clang (e.g., native, haswell, x86-64-v3)")
+set(APRIL_MARCH "" CACHE STRING "Target architecture for GCC/Clang (e.g., native, haswell, x86-64-v3)")
 set(APRIL_MSVC_ARCH "AVX2" CACHE STRING "Target instruction set for MSVC (e.g., AVX2, AVX512)")
 set(APRIL_MSVC_FAVOR "NONE" CACHE STRING "Optimize for specific MSVC architecture (NONE, INTEL64, AMD64)")
 set_property(CACHE APRIL_MSVC_FAVOR PROPERTY STRINGS "NONE" "INTEL64" "AMD64")
 
 # Mutual Exclusion Checks
-if(APRIL_USE_ASAN AND APRIL_USE_TSAN)
-    message(FATAL_ERROR "[APRIL] AddressSanitizer (ASan) and ThreadSanitizer (TSan) are mutually exclusive. Pick one.")
+if(APRIL_USE_TSAN AND (APRIL_USE_ASAN OR APRIL_USE_UBSAN))
+    message(FATAL_ERROR "[APRIL] ThreadSanitizer cannot be combined with AddressSanitizer or UndefinedBehaviorSanitizer.")
 endif()
 if(APRIL_ENABLE_COVERAGE AND (APRIL_USE_ASAN OR APRIL_USE_TSAN OR APRIL_USE_UBSAN))
-    message(WARNING "[APRIL] Coverage is enabled. Sanitizers will be ignored.")
+    message(FATAL_ERROR "[APRIL] Coverage and sanitizers cannot be enabled together.")
 endif()
-
 
 
 # ------------------------
@@ -70,31 +98,38 @@ endif()
 # define header only library library with name April. This is what targets can link against
 add_library(April INTERFACE)
 target_compile_features(April INTERFACE cxx_std_23) # enforce c++23 on any target that uses April
+
+# Public floating-point configuration
 target_compile_definitions(April INTERFACE
         APRIL_FAST_MATH_ENABLED=$<BOOL:${APRIL_ENABLE_FAST_MATH}>
 )
-# IGlob headers and attach them to the target for IDE
+target_compile_options(April INTERFACE
+        $<$<AND:$<BOOL:${APRIL_ENABLE_FAST_MATH}>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-ffast-math>
+        $<$<AND:$<BOOL:${APRIL_ENABLE_FAST_MATH}>,$<CXX_COMPILER_ID:MSVC>>:/fp:fast>
+)
+
+# Glob headers and attach them to the target for IDE
 file(GLOB_RECURSE APRIL_HEADERS CONFIGURE_DEPENDS
-    "${PROJECT_SOURCE_DIR}/include/april/*.h"
-    "${PROJECT_SOURCE_DIR}/include/april/*.hpp"
+        "${PROJECT_SOURCE_DIR}/include/april/*.h"
+        "${PROJECT_SOURCE_DIR}/include/april/*.hpp"
 )
 target_sources(April INTERFACE ${APRIL_HEADERS})
 source_group(TREE "${PROJECT_SOURCE_DIR}/include" PREFIX "Header Files" FILES ${APRIL_HEADERS})
 
 # set the include directory
 target_include_directories(April INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> # "Use this path only during the build"
-    $<INSTALL_INTERFACE:include> # "Use this path after the library is installed"
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> # "Use this path only during the build"
+        $<INSTALL_INTERFACE:include> # "Use this path after the library is installed"
 )
 
 # Resolve SIMD Backend
 if(APRIL_ENABLE_XSIMD)
     include(FetchContent) # get xSIMD
     FetchContent_Declare(
-        xsimd
-        GIT_REPOSITORY
-        https://github.com/xtensor-stack/xsimd.git GIT_TAG 14.0.0
-        SYSTEM
+            xsimd
+            GIT_REPOSITORY https://github.com/xtensor-stack/xsimd.git
+            GIT_TAG 14.0.0
+            SYSTEM
     )
     FetchContent_MakeAvailable(xsimd)
 
@@ -121,77 +156,76 @@ add_library(April_dev_configs INTERFACE)
 
 # Warnings
 target_compile_options(April_dev_configs INTERFACE
-    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Werror -Wpedantic>
-    $<$<CXX_COMPILER_ID:MSVC>:/W2 /permissive- /WX>
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Werror -Wpedantic>
+        $<$<CXX_COMPILER_ID:MSVC>:/W2 /permissive- /WX>
 )
 
 # Optimizations
 target_compile_options(April_dev_configs INTERFACE
-    # Release / RelWithDebInfo (GCC/Clang)
-    $<$<AND:$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:GNU,Clang>>:
-        -O3                      # Maximum optimization level
-        -march=${APRIL_MARCH}    # Use all CPU instructions available on specified platform
-        -fomit-frame-pointer     # Omit frame pointer for slightly faster calls
-        -fno-plt                 # Avoid procedure linkage table, improves direct calls
-        $<$<BOOL:${APRIL_ENABLE_FAST_MATH}>:-ffast-math> # Allow unsafe floating-point optimizations for speed
-    >
-    # Release / RelWithDebInfo (MSVC)
-    $<$<AND:$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:MSVC>>:
+        # Release / RelWithDebInfo (GCC/Clang/AppleClang)
+        $<$<AND:$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:
+        -O3
+        -fomit-frame-pointer
+        $<$<BOOL:${APRIL_MARCH}>:-march=${APRIL_MARCH}>
+        >
+
+        # Non-Apple GCC/Clang optimizations
+        $<$<AND:$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:GNU,Clang>,$<NOT:$<PLATFORM_ID:Darwin>>>:
+        -fno-plt
+        >
+
+        # Release / RelWithDebInfo (MSVC)
+        $<$<AND:$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:MSVC>>:
         /O2                 # Maximize speed (replaces /Ox)
-#        /GL                 # Whole program optimization (LTCG) # commented out because of long build times
+        #       /GL                 # Whole program optimization (LTCG) # commented out because of long build times
         /Gw                 # Optimize global data
         /Ob3                # Aggressive inlining (better than /Ob2)
         /Zc:inline          # Remove unreferenced COMDATs (shrinks binary/link time)
         /cgthreads8         # Use 8 threads for compilation/codegen
-        /GS-                # disable stack security checks: could lead to slight perf increase in hot loops
-        /arch:${APRIL_MSVC_ARCH}  # Use all CPU instructions available on specified platform
-        $<$<BOOL:${APRIL_ENABLE_FAST_MATH}>:/fp:fast> # Allow unsafe floating-point optimizations for speed
-        $<$<NOT:$<STREQUAL:${APRIL_MSVC_FAVOR},NONE>>:/favor:${APRIL_MSVC_FAVOR}> # specify favoured architecture
+        /arch:${APRIL_MSVC_ARCH} # Use specified instruction set
+        $<$<NOT:$<STREQUAL:${APRIL_MSVC_FAVOR},NONE>>:/favor:${APRIL_MSVC_FAVOR}>
         /bigobj
         /MP
-    >
+        >
 
-    # Debug
-    $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU,Clang>>:-O0 -g>
-    $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od /Zi /bigobj>
+        # Debug
+        $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-O0 -g>
+        $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od /Zi /bigobj>
 
-    # Profile (GCC/Clang)
-    $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:GNU,Clang>>:-O1 -g -pg>
+        # Profile (GCC/Clang/AppleClang)
+        $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-O1 -g -pg>
 
-    # Assembly (GCC/Clang)
-    # Usage: Select "Assembly" build type, then run "make <target>.s"
-    $<$<AND:$<CONFIG:Assembly>,$<CXX_COMPILER_ID:GNU,Clang>>:
+        # Assembly (GCC/Clang)
+        # Usage: Select "Assembly" build type, then run "make <target>.s"
+        $<$<AND:$<CONFIG:Assembly>,$<CXX_COMPILER_ID:GNU,Clang>,$<NOT:$<PLATFORM_ID:Darwin>>>:
         -O3
-        -g                    # Generate debug info (for .loc annotations in asm)
-        -fverbose-asm         # Add comments with variable names/source lines
-        -masm=intel           # Enable Intel syntax
-        -march=${APRIL_MARCH}
+        -g
+        -fverbose-asm
+        -masm=intel
+        $<$<BOOL:${APRIL_MARCH}>:-march=${APRIL_MARCH}>
         -fomit-frame-pointer
         -finline-functions
         -fno-plt
-        $<$<BOOL:${APRIL_ENABLE_FAST_MATH}>:-ffast-math>
-    >
+        >
 )
 
 # Linker flags specifically for Profile mode
 target_link_options(April_dev_configs INTERFACE
-        $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:GNU,Clang>>:-pg>
+        $<$<AND:$<CONFIG:Profile>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-pg>
 )
 
-# Sanitizers (Only if coverage is OFF)
-if(NOT APRIL_ENABLE_COVERAGE)
-    if(APRIL_USE_ASAN AND NOT MSVC)
-        target_compile_options(April_dev_configs INTERFACE -fsanitize=address -fno-omit-frame-pointer)
-        target_link_options(April_dev_configs INTERFACE -fsanitize=address)
-    endif()
-    if(APRIL_USE_UBSAN AND NOT MSVC)
-        target_compile_options(April_dev_configs INTERFACE -fsanitize=undefined)
-        target_link_options(April_dev_configs INTERFACE -fsanitize=undefined)
-    endif()
-    if(APRIL_USE_TSAN AND NOT MSVC)
-        target_compile_options(April_dev_configs INTERFACE -fsanitize=thread -fno-omit-frame-pointer)
-        target_link_options(April_dev_configs INTERFACE -fsanitize=thread)
-    endif()
+# Sanitizers
+if(APRIL_USE_ASAN AND NOT MSVC)
+    target_compile_options(April_dev_configs INTERFACE -fsanitize=address -fno-omit-frame-pointer)
+    target_link_options(April_dev_configs INTERFACE -fsanitize=address)
+endif()
+if(APRIL_USE_UBSAN AND NOT MSVC)
+    target_compile_options(April_dev_configs INTERFACE -fsanitize=undefined)
+    target_link_options(April_dev_configs INTERFACE -fsanitize=undefined)
+endif()
+if(APRIL_USE_TSAN AND NOT MSVC)
+    target_compile_options(April_dev_configs INTERFACE -fsanitize=thread -fno-omit-frame-pointer)
+    target_link_options(April_dev_configs INTERFACE -fsanitize=thread)
 endif()
 
 # Coverage
@@ -238,7 +272,6 @@ if(APRIL_BUILD_TESTS)
 endif()
 
 
-
 # -------------
 # BUILD SUMMARY
 # -------------
@@ -253,8 +286,10 @@ if(MSVC)
     if(NOT APRIL_MSVC_FAVOR STREQUAL "NONE")
         string(APPEND _active_arch " (Favor: ${APRIL_MSVC_FAVOR})")
     endif()
-else()
+elseif(APRIL_MARCH)
     set(_active_arch "${APRIL_MARCH}")
+else()
+    set(_active_arch "compiler default")
 endif()
 
 message(STATUS "===========================================================")

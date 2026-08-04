@@ -147,6 +147,13 @@ jobs:
         if: matrix.cxx == 'cl'
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Print toolchain
+        shell: bash
+        run: |
+          "${{ matrix.cxx }}" --version || true
+          cmake --version
+          ninja --version
+
       - name: Configure CMake
         shell: bash
         run: |
@@ -157,20 +164,22 @@ jobs:
             "-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}"
             "-DCMAKE_C_COMPILER=${{ matrix.cc }}"
             "-DCMAKE_CXX_COMPILER=${{ matrix.cxx }}"
+            -DAPRIL_BUILD_TESTS=ON
             -DAPRIL_BUILD_EXAMPLES=ON
+            -DAPRIL_ENABLE_FAST_MATH=OFF
           )
-
+          
           if [[ -n "${SDKROOT:-}" ]]; then
             cmake_args+=("-DCMAKE_OSX_SYSROOT=$SDKROOT")
           fi
-
+          
           extra_flags="${{ matrix.cmake_flags }}"
-
+          
           if [[ -n "$extra_flags" ]]; then
             read -ra parsed_flags <<< "$extra_flags"
             cmake_args+=("${parsed_flags[@]}")
           fi
-
+          
           cmake "${cmake_args[@]}"
 
       - name: Build all targets
@@ -216,6 +225,9 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-18 \
             -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DAPRIL_BUILD_TESTS=ON \
+            -DAPRIL_BUILD_EXAMPLES=OFF \
+            -DAPRIL_ENABLE_FAST_MATH=OFF \
             -DAPRIL_ENABLE_COVERAGE=ON
 
       - name: Build

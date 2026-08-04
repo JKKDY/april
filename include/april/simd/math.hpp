@@ -9,73 +9,98 @@
 namespace april::simd::internal {
 
     template<typename T>
-    concept PackedLike = requires {
-        typename std::remove_cvref_t<T>::packed_type;
-        requires IsSimdType<typename std::remove_cvref_t<T>::packed_type>;
+    using packed_type_t = std::remove_cvref_t<T>::packed_type;
+
+
+    template<typename T>
+    concept PackedLike = requires(const std::remove_cvref_t<T>& value) {
+        typename packed_type_t<T>;
+        requires IsSimdType<packed_type_t<T>>;
+        { static_cast<packed_type_t<T>>(value) } -> std::same_as<packed_type_t<T>>;
     };
 
-    // Base case: no packed argument found.
+
+    // Find the first packed-like argument.
     template<typename... Args>
     struct get_packed {};
 
-    // Skip scalars and unrelated arguments.
     template<typename Head, typename... Tail>
     requires (!PackedLike<Head>)
     struct get_packed<Head, Tail...> : get_packed<Tail...> {};
 
-    // First SIMD value or proxy determines the packed type.
     template<PackedLike Head, typename... Tail>
     struct get_packed<Head, Tail...> {
-        using type = std::remove_cvref_t<Head>::packed_type;
+        using type = packed_type_t<Head>;
     };
 
     template<typename... Args>
     using get_packed_t = get_packed<Args...>::type;
 
+
+    // Scalars are always shape-compatible. Packed-like arguments must have
+    // matching lane counts and matching scalar storage widths.
+    template<typename T, typename P>
+    static constexpr bool packed_shape_compatible_v = [] {
+        if constexpr (!PackedLike<T>) {
+            return true;
+        } else {
+            using Q = packed_type_t<T>;
+            return P::size() == Q::size() &&
+                   sizeof(typename P::value_type) == sizeof(typename Q::value_type);
+        }
+    }();
+
+
     template<typename... Args>
     concept CompatiblePackedArguments = requires {
         typename get_packed<Args...>::type;
+
         requires (
-            std::constructible_from<
-                typename get_packed<Args...>::type,
-                const Args&
-            > && ...
+            (
+                packed_shape_compatible_v<Args, get_packed_t<Args...>> &&
+                std::constructible_from<get_packed_t<Args...>, const Args&>
+            ) && ...
         );
     };
+
 }
+
 
 namespace april::simd {
 
-#define AP_SIMD_UNARY(NAME) \
-template<internal::PackedLike X> \
-[[nodiscard]] auto NAME(const X& x) { \
-using P = internal::get_packed_t<X>; \
-return P::NAME(static_cast<P>(x)); \
-}
+#define AP_SIMD_UNARY(NAME)                                                   \
+    template<internal::PackedLike X>                                          \
+    [[nodiscard]] auto NAME(const X& x) {                                     \
+        using P = internal::packed_type_t<X>;                                 \
+        return P::NAME(static_cast<P>(x));                                    \
+    }
 
-#define AP_SIMD_BINARY(NAME) \
-template<typename A, typename B> \
-requires internal::CompatiblePackedArguments<A, B> \
-[[nodiscard]] auto NAME(const A& a, const B& b) { \
-using P = internal::get_packed_t<A, B>; \
-return P::NAME(static_cast<P>(a), static_cast<P>(b)); \
-}
+#define AP_SIMD_BINARY(NAME)                                                  \
+    template<typename A, typename B>                                          \
+    requires internal::CompatiblePackedArguments<A, B>                        \
+    [[nodiscard]] auto NAME(const A& a, const B& b) {                         \
+        using P = internal::get_packed_t<A, B>;                               \
+        return P::NAME(static_cast<P>(a), static_cast<P>(b));                 \
+    }
 
-#define AP_SIMD_TERNARY(NAME) \
-template<typename A, typename B, typename C> \
-requires internal::CompatiblePackedArguments<A, B, C> \
-[[nodiscard]] auto NAME(const A& a, const B& b, const C& c) { \
-using P = internal::get_packed_t<A, B, C>; \
-return P::NAME(static_cast<P>(a), static_cast<P>(b), static_cast<P>(c)); \
-}
+#define AP_SIMD_TERNARY(NAME)                                                 \
+    template<typename A, typename B, typename C>                              \
+    requires internal::CompatiblePackedArguments<A, B, C>                     \
+    [[nodiscard]] auto NAME(const A& a, const B& b, const C& c) {             \
+        using P = internal::get_packed_t<A, B, C>;                            \
+        return P::NAME(static_cast<P>(a), static_cast<P>(b), static_cast<P>(c)); \
+    }
 
-    // Selection
+
     template<typename M, typename A, typename B>
     requires internal::CompatiblePackedArguments<A, B> &&
-        internal::IsSimdMaskConvertibleTo<M,typename internal::get_packed_t<A, B>::mask_type>
+             internal::IsSimdMaskConvertibleTo<
+                 M,
+                 typename internal::get_packed_t<A, B>::mask_type
+             >
     [[nodiscard]] auto select(const M& mask, const A& true_value, const B& false_value) {
         using P = internal::get_packed_t<A, B>;
-        using Mask = P::mask_type;
+        using Mask = typename P::mask_type;
 
         return P::select(
             static_cast<Mask>(mask),
@@ -83,6 +108,8 @@ return P::NAME(static_cast<P>(a), static_cast<P>(b), static_cast<P>(c)); \
             static_cast<P>(false_value)
         );
     }
+
+
     AP_SIMD_UNARY(abs)
 
     AP_SIMD_BINARY(min)
@@ -136,9 +163,11 @@ return P::NAME(static_cast<P>(a), static_cast<P>(b), static_cast<P>(c)); \
     AP_SIMD_UNARY(isfinite)
     AP_SIMD_UNARY(signbit)
 
-    #undef AP_SIMD_TERNARY
-    #undef AP_SIMD_BINARY
-    #undef AP_SIMD_UNARY
+
+#undef AP_SIMD_TERNARY
+#undef AP_SIMD_BINARY
+#undef AP_SIMD_UNARY
+
 
     template<HasMaskReductions M>
     [[nodiscard]] bool all(const M& mask) {
@@ -154,9 +183,12 @@ return P::NAME(static_cast<P>(a), static_cast<P>(b), static_cast<P>(c)); \
     [[nodiscard]] bool none(const M& mask) {
         return std::remove_cvref_t<M>::none(mask);
     }
+
 }
 
+
 namespace april {
+
     using simd::select;
 
     using simd::abs;
@@ -214,4 +246,5 @@ namespace april {
     using simd::all;
     using simd::any;
     using simd::none;
+
 }

@@ -464,8 +464,8 @@ template<typename T>
 class IntegerSimdMathTest : public testing::Test {
 public:
     using PackedT = T;
-    using Scalar = typename PackedT::value_type;
-    using MaskT = typename PackedT::mask_type;
+    using Scalar = PackedT::value_type;
+    using MaskT = PackedT::mask_type;
     static constexpr std::size_t Size = PackedT::size();
 
     template<typename F>
@@ -493,8 +493,8 @@ public:
 TYPED_TEST_SUITE(IntegerSimdMathTest, IntegerSimdTypes);
 
 TYPED_TEST(IntegerSimdMathTest, CommonMathAndScalarInteroperability) {
-    using PackedT = typename TestFixture::PackedT;
-    using Scalar = typename TestFixture::Scalar;
+    using PackedT = TestFixture::PackedT;
+    using Scalar = TestFixture::Scalar;
     const auto av = TestFixture::Values([](std::size_t i) {
         if constexpr (std::is_signed_v<Scalar>) {
             constexpr int v[] = {-4, -1, 2, 7}; return v[i % 4];
@@ -544,5 +544,62 @@ TYPED_TEST(IntegerSimdMathTest, CommonMathAndScalarInteroperability) {
     });
 }
 
+
+    TYPED_TEST(SimdMathTest, MaskedPackedInteroperability) {
+    using PackedT = TestFixture::PackedT;
+    using Scalar = TestFixture::Scalar;
+    using MaskT = TestFixture::MaskT;
+    using MaskedT = april::simd::MaskedPacked<Scalar>;
+
+    const auto a_values = TestFixture::Values([](std::size_t i) {
+        constexpr double values[] = {0.25, 1.0, 2.25, 4.0};
+        return values[i % 4];
+    });
+
+    const auto b_values = TestFixture::Values([](std::size_t i) {
+        constexpr double values[] = {4.0, 3.0, 2.0, 1.0};
+        return values[i % 4];
+    });
+
+    const PackedT a = TestFixture::Load(a_values);
+    const PackedT b = TestFixture::Load(b_values);
+    const MaskT mask = TestFixture::MakeMask([](std::size_t i) {
+        return i % 2 == 0;
+    });
+
+    const MaskedT masked_a(a, mask);
+    const MaskedT masked_b(b, mask);
+
+    static_assert(std::same_as<decltype(april::sqrt(masked_a)), PackedT>);
+    static_assert(std::same_as<decltype(april::min(masked_a, b)), PackedT>);
+    static_assert(std::same_as<decltype(april::max(a, masked_b)), PackedT>);
+    static_assert(std::same_as<decltype(april::clamp(masked_a, 0.5, b)), PackedT>);
+    static_assert(std::same_as<decltype(april::fma(masked_a, 2.0, masked_b)), PackedT>);
+    static_assert(std::same_as<decltype(april::select(mask, masked_a, b)), PackedT>);
+
+    TestFixture::ExpectPacked(april::sqrt(masked_a), [&](std::size_t i) {
+        return std::sqrt(a_values[i]);
+    });
+
+    TestFixture::ExpectPacked(april::min(masked_a, b), [&](std::size_t i) {
+        return std::min(a_values[i], b_values[i]);
+    });
+
+    TestFixture::ExpectPacked(april::max(a, masked_b), [&](std::size_t i) {
+        return std::max(a_values[i], b_values[i]);
+    });
+
+    TestFixture::ExpectPacked(april::clamp(masked_a, 0.5, b), [&](std::size_t i) {
+        return std::clamp(a_values[i], Scalar{0.5}, b_values[i]);
+    });
+
+    TestFixture::ExpectPacked(april::fma(masked_a, 2.0, masked_b), [&](std::size_t i) {
+        return std::fma(a_values[i], Scalar{2}, b_values[i]);
+    });
+
+    TestFixture::ExpectPacked(april::select(mask, masked_a, b), [&](std::size_t i) {
+        return i % 2 == 0 ? a_values[i] : b_values[i];
+    });
+}
 }
 

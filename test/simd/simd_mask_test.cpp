@@ -202,7 +202,7 @@ TYPED_TEST(SimdMaskTest, MixedMaskReductionsAreCorrect) {
 // ---------------------------------------------------------
 
 TYPED_TEST(SimdMaskTest, LoadStoreRoundTripPreservesLanes) {
-    using MaskT = typename TestFixture::MaskT;
+    using MaskT = TestFixture::MaskT;
 
     std::array<bool, TestFixture::Size> input{};
     std::array<bool, TestFixture::Size> output{};
@@ -219,7 +219,7 @@ TYPED_TEST(SimdMaskTest, LoadStoreRoundTripPreservesLanes) {
 
 
 TYPED_TEST(SimdMaskTest, ToArrayPreservesLanes) {
-    using MaskT = typename TestFixture::MaskT;
+    using MaskT = TestFixture::MaskT;
 
     std::array<bool, TestFixture::Size> expected{};
 
@@ -234,7 +234,7 @@ TYPED_TEST(SimdMaskTest, ToArrayPreservesLanes) {
 
 
 TYPED_TEST(SimdMaskTest, ToBitmaskMatchesActiveLanes) {
-    using MaskT = typename TestFixture::MaskT;
+    using MaskT = TestFixture::MaskT;
 
     static_assert(TestFixture::Size <= 64);
 
@@ -264,7 +264,7 @@ TYPED_TEST(SimdMaskTest, ToBitmaskMatchesActiveLanes) {
 
 
 TYPED_TEST(SimdMaskTest, ToStringContainsAllLaneValues) {
-    using MaskT = typename TestFixture::MaskT;
+    using MaskT = TestFixture::MaskT;
 
     std::array<bool, TestFixture::Size> lanes{};
 
@@ -291,7 +291,7 @@ TYPED_TEST(SimdMaskTest, ToStringContainsAllLaneValues) {
 // ---------------------------------------------------------
 
 TYPED_TEST(SimdMaskTest, BitwiseOperatorsAreLaneWise) {
-    using MaskT = typename TestFixture::MaskT;
+    using MaskT = TestFixture::MaskT;
 
     std::array<bool, TestFixture::Size> lhs_values{};
     std::array<bool, TestFixture::Size> rhs_values{};
@@ -321,7 +321,7 @@ TYPED_TEST(SimdMaskTest, BitwiseOperatorsAreLaneWise) {
 
 
 TYPED_TEST(SimdMaskTest, LogicalOperatorsAreLaneWise) {
-    using MaskT = typename TestFixture::MaskT;
+    using MaskT = TestFixture::MaskT;
 
     std::array<bool, TestFixture::Size> lhs_values{};
     std::array<bool, TestFixture::Size> rhs_values{};
@@ -345,7 +345,7 @@ TYPED_TEST(SimdMaskTest, LogicalOperatorsAreLaneWise) {
 
 
 TYPED_TEST(SimdMaskTest, EqualityOperatorsAreLaneWise) {
-    using MaskT = typename TestFixture::MaskT;
+    using MaskT = TestFixture::MaskT;
 
     std::array<bool, TestFixture::Size> lhs_values{};
     std::array<bool, TestFixture::Size> rhs_values{};
@@ -373,8 +373,8 @@ TYPED_TEST(SimdMaskTest, EqualityOperatorsAreLaneWise) {
 // ---------------------------------------------------------
 
 TYPED_TEST(SimdMaskTest, PackedComparisonsProduceExpectedMask) {
-    using PackedT = typename TestFixture::PackedT;
-    using Scalar = typename TestFixture::Scalar;
+    using PackedT = TestFixture::PackedT;
+    using Scalar = TestFixture::Scalar;
 
     std::array<Scalar, TestFixture::Size> lhs_values{};
     std::array<Scalar, TestFixture::Size> rhs_values{};
@@ -412,9 +412,9 @@ TYPED_TEST(SimdMaskTest, PackedComparisonsProduceExpectedMask) {
 // ---------------------------------------------------------
 
 TYPED_TEST(SimdMaskTest, SelectUsesMaskLaneByLane) {
-    using PackedT = typename TestFixture::PackedT;
-    using Scalar = typename TestFixture::Scalar;
-    using MaskT = typename TestFixture::MaskT;
+    using PackedT = TestFixture::PackedT;
+    using Scalar = TestFixture::Scalar;
+    using MaskT = TestFixture::MaskT;
 
     std::array<Scalar, TestFixture::Size> true_values{};
     std::array<Scalar, TestFixture::Size> false_values{};

@@ -7,13 +7,15 @@
 #include "april/particle/properties.hpp"
 #include "april/particle/access/scalar_access.hpp"
 #include "april/particle/attributes.hpp"
-
+#include "april/simd/masked_packed.hpp"
+#include "april/particle/access/internal/policy.hpp"
 
 namespace april::particle::internal {
-    // forward declaration
-    template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes> struct PackedBufferView;
+
+
     template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes> struct PackedParticleRef;
     template <typename Ref, typename Mask> struct MaskedPackedParticleRef;
+
 
 
     //-----------------------
@@ -32,25 +34,62 @@ namespace april::particle::internal {
      *   These are zero-initialized so they act as clean accumulators.
      * - ROMask (Read-Only): Constant fields (e.g. mass, type).
      */
-    template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes>
+     template <
+        ParticleField ReadMask,
+        ParticleField WriteMask,
+        IsParticleAttributes Attributes,
+        MaskPolicy MaskingPolicy
+    >
     struct PackedParticleBuffer {
+        static constexpr ParticleField EffectiveWriteMask = WriteMask & ~ParticleField::id;
+
+        static constexpr ParticleField RWMask = ReadMask & EffectiveWriteMask;
+        static constexpr ParticleField WOMask = EffectiveWriteMask & ~ReadMask;
+        static constexpr ParticleField ROMask = ReadMask & ~EffectiveWriteMask;
+
+        static constexpr bool is_masked = MaskingPolicy == MaskPolicy::Enabled;
     private:
+        struct NoMask {
+            NoMask(bool) {}
+
+            template<unsigned K> void rotate_left() {}
+            template<unsigned K> void rotate_right() {};
+
+        };
+
+        using mask_type = std::conditional_t<
+            is_masked,
+            packed::mask_type,
+            NoMask
+        >;
+
         // if in ReadMask or WriteMask return type T else return Poison
         template <typename T, ParticleField F>
-          using buffer_field_t = std::conditional_t<
-              has_field_v<ReadMask | WriteMask, F>,
-              T,
-              AccessForbidden<F>
-          >;
+        using buffer_field_t = std::conditional_t<
+            has_field_v<ReadMask | EffectiveWriteMask, F>,
+            T,
+            AccessForbidden<F>
+        >;
 
-        template <ParticleField F>
-        using pvec3_t = buffer_field_t<pvec3, F>;
+        template<typename PackedT, ParticleField F>
+        using maybe_masked_t = std::conditional_t<
+            is_masked &&
+                has_field_v<EffectiveWriteMask, F>,
+            simd::MaskedPacked<PackedT, packed::mask_type>,
+            PackedT
+        >;
 
-        template <ParticleField F>
-        using packed_float_t = buffer_field_t<packed, F>;
+        template<ParticleField F>
+        using pvec3_t = buffer_field_t<
+            math::Vec3<maybe_masked_t<packed, F>>,
+            F
+        >;
 
-        template <ParticleField F>
-        using packed_int_t = buffer_field_t<packedu, F>;
+        template<ParticleField F>
+        using packed_float_t = buffer_field_t<maybe_masked_t<packed, F>, F>;
+
+        template<ParticleField F>
+        using packed_int_t = buffer_field_t<maybe_masked_t<packedu, F>, F>;
 
         // ==== STOP GAP SOLUTION ==== (will be replaced in C++26 with reflection)
         // vectorization of simple scalar type
@@ -64,21 +103,16 @@ namespace april::particle::internal {
         struct extract_attr_scalar<T> { using type = T::VectorLayout::ScalarType; };
 
         using attr_scalar_t = extract_attr_scalar<Attributes>::type;
+        using attr_packed_type = simd::Packed<attr_scalar_t>;
 
-        template <ParticleField F>
-        using packed_attr_t = buffer_field_t<simd::Packed<attr_scalar_t>, F>;
+        template<ParticleField F>
+        using packed_attr_t = buffer_field_t<
+            maybe_masked_t<attr_packed_type, F>,
+            F
+        >;
         // ====== STOP GAP SOLUTION END =====
 
-
-
     public:
-        static constexpr ParticleField ReadAccess  = ReadMask;
-        static constexpr ParticleField WriteAccess = WriteMask & ~ParticleField::id; // soft restriction so user does not need to zero out the id specifically when using ParticleField::all
-
-        static constexpr ParticleField RWMask = ReadMask & WriteMask;  // read & write
-        static constexpr ParticleField WOMask = WriteMask & ~ReadMask; // write only
-        static constexpr ParticleField ROMask = ReadMask & ~WriteMask; // read only
-
         APRIL_NO_UNIQUE_ADDRESS pvec3_t<ParticleField::position> position;
         APRIL_NO_UNIQUE_ADDRESS pvec3_t<ParticleField::old_position> old_position;
         APRIL_NO_UNIQUE_ADDRESS pvec3_t<ParticleField::velocity> velocity;
@@ -91,8 +125,41 @@ namespace april::particle::internal {
 
         APRIL_NO_UNIQUE_ADDRESS packed_attr_t<ParticleField::attributes> attributes;
 
+        PackedParticleBuffer() {
+            bind_masks();
+        }
 
-        PackedParticleBuffer() = default;
+        void mask_with(const mask_type & mask) requires is_masked {
+            write_mask &= mask;
+        }
+
+         void bind_masks() {}
+
+        void bind_masks() requires is_masked{
+
+            auto bind_vec = [&](auto& value) {
+                value.x.bind_mask(write_mask);
+                value.y.bind_mask(write_mask);
+                value.z.bind_mask(write_mask);
+            };
+
+            if constexpr (has_field_v<EffectiveWriteMask, ParticleField::position>)
+                bind_vec(position);
+            if constexpr (has_field_v<EffectiveWriteMask, ParticleField::old_position>)
+                bind_vec(old_position);
+            if constexpr (has_field_v<EffectiveWriteMask, ParticleField::velocity>)
+                bind_vec(velocity);
+            if constexpr (has_field_v<EffectiveWriteMask, ParticleField::force>)
+                bind_vec(force);
+            if constexpr (has_field_v<EffectiveWriteMask, ParticleField::mass>)
+                mass.bind_mask(write_mask);
+            if constexpr (has_field_v<EffectiveWriteMask, ParticleField::state>)
+                state.bind_mask(write_mask);
+            if constexpr (has_field_v<EffectiveWriteMask, ParticleField::type>)
+                type.bind_mask(write_mask);
+            if constexpr (has_field_v<EffectiveWriteMask, ParticleField::attributes>)
+                attributes.bind_mask(write_mask);
+        }
 
         /**
          * Load from memory (PackedParticleRef).
@@ -104,6 +171,8 @@ namespace april::particle::internal {
          */
         template <typename attr>
         explicit PackedParticleBuffer(const PackedParticleRef<ReadMask, WriteMask, attr>& source) {
+            bind_masks();
+
             // Load Read-enabled fields
             if constexpr (has_field_v<ReadMask, ParticleField::position>) position = source.position;
             if constexpr (has_field_v<ReadMask, ParticleField::old_position>) old_position = source.old_position;
@@ -141,6 +210,8 @@ namespace april::particle::internal {
         template <typename ScalarAccessor>
             requires april::particle::IsScalarParticleAccessor<ScalarAccessor>
         explicit PackedParticleBuffer(const ScalarAccessor& scalar) {
+            bind_masks();
+
             auto broad_cast_vec = [&]<ParticleField field>(auto && packed_vec, auto && scalar_vec) APRIL_FORCE_INLINE {
                 if constexpr (has_field_v<ReadMask, field>) {
                     packed_vec.x = scalar_vec.x;
@@ -172,8 +243,14 @@ namespace april::particle::internal {
             }
         }
 
+        // buffers are meant to be ephemeral and thus should not be copied around
+        // PackedParticleBuffer(const PackedParticleBuffer&) = delete;
+        // PackedParticleBuffer(PackedParticleBuffer&&) = delete;
+        // PackedParticleBuffer& operator=(const PackedParticleBuffer&) = delete;
+        // PackedParticleBuffer& operator=(PackedParticleBuffer&&) = delete;
+
         // export as view
-        APRIL_FORCE_INLINE PackedBufferView<ReadMask, WriteMask, Attributes> to_view() {
+        APRIL_FORCE_INLINE PackedBufferView<ReadMask, WriteMask, Attributes, MaskingPolicy> to_view() {
             return PackedBufferView(*this);
         }
 
@@ -198,6 +275,7 @@ namespace april::particle::internal {
             };
 
             rotate(rotate_vec, rotate_scalar);
+            write_mask.template rotate_left<K>();
         }
 
         template <unsigned K = 1>
@@ -217,6 +295,7 @@ namespace april::particle::internal {
             };
 
             rotate(rotate_vec, rotate_scalar);
+            write_mask.template rotate_right<K>();
         }
 
 
@@ -334,7 +413,6 @@ namespace april::particle::internal {
             }
         }
 
-
         template <typename Ref, typename Mask>
         APRIL_FORCE_INLINE void update_into(MaskedPackedParticleRef<Ref, Mask>& masked_ref) const {
             update_into(masked_ref, masked_ref.mask);
@@ -395,6 +473,8 @@ namespace april::particle::internal {
         }
 
     private:
+        APRIL_NO_UNIQUE_ADDRESS mask_type write_mask = {true};
+
         // Unified vector write-back (masked) for WO and WR fields
         template <ParticleField F, typename DestT, typename SrcT, typename MaskT>
         APRIL_FORCE_INLINE static void update_vec_masked(DestT& dest, const SrcT& src, const MaskT& mask) {
@@ -449,7 +529,5 @@ namespace april::particle::internal {
             rotate_scalar.template operator()<ParticleField::id>(id);
             rotate_scalar.template operator()<ParticleField::attributes>(attributes);
         }
-
-
     };
 }

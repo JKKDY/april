@@ -160,31 +160,6 @@ namespace april::simd {
         AP_SIMD_PROXY_COMPARE(<=)
         AP_SIMD_PROXY_COMPARE(>)
         AP_SIMD_PROXY_COMPARE(>=)
-
-        // MATH FUNCTIONS (ADL Forwarding)
-        friend PackedT sqrt(const PackedRef& p) {
-            return sqrt(PackedT(p));
-        }
-
-        friend PackedT rsqrt(const PackedRef& p) {
-            return rsqrt(PackedT(p));
-        }
-
-        friend PackedT abs(const PackedRef& p) {
-            return abs(PackedT(p));
-        }
-
-        friend PackedT min(const PackedRef& a, const PackedRef& b) {
-            return min(PackedT(a), PackedT(b));
-        }
-
-        friend PackedT max(const PackedRef& a, const PackedRef& b) {
-            return max(PackedT(a), PackedT(b));
-        }
-
-        friend PackedT fma(const PackedRef& a, const PackedRef& b, const PackedRef& c) {
-            return fma(PackedT(a), PackedT(b), PackedT(c));
-        }
     };
 }
 

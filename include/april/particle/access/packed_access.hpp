@@ -48,8 +48,8 @@ namespace april::particle::internal {
     template <typename Ref, typename Mask>
     struct is_packed_ref_impl<MaskedPackedParticleRef<Ref, Mask>> : std::true_type {};
 
-    template <ParticleField RM, ParticleField WM, class Attributes>
-    struct is_buffer_view_impl<PackedBufferView<RM, WM, Attributes>> : std::true_type {};
+    template <ParticleField RM, ParticleField WM, class A, MaskPolicy MP>
+    struct is_buffer_view_impl<PackedBufferView<RM, WM, A, MP>> : std::true_type {};
 } // namespace april::particle::internal
 
 

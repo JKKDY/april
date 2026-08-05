@@ -504,7 +504,7 @@ TEST(PackedParticleReductionTest, MaskedReduceIntoScalar) {
     ScalarParticleRef<ROMask, WOMask, NoParticleAttributes> scalar_ref(s_src);
 
     // Create a dummy buffer and accumulate some forces into it
-    PackedParticleBuffer<ROMask, WOMask, NoParticleAttributes> buffer;
+    PackedParticleBuffer<ROMask, WOMask, NoParticleAttributes, MaskPolicy::Disabled> buffer;
     buffer.force = pvec3(1.0, 2.0, 3.0); // Every lane has {1, 2, 3}
 
     // Create a mask that is only TRUE for the first 3 lanes

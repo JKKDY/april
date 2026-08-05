@@ -17,13 +17,18 @@
 #include "april/base/types.hpp"
 #include "april/base/macros.hpp"
 #include "april/particle/properties.hpp"
-#include "source.hpp"
+#include "april/particle/access/source.hpp"
 #include "april/particle/attributes.hpp"
+#include "internal/packed_reference.hpp"
 
 namespace april::particle::internal {
-	// forward declarations
-	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT> struct ScalarParticleRef;
-	template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes> struct PackedParticleBuffer;
+	enum class MaskPolicy;
+
+	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT>
+	struct ScalarParticleRef;
+
+	template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes, MaskPolicy MaskPolicy>
+	struct PackedParticleBuffer;
 
 	/**
 	 * Helper to initialize field references from a data source.
@@ -117,8 +122,9 @@ namespace april::particle::internal {
 		* Broadcasts this scalar particle's data into a SIMD buffer.
 		* Used in N x 1 interactions (Block vs Scalar).
 		*/
+		template<MaskPolicy mask_policy = MaskPolicy::Disabled>
 		auto broadcast() const noexcept {
-		   return PackedParticleBuffer<ReadAccess, WriteAccess, Attributes>(*this);
+		   return PackedParticleBuffer<ReadAccess, WriteAccess, Attributes, mask_policy>(*this);
 		}
 
 		// Data Fields: Mutable Type, Const Type, Field Enum

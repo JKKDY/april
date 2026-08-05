@@ -427,7 +427,7 @@ TYPED_TEST(SimdMathTest, PackedRefAndMaskedPackedForwarding) {
     using Scalar = TestFixture::Scalar;
     using MaskT = TestFixture::MaskT;
     using RefT = april::simd::PackedRef<Scalar, PackedT>;
-    using MaskedT = april::simd::MaskedPacked<Scalar>;
+    using MaskedT = april::simd::MaskedPacked<april::simd::Packed<Scalar>>;
 
     auto values = TestFixture::Values([](std::size_t i) {
         constexpr double v[] = {0.25, 1.0, 2.25, 4.0}; return v[i % 4];
@@ -545,11 +545,11 @@ TYPED_TEST(IntegerSimdMathTest, CommonMathAndScalarInteroperability) {
 }
 
 
-    TYPED_TEST(SimdMathTest, MaskedPackedInteroperability) {
+TYPED_TEST(SimdMathTest, MaskedPackedInteroperability) {
     using PackedT = TestFixture::PackedT;
     using Scalar = TestFixture::Scalar;
     using MaskT = TestFixture::MaskT;
-    using MaskedT = april::simd::MaskedPacked<Scalar>;
+    using MaskedT = april::simd::MaskedPacked<april::simd::Packed<Scalar>>;
 
     const auto a_values = TestFixture::Values([](std::size_t i) {
         constexpr double values[] = {0.25, 1.0, 2.25, 4.0};

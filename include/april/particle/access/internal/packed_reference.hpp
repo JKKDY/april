@@ -7,13 +7,11 @@
 #include "april/particle/access/source.hpp"
 #include "april/particle/properties.hpp"
 #include "april/particle/attributes.hpp"
+#include "april/particle/access/internal/policy.hpp"
 
 namespace april::particle::internal {
-    // forward declaration
-    template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes> struct PackedBufferView;
-    template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes> struct PackedParticleRef;
-    template <typename Ref, typename Mask> struct MaskedPackedParticleRef;
-
+    template <typename Ref, typename Mask>
+    struct MaskedPackedParticleRef;
 
     //--------------------
     // PACKED PARTICLE REF
@@ -132,8 +130,9 @@ namespace april::particle::internal {
          * Loads the referenced memory block into SIMD registers (PackedParticleBuffer).
          * This is the main transition point from memory to computation.
          */
-        PackedParticleBuffer<ReadAccess, WriteAccess, Attributes> load_buffer() const noexcept {
-            return PackedParticleBuffer<ReadAccess, WriteAccess, Attributes>(*this);
+        template<MaskPolicy mask_policy = MaskPolicy::Disabled>
+        PackedParticleBuffer<ReadAccess, WriteAccess, Attributes, mask_policy> load_buffer() const noexcept {
+            return PackedParticleBuffer<ReadAccess, WriteAccess, Attributes, mask_policy>(*this);
         }
 
         /**

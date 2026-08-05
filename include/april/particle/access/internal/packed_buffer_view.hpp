@@ -3,12 +3,10 @@
 #include "april/particle/access/source.hpp"
 #include "april/particle/properties.hpp"
 #include "april/particle/attributes.hpp"
-
+#include "april/particle/access/internal/policy.hpp"
 
 
 namespace april::particle::internal {
-    template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes> struct PackedParticleRef;
-
 
     /**
      * Restricted view of PackedParticleBuffer passed to user kernels.
@@ -27,8 +25,12 @@ namespace april::particle::internal {
      * Because PackedBufferView is essentially a thin bundle of references,
      * it has zero runtime overhead and is typically completely optimized away.
      */
-    template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes>
-    struct PackedBufferView {
+    template <
+        ParticleField ReadMask,
+        ParticleField WriteMask,
+        IsParticleAttributes Attributes,
+        MaskPolicy MaskingPolicy
+    > struct PackedBufferView {
     private:
         /**
          * Chooses the correct reference type for each field based on the WriteMask:
@@ -44,7 +46,7 @@ namespace april::particle::internal {
               // if it's valid and in WriteMask, make it a mutable ref else a const ref
           >;
 
-        using Buffer = PackedParticleBuffer<ReadMask, WriteMask, Attributes>;
+        using Buffer = PackedParticleBuffer<ReadMask, WriteMask, Attributes, MaskingPolicy>;
 
 
         // ==== STOP GAP SOLUTION ==== (will be replaced in C++26 with reflection)

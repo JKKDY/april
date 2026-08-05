@@ -3,6 +3,7 @@
 #include <concepts>
 #include <type_traits>
 
+#include "april/base/concepts.hpp"
 #include "april/simd/packed_concept.hpp"
 
 
@@ -41,7 +42,7 @@ namespace april::simd::internal {
     // matching lane counts and matching scalar storage widths.
     template<typename T, typename P>
     static constexpr bool packed_shape_compatible_v = [] {
-        if constexpr (!PackedLike<T>) {
+        if constexpr (!PackedLike<T> && IsScalar<T>) {
             return true;
         } else {
             using Q = packed_type_t<T>;

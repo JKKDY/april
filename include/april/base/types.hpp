@@ -22,6 +22,8 @@ namespace april {
 
 	using packed = simd::Packed<VEC3_TYPE>;
 	using packed_mask = simd::PackedMask<VEC3_TYPE>;
+
+
 	using packedd = simd::Packed<double>;
 	using packedf = simd::Packed<float>;
 

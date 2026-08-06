@@ -14,11 +14,12 @@
 #include "april/simd/packed.hpp"
 #include "april/simd/packed_ref.hpp"
 
-#if defined(__FAST_MATH__) || \
-(defined(__FINITE_MATH_ONLY__) && __FINITE_MATH_ONLY__ > 0)
-    #define APRIL_FAST_MATH_ENABLED 1
-#else
-    #define APRIL_FAST_MATH_ENABLED 0
+#ifndef APRIL_FAST_MATH_ENABLED
+    #if defined(__FAST_MATH__) || (defined(__FINITE_MATH_ONLY__) && __FINITE_MATH_ONLY__ > 0)
+        #define APRIL_FAST_MATH_ENABLED 1
+    #else
+        #define APRIL_FAST_MATH_ENABLED 0
+    #endif
 #endif
 
 namespace {

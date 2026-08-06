@@ -31,6 +31,7 @@ namespace april::particle::internal {
         IsParticleAttributes Attributes,
         MaskPolicy MaskingPolicy
     > struct PackedBufferView {
+        static constexpr bool is_masked = MaskingPolicy == MaskPolicy::Enabled;
     private:
         /**
          * Chooses the correct reference type for each field based on the WriteMask:
@@ -39,15 +40,14 @@ namespace april::particle::internal {
          *   - Poison type if forbidden
          */
         template <ParticleField F, typename T>
-          using view_ref_t = std::conditional_t<
-              std::is_same_v<T, AccessForbidden<F>>, // if it's poison, keep it as poison (by value)
-              T,
-              std::conditional_t<has_field_v<WriteMask, F>, T&, const T&>
-              // if it's valid and in WriteMask, make it a mutable ref else a const ref
-          >;
+            using view_ref_t = std::conditional_t<
+                std::is_same_v<T, AccessForbidden<F>>, // if it's poison, keep it as poison (by value)
+                T,
+                std::conditional_t<has_field_v<WriteMask, F>, T&, const T&>
+                // if it's valid and in WriteMask, make it a mutable ref else a const ref
+            >;
 
         using Buffer = PackedParticleBuffer<ReadMask, WriteMask, Attributes, MaskingPolicy>;
-
 
         // ==== STOP GAP SOLUTION ==== (will be replaced in C++26 with reflection)
         // Attribute Vectorization Logic of trivial scalar types
@@ -107,8 +107,16 @@ namespace april::particle::internal {
               state(buf.state),
               type(buf.type),
               id(buf.id),
-              attributes(bind_attributes(buf))
+              attributes(bind_attributes(buf)),
+              buffer(&buf)
             {}
+
+        void mask_with(const packed::mask_type& new_mask) requires is_masked {
+            buffer->mask_with(new_mask);
+        }
+
+    private:
+        Buffer* buffer;
     };
 
 }

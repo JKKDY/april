@@ -1,13 +1,14 @@
 #pragma once
 #include "april/simd/packed.hpp"
 #include "april/utility/debug.hpp"
+#include "april/simd/packed_concept.hpp"
 
 
 namespace april::simd {
 
     template<
         IsSimdType PackedT,
-        IsSimdMask SharedMaskT = PackedT::mask_type
+        IsSimdMask SharedMaskT = typename PackedT::mask_type
     > requires (PackedT::size() == SharedMaskT::size())
     struct MaskedPacked {
         using packed_type = PackedT;
@@ -15,6 +16,16 @@ namespace april::simd {
         using value_type = packed_type::value_type;
 
         MaskedPacked() = default;
+        MaskedPacked(const MaskedPacked&) = default;
+        MaskedPacked(MaskedPacked&&) = default;
+
+        MaskedPacked& operator=(const MaskedPacked& rhs) noexcept {
+            return *this = rhs.data;
+        }
+
+        MaskedPacked& operator=(MaskedPacked&& rhs) noexcept {
+            return *this = rhs.data;
+        }
 
         explicit MaskedPacked(const packed_type& value) noexcept
             : data(value), mask(nullptr) {}
@@ -25,11 +36,6 @@ namespace april::simd {
         void bind_mask(const mask_type& new_mask) noexcept {
             mask = &new_mask;
         }
-
-        MaskedPacked(const MaskedPacked&) = default;
-        MaskedPacked(MaskedPacked&&) = default;
-        MaskedPacked& operator=(const MaskedPacked&) = delete;
-        MaskedPacked& operator=(MaskedPacked&&) = delete;
 
         // implicit conversion
         [[nodiscard]] operator packed_type() const noexcept {
@@ -50,6 +56,15 @@ namespace april::simd {
         requires std::is_arithmetic_v<Scalar> || std::is_enum_v<Scalar>
         MaskedPacked& operator=(Scalar rhs) noexcept {
             return *this = packed_type(static_cast<value_type>(rhs));
+        }
+
+        // Arithmetic intentionally returns an ordinary packed value.
+        [[nodiscard]] packed_type operator+() const noexcept {
+            return +data;
+        }
+
+        [[nodiscard]] packed_type operator-() const noexcept {
+            return -data;
         }
 
         // Apply compound arithmetic only to active lanes.
@@ -99,6 +114,19 @@ namespace april::simd {
 
 
         // Arithmetic intentionally returns an ordinary packed value.
+        friend packed_type operator+(const MaskedPacked& lhs, const MaskedPacked& rhs) noexcept {
+            return lhs.data + rhs.data;
+        }
+        friend packed_type operator-(const MaskedPacked& lhs, const MaskedPacked& rhs) noexcept {
+            return lhs.data - rhs.data;
+        }
+        friend packed_type operator*(const MaskedPacked& lhs, const MaskedPacked& rhs) noexcept {
+            return lhs.data * rhs.data;
+        }
+        friend packed_type operator/(const MaskedPacked& lhs, const MaskedPacked& rhs) noexcept {
+            return lhs.data / rhs.data;
+        }
+
         friend packed_type operator+(const MaskedPacked& lhs, const packed_type& rhs) noexcept {
             return lhs.data + rhs;
         }
@@ -134,13 +162,13 @@ namespace april::simd {
 
         // rotations
         template<unsigned K = 1>
-        auto rotate_left() {
+        MaskedPacked& rotate_left() noexcept {
             data = data.template rotate_left<K>();
             return *this;
         }
 
         template<unsigned K = 1>
-        auto rotate_right() {
+        MaskedPacked& rotate_right() noexcept {
             data = data.template rotate_right<K>();
             return *this;
         }

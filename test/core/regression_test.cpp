@@ -127,9 +127,9 @@ double run_april_benchmark() {
 
 double get_allowed_tolerance() {
 #if defined(_MSC_VER) && !defined(__clang__)
-    return 1.6; // MSVC is allowed more overhead due to conservative inlining
+    return 1.4; // MSVC is allowed more overhead due to conservative inlining
 #elif defined(__apple_build_version__)
-    return 1.3; // Apple Clang is more conservative than upstream Clang/GCC
+    return 1.2; // Apple Clang is more conservative than upstream Clang/GCC
 #else
     return 1.1;
 #endif
@@ -147,7 +147,7 @@ TEST(PerformanceRegression, DirectSumAoS_vs_Handcoded) {
     run_april_benchmark();
 
     constexpr int max_attempts = 10;
-    constexpr double tolerance = 1.2; // 20% allowance for abstraction/CI noise
+    constexpr double tolerance = 1.1; // 10% allowance for abstraction/CI noise
 
     for (int attempt = 1; attempt <= max_attempts; ++attempt) {
         std::cout << "\n[   INFO   ] --- Attempt " << attempt << " of " << max_attempts << " ---" << std::endl;

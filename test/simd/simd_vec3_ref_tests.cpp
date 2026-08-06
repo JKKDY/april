@@ -4,6 +4,7 @@
 
 #include "april/base/types.hpp"
 #include "april/simd/packed.hpp"
+#include "april/simd/masked_packed.hpp"
 
 using namespace april;
 
@@ -159,7 +160,71 @@ TYPED_TEST(SimdProxyTest, PhysicsKernel) {
 
 
 
+// Vec3Proxy<Packed> += Vec3<MaskedPacked<Packed>>
+TYPED_TEST(SimdProxyTest, AddMaskedPackedVectorToProxy) {
+    using Packed = TypeParam;
+    using Mask = typename Packed::mask_type;
+    using Masked = simd::MaskedPacked<Packed, Mask>;
+    using MaskedVec3 = math::Vec3<Masked>;
 
+    auto p = this->MakeProxy();
+    p = typename TestFixture::Vec3T(10.0, 20.0, 30.0);
+
+    const Mask mask(true);
+
+    MaskedVec3 delta(
+        Masked(Packed(1.0), mask),
+        Masked(Packed(2.0), mask),
+        Masked(Packed(3.0), mask)
+    );
+
+    p += delta;
+
+    this->ExpectAllLanes(11.0, 22.0, 33.0);
+}
+
+
+TYPED_TEST(SimdProxyTest, AddLaneVaryingMaskedPackedVectorToProxy) {
+    using Packed = TypeParam;
+    using Scalar = typename TestFixture::Scalar;
+    using Mask = typename Packed::mask_type;
+    using Masked = simd::MaskedPacked<Packed, Mask>;
+    using MaskedVec3 = math::Vec3<Masked>;
+
+    auto p = this->MakeProxy();
+    p = typename TestFixture::Vec3T(10.0, 20.0, 30.0);
+
+    std::vector<Scalar> x_values(Packed::size());
+    std::vector<Scalar> y_values(Packed::size());
+    std::vector<Scalar> z_values(Packed::size());
+
+    for (size_t i = 0; i < Packed::size(); ++i) {
+        x_values[i] = static_cast<Scalar>(i + 1);
+        y_values[i] = static_cast<Scalar>(i + 2);
+        z_values[i] = static_cast<Scalar>(i + 3);
+    }
+
+    const Mask mask(true);
+
+    MaskedVec3 delta(
+        Masked(Packed::load_unaligned(x_values.data()), mask),
+        Masked(Packed::load_unaligned(y_values.data()), mask),
+        Masked(Packed::load_unaligned(z_values.data()), mask)
+    );
+
+    p += delta;
+
+    for (size_t i = 0; i < Packed::size(); ++i) {
+        EXPECT_DOUBLE_EQ(this->x_buf[i], 10.0 + x_values[i])
+            << "Mismatch in X at lane " << i;
+
+        EXPECT_DOUBLE_EQ(this->y_buf[i], 20.0 + y_values[i])
+            << "Mismatch in Y at lane " << i;
+
+        EXPECT_DOUBLE_EQ(this->z_buf[i], 30.0 + z_values[i])
+            << "Mismatch in Z at lane " << i;
+    }
+}
 
 
 

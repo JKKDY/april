@@ -306,10 +306,15 @@ namespace april::math {
         Vec3(const Other& p) : x(static_cast<T>(p.x)), y(static_cast<T>(p.y)), z(static_cast<T>(p.z)) {}
 
         template<IsVectorLike Other>
+        requires requires(const Other& other) {
+            static_cast<T>(other.x);
+            static_cast<T>(other.y);
+            static_cast<T>(other.z);
+        }
         Vec3& operator=(const Other& other) noexcept {
-            x = other.x;
-            y = other.y;
-            z = other.z;
+            x = static_cast<T>(other.x);
+            y = static_cast<T>(other.y);
+            z = static_cast<T>(other.z);
             return *this;
         }
 

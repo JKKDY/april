@@ -3,11 +3,9 @@
 #include <chrono>
 
 #include <april/april.hpp>
-#include "utils.h"
 
-#include "utils.h"
 #include "april/containers/direct_sum.hpp"
-#include "../../include/april/exec/threading/backends/sequential_executor.hpp"
+#include "april/exec/threading/backends/sequential_executor.hpp"
 
 using namespace april;
 

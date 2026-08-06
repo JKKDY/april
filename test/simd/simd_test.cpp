@@ -12,12 +12,15 @@
 
 #include "april/simd/packed.hpp"
 #include "april/simd/packed_concept.hpp"
+#include "april/simd/backends/backend_scalar.hpp"
 
 
 
 using BackendTypes = testing::Types<
-   april::simd::Packed<double>,
-   april::simd::Packed<float>
+    april::simd::Packed<double>,
+    april::simd::Packed<float>,
+    april::simd::internal::scalar::Packed<double>,
+    april::simd::internal::scalar::Packed<float>
 >;
 
 
@@ -329,7 +332,7 @@ TYPED_TEST(SimdWideTest, SelectAndMasking) {
 
     // Select: result[i] = mask[i] ? a[i] : b[i]
     // This effectively computes the element-wise minimum.
-    Wide res = select(mask, a, b);
+    Wide res = april::select(mask, a, b);
     auto out = res.to_array();
 
     for (size_t i = 0; i < N; ++i) {

@@ -5,7 +5,9 @@
 
 
 #if (defined(APRIL_SIMD_BACKEND_XSIMD) + \
-defined(APRIL_SIMD_BACKEND_STD_SIMD)) > 1
+defined(APRIL_SIMD_BACKEND_STD_SIMD) + \
+defined(APRIL_SIMD_BACKEND_SCALAR) \
+) > 1
 
 #error "[APRIL] Multiple SIMD backends defined. Select exactly one."
 
@@ -38,6 +40,18 @@ defined(APRIL_SIMD_BACKEND_STD_SIMD)) > 1
 
         template<typename T, size_t W = 0>
         using PackedMask = internal::std_simd::Mask<T, W>;
+    }
+
+#elif defined(APRIL_SIMD_BACKEND_SCALAR)
+
+    #include "april/simd/backends/backend_scalar.hpp"
+
+    namespace april::simd {
+        template<typename T, size_t W = 0>
+        using Packed = internal::scalar::Packed<T, W>;
+
+        template<typename T, size_t W = 0>
+        using PackedMask = internal::scalar::Mask<T, W>;
     }
 
 #else

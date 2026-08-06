@@ -31,9 +31,10 @@
 // SIMD DEFAULT
 // ------------
 #if !defined(APRIL_SIMD_BACKEND_XSIMD) && \
-!defined(APRIL_SIMD_BACKEND_STD_SIMD)
+!defined(APRIL_SIMD_BACKEND_STD_SIMD) && \
+!defined(APRIL_SIMD_BACKEND_SCALAR)
 
-// note: in c++26 with full support of std::simd the default will change from xsimd to std::simd
-#define APRIL_SIMD_BACKEND_XSIMD // default simd backend
+    // will be changed with widespread support of std::simd in the future to APRIL_SIMD_BACKEND_STD_SIMD
+    #define APRIL_SIMD_BACKEND_XSIMD
 #endif
 

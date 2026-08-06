@@ -624,12 +624,20 @@ namespace april::simd::internal::xsimd {
     };
 
 
-    static_assert(IsSimdType<Packed<double>>);
-    static_assert(IsSimdMask<Mask<double>>);
-    static_assert(IsSimdType<Packed<float>>);
-    static_assert(IsSimdType<Packed<uint32_t>>);
-    static_assert(IsSimdType<Packed<uint64_t>>);
-    static_assert(IsSimdMask<Mask<uint64_t>>);
+    static_assert(april::simd::IsSimdType<Packed<double>>);
+    static_assert(april::simd::IsSimdType<Packed<float>>);
+    static_assert(april::simd::IsSimdType<Packed<size_t>>);
+    static_assert(april::simd::IsSimdType<Packed<int>>);
+
+    static_assert(april::simd::IsSimdMask<Mask<double>>);
+    static_assert(april::simd::IsSimdMask<Mask<float>>);
+    static_assert(april::simd::IsSimdMask<Mask<size_t>>);
+    static_assert(april::simd::IsSimdMask<Mask<int>>);
+
+    static_assert(april::simd::IsSimdType<Packed<float, 4>>);
+    static_assert(april::simd::IsSimdType<Packed<double, 2>>);
+    static_assert(april::simd::IsSimdMask<Mask<float, 4>>);
+    static_assert(april::simd::IsSimdMask<Mask<double, 2>>);
 }
 
 

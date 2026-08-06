@@ -8,7 +8,8 @@
 # Common configuration options:
 #   -DAPRIL_BUILD_TESTS=ON|OFF          Build the test suite
 #   -DAPRIL_BUILD_EXAMPLES=ON|OFF       Build example programs
-#   -DAPRIL_ENABLE_XSIMD=ON|OFF         Use xsimd; OFF selects std::simd
+#   -DAPRIL_SIMD_BACKEND=XSIMD|STD_SIMD|SCALAR
+#                                       Select the SIMD implementation
 #   -DAPRIL_ENABLE_OPENMP=ON|OFF        Enable the OpenMP executor backend
 #   -DAPRIL_ENABLE_FAST_MATH=ON|OFF     Enable unsafe floating-point optimizations
 #   -DAPRIL_MARCH=native|x86-64-v3      Select the GCC/Clang target architecture
@@ -66,8 +67,15 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithD
 option(APRIL_BUILD_TESTS      "Build the test suite" ${PROJECT_IS_TOP_LEVEL})
 option(APRIL_BUILD_EXAMPLES   "Build examples" OFF)
 
-# Backend Options (Bridges to C++ Preprocessor)
-option(APRIL_ENABLE_XSIMD  "Use xsimd for vectorization" ON) # by default we use xsimd since std::simd is not mature yet on all platforms
+# Backend options
+set(APRIL_SIMD_BACKEND "XSIMD" CACHE STRING
+        "SIMD backend: XSIMD, STD_SIMD, or SCALAR"
+)
+set_property(CACHE APRIL_SIMD_BACKEND PROPERTY STRINGS
+        XSIMD
+        STD_SIMD
+        SCALAR
+)
 option(APRIL_ENABLE_OPENMP "Use OpenMP executor backend" OFF)
 
 # Code Health Options
@@ -148,8 +156,11 @@ if(APRIL_ENABLE_STACKTRACE)
 endif()
 
 # Resolve SIMD Backend
-if(APRIL_ENABLE_XSIMD)
-    include(FetchContent) # get xSIMD
+string(TOUPPER "${APRIL_SIMD_BACKEND}" APRIL_SIMD_BACKEND_NORMALIZED)
+
+if(APRIL_SIMD_BACKEND_NORMALIZED STREQUAL "XSIMD")
+    include(FetchContent)
+
     FetchContent_Declare(
             xsimd
             GIT_REPOSITORY https://github.com/xtensor-stack/xsimd.git
@@ -160,8 +171,24 @@ if(APRIL_ENABLE_XSIMD)
 
     target_link_libraries(April INTERFACE xsimd)
     target_compile_definitions(April INTERFACE APRIL_SIMD_BACKEND_XSIMD)
-else()
+
+    set(APRIL_SIMD_DISPLAY "xsimd")
+
+elseif(APRIL_SIMD_BACKEND_NORMALIZED STREQUAL "STD_SIMD")
     target_compile_definitions(April INTERFACE APRIL_SIMD_BACKEND_STD_SIMD)
+
+    set(APRIL_SIMD_DISPLAY "std::simd")
+
+elseif(APRIL_SIMD_BACKEND_NORMALIZED STREQUAL "SCALAR")
+    target_compile_definitions(April INTERFACE APRIL_SIMD_BACKEND_SCALAR)
+
+    set(APRIL_SIMD_DISPLAY "scalar")
+
+else()
+    message(FATAL_ERROR
+            "[APRIL] Invalid APRIL_SIMD_BACKEND='${APRIL_SIMD_BACKEND}'. "
+            "Expected XSIMD, STD_SIMD, or SCALAR."
+    )
 endif()
 
 # Resolve Executor Backend
@@ -300,11 +327,7 @@ endif()
 # -------------
 # BUILD SUMMARY
 # -------------
-if(APRIL_ENABLE_XSIMD)
-    set(APRIL_SIMD_DISPLAY "xsimd")
-else()
-    set(APRIL_SIMD_DISPLAY "std::simd")
-endif()
+
 
 if(MSVC)
     set(_active_arch "${APRIL_MSVC_ARCH}")

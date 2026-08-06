@@ -7,7 +7,7 @@
 #include "april/particle/access/source.hpp"
 #include "april/particle/properties.hpp"
 #include "april/particle/attributes.hpp"
-#include "april/particle/access/internal/policy.hpp"
+#include "april/particle/access/internal/fwd.hpp"
 
 namespace april::particle::internal {
     template <typename Ref, typename Mask>
@@ -135,14 +135,6 @@ namespace april::particle::internal {
             return PackedParticleBuffer<ReadAccess, WriteAccess, Attributes, mask_policy>(*this);
         }
 
-        /**
-          * Future stub for applying persistent SIMD masks.
-          */
-        template<typename Mask>
-        auto mask_with(const Mask & mask) {
-            return MaskedPackedParticleRef<std::remove_cvref_t<decltype(*this)>, Mask>(*this, mask);
-        }
-
         // Data members with strict const-correctness
         // APRIL_NO_UNIQUE_ADDRESS ensures forbidden fields do not increase object size.
         APRIL_NO_UNIQUE_ADDRESS vec3_field_t<ParticleField::force> force;
@@ -157,24 +149,4 @@ namespace april::particle::internal {
 
         APRIL_NO_UNIQUE_ADDRESS Ptr<Attributes, ParticleField::attributes> attributes;
     };
-
-
-    /**
-   * @brief Decorator for propagating SIMD masks through layered calls.
-   * * This allows filters (e.g., state checks) to be applied once and
-   * carried down through the kernel call chain, avoiding redundant
-   * mask re-computation in deeply nested user code.
-   */
-    template <typename Ref, typename Mask>
-    struct MaskedPackedParticleRef : Ref {
-        Mask mask;
-
-        explicit MaskedPackedParticleRef(const Ref& r, const Mask& m) noexcept
-            : Ref(r), mask(m) {}
-
-        auto mask_with(const Mask & m) const noexcept {
-            return MaskedPackedParticleRef{static_cast<const Ref&>(*this), mask & m};
-        }
-    };
-
 }

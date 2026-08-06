@@ -1,11 +1,7 @@
 #pragma once
+#include "april/particle/access/policy.hpp"
 
 namespace april::particle::internal {
-    enum class MaskPolicy {
-        Disabled,
-        Enabled
-    };
-
 
     template <
         ParticleField ReadMask,

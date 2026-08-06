@@ -32,21 +32,20 @@ namespace april::particle::internal {
     // TRAITS
     //---------
     template <typename T>
-    struct is_packed_buffer_impl : std::false_type {};
+    struct is_packed_ref_impl : std::false_type {};
 
     template <typename T>
-    struct is_packed_ref_impl : std::false_type {};
+    struct is_packed_buffer_impl : std::false_type {};
 
     template <typename T>
     struct is_buffer_view_impl : std::false_type {};
 
     // specialization for the unified types
-
     template <ParticleField RM, ParticleField WM, typename U>
     struct is_packed_ref_impl<PackedParticleRef<RM, WM, U>> : std::true_type {};
 
-    template <typename Ref, typename Mask>
-    struct is_packed_ref_impl<MaskedPackedParticleRef<Ref, Mask>> : std::true_type {};
+    template <ParticleField RM, ParticleField WM, class A, MaskPolicy MP>
+    struct is_packed_buffer_impl<PackedParticleBuffer<RM, WM, A, MP>> : std::true_type {};
 
     template <ParticleField RM, ParticleField WM, class A, MaskPolicy MP>
     struct is_buffer_view_impl<PackedBufferView<RM, WM, A, MP>> : std::true_type {};

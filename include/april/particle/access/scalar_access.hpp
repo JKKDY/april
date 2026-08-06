@@ -19,10 +19,10 @@
 #include "april/particle/properties.hpp"
 #include "april/particle/access/source.hpp"
 #include "april/particle/attributes.hpp"
-#include "internal/packed_reference.hpp"
+#include "april/particle/access/internal/packed_reference.hpp"
+#include "april/particle/access/policy.hpp"
 
 namespace april::particle::internal {
-	enum class MaskPolicy;
 
 	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT>
 	struct ScalarParticleRef;

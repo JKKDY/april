@@ -3,7 +3,7 @@
 #include "april/particle/access/source.hpp"
 #include "april/particle/properties.hpp"
 #include "april/particle/attributes.hpp"
-#include "april/particle/access/internal/policy.hpp"
+#include "april/particle/access/internal/fwd.hpp"
 
 
 namespace april::particle::internal {

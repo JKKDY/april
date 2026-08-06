@@ -8,14 +8,11 @@
 #include "april/particle/access/scalar_access.hpp"
 #include "april/particle/attributes.hpp"
 #include "april/simd/masked_packed.hpp"
-#include "april/particle/access/internal/policy.hpp"
+#include "april/particle/access/internal/fwd.hpp"
 
 namespace april::particle::internal {
     template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes>
     struct PackedParticleRef;
-    template <typename Ref, typename Mask>
-    struct MaskedPackedParticleRef;
-
 
     //-----------------------
     // PACKED PARTICLE BUFFER
@@ -396,11 +393,6 @@ namespace april::particle::internal {
                 auto updated = select(mask, attributes, current);
                 updated.store_unaligned(ptr);
             }
-        }
-
-        template <typename Ref, typename Mask>
-        APRIL_FORCE_INLINE void update_into(MaskedPackedParticleRef<Ref, Mask>& masked_ref) const {
-            update_into(masked_ref, masked_ref.mask);
         }
 
         /**

@@ -17,6 +17,7 @@
 
 #include "april/particle/access/scalar_access.hpp"
 #include "april/particle/access/packed_access.hpp"
+#include "april/particle/access/policy.hpp"
 
 
 
@@ -162,6 +163,7 @@ namespace april::container {
 		template <ParticleField Mask>
 	    APRIL_FORCE_INLINE void prefetch_particle(this const auto& self, auto... args);
 
+		// prefetch non temporal data (NTA)
 	    template <ParticleField Mask>
 	    APRIL_FORCE_INLINE void prefetch_particle_nta(this const auto& self, auto... args);
 
@@ -192,13 +194,14 @@ namespace april::container {
 		template<
 			ParallelPolicy P = ParallelPolicy::Serial,
 			VectorPolicy V = vector_policy,
+			MaskPolicy MP = MaskPolicy::Disabled,
 			exec::IsKernel Kernel>
 		void for_each_particle(this auto&& self, size_t start, size_t stop, Kernel && func) {
 			APRIL_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
 			APRIL_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
 			APRIL_ASSERT(start <= stop, "Invalid range: start > stop");
 
-			self.template invoke_iterate_range<P, V, false>(func, start, stop);
+			self.template invoke_iterate_range<P, V, false, MP>(func, start, stop);
 		}
 
 
@@ -243,9 +246,7 @@ namespace april::container {
 		[[nodiscard]] ParticleID invoke_max_id(this const auto& self) {
 			return self.max_id();
 		}
-		[[nodiscard]] std::vector<math::Range> iteration_ranges() const {
-			return {}; // TODO implement safe_iteration_ranges
-		}
+
 
 
 		// ---------------
@@ -349,7 +350,7 @@ namespace april::container {
 		exec::ThreadExecutorRef<ThreadExecutor> thread_executor;
 
 
-		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
+		template<ParallelPolicy P, VectorPolicy V, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
 		void invoke_iterate_range(this auto&& self, Kernel && func, size_t start, size_t end);
 
 		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>

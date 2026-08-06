@@ -450,7 +450,7 @@ namespace april::container::layout {
     private:
         alignas(64) packed::value_type idx_arr[packed::size()]{}; // for creating packed masks quickly
 
-        template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
+        template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
             // route scalar/vector execution
             auto process_sub_range = [&](const size_t r_start, const size_t r_end) APRIL_FORCE_INLINE {
@@ -458,7 +458,7 @@ namespace april::container::layout {
                     self.template iterate_range_scalar<P, is_const>(kernel, r_start, r_end);
                 } else if constexpr (V == exec::ExecutionMode::Packed ||
                     V == (exec::ExecutionMode::Scalar | exec::ExecutionMode::Packed)) {
-                    self.template iterate_range_vector<P, is_const>(kernel, r_start, r_end);
+                    self.template iterate_range_vector<P, is_const, MP>(kernel, r_start, r_end);
                 } else {
                     static_assert(false,"[APRIL] invalid ExecutionMode in AoSoA::iterate_range");
                 }
@@ -522,7 +522,7 @@ namespace april::container::layout {
             }
         }
 
-        template <ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
+        template <ParallelPolicy P, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
         APRIL_FORCE_INLINE void iterate_range_vector(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
             using K = std::remove_cvref_t<Kernel>;
             if (start >= end) return;
@@ -543,18 +543,36 @@ namespace april::container::layout {
 
             auto exec_vector = [&](size_t c, size_t i) APRIL_FORCE_INLINE {
                 const size_t physical_idx = (c << chunk_shift) | i;
-                if constexpr (is_const) kernel(physical_idx, self.template view_packed<K::Read>(c, i));
-                else kernel(physical_idx, self.template at_packed<K::Read, K::Write>(c, i));
+
+                if constexpr (is_const) {
+                    auto ref = self.template view_packed<K::Read>(c, i);
+                    auto buffer = ref.load_buffer();
+                    auto view = buffer.to_view();
+
+                    kernel(physical_idx, view);
+                } else {
+                    auto ref = self.template at_packed<K::Read, K::Write>(c, i);
+                    auto buffer = ref.template load_buffer<MP>();
+                    auto view = buffer.to_view();
+
+                    kernel(physical_idx, view);
+                    buffer.update_into(ref);
+                }
             };
 
             auto exec_vector_masked = [&](size_t c, size_t i, auto mask) APRIL_FORCE_INLINE {
                 const size_t physical_idx = (c << chunk_shift) | i;
                 if constexpr (is_const) {
                     auto ref = self.template view_packed<K::Read>(c, i);
-                    kernel(physical_idx, ref.mask_with(mask));
+                    auto buffer = ref.load_buffer();
+                    kernel(physical_idx, buffer.to_view());
+                    buffer.update_into(ref);
                 } else {
                     auto ref = self.template at_packed<K::Read, K::Write>(c, i);
-                    kernel(physical_idx, ref.mask_with(mask));
+                    auto buffer = ref.template load_buffer<MaskPolicy::Enabled>();
+                    buffer.mask_with(mask);
+                    kernel(physical_idx, buffer.to_view());
+                    buffer.update_into(ref);
                 }
             };
 

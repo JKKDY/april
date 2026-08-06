@@ -50,6 +50,7 @@ namespace april::container::layout {
         }
 
 
+
         // QUERIES
         [[nodiscard]] size_t capacity() const {
             return particle_count();
@@ -203,7 +204,7 @@ namespace april::container::layout {
         }
 
 
-        template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
+        template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
             static_assert(V != exec::ExecutionMode::Packed,
                           "AoS cannot be vectorized. Change the vector policy to scalar or auto.");

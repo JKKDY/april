@@ -3,10 +3,10 @@
 #include <bit>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 #include "april/base/macros.hpp"
 #include "april/exec/kernel.hpp"
+#include "april/particle/access/policy.hpp"
 
 
 namespace april::container::internal {
@@ -63,38 +63,6 @@ namespace april::container::internal {
 				}
 			}
 		);
-	}
-
-
-	// Adapt a kernel to stage packed memory references through register-backed buffers
-	template<exec::IsKernel Kernel>
-	auto adapt_buffered_kernel(Kernel&& kernel) {
-		return exec::make_kernel_wrapper<Kernel>(
-			[kernel = std::forward<Kernel>(kernel)]<bool is_packed>(size_t i,auto&& p) APRIL_FORCE_INLINE {
-				using P = std::remove_cvref_t<decltype(p)>;
-
-				if constexpr (particle::IsPackedParticleRef<P>) {
-					static_assert(particle::IsPackedParticleAccessor<P>);
-
-					auto buffer = p.load_buffer();
-					auto view = buffer.to_view();
-
-					kernel(i, view);
-					buffer.update_into(p);
-				} else {
-					static_assert(particle::IsScalarParticleAccessor<P>);
-					kernel(i, std::forward<decltype(p)>(p));
-				}
-			}
-		);
-	}
-
-
-	// Compose the index and packed-buffer adaptations
-	template<exec::IsKernel Kernel>
-	auto adapt_iterator_kernel(Kernel&& kernel) {
-		auto indexed_kernel = adapt_indexed_kernel(std::forward<Kernel>(kernel));
-		return adapt_buffered_kernel(std::move(indexed_kernel));
 	}
 
 } // namespace april::container::internal
@@ -182,7 +150,7 @@ namespace april::container {
 	// PARTICLE ITERATION
 	// ------------------
 	template<IsContainerBuildConfig BuildConfiguration>
-	template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
+	template<ParallelPolicy P, VectorPolicy V, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
 	void Container<BuildConfiguration>::invoke_iterate_range(
 		this auto&& self,
 		Kernel&& func,
@@ -192,9 +160,9 @@ namespace april::container {
 		using K = std::remove_cvref_t<Kernel>;
 
 		constexpr auto mode = exec::internal::allowed_execution_modes<V, K::Modes>();
-		auto kernel = internal::adapt_iterator_kernel(std::forward<Kernel>(func));
+		auto kernel = internal::adapt_indexed_kernel(std::forward<Kernel>(func));
 
-		self.template iterate_range<P, mode, is_const>(kernel, start, end);
+		self.template iterate_range<P, mode, is_const, MP>(kernel, start, end);
 	}
 
 
@@ -208,35 +176,31 @@ namespace april::container {
 		using K = std::remove_cvref_t<Kernel>;
 
 		constexpr auto mode = exec::internal::allowed_execution_modes<V, K::Modes>();
-		auto kernel = internal::adapt_iterator_kernel(std::forward<Kernel>(func));
 
 		// Try optimized implementation, otherwise fall back to iterate_range.
 		// The default assumes valid particle storage for the entire iteration range.
-		if constexpr (requires { self.template iterate<P, mode, is_const>(kernel, state); }) {
+		if constexpr (requires { self.template iterate<P, mode, is_const>(func, state); }) {
+			auto kernel = internal::adapt_indexed_kernel(std::forward<Kernel>(func));
 			self.template iterate<P, mode, is_const>(kernel, state);
 		} else {
-			// iterate_range performs no checks. Encountering memory that cannot be
-			// interpreted as valid particle data, or that cannot legally be accessed,
-			// may crash. This fallback is only safe if the container guarantees that
-			// all accessed memory is valid particle storage.
+			auto indexed_kernel = internal::adapt_indexed_kernel(func);
 			auto state_filter = [&]<typename Part>(size_t i, Part&& p) {
 				using PType = std::remove_cvref_t<Part>;
 
 				if constexpr (particle::IsPackedParticleAccessor<PType>) {
-					static_assert(particle::IsPackedParticleRef<PType>);
 
-					// const auto mask = (p.state.load() & +state) != 0;
-					// if (!any(mask)) return; // if no particle is in requested state, skip this execution
-					auto temp_buf = p.load_buffer();
-					const auto mask = (temp_buf.state & +state) != 0;
+					const auto mask = (p.state & +state) != 0;
+					p.mask_with(mask);
+					indexed_kernel(i, p);
 
-					kernel(i, p.mask_with(mask));
-				} else {
-					static_assert(particle::IsScalarParticleAccessor<PType>);
+				} else if constexpr (particle::IsScalarParticleAccessor<PType>){
 
 					if (self.index_is_valid(i) && static_cast<int>(p.state & state)) {
-						kernel(i, std::forward<Part>(p));
+						indexed_kernel(i, std::forward<Part>(p));
 					}
+
+				} else {
+					static_assert(false, "received non particle accessor");
 				}
 			};
 
@@ -246,7 +210,7 @@ namespace april::container {
 				K::Write
 			>(state_filter);
 
-			self.template iterate_range<P, mode, is_const>(filtered_kernel, 0, self.capacity());
+			self.template iterate_range<P, mode, is_const, MaskPolicy::Enabled>(filtered_kernel, 0, self.capacity());
 		}
 	}
 

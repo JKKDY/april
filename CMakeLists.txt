@@ -75,6 +75,7 @@ option(APRIL_ENABLE_COVERAGE "Enable test coverage (GCC/Clang)" OFF)
 option(APRIL_USE_ASAN        "Enable Address & Leak Sanitizer" OFF)
 option(APRIL_USE_UBSAN       "Enable Undefined Behavior Sanitizer" OFF)
 option(APRIL_USE_TSAN        "Enable Thread Sanitizer" OFF)
+option(APRIL_ENABLE_STACKTRACE "Enable stack traces in APRIL assertions" OFF)
 
 # Hardware & Optimization
 option(APRIL_ENABLE_FAST_MATH "Enable unsafe floating-point optimizations (-ffast-math / /fp:fast)" OFF)
@@ -102,6 +103,7 @@ target_compile_features(April INTERFACE cxx_std_23) # enforce c++23 on any targe
 # Public floating-point configuration
 target_compile_definitions(April INTERFACE
         APRIL_FAST_MATH_ENABLED=$<BOOL:${APRIL_ENABLE_FAST_MATH}>
+        APRIL_ENABLE_STACKTRACE=$<BOOL:${APRIL_ENABLE_STACKTRACE}>
 )
 target_compile_options(April INTERFACE
         $<$<AND:$<BOOL:${APRIL_ENABLE_FAST_MATH}>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-ffast-math>
@@ -121,6 +123,29 @@ target_include_directories(April INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> # "Use this path only during the build"
         $<INSTALL_INTERFACE:include> # "Use this path after the library is installed"
 )
+
+# link to libstdc++exp if stack trace is enabled
+if(APRIL_ENABLE_STACKTRACE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND
+            CMAKE_SYSTEM_NAME STREQUAL "Linux")
+
+        find_library(
+                APRIL_STDCXXEXP_LIBRARY
+                NAMES stdc++exp
+        )
+
+        if(NOT APRIL_STDCXXEXP_LIBRARY)
+            message(FATAL_ERROR
+                    "[APRIL] APRIL_ENABLE_STACKTRACE requires libstdc++exp "
+                    "on Linux with GCC/libstdc++, but the library was not found."
+            )
+        endif()
+
+        target_link_libraries(April INTERFACE
+                ${APRIL_STDCXXEXP_LIBRARY}
+        )
+    endif()
+endif()
 
 # Resolve SIMD Backend
 if(APRIL_ENABLE_XSIMD)

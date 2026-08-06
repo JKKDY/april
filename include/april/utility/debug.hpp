@@ -5,7 +5,7 @@
 #include <string_view>
 #include <version>
 
-#if defined(APRIL_ENABLE_STACKTRACE) && defined(__cpp_lib_stacktrace) && __cpp_lib_stacktrace >= 202011L
+#if APRIL_ENABLE_STACKTRACE && defined(__cpp_lib_stacktrace) && __cpp_lib_stacktrace >= 202011L
     #include <stacktrace>
     #define APRIL_HAS_STACKTRACE 1
 #else

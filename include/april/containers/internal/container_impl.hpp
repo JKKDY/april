@@ -220,8 +220,8 @@ namespace april::container {
 	//------------------------
 	template<IsContainerBuildConfig BuildConfiguration>
 	template<ParticleField Read, ParticleField Write, typename GetField>
-	[[nodiscard]] auto Container<BuildConfiguration>::make_source(GetField & get_field) {
-		particle::internal::ParticleSource<Read, Write, ParticleAttributes> src;
+	[[nodiscard]] auto Container<BuildConfiguration>::make_source(GetField& get_field) {
+		particle::internal::ParticleSource<Read, Write, std::remove_cvref_t<GetField>> src;
 		constexpr auto Mask = Read | Write;
 
 		if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
@@ -254,8 +254,8 @@ namespace april::container {
 		return src;
 	}
 
-	template<IsContainerBuildConfig BuildConfiguration>
-	template<ParticleField Read, ParticleField Write, AccessType Access>
+	template <IsContainerBuildConfig BuildConfiguration>
+	template <ParticleField Read, ParticleField Write, AccessType Access>
 	auto Container<BuildConfiguration>::access_particle(this auto&& self, const auto... args) {
 		constexpr bool is_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 
@@ -265,15 +265,26 @@ namespace april::container {
 			"Either drop the write mask or ensure the container is mutable."
 		);
 
-		auto get_field = [&]<ParticleField F>() {
-			if constexpr (Access == AccessType::Packed && requires {self.template get_field_ptr_packed<F>(args...); }) {
-				return self.template get_field_ptr_packed<F>(std::forward<decltype(args)>(args)...);
+		auto invoke = [&]<ParticleField F>(auto&& object) {
+			if constexpr (Access == AccessType::Packed && requires {
+				object.template get_field_ptr_packed<F>(args...);
+			}) {
+				return object.template get_field_ptr_packed<F>(args...);
 			} else {
-				return self.template get_field_ptr<F>(std::forward<decltype(args)>(args)...);
+				return object.template get_field_ptr<F>(args...);
 			}
 		};
 
-		return self.template make_source<Read, Write, Access>(get_field);
+		auto get_field = [&]<ParticleField F>() {
+			if constexpr (particle::internal::has_field_v<Write, F>) {
+				return invoke.template operator()<F>(self);
+			} else {
+				const auto& const_self = self;
+				return invoke.template operator()<F>(const_self);
+			}
+		};
+
+		return Container::make_source<Read, Write>(get_field);
 	}
 
 
@@ -289,7 +300,9 @@ namespace april::container {
 
 		// Guard against none because shifting by countr_zero(0) would be invalid.
 		if constexpr (Mask == ParticleField::none) {
-			return particle::internal::ParticleSource<Read,Write,ParticleAttributes>{};
+			return self.template access_particle<Read, Write, Access>(
+				self.invoke_id_to_index(id)
+			);
 		}
 
 		// Pick the first active field to test whether get_field_ptr_id exists.
@@ -311,21 +324,32 @@ namespace april::container {
 				"container is mutable."
 			);
 
-			auto get_field = [&]<ParticleField F>() {
+			auto invoke = [&]<ParticleField F>(auto&& object) {
 				APRIL_ASSERT(self.contains_id(id), "Got invalid Id: " + std::to_string(id));
 
-				if constexpr (Access == AccessType::Packed && requires {self.template get_field_ptr_packed<F>(id); }) {
-					return self.template get_field_ptr_id_packed<F>(id);
+				if constexpr (Access == AccessType::Packed && requires {
+					object.template get_field_ptr_id_packed<F>(id);
+				}) {
+					return object.template get_field_ptr_id_packed<F>(id);
 				} else {
-					return self.template get_field_ptr_id<F>(id);
+					return object.template get_field_ptr_id<F>(id);
 				}
 			};
 
-			return self.template make_source<Read, Write, Access>(get_field);
+			auto get_field = [&]<ParticleField F>() {
+				if constexpr (particle::internal::has_field_v<Write, F>) {
+					return invoke.template operator()<F>(self);
+				} else {
+					const auto& const_self = self;
+					return invoke.template operator()<F>(const_self);
+				}
+			};
+
+			return Container::make_source<Read, Write>(get_field);
 
 		} else {
 			// Fallback path: ID -> index -> access
-			return self.template access_particle<Read, Write>(
+			return self.template access_particle<Read, Write, Access>(
 				self.invoke_id_to_index(id)
 			);
 		}

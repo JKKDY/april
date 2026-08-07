@@ -110,6 +110,16 @@ namespace april::particle::internal {
 	>;
 
 
+	template<
+		template <ParticleField> typename get_field_ptr
+	>
+	struct ParticleSourceStorageTypes {
+		using force = std::invoke_result_t<get_field_ptr<ParticleField::force>, size_t>;
+		using position = std::invoke_result_t<get_field_ptr<ParticleField::position>, size_t>;
+
+	};
+
+
 	/**
 	 * Lightweight source of raw pointers to particle data.
 	 *
@@ -120,46 +130,49 @@ namespace april::particle::internal {
 	 * The masks are supplied by APRIL's kernel wrappers through their static
 	 * `Read` and `Write` members.
 	 * */
-	template<ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes>
+	template<ParticleField ReadMask, ParticleField WriteMask, typename Getter>
 	struct ParticleSource {
-
-		// type generator for standard scalar pointers
-		template<typename T, ParticleField F>
-		using Ptr = field_access_t<T* APRIL_RESTRICT, const T* APRIL_RESTRICT, F, ReadMask, WriteMask>;
-
-		// type generator for Vec3 pointers
+	private:
 		template<ParticleField F>
-		using Vec3PtrT = field_access_t<math::Vec3Ptr<vec3::type>, math::Vec3Ptr<const vec3::type>, F, ReadMask, WriteMask>;
+		using inferred_field_t = std::remove_cvref_t<
+			decltype(std::declval<Getter&>().template operator()<F>())
+		>;
 
-		// data pointers (optimized away to empty poison structs if not accessible)
-		APRIL_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::force>        force;
-		APRIL_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::position>     position;
-		APRIL_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::velocity>     velocity;
-		APRIL_NO_UNIQUE_ADDRESS Vec3PtrT<ParticleField::old_position> old_position;
+		template<ParticleField F>
+		using field_t = std::conditional_t<
+			has_field_v<ReadMask | WriteMask, F>,
+			inferred_field_t<F>,
+			AccessForbidden<F>
+		>;
+	public:
+		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::force> force;
+		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::position> position;
+		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::velocity> velocity;
+		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::old_position> old_position;
 
-		// scalar pointers (optimized away to empty poison structs if not accessible)
-		APRIL_NO_UNIQUE_ADDRESS Ptr<double,        ParticleField::mass>       mass;
-		APRIL_NO_UNIQUE_ADDRESS Ptr<ParticleState, ParticleField::state>      state;
-		APRIL_NO_UNIQUE_ADDRESS Ptr<ParticleType,  ParticleField::type>       type;
-		APRIL_NO_UNIQUE_ADDRESS Ptr<ParticleID,    ParticleField::id>         id;
-		APRIL_NO_UNIQUE_ADDRESS Ptr<Attributes,    ParticleField::attributes> attributes;
+		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::mass> mass;
+		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::state> state;
+		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::type> type;
+		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::id> id;
+		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::attributes> attributes;
+
 
 		/**
 		* Retrieves a specific field pointer or a poison struct at compile-time.
 		* Used primarily the construction of ParticleRefs (see scalar_access.hpp and packed_access.hpp).
 		*/
 		template<ParticleField F>
-		constexpr auto get() const noexcept {
+		constexpr decltype(auto) get() const noexcept {
 			if constexpr (has_field_v<ReadMask | WriteMask, F>) {
-				if constexpr (F == ParticleField::force) return force;
-				else if constexpr (F == ParticleField::position) return position;
-				else if constexpr (F == ParticleField::velocity) return velocity;
-				else if constexpr (F == ParticleField::old_position) return old_position;
-				else if constexpr (F == ParticleField::mass) return mass;
-				else if constexpr (F == ParticleField::state) return state;
-				else if constexpr (F == ParticleField::type) return type;
-				else if constexpr (F == ParticleField::id) return id;
-				else if constexpr (F == ParticleField::attributes) return attributes;
+				if constexpr (F == ParticleField::force) return (force);
+				else if constexpr (F == ParticleField::position) return (position);
+				else if constexpr (F == ParticleField::velocity) return (velocity);
+				else if constexpr (F == ParticleField::old_position) return (old_position);
+				else if constexpr (F == ParticleField::mass) return (mass);
+				else if constexpr (F == ParticleField::state) return (state);
+				else if constexpr (F == ParticleField::type) return (type);
+				else if constexpr (F == ParticleField::id) return (id);
+				else if constexpr (F == ParticleField::attributes) return (attributes);
 			} else {
 				return AccessForbidden<F>{};
 			}

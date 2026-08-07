@@ -115,28 +115,28 @@ namespace april::container {
 		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at(this auto&& self, size_t index) {
 			return particle::internal::ScalarParticleRef<Read, Write, ParticleAttributes> {
-				self.template access_particle<Read, Write>(index)
+				self.template access_particle<Read, Write, AccessType::Scalar>(index)
 			};
 		}
 
 		template<ParticleField Read>
 		[[nodiscard]] auto view(this const auto& self, size_t index) {
 			return particle::internal::ScalarParticleRef<Read, ParticleField::none, ParticleAttributes> {
-				self.template access_particle<Read, ParticleField::none>(index)
+				self.template access_particle<Read, ParticleField::none, AccessType::Scalar>(index)
 			};
 		}
 
 		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t index) {
 			return particle::internal::PackedParticleRef<Read, Write, ParticleAttributes> {
-				self.template access_particle<Read, Write>(index)
+				self.template access_particle<Read, Write, AccessType::Packed>(index)
 			};
 		}
 
 		template<ParticleField Read>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t index) {
 			return particle::internal::PackedParticleRef<Read, ParticleField::none, ParticleAttributes> {
-				self.template access_particle<Read, ParticleField::none>(index)
+				self.template access_particle<Read, ParticleField::none, AccessType::Packed>(index)
 			};
 		}
 
@@ -145,14 +145,14 @@ namespace april::container {
 		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at_id(this auto&& self, ParticleID id) {
 			return particle::internal::ScalarParticleRef<Read, Write, ParticleAttributes> {
-				self.template access_particle_id<Read, Write>(id)
+				self.template access_particle_id<Read, Write, AccessType::Scalar>(id)
 			};
 		}
 
 		template<ParticleField Read>
 		[[nodiscard]] auto view_id(this const auto & self, ParticleID id) {
 			return particle::internal::ScalarParticleRef<Read, ParticleField::none, ParticleAttributes> {
-				self.template access_particle_id<Read, ParticleField::none>(id)
+				self.template access_particle_id<Read, ParticleField::none, AccessType::Scalar>(id)
 			};
 		}
 
@@ -361,7 +361,7 @@ namespace april::container {
 		// PARTICLE DATA ACCESSORS
 		//------------------------
 		template<ParticleField Read, ParticleField Write, typename GetField>
-		[[nodiscard]] auto make_source(GetField & get_field);
+		[[nodiscard]] static auto make_source(GetField& get_field);
 
 		template<ParticleField Read, ParticleField Write, AccessType Access>
 		[[nodiscard]] auto access_particle(this auto&& self, const auto ... args);

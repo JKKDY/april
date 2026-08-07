@@ -9,7 +9,7 @@
 #include "april/base/types.hpp"
 #include "april/particle/properties.hpp"
 #include "april/exec/policy.hpp"
-#include "../../exec/threading/scheduling.hpp"
+#include "april/exec/threading/scheduling.hpp"
 
 
 #include "april/containers/layout/internal/soa_chunk.hpp"
@@ -52,28 +52,28 @@ namespace april::container::layout {
         template <ParticleField Read, ParticleField Write>
         [[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
             return particle::internal::ScalarParticleRef<Read, Write, ParticleAttributes>{
-                self.template access_particle<Read, Write>(chunk_idx, lane_idx)
+                self.template access_particle<Read, Write, AccessType::Scalar>(chunk_idx, lane_idx)
             };
         }
 
         template <ParticleField Read>
         [[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
             return particle::internal::ScalarParticleRef<Read, ParticleField::none, ParticleAttributes>{
-                self.template access_particle<Read, ParticleField::none>(chunk_idx, lane_idx)
+                self.template access_particle<Read, ParticleField::none, AccessType::Scalar>(chunk_idx, lane_idx)
             };
         }
 
         template <ParticleField Read, ParticleField Write>
         [[nodiscard]] auto at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
             return particle::internal::PackedParticleRef<Read, Write, ParticleAttributes>{
-                self.template access_particle<Read, Write>(chunk_idx, lane_idx)
+                self.template access_particle<Read, Write, AccessType::Packed>(chunk_idx, lane_idx)
             };
         }
 
         template <ParticleField Read>
         [[nodiscard]] auto view_packed(this const auto& self, size_t chunk_idx, size_t lane_idx) {
             return particle::internal::PackedParticleRef<Read, ParticleField::none, ParticleAttributes>{
-                self.template access_particle<Read, ParticleField::none>(chunk_idx, lane_idx)
+                self.template access_particle<Read, ParticleField::none, AccessType::Packed>(chunk_idx, lane_idx)
             };
         }
 

@@ -253,17 +253,22 @@ TYPED_TEST(ForceKernelTest, NoForce) {
     }
 }
 
+struct EmptyParticleGetter {
+    template<ParticleField F>
+    auto operator()() const {
 
+    }
+};
 
 TYPED_TEST(ForceKernelTest, DispatchesCorrectExecutionMode) {
     using Packed = TestFixture::Packed;
     using Vec3P = TestFixture::Vec3P;
 
     using Source = particle::internal::ParticleSource<
-        ParticleField::none,
-        ParticleField::none,
-        NoParticleAttributes
-    >;
+    ParticleField::none,
+    ParticleField::none,
+    EmptyParticleGetter
+>;
 
     using ScalarParticle = particle::internal::ScalarParticleRef<
         ParticleField::none,
@@ -277,7 +282,9 @@ TYPED_TEST(ForceKernelTest, DispatchesCorrectExecutionMode) {
         NoParticleAttributes
     >;
 
-    Source source;
+    EmptyParticleGetter getter;
+    Source source(getter);
+
     ScalarParticle scalar_particle(source);
     PackedParticle packed_particle(source);
 
@@ -316,10 +323,10 @@ TYPED_TEST(ForceKernelTest, PrefersExplicitExecutionModeOverrides) {
     using Vec3P = TestFixture::Vec3P;
 
     using Source = particle::internal::ParticleSource<
-        ParticleField::none,
-        ParticleField::none,
-        NoParticleAttributes
-    >;
+    ParticleField::none,
+    ParticleField::none,
+    EmptyParticleGetter
+>;
 
     using ScalarParticle = particle::internal::ScalarParticleRef<
         ParticleField::none,
@@ -333,7 +340,9 @@ TYPED_TEST(ForceKernelTest, PrefersExplicitExecutionModeOverrides) {
         NoParticleAttributes
     >;
 
-    Source source;
+    EmptyParticleGetter getter;
+    Source source(getter);
+
     ScalarParticle scalar_particle(source);
     PackedParticle packed_particle(source);
 

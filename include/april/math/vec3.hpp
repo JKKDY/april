@@ -393,6 +393,18 @@ namespace april::math {
         }
     };
 
+    template<typename X, typename Y = X, typename Z = Y>
+    struct Vec3Location {
+        X x;
+        Y y;
+        Z z;
+
+        constexpr Vec3Location(X x, Y y, Z z) noexcept
+            : x(std::move(x)), y(std::move(y)), z(std::move(z)) {}
+    };
+
+    template<typename X, typename Y, typename Z>
+    Vec3Location(X, Y, Z) -> Vec3Location<X, Y, Z>;
 
 
     // ----------

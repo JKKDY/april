@@ -10,8 +10,30 @@
 #include "april/particle/access/internal/fwd.hpp"
 
 namespace april::particle::internal {
-    template <typename Ref, typename Mask>
-    struct MaskedPackedParticleRef;
+
+    template<typename T>
+    constexpr auto init_packed_location(T* ptr) noexcept {
+        using ValueType = T;
+        using RawType = std::remove_const_t<ValueType>;
+
+        if constexpr (std::is_enum_v<RawType>) {
+            using IntType = std::underlying_type_t<RawType>;
+            using TargetPtr = std::conditional_t<std::is_const_v<ValueType>, const IntType*, IntType*>;
+
+            return reinterpret_cast<TargetPtr>(ptr);
+        } else {
+            return ptr;
+        }
+    }
+
+    template<typename X, typename Y, typename Z>
+    constexpr auto init_packed_location(const math::Vec3Location<X, Y, Z>& location) noexcept {
+        return math::Vec3Proxy<pvec3::type>(
+            init_packed_location(location.x),
+            init_packed_location(location.y),
+            init_packed_location(location.z)
+        );
+    }
 
     //--------------------
     // PACKED PARTICLE REF
@@ -30,32 +52,11 @@ namespace april::particle::internal {
         static constexpr ParticleField WriteAccess = WriteMask & ~ParticleField::id;
 
     private:
-        /**
-          * Initializes a packed field pointer from the ParticleSource.
-          * Special handling for enums (state, type) to convert them to their underlying integer type
-          * while preserving const-correctness for SIMD compatibility.
-          */
-        template <ParticleField F, typename Source>
+        template<ParticleField F, typename Source>
         constexpr auto init_packed(const Source& src) {
             if constexpr (particle::internal::has_field_v<ReadAccess | WriteAccess, F>) {
-                auto ptr = src.template get<F>();
-
-                // get value type from pointer
-                using PtrType = decltype(ptr);
-                using ValueType = std::remove_pointer_t<PtrType>;
-
-                if constexpr (std::is_enum_v<ValueType>) {
-                    // Determine the underlying integer and preserve constness
-                    using IntType = std::underlying_type_t<ValueType>;
-                    using TargetPtr = std::conditional_t<std::is_const_v<ValueType>, const IntType*, IntType*>;
-
-                    return reinterpret_cast<TargetPtr>(ptr);
-                } else {
-                    // Return normal pointers as-is
-                    return ptr;
-                }
-            }
-            else {
+                return init_packed_location(src.template get<F>());
+            } else {
                 return AccessForbidden<F>();
             }
         }

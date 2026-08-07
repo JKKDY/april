@@ -25,25 +25,6 @@ inline particle::ParticleRecord<NoParticleAttributes> make_particle(const vec3& 
 	return p;
 }
 
-template<ParticleField Mask, typename RecordT>
-auto make_source(RecordT& record) {
-
-	using UserDataT = RecordT::particle_attributes_t;
-
-	particle::internal::ParticleSource<Mask, Mask, UserDataT> src;
-
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)    src.attributes    = &record.attributes;
-
-	return src;
-}
 
 // Direct application should reflect the particles position
 TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
@@ -54,7 +35,7 @@ TEST(ReflectiveBoundaryTest, Apply_InvertsVelocityAndReflectsPosition) {
 
 	// heading out X+. Intersection at {10, 5, 5}
 	auto p = make_particle({9.5,4.5,4.5}, {2,2,2});
-	auto src = make_source<Mask>(p);
+	auto src = make_particle_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	reflective.apply(ref, box, DomainFace::XPlus);
@@ -93,7 +74,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_InvertsVelocityAndReflectsPositi
 	auto compiled = boundary::internal::compile_boundary(reflect, core::Box::from_domain(domain), DomainFace::XPlus);
 
 	auto p = make_particle({9.8,5,5}, {+1,0,0});
-	auto src = make_source<Mask>(p);
+	auto src = make_particle_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	core::Box box{{0,0,0}, {10,10,10}};

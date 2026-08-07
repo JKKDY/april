@@ -360,9 +360,6 @@ namespace april::container {
 		//------------------------
 		// PARTICLE DATA ACCESSORS
 		//------------------------
-		template<ParticleField Read, ParticleField Write, typename GetField>
-		[[nodiscard]] static auto make_source(GetField& get_field);
-
 		template<ParticleField Read, ParticleField Write, AccessType Access>
 		[[nodiscard]] auto access_particle(this auto&& self, const auto ... args);
 

@@ -218,41 +218,6 @@ namespace april::container {
 	//------------------------
 	// PARTICLE DATA ACCESSORS
 	//------------------------
-	template<IsContainerBuildConfig BuildConfiguration>
-	template<ParticleField Read, ParticleField Write, typename GetField>
-	[[nodiscard]] auto Container<BuildConfiguration>::make_source(GetField& get_field) {
-		particle::internal::ParticleSource<Read, Write, std::remove_cvref_t<GetField>> src;
-		constexpr auto Mask = Read | Write;
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
-			src.force = get_field.template operator()<ParticleField::force>();
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
-			src.position = get_field.template operator()<ParticleField::position>();
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
-			src.velocity = get_field.template operator()<ParticleField::velocity>();
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
-			src.old_position = get_field.template operator()<ParticleField::old_position>();
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
-			src.mass = get_field.template operator()<ParticleField::mass>();
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
-			src.state = get_field.template operator()<ParticleField::state>();
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
-			src.type = get_field.template operator()<ParticleField::type>();
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
-			src.id = get_field.template operator()<ParticleField::id>();
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
-			src.attributes = get_field.template operator()<ParticleField::attributes>();
-
-		return src;
-	}
 
 	template <IsContainerBuildConfig BuildConfiguration>
 	template <ParticleField Read, ParticleField Write, AccessType Access>
@@ -284,7 +249,7 @@ namespace april::container {
 			}
 		};
 
-		return Container::make_source<Read, Write>(get_field);
+		return particle::internal::make_particle_source<Read, Write>(get_field);
 	}
 
 
@@ -345,7 +310,7 @@ namespace april::container {
 				}
 			};
 
-			return Container::make_source<Read, Write>(get_field);
+			return particle::internal::make_particle_source<Read, Write>(get_field);
 
 		} else {
 			// Fallback path: ID -> index -> access

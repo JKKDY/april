@@ -27,50 +27,75 @@ static_assert(particle::IsParticleAttributes<TestUserDataT>, "MyTestUserData doe
 // create a particle record with data
 class ParticleViewsTest : public testing::Test {
 protected:
-    // The backing storage
-    particle::ParticleRecord<TestUserDataT> particle_data;
+	particle::ParticleRecord<TestUserDataT> particle_data;
 
-    void SetUp() override {
-        particle_data.id = 123;
-        particle_data.type = 4;
-        particle_data.position = {1.0, 2.0, 3.0};
-        particle_data.velocity = {4.0, 5.0, 6.0};
-        particle_data.force = {7.0, 8.0, 9.0};
-        particle_data.old_position = {10.0, 11.0, 12.0};
-        particle_data.mass = 1.1;
-        particle_data.state = ParticleState::ALIVE;
-        particle_data.attributes = MyTestUserData{10, 20.5};
-    }
+	void SetUp() override {
+		particle_data.id = 123;
+		particle_data.type = 4;
+		particle_data.position = {1.0, 2.0, 3.0};
+		particle_data.velocity = {4.0, 5.0, 6.0};
+		particle_data.force = {7.0, 8.0, 9.0};
+		particle_data.old_position = {10.0, 11.0, 12.0};
+		particle_data.mass = 1.1;
+		particle_data.state = ParticleState::ALIVE;
+		particle_data.attributes = MyTestUserData{10, 20.5};
+	}
 
-    // Helper: Create a Mutable Source pointing to the Record's fields
-    auto get_source() {
-        particle::internal::ParticleSource<ParticleField::all, ParticleField::all, TestUserDataT> src;
-        src.position     = &particle_data.position;
-        src.velocity     = &particle_data.velocity;
-        src.force        = &particle_data.force;
-        src.old_position = &particle_data.old_position;
-        src.mass         = &particle_data.mass;
-        src.state        = &particle_data.state;
-        src.type         = &particle_data.type;
-        src.id           = &particle_data.id;
-        src.attributes    = &particle_data.attributes;
-        return src;
-    }
+	[[nodiscard]] auto get_source() {
+		auto get_field = [&]<ParticleField F>() {
+			if constexpr (F == ParticleField::position)
+				return &particle_data.position;
+			else if constexpr (F == ParticleField::velocity)
+				return &particle_data.velocity;
+			else if constexpr (F == ParticleField::force)
+				return &particle_data.force;
+			else if constexpr (F == ParticleField::old_position)
+				return &particle_data.old_position;
+			else if constexpr (F == ParticleField::mass)
+				return &particle_data.mass;
+			else if constexpr (F == ParticleField::state)
+				return &particle_data.state;
+			else if constexpr (F == ParticleField::type)
+				return &particle_data.type;
+			else if constexpr (F == ParticleField::id)
+				return &particle_data.id;
+			else if constexpr (F == ParticleField::attributes)
+				return &particle_data.attributes;
+		};
 
-    // Helper: Create a Const Source pointing to the Record's fields
-    auto get_const_source() {
-        particle::internal::ParticleSource<ParticleField::all, ParticleField::none, TestUserDataT> src;
-        src.position     = &particle_data.position;
-        src.velocity     = &particle_data.velocity;
-        src.force        = &particle_data.force;
-        src.old_position = &particle_data.old_position;
-        src.mass         = &particle_data.mass;
-        src.state        = &particle_data.state;
-        src.type         = &particle_data.type;
-        src.id           = &particle_data.id;
-        src.attributes    = &particle_data.attributes;
-        return src;
-    }
+		return particle::internal::make_particle_source<
+			ParticleField::all,
+			ParticleField::all
+		>(get_field);
+	}
+
+	[[nodiscard]] auto get_const_source() const {
+		auto get_field = [&]<ParticleField F>() {
+			if constexpr (F == ParticleField::position)
+				return &particle_data.position;
+			else if constexpr (F == ParticleField::velocity)
+				return &particle_data.velocity;
+			else if constexpr (F == ParticleField::force)
+				return &particle_data.force;
+			else if constexpr (F == ParticleField::old_position)
+				return &particle_data.old_position;
+			else if constexpr (F == ParticleField::mass)
+				return &particle_data.mass;
+			else if constexpr (F == ParticleField::state)
+				return &particle_data.state;
+			else if constexpr (F == ParticleField::type)
+				return &particle_data.type;
+			else if constexpr (F == ParticleField::id)
+				return &particle_data.id;
+			else if constexpr (F == ParticleField::attributes)
+				return &particle_data.attributes;
+		};
+
+		return particle::internal::make_particle_source<
+			ParticleField::all,
+			ParticleField::none
+		>(get_field);
+	}
 };
 
 

@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 
 
-#include "../../include/april/particle/access/scalar_access.hpp"
+#include "april/particle/access/scalar_access.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/repulsive.hpp"
 #include "april/containers/direct_sum.hpp"
-#include "../../include/april/containers/layout/layout.hpp"
+#include "april/containers/layout/layout.hpp"
 #include "april/containers/linked_cells.hpp"
 
 #include "utils.h"
@@ -50,25 +50,6 @@ inline particle::ParticleRecord<NoParticleAttributes> make_particle(const vec3& 
 	return p;
 }
 
-template<ParticleField Mask, typename RecordT>
-auto make_source(RecordT& record) {
-	// Determine constness based on RecordT (allows making const sources from const records)
-	using UserDataT = RecordT::particle_attributes_t;
-
-	particle::internal::ParticleSource<Mask, Mask, UserDataT> src;
-
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)    src.attributes    = &record.attributes;
-
-	return src;
-}
 
 // Direct application test should add constant force
 TEST(RepulsiveBoundaryTest, Apply_AddsInwardForce) {
@@ -77,7 +58,7 @@ TEST(RepulsiveBoundaryTest, Apply_AddsInwardForce) {
 	constexpr ParticleField Mask = RepulsiveBoundary<ConstantForce>::fields;
 
 	auto p = make_particle({9.5,5,5});
-	auto src = make_source<Mask>(p);
+	auto src = make_particle_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	const core::Box box({0,0,0}, {10,10,10});
@@ -118,7 +99,7 @@ TEST(RepulsiveBoundaryTest, CompiledBoundary_Apply_AddsInwardForce) {
 	auto compiled = boundary::internal::compile_boundary(variant, core::Box::from_domain(domain), DomainFace::YMinus);
 
 	auto p = make_particle({5,0.3,5});
-	auto src = make_source<Mask>(p);
+	auto src = make_particle_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	const core::Box box({0,0,0}, {10,10,10});
@@ -199,7 +180,7 @@ TEST(RepulsiveBoundaryTest, ExponentialForce_CalculatesCorrectly) {
 
     // Particle 1.0 unit away from 0.0 (XMinus wall)
     auto p = make_particle({1.0, 5, 5});
-    auto src = make_source<Mask>(p);
+    auto src = make_particle_source<Mask>(p);
     particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
     const core::Box box({0,0,0}, {10,10,10});
 
@@ -221,7 +202,7 @@ TEST(RepulsiveBoundaryTest, PowerLawForce_CalculatesCorrectly) {
 
     // Particle 2.0 units away from 0.0
     auto p = make_particle({2.0, 5, 5});
-    const auto src = make_source<Mask>(p);
+    const auto src = make_particle_source<Mask>(p);
     particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
     const core::Box box({0,0,0}, {10,10,10});
 
@@ -241,7 +222,7 @@ TEST(RepulsiveBoundaryTest, LennardJones93Force_CalculatesCorrectly) {
     // Formula: 4*eps * (3*(s/r)^3 - 9*(s/r)^9)
     // At r=s: 4 * (3 - 9) = -24
     auto p = make_particle({1.0, 5, 5});
-    const auto src = make_source<Mask>(p);
+    const auto src = make_particle_source<Mask>(p);
     particle::internal::ScalarParticleRef<Mask,Mask, NoParticleAttributes> ref(src);
     const core::Box box({0,0,0}, {10,10,10});
 
@@ -262,7 +243,7 @@ TEST(RepulsiveBoundaryTest, AdhesiveLJForce_IsAlwaysRepulsive) {
 
     // At sigma (1.0), standard LJ Force is 24 * eps * (2 - 1) = 24.
     auto p = make_particle({1.0, 5, 5});
-    auto src = make_source<Mask>(p);
+    auto src = make_particle_source<Mask>(p);
     particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
     const core::Box box({0,0,0}, {10,10,10});
 
@@ -288,7 +269,7 @@ TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
 
         // Particle at distance 2.0 from X- wall (pos=2.0)
         auto p = make_particle({2.0, 5, 5});
-        auto src = make_source<Mask>(p);
+        auto src = make_particle_source<Mask>(p);
         particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
         rep_no_halo.apply(ref, box, DomainFace::XMinus);
@@ -304,7 +285,7 @@ TEST(RepulsiveBoundaryTest, Halo_DoublesTheDistance) {
 
         // Particle at distance 2.0 from X- wall (pos=2.0)
         auto p = make_particle({2.0, 5, 5});
-        auto src = make_source<Mask>(p);
+        auto src = make_particle_source<Mask>(p);
         particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
         rep_halo.apply(ref, box, DomainFace::XMinus);

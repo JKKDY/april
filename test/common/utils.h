@@ -89,4 +89,19 @@ inline Particle make_particle(
 }
 
 
+template<ParticleField Read, ParticleField Write = Read, typename RecordT>
+auto make_particle_source(RecordT& record) {
+	auto get_field = [&]<ParticleField F>() {
+		if constexpr (F == ParticleField::position) return &record.position;
+		else if constexpr (F == ParticleField::velocity) return &record.velocity;
+		else if constexpr (F == ParticleField::force) return &record.force;
+		else if constexpr (F == ParticleField::old_position) return &record.old_position;
+		else if constexpr (F == ParticleField::mass) return &record.mass;
+		else if constexpr (F == ParticleField::state) return &record.state;
+		else if constexpr (F == ParticleField::type) return &record.type;
+		else if constexpr (F == ParticleField::id) return &record.id;
+		else if constexpr (F == ParticleField::attributes) return &record.attributes;
+	};
 
+	return particle::internal::make_particle_source<Read, Write>(get_field);
+}

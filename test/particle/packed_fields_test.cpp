@@ -35,41 +35,41 @@ protected:
         force_x.resize(Count, 0.0); force_y.resize(Count, 0.0); force_z.resize(Count, 0.0);
         mass.resize(Count, 0.0);
 
-        // Particle i has position {i, i, i} and mass 1.0
-        for(size_t i=0; i<Count; ++i) {
+        for (size_t i = 0; i < Count; ++i) {
             const double val = static_cast<double>(i);
-            pos_x[i] = val; pos_y[i] = val; pos_z[i] = val;
-            vel_x[i] = 1.0; vel_y[i] = 0.0; vel_z[i] = 0.0; // Moving right
+
+            pos_x[i] = val;
+            pos_y[i] = val;
+            pos_z[i] = val;
+
+            vel_x[i] = 1.0;
+            vel_y[i] = 0.0;
+            vel_z[i] = 0.0;
+
             mass[i] = 2.0;
         }
     }
 
-    auto get_source() {
-        internal::ParticleSource<TestMask, TestMask, NoParticleAttributes> src;
+    [[nodiscard]] auto get_source() {
+        auto get_field = [&]<ParticleField F>() {
+            if constexpr (F == ParticleField::position)
+                return math::Vec3Location{pos_x.data(), pos_y.data(), pos_z.data()};
+            else if constexpr (F == ParticleField::velocity)
+                return math::Vec3Location{vel_x.data(), vel_y.data(), vel_z.data()};
+            else if constexpr (F == ParticleField::force)
+                return math::Vec3Location{force_x.data(), force_y.data(), force_z.data()};
+            else if constexpr (F == ParticleField::mass)
+                return mass.data();
+        };
 
-        // Setup SoA Pointers for Position
-        src.position.x = pos_x.data();
-        src.position.y = pos_y.data();
-        src.position.z = pos_z.data();
-
-        // Velocity
-        src.velocity.x = vel_x.data();
-        src.velocity.y = vel_y.data();
-        src.velocity.z = vel_z.data();
-
-        // Force
-        src.force.x = force_x.data();
-        src.force.y = force_y.data();
-        src.force.z = force_z.data();
-
-        // Mass
-        src.mass = mass.data();
-
-        return src;
+        return make_particle_source<TestMask, TestMask>(get_field);
     }
 
-    // Helper: Verify data at specific index
-    void ExpectParticle(const size_t index, const vec3& expected_pos, const vec3& expected_force) const {
+    void ExpectParticle(
+        const size_t index,
+        const vec3& expected_pos,
+        const vec3& expected_force
+    ) const {
         EXPECT_DOUBLE_EQ(pos_x[index], expected_pos.x);
         EXPECT_DOUBLE_EQ(pos_y[index], expected_pos.y);
         EXPECT_DOUBLE_EQ(pos_z[index], expected_pos.z);
@@ -350,64 +350,62 @@ TEST_F(PackedParticleViewsTest, SystolicLoopSim) {
 // Verifies that a packed buffer is correctly populated across all lanes
 // when constructed from a single scalar particle accessor.
 TEST_F(PackedParticleViewsTest, BufferBroadcastFromScalar) {
-    // 1. Setup a single scalar particle
-    double s_pos_x = 1.5, s_pos_y = 2.5, s_pos_z = 3.5;
-    double s_vel_x = 4.5, s_vel_y = 5.5, s_vel_z = 6.5;
-    double s_frc_x = 7.5, s_frc_y = 8.5, s_frc_z = 9.5;
-    double s_mass  = 10.5;
+	// 1. Setup a single scalar particle
+	double s_pos_x = 1.5, s_pos_y = 2.5, s_pos_z = 3.5;
+	double s_vel_x = 4.5, s_vel_y = 5.5, s_vel_z = 6.5;
+	double s_frc_x = 7.5, s_frc_y = 8.5, s_frc_z = 9.5;
+	double s_mass = 10.5;
 
-    ParticleSource<TestMask, TestMask, NoParticleAttributes> scalar_src;
-    scalar_src.position.x = &s_pos_x;
-    scalar_src.position.y = &s_pos_y;
-    scalar_src.position.z = &s_pos_z;
-    scalar_src.velocity.x = &s_vel_x;
-    scalar_src.velocity.y = &s_vel_y;
-    scalar_src.velocity.z = &s_vel_z;
-    scalar_src.force.x = &s_frc_x;
-    scalar_src.force.y = &s_frc_y;
-    scalar_src.force.z = &s_frc_z;
-    scalar_src.mass = &s_mass;
+	auto get_field = [&]<ParticleField F>() {
+		if constexpr (F == ParticleField::position)
+			return math::Vec3Location{&s_pos_x, &s_pos_y, &s_pos_z};
+		else if constexpr (F == ParticleField::velocity)
+			return math::Vec3Location{&s_vel_x, &s_vel_y, &s_vel_z};
+		else if constexpr (F == ParticleField::force)
+			return math::Vec3Location{&s_frc_x, &s_frc_y, &s_frc_z};
+		else if constexpr (F == ParticleField::mass)
+			return &s_mass;
+	};
 
-    // Create the scalar reference
-    ScalarParticleRef<TestMask, TestMask, NoParticleAttributes> scalar_ref(scalar_src);
+	auto scalar_src = particle::internal::make_particle_source<TestMask, TestMask>(get_field);
+	ScalarParticleRef<TestMask, TestMask, NoParticleAttributes> scalar_ref(scalar_src);
 
-    // 2. Broadcast into a SIMD buffer
-    auto buffer = scalar_ref.broadcast();
+	// 2. Broadcast into a SIMD buffer
+	auto buffer = scalar_ref.broadcast();
 
-    // 3. Verify all lanes contain the exact scalar values
-    constexpr size_t Width = packedd::size();
+	// 3. Verify all lanes contain the exact scalar values
+	constexpr size_t Width = packedd::size();
 
-    auto pos_x = buffer.position.x.to_array();
-    auto pos_y = buffer.position.y.to_array();
-    auto pos_z = buffer.position.z.to_array();
+	auto pos_x = buffer.position.x.to_array();
+	auto pos_y = buffer.position.y.to_array();
+	auto pos_z = buffer.position.z.to_array();
 
-    auto vel_x = buffer.velocity.x.to_array();
-    auto vel_y = buffer.velocity.y.to_array();
-    auto vel_z = buffer.velocity.z.to_array();
+	auto vel_x = buffer.velocity.x.to_array();
+	auto vel_y = buffer.velocity.y.to_array();
+	auto vel_z = buffer.velocity.z.to_array();
 
-    auto frc_x = buffer.force.x.to_array();
-    auto frc_y = buffer.force.y.to_array();
-    auto frc_z = buffer.force.z.to_array();
+	auto frc_x = buffer.force.x.to_array();
+	auto frc_y = buffer.force.y.to_array();
+	auto frc_z = buffer.force.z.to_array();
 
-    auto mass_arr = buffer.mass.to_array();
+	auto mass_arr = buffer.mass.to_array();
 
-    for(size_t i = 0; i < Width; ++i) {
-        EXPECT_DOUBLE_EQ(pos_x[i], 1.5) << "Broadcast failed on position.x at lane " << i;
-        EXPECT_DOUBLE_EQ(pos_y[i], 2.5) << "Broadcast failed on position.y at lane " << i;
-        EXPECT_DOUBLE_EQ(pos_z[i], 3.5) << "Broadcast failed on position.z at lane " << i;
+	for (size_t i = 0; i < Width; ++i) {
+		EXPECT_DOUBLE_EQ(pos_x[i], 1.5) << "Broadcast failed on position.x at lane " << i;
+		EXPECT_DOUBLE_EQ(pos_y[i], 2.5) << "Broadcast failed on position.y at lane " << i;
+		EXPECT_DOUBLE_EQ(pos_z[i], 3.5) << "Broadcast failed on position.z at lane " << i;
 
-        EXPECT_DOUBLE_EQ(vel_x[i], 4.5) << "Broadcast failed on velocity.x at lane " << i;
-        EXPECT_DOUBLE_EQ(vel_y[i], 5.5) << "Broadcast failed on velocity.y at lane " << i;
-        EXPECT_DOUBLE_EQ(vel_z[i], 6.5) << "Broadcast failed on velocity.z at lane " << i;
+		EXPECT_DOUBLE_EQ(vel_x[i], 4.5) << "Broadcast failed on velocity.x at lane " << i;
+		EXPECT_DOUBLE_EQ(vel_y[i], 5.5) << "Broadcast failed on velocity.y at lane " << i;
+		EXPECT_DOUBLE_EQ(vel_z[i], 6.5) << "Broadcast failed on velocity.z at lane " << i;
 
-        EXPECT_DOUBLE_EQ(frc_x[i], 7.5) << "Broadcast failed on force.x at lane " << i;
-        EXPECT_DOUBLE_EQ(frc_y[i], 8.5) << "Broadcast failed on force.y at lane " << i;
-        EXPECT_DOUBLE_EQ(frc_z[i], 9.5) << "Broadcast failed on force.z at lane " << i;
+		EXPECT_DOUBLE_EQ(frc_x[i], 7.5) << "Broadcast failed on force.x at lane " << i;
+		EXPECT_DOUBLE_EQ(frc_y[i], 8.5) << "Broadcast failed on force.y at lane " << i;
+		EXPECT_DOUBLE_EQ(frc_z[i], 9.5) << "Broadcast failed on force.z at lane " << i;
 
-        EXPECT_DOUBLE_EQ(mass_arr[i], 10.5) << "Broadcast failed on mass at lane " << i;
-    }
+		EXPECT_DOUBLE_EQ(mass_arr[i], 10.5) << "Broadcast failed on mass at lane " << i;
+	}
 }
-
 
 // ---------------------
 // BUFFER AND VIEW TESTS
@@ -496,34 +494,40 @@ TEST_F(PackedParticleViewsTest, BufferToView) {
 // Verifies that a pure Write-Only buffer can horizontally reduce its SIMD lanes
 // into a single scalar particle (used during Newton's 3rd Law / Cell sorting)
 TEST(PackedParticleReductionTest, MaskedReduceIntoScalar) {
-    // Setup a pure Write-Only target
     constexpr auto ROMask = ParticleField::none;
     constexpr auto WOMask = ParticleField::force;
 
-    // Single scalar particle to receive the reduced forces
     double s_frc_x = 0.0, s_frc_y = 0.0, s_frc_z = 0.0;
-    ParticleSource<ROMask, WOMask, NoParticleAttributes> s_src;
-    s_src.force.x = &s_frc_x;
-    s_src.force.y = &s_frc_y;
-    s_src.force.z = &s_frc_z;
+
+    auto get_field = [&]<ParticleField F>() {
+        return math::Vec3Location{
+            &s_frc_x,
+            &s_frc_y,
+            &s_frc_z
+        };
+    };
+
+    auto s_src = make_particle_source<ROMask, WOMask>(get_field);
     ScalarParticleRef<ROMask, WOMask, NoParticleAttributes> scalar_ref(s_src);
 
-    // Create a dummy buffer and accumulate some forces into it
-    PackedParticleBuffer<ROMask, WOMask, NoParticleAttributes, MaskPolicy::Disabled> buffer;
-    buffer.force = pvec3(1.0, 2.0, 3.0); // Every lane has {1, 2, 3}
+    PackedParticleBuffer<
+        ROMask,
+        WOMask,
+        NoParticleAttributes,
+        MaskPolicy::Disabled
+    > buffer;
 
-    // Create a mask that is only TRUE for the first 3 lanes
+    buffer.force = pvec3(1.0, 2.0, 3.0);
+
     constexpr size_t Width = packed::size();
     std::vector<double> seq(Width);
-    for(size_t i = 0; i < Width; ++i) seq[i] = static_cast<double>(i);
+    for (size_t i = 0; i < Width; ++i) seq[i] = static_cast<double>(i);
 
     packed indices = packed::load_unaligned(seq.data());
-    auto mask = (indices < 2.0);
+    auto mask = indices < 2.0;
 
-    // Reduce
     buffer.reduce_into(scalar_ref, mask);
 
-    // Expected: 2 lanes * 1.0 = 3.0
     EXPECT_DOUBLE_EQ(s_frc_x, 2.0);
     EXPECT_DOUBLE_EQ(s_frc_y, 4.0);
     EXPECT_DOUBLE_EQ(s_frc_z, 6.0);
@@ -542,46 +546,58 @@ struct TestCharge {
 TEST(PackedParticleAttributesTest, SIMDAttributeLifecycle) {
     constexpr size_t Count = packed::size();
 
-    // Memory setup
     std::vector<double> pos_x(Count, 0.0);
     std::vector<double> pos_y(Count, 0.0);
     std::vector<double> pos_z(Count, 0.0);
+
     std::vector<TestCharge> charges(Count);
-    for(size_t i=0; i<Count; ++i) {
-        charges[i].q = static_cast<double>(i) * 2.0; // 0.0, 2.0, 4.0, ...
+    for (size_t i = 0; i < Count; ++i) {
+        charges[i].q = static_cast<double>(i) * 2.0;
     }
 
-    constexpr auto Mask = ParticleField::position | ParticleField::attributes;
-    ParticleSource<Mask, Mask, TestCharge> src;
-    src.position.x = pos_x.data();
-    src.position.y = pos_y.data();
-    src.position.z = pos_z.data();
+    constexpr auto Mask =
+        ParticleField::position |
+        ParticleField::attributes;
 
-    src.attributes = charges.data();
+    auto get_field = [&]<ParticleField F>() {
+        if constexpr (F == ParticleField::position) {
+            return math::Vec3Location{
+                pos_x.data(),
+                pos_y.data(),
+                pos_z.data()
+            };
+        } else if constexpr (F == ParticleField::attributes) {
+            return charges.data();
+        }
+    };
 
-    // Load
+    auto src = make_particle_source<Mask, Mask>(get_field);
+
     PackedParticleRef<Mask, Mask, TestCharge> ref(src);
     auto buffer = ref.load_buffer();
 
-    // Verify Read (Via View mapping)
     auto view = buffer.to_view();
-    auto q_vals = view.attributes.q.to_array(); // Beautiful user syntax
+    auto q_vals = view.attributes.q.to_array();
 
-    for(size_t i=0; i<Count; ++i) {
+    for (size_t i = 0; i < Count; ++i) {
         EXPECT_DOUBLE_EQ(q_vals[i], static_cast<double>(i) * 2.0);
     }
 
-    // Modify & Write-back
-    view.attributes.q += view.attributes.q; // Double the charges
+    view.attributes.q += view.attributes.q;
     buffer.update_into(ref);
 
-    for(size_t i=0; i<Count; ++i) {
-        EXPECT_DOUBLE_EQ(buffer.attributes.to_array()[i], static_cast<double>(i) * 4.0);
+    for (size_t i = 0; i < Count; ++i) {
+        EXPECT_DOUBLE_EQ(
+            buffer.attributes.to_array()[i],
+            static_cast<double>(i) * 4.0
+        );
     }
 
-    // Verify Memory
-    for(size_t i=0; i<Count; ++i) {
-        EXPECT_DOUBLE_EQ(charges[i].q, static_cast<double>(i) * 4.0);
+    for (size_t i = 0; i < Count; ++i) {
+        EXPECT_DOUBLE_EQ(
+            charges[i].q,
+            static_cast<double>(i) * 4.0
+        );
     }
 }
 

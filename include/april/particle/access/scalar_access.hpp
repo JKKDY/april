@@ -21,6 +21,7 @@
 #include "april/particle/attributes.hpp"
 #include "april/particle/access/internal/packed_reference.hpp"
 #include "april/particle/access/policy.hpp"
+#include "april/math/vec3.hpp"
 
 namespace april::particle::internal {
 
@@ -30,6 +31,33 @@ namespace april::particle::internal {
 	template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes, MaskPolicy MaskPolicy>
 	struct PackedParticleBuffer;
 
+
+	template<typename T>
+	constexpr decltype(auto) init_scalar_location(T* ptr) noexcept {
+		return *ptr;
+	}
+
+	template<typename T>
+	constexpr auto init_scalar_location(math::Vec3<T>* ptr) noexcept {
+		return math::Vec3Proxy<T>(ptr->x, ptr->y, ptr->z);
+	}
+
+	template<typename T>
+	constexpr auto init_scalar_location(const math::Vec3<T>* ptr) noexcept {
+		return math::Vec3Proxy<const T>(ptr->x, ptr->y, ptr->z);
+	}
+
+	template<typename X, typename Y, typename Z>
+	constexpr auto init_scalar_location(const math::Vec3Location<X, Y, Z>& location) noexcept {
+		using T = std::remove_reference_t<decltype(*location.x)>;
+
+		return math::Vec3Proxy<T>(
+			*location.x,
+			*location.y,
+			*location.z
+		);
+	}
+
 	/**
 	 * Helper to initialize field references from a data source.
 	 * Maps valid fields to actual memory references and forbidden fields
@@ -38,7 +66,7 @@ namespace april::particle::internal {
 	template<ParticleField ReadMask, ParticleField WriteMask, ParticleField F, typename Source>
 	constexpr decltype(auto) init_scalar_field(const Source& src) {
 		if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, F>) {
-			return *src.template get<F>();
+			return init_scalar_location(src.template get<F>());
 		} else {
 			return internal::AccessForbidden<F>();
 		}

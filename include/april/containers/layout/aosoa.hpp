@@ -426,18 +426,18 @@ namespace april::container::layout {
         }
 
         template <ParticleField F>
-        APRIL_FORCE_INLINE auto get_field_ptr(this auto&& self, size_t chunk_idx, size_t lane_idx) {            // locate data
+        APRIL_FORCE_INLINE auto get_field_ptr(this auto&& self, size_t chunk_idx, size_t lane_idx) {
             auto& chunk = self.ptr_chunks[chunk_idx];
 
             // return vector pointer
             if constexpr (F == ParticleField::position)
-                return math::Vec3Ptr{&chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx]};
+                return math::Vec3Location{&chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx]};
             else if constexpr (F == ParticleField::velocity)
-                return math::Vec3Ptr{&chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx]};
+                return math::Vec3Location{&chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx]};
             else if constexpr (F == ParticleField::force)
-                return math::Vec3Ptr{&chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx]};
+                return math::Vec3Location{&chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx]};
             else if constexpr (F == ParticleField::old_position)
-                return math::Vec3Ptr{&chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx]};
+                return math::Vec3Location{&chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx]};
 
             // return scalar pointer
             else if constexpr (F == ParticleField::mass) return &chunk.mass[lane_idx];

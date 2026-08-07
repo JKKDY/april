@@ -130,7 +130,11 @@ namespace april::particle::internal {
 	 * The masks are supplied by APRIL's kernel wrappers through their static
 	 * `Read` and `Write` members.
 	 * */
-	template<ParticleField ReadMask, ParticleField WriteMask, typename Getter>
+	template<
+		ParticleField ReadMask,
+		ParticleField WriteMask,
+		typename Getter
+	>
 	struct ParticleSource {
 	private:
 		template<ParticleField F>
@@ -138,13 +142,45 @@ namespace april::particle::internal {
 			decltype(std::declval<Getter&>().template operator()<F>())
 		>;
 
+		// lazy compile time conditional
+		template<bool Enabled, ParticleField F>
+		struct field_type {
+			using type = AccessForbidden<F>;
+		};
+
 		template<ParticleField F>
-		using field_t = std::conditional_t<
+		struct field_type<true, F> {
+			using type = inferred_field_t<F>;
+		};
+
+		template<ParticleField F>
+		using field_t = typename field_type<
 			has_field_v<ReadMask | WriteMask, F>,
-			inferred_field_t<F>,
-			AccessForbidden<F>
-		>;
+			F
+		>::type;
+
+		template<ParticleField F>
+		static constexpr auto init_field(Getter& getter) {
+			if constexpr (has_field_v<ReadMask | WriteMask, F>) {
+				return getter.template operator()<F>();
+			} else {
+				return AccessForbidden<F>{};
+			}
+		}
+
 	public:
+		explicit ParticleSource(Getter& getter)
+			: force(init_field<ParticleField::force>(getter))
+			, position(init_field<ParticleField::position>(getter))
+			, velocity(init_field<ParticleField::velocity>(getter))
+			, old_position(init_field<ParticleField::old_position>(getter))
+			, mass(init_field<ParticleField::mass>(getter))
+			, state(init_field<ParticleField::state>(getter))
+			, type(init_field<ParticleField::type>(getter))
+			, id(init_field<ParticleField::id>(getter))
+			, attributes(init_field<ParticleField::attributes>(getter))
+		{}
+
 		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::force> force;
 		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::position> position;
 		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::velocity> velocity;
@@ -156,11 +192,6 @@ namespace april::particle::internal {
 		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::id> id;
 		APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::attributes> attributes;
 
-
-		/**
-		* Retrieves a specific field pointer or a poison struct at compile-time.
-		* Used primarily the construction of ParticleRefs (see scalar_access.hpp and packed_access.hpp).
-		*/
 		template<ParticleField F>
 		constexpr decltype(auto) get() const noexcept {
 			if constexpr (has_field_v<ReadMask | WriteMask, F>) {
@@ -178,4 +209,13 @@ namespace april::particle::internal {
 			}
 		}
 	};
+
+	template<ParticleField ReadMask, ParticleField WriteMask, typename Getter>
+	auto make_particle_source(Getter& getter) {
+		return ParticleSource<
+			ReadMask,
+			WriteMask,
+			std::remove_cvref_t<Getter>
+		>(getter);
+	}
 }

@@ -194,13 +194,13 @@ namespace april::container::layout {
         template<ParticleField F>
         auto get_field_ptr(this auto&& self, size_t i) {
             if constexpr (F == ParticleField::position)
-                return math::Vec3Ptr { self.data.ptr_pos_x + i, self.data.ptr_pos_y + i, self.data.ptr_pos_z + i };
+                return math::Vec3Location { self.data.ptr_pos_x + i, self.data.ptr_pos_y + i, self.data.ptr_pos_z + i };
             else if constexpr (F == ParticleField::velocity)
-                return math::Vec3Ptr { self.data.ptr_vel_x + i, self.data.ptr_vel_y + i, self.data.ptr_vel_z + i };
+                return math::Vec3Location { self.data.ptr_vel_x + i, self.data.ptr_vel_y + i, self.data.ptr_vel_z + i };
             else if constexpr (F == ParticleField::force)
-                return math::Vec3Ptr { self.data.ptr_frc_x + i, self.data.ptr_frc_y + i, self.data.ptr_frc_z + i };
+                return math::Vec3Location { self.data.ptr_frc_x + i, self.data.ptr_frc_y + i, self.data.ptr_frc_z + i };
             else if constexpr (F == ParticleField::old_position)
-                return math::Vec3Ptr { self.data.ptr_old_x + i, self.data.ptr_old_y + i, self.data.ptr_old_z + i };
+                return math::Vec3Location { self.data.ptr_old_x + i, self.data.ptr_old_y + i, self.data.ptr_old_z + i };
 
             else if constexpr (F == ParticleField::mass)      return self.data.ptr_mass + i;
             else if constexpr (F == ParticleField::state)     return self.data.ptr_state + i;

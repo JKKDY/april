@@ -219,21 +219,43 @@ namespace april::container {
 	// PARTICLE DATA ACCESSORS
 	//------------------------
 	template<IsContainerBuildConfig BuildConfiguration>
-	template<ParticleField F>
-	auto Container<BuildConfiguration>::invoke_get_field_ptr(this auto&& self, auto... args) {
-		return self.template get_field_ptr<F>(args...);
+	template<ParticleField Read, ParticleField Write, typename GetField>
+	[[nodiscard]] auto Container<BuildConfiguration>::make_source(GetField & get_field) {
+		particle::internal::ParticleSource<Read, Write, ParticleAttributes> src;
+		constexpr auto Mask = Read | Write;
+
+		if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
+			src.force = get_field.template operator()<ParticleField::force>();
+
+		if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
+			src.position = get_field.template operator()<ParticleField::position>();
+
+		if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
+			src.velocity = get_field.template operator()<ParticleField::velocity>();
+
+		if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
+			src.old_position = get_field.template operator()<ParticleField::old_position>();
+
+		if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
+			src.mass = get_field.template operator()<ParticleField::mass>();
+
+		if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
+			src.state = get_field.template operator()<ParticleField::state>();
+
+		if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
+			src.type = get_field.template operator()<ParticleField::type>();
+
+		if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
+			src.id = get_field.template operator()<ParticleField::id>();
+
+		if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
+			src.attributes = get_field.template operator()<ParticleField::attributes>();
+
+		return src;
 	}
 
-
 	template<IsContainerBuildConfig BuildConfiguration>
-	template<ParticleField F>
-	auto Container<BuildConfiguration>::invoke_get_field_ptr_id(this auto&& self, const ParticleID id) {
-		APRIL_ASSERT(self.contains_id(id), "Got invalid Id: " + std::to_string(id));
-		return self.template get_field_ptr_id<F>(id);
-	}
-
-	template<IsContainerBuildConfig BuildConfiguration>
-	template<ParticleField Read, ParticleField Write>
+	template<ParticleField Read, ParticleField Write, AccessType Access>
 	auto Container<BuildConfiguration>::access_particle(this auto&& self, const auto... args) {
 		constexpr bool is_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;
 
@@ -243,42 +265,20 @@ namespace april::container {
 			"Either drop the write mask or ensure the container is mutable."
 		);
 
-		particle::internal::ParticleSource<Read, Write, ParticleAttributes> src;
-		constexpr auto Mask = Read | Write;
+		auto get_field = [&]<ParticleField F>() {
+			if constexpr (Access == AccessType::Packed && requires {self.template get_field_ptr_packed<F>(args...); }) {
+				return self.template get_field_ptr_packed<F>(std::forward<decltype(args)>(args)...);
+			} else {
+				return self.template get_field_ptr<F>(std::forward<decltype(args)>(args)...);
+			}
+		};
 
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
-			src.force = self.template invoke_get_field_ptr<ParticleField::force>(args...);
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
-			src.position = self.template invoke_get_field_ptr<ParticleField::position>(args...);
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
-			src.velocity = self.template invoke_get_field_ptr<ParticleField::velocity>(args...);
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
-			src.old_position = self.template invoke_get_field_ptr<ParticleField::old_position>(args...);
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
-			src.mass = self.template invoke_get_field_ptr<ParticleField::mass>(args...);
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
-			src.state = self.template invoke_get_field_ptr<ParticleField::state>(args...);
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
-			src.type = self.template invoke_get_field_ptr<ParticleField::type>(args...);
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
-			src.id = self.template invoke_get_field_ptr<ParticleField::id>(args...);
-
-		if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
-			src.attributes = self.template invoke_get_field_ptr<ParticleField::attributes>(args...);
-
-		return src;
+		return self.template make_source<Read, Write, Access>(get_field);
 	}
 
 
 	template<IsContainerBuildConfig BuildConfiguration>
-	template<ParticleField Read, ParticleField Write>
+	template<ParticleField Read, ParticleField Write, AccessType Access>
 	auto Container<BuildConfiguration>::access_particle_id(
 		this auto&& self,
 		const ParticleID id
@@ -311,36 +311,18 @@ namespace april::container {
 				"container is mutable."
 			);
 
-			particle::internal::ParticleSource<Read, Write, ParticleAttributes> src;
+			auto get_field = [&]<ParticleField F>() {
+				APRIL_ASSERT(self.contains_id(id), "Got invalid Id: " + std::to_string(id));
 
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)
-				src.force = self.template invoke_get_field_ptr_id<ParticleField::force>(id);
+				if constexpr (Access == AccessType::Packed && requires {self.template get_field_ptr_packed<F>(id); }) {
+					return self.template get_field_ptr_id_packed<F>(id);
+				} else {
+					return self.template get_field_ptr_id<F>(id);
+				}
+			};
 
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)
-				src.position = self.template invoke_get_field_ptr_id<ParticleField::position>(id);
+			return self.template make_source<Read, Write, Access>(get_field);
 
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)
-				src.velocity = self.template invoke_get_field_ptr_id<ParticleField::velocity>(id);
-
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>)
-				src.old_position = self.template invoke_get_field_ptr_id<ParticleField::old_position>(id);
-
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)
-				src.mass = self.template invoke_get_field_ptr_id<ParticleField::mass>(id);
-
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)
-				src.state = self.template invoke_get_field_ptr_id<ParticleField::state>(id);
-
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)
-				src.type = self.template invoke_get_field_ptr_id<ParticleField::type>(id);
-
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)
-				src.id = self.template invoke_get_field_ptr_id<ParticleField::id>(id);
-
-			if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)
-				src.attributes = self.template invoke_get_field_ptr_id<ParticleField::attributes>(id);
-
-			return src;
 		} else {
 			// Fallback path: ID -> index -> access
 			return self.template access_particle<Read, Write>(

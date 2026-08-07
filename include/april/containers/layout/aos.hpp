@@ -203,6 +203,19 @@ namespace april::container::layout {
             else if constexpr (F == ParticleField::attributes) return &self.particles[i].attributes;
         }
 
+        template <ParticleField F>
+       auto get_field_ptr_packed(this auto&& self, size_t i) {
+            if constexpr (F == ParticleField::force) return &self.particles[i].force;
+            else if constexpr (F == ParticleField::position) return &self.particles[i].position;
+            else if constexpr (F == ParticleField::velocity) return &self.particles[i].velocity;
+            else if constexpr (F == ParticleField::old_position) return &self.particles[i].old_position;
+            else if constexpr (F == ParticleField::mass) return &self.particles[i].mass;
+            else if constexpr (F == ParticleField::state) return &self.particles[i].state;
+            else if constexpr (F == ParticleField::type) return &self.particles[i].type;
+            else if constexpr (F == ParticleField::id) return &self.particles[i].id;
+            else if constexpr (F == ParticleField::attributes) return &self.particles[i].attributes;
+        }
+
 
         template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {

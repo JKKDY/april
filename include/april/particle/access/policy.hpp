@@ -5,4 +5,9 @@ namespace april {
         Disabled,
         Enabled
     };
+
+    enum class AccessType {
+        Scalar,
+        Packed
+    };
 }

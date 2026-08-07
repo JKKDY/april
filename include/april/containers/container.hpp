@@ -356,19 +356,17 @@ namespace april::container {
 		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
 		void invoke_iterate_state(this auto&& self, Kernel && func, ParticleState state);
 
-		template<ParticleField F>
-		auto invoke_get_field_ptr(this auto&& self, auto ... args);
-
-		template<ParticleField F>
-		auto invoke_get_field_ptr_id(this auto&& self, ParticleID id);
 
 		//------------------------
 		// PARTICLE DATA ACCESSORS
 		//------------------------
-		template<ParticleField Read, ParticleField Write>
+		template<ParticleField Read, ParticleField Write, typename GetField>
+		[[nodiscard]] auto make_source(GetField & get_field);
+
+		template<ParticleField Read, ParticleField Write, AccessType Access>
 		[[nodiscard]] auto access_particle(this auto&& self, const auto ... args);
 
-		template<ParticleField Read, ParticleField Write>
+		template<ParticleField Read, ParticleField Write, AccessType Access>
 		[[nodiscard]] auto access_particle_id(this auto&& self, const ParticleID id);
 	};
 

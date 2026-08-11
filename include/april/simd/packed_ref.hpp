@@ -1,7 +1,7 @@
 #pragma once
 #include "april/simd/packed_concept.hpp"
 #include "april/simd/packed.hpp"
-#include "april/simd/simd_locations.hpp"
+#include "april/simd/locations.hpp"
 
 #define AP_SIMD_PROXY_COMPOUND(OP) \
 	PackedRef& operator OP(const packed_type& val) { \

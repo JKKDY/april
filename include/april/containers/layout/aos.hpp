@@ -61,16 +61,16 @@ namespace april::container::layout {
         }
 
 
-        // DISABLE PACKED ACCESS
-        template <ParticleField R, ParticleField W>
-        [[nodiscard]] auto at_packed(this auto&&, size_t) {
-            static_assert(false, "AoS does not support packed access");
-        }
-
-        template <ParticleField R>
-        [[nodiscard]] auto view_packed(this const auto&, size_t) {
-            static_assert(false, "AoS does not support packed access");
-        }
+        // // DISABLE PACKED ACCESS
+        // template <ParticleField R, ParticleField W>
+        // [[nodiscard]] auto at_packed(this auto&&, size_t) {
+        //     static_assert(false, "AoS does not support packed access");
+        // }
+        //
+        // template <ParticleField R>
+        // [[nodiscard]] auto view_packed(this const auto&, size_t) {
+        //     static_assert(false, "AoS does not support packed access");
+        // }
 
     protected:
         std::vector<Particle> tmp = {};
@@ -204,7 +204,7 @@ namespace april::container::layout {
         }
 
         template<ParticleField F>
-auto get_field_ptr_packed(this auto&& self, size_t i) {
+        auto get_field_ptr_packed(this auto&& self, size_t i) {
             constexpr auto stride = sizeof(Particle);
 
             if constexpr (F == ParticleField::force) {

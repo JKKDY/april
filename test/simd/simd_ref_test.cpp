@@ -216,7 +216,307 @@ TYPED_TEST(SimdRefTest, Comparisons) {
 
 
 
+// ---------------------------------------------------------
+// STRIDED LOCATION - STATIC STRIDE
+// ---------------------------------------------------------
 
+TYPED_TEST(SimdRefTest, StaticStridedLocationLoad) {
+	using Packed = TestFixture::Packed;
+	using Scalar = TestFixture::Scalar;
+
+	static constexpr std::ptrdiff_t Stride = 3 * sizeof(Scalar);
+	using Location = april::simd::StridedLocation<Scalar, Stride>;
+
+	static_assert(april::simd::IsLocation<Location>);
+	static_assert(april::simd::IsWritableLocation<Location>);
+	static_assert(std::same_as<typename Location::packed_type, Packed>);
+
+	std::vector<Scalar> memory(Packed::size() * 3, Scalar{-1});
+
+	for (size_t i = 0; i < Packed::size(); ++i)
+		memory[i * 3] = static_cast<Scalar>(i + 1);
+
+	Location location(memory.data());
+	const Packed result = location.load();
+	const auto values = result.to_array();
+
+	for (size_t i = 0; i < Packed::size(); ++i)
+		EXPECT_DOUBLE_EQ(values[i], static_cast<Scalar>(i + 1));
+}
+
+TYPED_TEST(SimdRefTest, StaticStridedLocationStore) {
+	using Packed = TestFixture::Packed;
+	using Scalar = TestFixture::Scalar;
+
+	static constexpr std::ptrdiff_t Stride = 3 * sizeof(Scalar);
+	using Location = april::simd::StridedLocation<Scalar, Stride>;
+
+	std::vector<Scalar> memory(Packed::size() * 3, Scalar{-1});
+
+	std::array<Scalar, Packed::size()> values{};
+	for (size_t i = 0; i < Packed::size(); ++i)
+		values[i] = static_cast<Scalar>(100 + i);
+
+	const Packed packed = Packed::load(values.data());
+
+	Location location(memory.data());
+	location.store(packed);
+
+	for (size_t i = 0; i < Packed::size(); ++i) {
+		EXPECT_DOUBLE_EQ(memory[i * 3], values[i]);
+
+		EXPECT_DOUBLE_EQ(memory[i * 3 + 1], Scalar{-1});
+		EXPECT_DOUBLE_EQ(memory[i * 3 + 2], Scalar{-1});
+	}
+}
+
+TYPED_TEST(SimdRefTest, StaticStridedPackedRefLoadStore) {
+	using Packed = TestFixture::Packed;
+	using Scalar = TestFixture::Scalar;
+
+	static constexpr std::ptrdiff_t Stride = 3 * sizeof(Scalar);
+	using Location = april::simd::StridedLocation<Scalar, Stride>;
+	using Ref = april::simd::PackedRef<Location>;
+
+	std::vector<Scalar> memory(Packed::size() * 3, Scalar{-1});
+
+	for (size_t i = 0; i < Packed::size(); ++i)
+		memory[i * 3] = Scalar{10};
+
+	Ref ref(Location{memory.data()});
+
+	Packed loaded = ref;
+	this->ExpectAll(loaded, Scalar{10});
+
+	ref += Scalar{5};
+
+	for (size_t i = 0; i < Packed::size(); ++i) {
+		EXPECT_DOUBLE_EQ(memory[i * 3], Scalar{15});
+		EXPECT_DOUBLE_EQ(memory[i * 3 + 1], Scalar{-1});
+		EXPECT_DOUBLE_EQ(memory[i * 3 + 2], Scalar{-1});
+	}
+}
+
+
+// ---------------------------------------------------------
+// STRIDED LOCATION - RUNTIME STRIDE
+// ---------------------------------------------------------
+
+TYPED_TEST(SimdRefTest, RuntimeStridedLocationLoad) {
+	using Packed = TestFixture::Packed;
+	using Scalar = TestFixture::Scalar;
+	using Location = april::simd::StridedLocation<Scalar>;
+
+	const std::ptrdiff_t stride = 3 * sizeof(Scalar);
+
+	static_assert(april::simd::IsLocation<Location>);
+	static_assert(april::simd::IsWritableLocation<Location>);
+	static_assert(std::same_as<typename Location::packed_type, Packed>);
+
+	std::vector<Scalar> memory(Packed::size() * 3, Scalar{-1});
+
+	for (size_t i = 0; i < Packed::size(); ++i)
+		memory[i * 3] = static_cast<Scalar>(i + 1);
+
+	Location location(memory.data(), stride);
+	const Packed result = location.load();
+	const auto values = result.to_array();
+
+	for (size_t i = 0; i < Packed::size(); ++i)
+		EXPECT_DOUBLE_EQ(values[i], static_cast<Scalar>(i + 1));
+}
+
+TYPED_TEST(SimdRefTest, RuntimeStridedLocationStore) {
+	using Packed = TestFixture::Packed;
+	using Scalar = TestFixture::Scalar;
+	using Location = april::simd::StridedLocation<Scalar>;
+
+	const std::ptrdiff_t stride = 3 * sizeof(Scalar);
+
+	std::vector<Scalar> memory(Packed::size() * 3, Scalar{-1});
+
+	std::array<Scalar, Packed::size()> values{};
+	for (size_t i = 0; i < Packed::size(); ++i)
+		values[i] = static_cast<Scalar>(100 + i);
+
+	const Packed packed = Packed::load(values.data());
+
+	Location location(memory.data(), stride);
+	location.store(packed);
+
+	for (size_t i = 0; i < Packed::size(); ++i) {
+		EXPECT_DOUBLE_EQ(memory[i * 3], values[i]);
+
+		EXPECT_DOUBLE_EQ(memory[i * 3 + 1], Scalar{-1});
+		EXPECT_DOUBLE_EQ(memory[i * 3 + 2], Scalar{-1});
+	}
+}
+
+TYPED_TEST(SimdRefTest, RuntimeStridedPackedRefCompoundAssignment) {
+	using Packed = TestFixture::Packed;
+	using Scalar = TestFixture::Scalar;
+	using Location = april::simd::StridedLocation<Scalar>;
+	using Ref = april::simd::PackedRef<Location>;
+
+	const std::ptrdiff_t stride = 4 * sizeof(Scalar);
+
+	std::vector<Scalar> memory(Packed::size() * 4, Scalar{-1});
+
+	for (size_t i = 0; i < Packed::size(); ++i)
+		memory[i * 4] = Scalar{2};
+
+	Ref ref(Location{memory.data(), stride});
+
+	ref *= Scalar{5};
+
+	for (size_t i = 0; i < Packed::size(); ++i) {
+		EXPECT_DOUBLE_EQ(memory[i * 4], Scalar{10});
+		EXPECT_DOUBLE_EQ(memory[i * 4 + 1], Scalar{-1});
+		EXPECT_DOUBLE_EQ(memory[i * 4 + 2], Scalar{-1});
+		EXPECT_DOUBLE_EQ(memory[i * 4 + 3], Scalar{-1});
+	}
+}
+
+
+// ---------------------------------------------------------
+// GATHER LOCATION
+// ---------------------------------------------------------
+
+TYPED_TEST(SimdRefTest, GatherLocationLoad) {
+	using Packed = TestFixture::Packed;
+	using Scalar = TestFixture::Scalar;
+	using Location = april::simd::GatherLocation<Scalar>;
+
+	static_assert(april::simd::IsLocation<Location>);
+	static_assert(april::simd::IsWritableLocation<Location>);
+	static_assert(std::same_as<typename Location::packed_type, Packed>);
+
+	std::vector<Scalar> memory(Packed::size() * 2, Scalar{-1});
+	std::array<std::ptrdiff_t, Packed::size()> raw_offsets{};
+	std::array<size_t, Packed::size()> indices{};
+
+	for (size_t i = 0; i < Packed::size(); ++i) {
+		const size_t index =
+			2 * ((i + Packed::size() / 2) % Packed::size());
+
+		indices[i] = index;
+		raw_offsets[i] = static_cast<std::ptrdiff_t>(index * sizeof(Scalar));
+		memory[index] = static_cast<Scalar>(100 + i);
+	}
+
+	const april::simd::ByteOffsets<Packed::size()> offsets(raw_offsets);
+	Location location(memory.data(), offsets);
+
+	const Packed result = location.load();
+	const auto values = result.to_array();
+
+	for (size_t i = 0; i < Packed::size(); ++i)
+		EXPECT_DOUBLE_EQ(values[i], static_cast<Scalar>(100 + i));
+}
+
+TYPED_TEST(SimdRefTest, GatherLocationStore) {
+	using Packed = TestFixture::Packed;
+	using Scalar = TestFixture::Scalar;
+	using Location = april::simd::GatherLocation<Scalar>;
+
+	std::vector<Scalar> memory(Packed::size() * 2, Scalar{-1});
+	std::array<std::ptrdiff_t, Packed::size()> raw_offsets{};
+	std::array<size_t, Packed::size()> indices{};
+	std::array<Scalar, Packed::size()> values{};
+
+	for (size_t i = 0; i < Packed::size(); ++i) {
+		const size_t index =
+			2 * ((i + Packed::size() / 2) % Packed::size());
+
+		indices[i] = index;
+		raw_offsets[i] = static_cast<std::ptrdiff_t>(index * sizeof(Scalar));
+		values[i] = static_cast<Scalar>(200 + i);
+	}
+
+	const april::simd::ByteOffsets<Packed::size()> offsets(raw_offsets);
+	Location location(memory.data(), offsets);
+
+	location.store(Packed::load(values.data()));
+
+	for (size_t i = 0; i < Packed::size(); ++i)
+		EXPECT_DOUBLE_EQ(memory[indices[i]], values[i]);
+
+	for (size_t i = 0; i < memory.size(); ++i) {
+		const bool selected =
+			std::find(indices.begin(), indices.end(), i) != indices.end();
+
+		if (!selected)
+			EXPECT_DOUBLE_EQ(memory[i], Scalar{-1});
+	}
+}
+
+TYPED_TEST(SimdRefTest, GatherPackedRefLoadStore) {
+	using Packed = TestFixture::Packed;
+	using Scalar = TestFixture::Scalar;
+	using Location = april::simd::GatherLocation<Scalar>;
+	using Ref = april::simd::PackedRef<Location>;
+
+	std::vector<Scalar> memory(Packed::size() * 3, Scalar{-1});
+	std::array<std::ptrdiff_t, Packed::size()> raw_offsets{};
+	std::array<size_t, Packed::size()> indices{};
+
+	for (size_t i = 0; i < Packed::size(); ++i) {
+		const size_t index =
+			3 * ((i + Packed::size() / 2) % Packed::size()) + 1;
+
+		indices[i] = index;
+		raw_offsets[i] = static_cast<std::ptrdiff_t>(index * sizeof(Scalar));
+		memory[index] = Scalar{10};
+	}
+
+	const april::simd::ByteOffsets<Packed::size()> offsets(raw_offsets);
+	Ref ref(Location{memory.data(), offsets});
+
+	Packed loaded = ref;
+	this->ExpectAll(loaded, Scalar{10});
+
+	ref += Scalar{7};
+
+	for (size_t i = 0; i < Packed::size(); ++i)
+		EXPECT_DOUBLE_EQ(memory[indices[i]], Scalar{17});
+
+	for (size_t i = 0; i < memory.size(); ++i) {
+		const bool selected =
+			std::find(indices.begin(), indices.end(), i) != indices.end();
+
+		if (!selected)
+			EXPECT_DOUBLE_EQ(memory[i], Scalar{-1});
+	}
+}
+
+
+// ---------------------------------------------------------
+// LOCATION CONSTNESS
+// ---------------------------------------------------------
+
+TYPED_TEST(SimdRefTest, LocationConstnessContract) {
+	using Scalar = TestFixture::Scalar;
+
+	static constexpr std::ptrdiff_t Stride = 2 * sizeof(Scalar);
+
+	using StaticStrided = april::simd::StridedLocation<Scalar, Stride>;
+	using ConstStaticStrided = april::simd::StridedLocation<const Scalar, Stride>;
+
+	using RuntimeStrided = april::simd::StridedLocation<Scalar>;
+	using ConstRuntimeStrided = april::simd::StridedLocation<const Scalar>;
+
+	using Gather = april::simd::GatherLocation<Scalar>;
+	using ConstGather = april::simd::GatherLocation<const Scalar>;
+
+	static_assert(april::simd::IsWritableLocation<StaticStrided>);
+	static_assert(!april::simd::IsWritableLocation<ConstStaticStrided>);
+
+	static_assert(april::simd::IsWritableLocation<RuntimeStrided>);
+	static_assert(!april::simd::IsWritableLocation<ConstRuntimeStrided>);
+
+	static_assert(april::simd::IsWritableLocation<Gather>);
+	static_assert(!april::simd::IsWritableLocation<ConstGather>);
+}
 
 
 

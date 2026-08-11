@@ -215,10 +215,10 @@ namespace april::simd {
     static_assert(IsWritableLocation<StridedLocation<int>>);
     static_assert(IsWritableLocation<StridedLocation<ParticleState>>);
 
-    static_assert(IsWritableLocation<StridedLocation<float, 1>>);
-    static_assert(IsWritableLocation<StridedLocation<double, 1>>);
-    static_assert(IsWritableLocation<StridedLocation<int, 1>>);
-    static_assert(IsWritableLocation<StridedLocation<ParticleState, 1>>);
+    static_assert(IsWritableLocation<StridedLocation<float, 2 * sizeof(float)>>);
+    static_assert(IsWritableLocation<StridedLocation<double, 2 * sizeof(double)>>);
+    static_assert(IsWritableLocation<StridedLocation<int, 2 * sizeof(int)>>);
+    static_assert(IsWritableLocation<StridedLocation<ParticleState, 2 * sizeof(ParticleState)>>);
 
     static_assert(IsWritableLocation<GatherLocation<float>>);
     static_assert(IsWritableLocation<GatherLocation<double>>);

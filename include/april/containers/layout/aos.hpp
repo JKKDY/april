@@ -250,32 +250,70 @@ namespace april::container::layout {
         }
 
 
-        template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
+        template<ParallelPolicy P, exec::ExecutionMode E, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
-            static_assert(V != exec::ExecutionMode::Packed,
-                          "AoS cannot be vectorized. Change the vector policy to scalar or auto.");
+	        using K = std::remove_cvref_t<Kernel>;
+	        math::Range range = {start, end};
 
-            auto run_kernel = [&](size_t i) APRIL_FORCE_INLINE {
-                using K = std::remove_cvref_t<Kernel>;
-                if constexpr (is_const) {
-                    kernel(i, self.template view<K::Read>(i));
-                } else {
-                    kernel(i, self.template at<K::Read, K::Write>(i));
-                }
-            };
+	        auto get_scalar = [&](size_t i) APRIL_FORCE_INLINE {
+		        if constexpr (is_const) return self.template view<K::Read>(i);
+		        else return self.template at<K::Read, K::Write>(i);
+	        };
 
-            math::Range full_range = {start, end};
-            if constexpr (P == ParallelPolicy::Threaded) {
-                auto schedule = exec::make_linear_schedule(full_range, self.linear_schedule_config);
+	        auto get_vector_ref = [&](size_t i) APRIL_FORCE_INLINE {
+		        if constexpr (is_const) return self.template view_packed<K::Read>(i);
+		        else return self.template at_packed<K::Read, K::Write>(i);
+	        };
 
-                self.thread_executor.execute(schedule.size(), [&](size_t i) {
-                    for (size_t j : schedule[i]) run_kernel(j);
-                });
-            } else if constexpr (P == ParallelPolicy::Serial){
-                for (size_t j : full_range) run_kernel(j);
-            } else {
-                static_assert(false, "invalid Parallel Policy");
-            }
+	        auto process_chunk = [&](const math::Range& chunk) {
+		        if constexpr (E == exec::ExecutionMode::Scalar) {
+			        for (size_t i : chunk) {
+				        kernel(i, get_scalar(i));
+			        }
+		        }
+		        else if constexpr (+(E & exec::ExecutionMode::Packed)) {
+			        const size_t body = chunk.size() / packed::size();
+			        const size_t tail = chunk.size() % packed::size();
+
+			        for (size_t i = 0; i < body; ++i) {
+				        const size_t idx = chunk.start + i * packed::size();
+
+				        auto ref = get_vector_ref(idx);
+				        auto buffer = ref.template load_buffer<MP>();
+				        kernel(idx, buffer.to_view());
+
+				        if constexpr (!is_const) {
+					        buffer.update_into(ref);
+				        }
+			        }
+
+			        if (tail > 0) {
+				        const size_t tail_idx = chunk.start + body * packed::size();
+
+				        for (size_t i = tail_idx; i < chunk.stop; ++i) {
+					        kernel(i, get_scalar(i));
+				        }
+			        }
+		        }
+		        else {
+			        static_assert(false, "Execution mode must be a valid value (Scalar, Packed, Hybrid)");
+		        }
+	        };
+
+	        if constexpr (P == ParallelPolicy::Serial) {
+		        process_chunk(range);
+	        }
+	        else if constexpr (P == ParallelPolicy::Threaded) {
+		        const auto blocks = exec::make_linear_schedule(range, self.linear_schedule_config);
+
+		        self.thread_executor.execute(blocks.size(), [&](const size_t i) {
+			        process_chunk(blocks[i]);
+		        });
+	        }
+	        else {
+		        static_assert(false, "Invalid ParallelPolicy");
+	        }
         }
+
     };
 }

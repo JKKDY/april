@@ -153,6 +153,7 @@ TYPED_TEST(SimdProxyTest, PhysicsKernel) {
     auto p = this->MakeProxy();
     using Vec3T = TestFixture::Vec3T;
     using Vec3S = TestFixture::Vec3S;
+    using Scalar = TestFixture::Scalar;
 
     // Init Position: {10, 10, 10}
     p = Vec3T(10.0, 10.0, 10.0);
@@ -161,7 +162,11 @@ TYPED_TEST(SimdProxyTest, PhysicsKernel) {
     Vec3T velocity(1.0, 0.0, 0.0);
 
     // Gravity: {0, -10, 0} (Global constant)
-    Vec3S gravity(0.0, -10.0, 0.0);
+    Vec3S gravity(
+        static_cast<Scalar>(0.0),
+        static_cast<Scalar>(-9.81),
+        static_cast<Scalar>(0.0)
+    );
 
     double dt = 0.1;
 
@@ -172,7 +177,11 @@ TYPED_TEST(SimdProxyTest, PhysicsKernel) {
     // X: 10 + 1*0.1 + 0 = 10.1
     // Y: 10 + 0 - 10*0.5*0.01 = 9.95
     // Z: 10
-    this->ExpectAllLanes(10.1, 9.95, 10.0);
+    this->ExpectAllLanes(
+        static_cast<Scalar>(10.1),
+        static_cast<Scalar>(9.95095),
+        static_cast<Scalar>(10.0)
+    );
 }
 
 

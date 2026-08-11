@@ -28,16 +28,25 @@ namespace april::simd::internal::scalar {
 
         native_type data;
 
-        // Construction
         Mask() : data{} {}
 
         Mask(bool value) {
             data.fill(value);
         }
 
-        Mask(const native_type& value) : data(value) {}
+        Mask(const native_type& value)
+            : data(value)
+        {}
 
-        Mask(native_type&& value) : data(std::move(value)) {}
+        Mask(native_type&& value)
+            : data(std::move(value))
+        {}
+
+        template<typename U>
+        requires (!std::same_as<T, U>)
+        Mask(const Mask<U, Width>& other)
+            : data(other.data)
+        {}
 
         // Native representation access
         operator native_type() const {
@@ -47,13 +56,6 @@ namespace april::simd::internal::scalar {
         // Lane count
         static constexpr size_t size() {
             return lane_count;
-        }
-
-        // Conversion between mask element types
-        template<typename U>
-        requires (size() == Mask<U, Width>::size())
-        operator Mask<U, Width>() const {
-            return Mask<U, Width>{data};
         }
 
         // Loads

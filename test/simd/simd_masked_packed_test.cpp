@@ -12,9 +12,12 @@
 #include "april/simd/packed_concept.hpp"
 
 
+
 using MaskedPackedBackendTypes = testing::Types<
     april::simd::Packed<double>,
-    april::simd::Packed<float>
+    april::simd::Packed<float>,
+    april::simd::internal::scalar::Packed<double>,
+    april::simd::internal::scalar::Packed<float>
 >;
 
 
@@ -22,10 +25,20 @@ template<typename T>
 class MaskedPackedTest : public testing::Test {
 public:
     using packed_type = T;
-    using scalar_type = packed_type::value_type;
+    using scalar_type = typename packed_type::value_type;
     using mask_type = april::simd::PackedMask<scalar_type>;
-    using masked_type = april::simd::MaskedPacked<april::simd::Packed<scalar_type>>;
-    using ref_type = april::simd::PackedRef<scalar_type, packed_type>;
+    using masked_type = april::simd::MaskedPacked<packed_type>;
+
+    using location_type =
+        april::simd::ContiguousLocation<scalar_type>;
+
+    using ref_type =
+        april::simd::PackedRef<location_type>;
+
+    static_assert(std::same_as<
+        typename location_type::packed_type,
+        packed_type
+    >);
 
     static constexpr std::size_t Size = packed_type::size();
 
@@ -149,18 +162,20 @@ TYPED_TEST(MaskedPackedTest, ConstructFromPacked) {
 
 
 TYPED_TEST(MaskedPackedTest, ConstructFromPackedRef) {
-    using Scalar =  TestFixture::scalar_type;
+    using Scalar = TestFixture::scalar_type;
     using PackedT = TestFixture::packed_type;
     using MaskedT = TestFixture::masked_type;
-    using RefT =    TestFixture::ref_type;
+    using RefT = TestFixture::ref_type;
 
     std::array<Scalar, TestFixture::Size> memory{};
 
-    for (std::size_t i = 0; i < TestFixture::Size; ++i) {
+    for (std::size_t i = 0; i < TestFixture::Size; ++i)
         memory[i] = static_cast<Scalar>(i + 10);
-    }
 
-    RefT source(memory.data());
+    RefT source(
+        april::simd::ContiguousLocation<Scalar>{memory.data()}
+    );
+
     auto mask = TestFixture::AlternatingMask();
 
     MaskedT value(source, mask);
@@ -706,7 +721,10 @@ TYPED_TEST(MaskedPackedTest, StoreIntoCommitsRegisterToPackedRef) {
     value += PackedT(Scalar{10});
 
     std::array<Scalar, TestFixture::Size> destination{};
-    RefT destination_ref(destination.data());
+
+    RefT destination_ref(
+        april::simd::ContiguousLocation<Scalar>{destination.data()}
+    );
 
     destination_ref = value;
 

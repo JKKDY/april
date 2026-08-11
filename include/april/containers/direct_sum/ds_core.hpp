@@ -128,8 +128,8 @@ namespace april::container::internal {
 					[&]<bool is_packed>(const size_t i, const auto & particle) {
 						if constexpr (is_packed) {
 							// vectorized state and contains check
-							auto contains_particle = region.contains(particle.position);
-							auto is_alive = (particle.state == +ParticleState::ALIVE);
+							const packed::mask_type contains_particle = region.contains(particle.position);
+							const packed::mask_type is_alive = (particle.state == ParticleState::ALIVE);
 
 							// combine and export as integer bit mask
 							auto valid_mask = contains_particle & is_alive;

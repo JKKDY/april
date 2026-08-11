@@ -13,6 +13,7 @@
 #include "april/simd/masked_packed.hpp"
 #include "april/simd/packed.hpp"
 #include "april/simd/packed_ref.hpp"
+#include "april/simd/backends/backend_scalar.hpp"
 
 #ifndef APRIL_FAST_MATH_ENABLED
     #if defined(__FAST_MATH__) || (defined(__FINITE_MATH_ONLY__) && __FINITE_MATH_ONLY__ > 0)
@@ -26,7 +27,9 @@ namespace {
 
 using FloatingSimdTypes = testing::Types<
     april::simd::Packed<float>,
-    april::simd::Packed<double>
+    april::simd::Packed<double>,
+    april::simd::internal::scalar::Packed<double>,
+    april::simd::internal::scalar::Packed<float>
 >;
 
 template<typename T>
@@ -424,41 +427,47 @@ TYPED_TEST(SimdMathTest, NumericFunctionsAndMixedArguments) {
 #endif
 
 TYPED_TEST(SimdMathTest, PackedRefAndMaskedPackedForwarding) {
-    using PackedT = TestFixture::PackedT;
-    using Scalar = TestFixture::Scalar;
-    using MaskT = TestFixture::MaskT;
-    using RefT = april::simd::PackedRef<Scalar, PackedT>;
-    using MaskedT = april::simd::MaskedPacked<april::simd::Packed<Scalar>>;
+	using PackedT = TestFixture::PackedT;
+	using Scalar = TestFixture::Scalar;
+	using MaskT = TestFixture::MaskT;
+	using LocationT = april::simd::ContiguousLocation<Scalar>;
+	using RefT = april::simd::PackedRef<LocationT>;
+	using MaskedT = april::simd::MaskedPacked<april::simd::Packed<Scalar>>;
 
-    auto values = TestFixture::Values([](std::size_t i) {
-        constexpr double v[] = {0.25, 1.0, 2.25, 4.0}; return v[i % 4];
-    });
-    RefT ref(values.data());
-    const PackedT packed = TestFixture::Load(values);
-    const PackedT upper(Scalar{5});
-    MaskT mask = TestFixture::MakeMask([](std::size_t i) { return i % 2 == 0; });
-    MaskedT masked(packed, mask);
+	static_assert(std::same_as<typename LocationT::packed_type, PackedT>);
 
-    static_assert(std::same_as<decltype(april::sqrt(ref)), PackedT>);
-    static_assert(std::same_as<decltype(april::min(ref, 2.0)), PackedT>);
-    static_assert(std::same_as<decltype(april::max(2.0, ref)), PackedT>);
-    static_assert(std::same_as<decltype(april::clamp(ref, 0.5, upper)), PackedT>);
-    static_assert(std::same_as<decltype(april::fma(ref, 2.0, packed)), PackedT>);
-    static_assert(std::same_as<decltype(april::sqrt(masked)), PackedT>);
-    static_assert(std::same_as<decltype(april::min(masked, 2.0)), PackedT>);
+	auto values = TestFixture::Values([](std::size_t i) {
+		constexpr double v[] = {0.25, 1.0, 2.25, 4.0}; return v[i % 4];
+	});
 
-    TestFixture::ExpectPacked(april::sqrt(ref), [&](std::size_t i) { return std::sqrt(values[i]); });
-    TestFixture::ExpectPacked(april::min(ref, 2.0), [&](std::size_t i) { return std::min(values[i], Scalar{2}); });
-    TestFixture::ExpectPacked(april::max(2.0, ref), [&](std::size_t i) { return std::max(Scalar{2}, values[i]); });
-    TestFixture::ExpectPacked(april::clamp(ref, 0.5, upper), [&](std::size_t i) { return std::clamp(values[i], Scalar{0.5}, Scalar{5}); });
-    TestFixture::ExpectPacked(april::fma(ref, 2.0, packed), [&](std::size_t i) { return std::fma(values[i], Scalar{2}, values[i]); });
-    TestFixture::ExpectPacked(april::sqrt(masked), [&](std::size_t i) { return std::sqrt(values[i]); });
-    TestFixture::ExpectPacked(april::min(masked, 2.0), [&](std::size_t i) { return std::min(values[i], Scalar{2}); });
+	RefT ref(LocationT{values.data()});
+	const PackedT packed = TestFixture::Load(values);
+	const PackedT upper(Scalar{5});
+	MaskT mask = TestFixture::MakeMask([](std::size_t i) { return i % 2 == 0; });
+	MaskedT masked(packed, mask);
+
+	static_assert(std::same_as<decltype(april::sqrt(ref)), PackedT>);
+	static_assert(std::same_as<decltype(april::min(ref, 2.0)), PackedT>);
+	static_assert(std::same_as<decltype(april::max(2.0, ref)), PackedT>);
+	static_assert(std::same_as<decltype(april::clamp(ref, 0.5, upper)), PackedT>);
+	static_assert(std::same_as<decltype(april::fma(ref, 2.0, packed)), PackedT>);
+	static_assert(std::same_as<decltype(april::sqrt(masked)), PackedT>);
+	static_assert(std::same_as<decltype(april::min(masked, 2.0)), PackedT>);
+
+	TestFixture::ExpectPacked(april::sqrt(ref), [&](std::size_t i) { return std::sqrt(values[i]); });
+	TestFixture::ExpectPacked(april::min(ref, 2.0), [&](std::size_t i) { return std::min(values[i], Scalar{2}); });
+	TestFixture::ExpectPacked(april::max(2.0, ref), [&](std::size_t i) { return std::max(Scalar{2}, values[i]); });
+	TestFixture::ExpectPacked(april::clamp(ref, 0.5, upper), [&](std::size_t i) { return std::clamp(values[i], Scalar{0.5}, Scalar{5}); });
+	TestFixture::ExpectPacked(april::fma(ref, 2.0, packed), [&](std::size_t i) { return std::fma(values[i], Scalar{2}, values[i]); });
+	TestFixture::ExpectPacked(april::sqrt(masked), [&](std::size_t i) { return std::sqrt(values[i]); });
+	TestFixture::ExpectPacked(april::min(masked, 2.0), [&](std::size_t i) { return std::min(values[i], Scalar{2}); });
 }
 
 using IntegerSimdTypes = testing::Types<
     april::simd::Packed<int>,
-    april::simd::Packed<std::size_t>
+    april::simd::Packed<size_t>,
+    april::simd::internal::scalar::Packed<int>,
+    april::simd::internal::scalar::Packed<size_t>
 >;
 
 template<typename T>

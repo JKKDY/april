@@ -108,11 +108,13 @@ namespace april::simd::internal::scalar {
             return map(mask, [](const bool value) { return !value; });
         }
 
-        friend Mask operator&&(const Mask& lhs, const Mask& rhs) {
+        template<typename U>
+        friend Mask operator&&(const Mask& lhs, const Mask<U, Width>& rhs) {
             return zip(lhs, rhs, [](const bool a, const bool b) { return a && b; });
         }
 
-        friend Mask operator||(const Mask& lhs, const Mask& rhs) {
+        template<typename U>
+        friend Mask operator||(const Mask& lhs, const Mask<U, Width>& rhs) {
             return zip(lhs, rhs, [](const bool a, const bool b) { return a || b; });
         }
 
@@ -121,26 +123,48 @@ namespace april::simd::internal::scalar {
             return map(mask, [](const bool value) { return !value; });
         }
 
-        friend Mask operator&(const Mask& lhs, const Mask& rhs) {
+        template<typename U>
+        friend Mask operator&(const Mask& lhs, const Mask<U, Width>& rhs) {
             return zip(lhs, rhs, [](const bool a, const bool b) { return a & b; });
         }
 
-        friend Mask operator|(const Mask& lhs, const Mask& rhs) {
+        template<typename U>
+        friend Mask operator|(const Mask& lhs, const Mask<U, Width>& rhs) {
             return zip(lhs, rhs, [](const bool a, const bool b) { return a | b; });
         }
 
-        friend Mask operator^(const Mask& lhs, const Mask& rhs) {
+        template<typename U>
+        friend Mask operator^(const Mask& lhs, const Mask<U, Width>& rhs) {
             return zip(lhs, rhs, [](const bool a, const bool b) { return a != b; });
         }
 
         // Lane-wise equality
-        friend Mask operator==(const Mask& lhs, const Mask& rhs) {
+        template<typename U>
+        friend Mask operator==(const Mask& lhs, const Mask<U, Width>& rhs) {
             return zip(lhs, rhs, [](const bool a, const bool b) { return a == b; });
         }
 
-        friend Mask operator!=(const Mask& lhs, const Mask& rhs) {
+        template<typename U>
+        friend Mask operator!=(const Mask& lhs, const Mask<U, Width>& rhs) {
             return zip(lhs, rhs, [](const bool a, const bool b) { return a != b; });
         }
+
+        // Compound operators
+        template<typename U>
+        Mask& operator&=(const Mask<U, Width>& rhs) {
+            return *this = *this & rhs;
+        }
+
+        template<typename U>
+        Mask& operator|=(const Mask<U, Width>& rhs) {
+            return *this = *this | rhs;
+        }
+
+        template<typename U>
+        Mask& operator^=(const Mask<U, Width>& rhs) {
+            return *this = *this ^ rhs;
+        }
+
 
         // Mutating lane rotations
         template<unsigned K = 1>
@@ -214,12 +238,12 @@ namespace april::simd::internal::scalar {
             return result;
         }
 
-        template<typename Fn>
-        static Mask zip(const Mask& lhs, const Mask& rhs, Fn&& fn) {
+        template<typename U, typename Fn>
+        static Mask zip(const Mask& lhs, const Mask<U, Width>& rhs, Fn&& fn) {
             Mask result;
-            for (size_t i = 0; i < size(); ++i) {
+            for (size_t i = 0; i < size(); ++i)
                 result.data[i] = static_cast<bool>(fn(lhs.data[i], rhs.data[i]));
-            }
+
             return result;
         }
     };

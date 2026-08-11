@@ -279,7 +279,8 @@ TYPED_TEST(ForceKernelTest, DispatchesCorrectExecutionMode) {
     using PackedParticle = particle::internal::PackedParticleRef<
         ParticleField::none,
         ParticleField::none,
-        NoParticleAttributes
+        NoParticleAttributes,
+        Source
     >;
 
     EmptyParticleGetter getter;
@@ -337,7 +338,8 @@ TYPED_TEST(ForceKernelTest, PrefersExplicitExecutionModeOverrides) {
     using PackedParticle = particle::internal::PackedParticleRef<
         ParticleField::none,
         ParticleField::none,
-        NoParticleAttributes
+        NoParticleAttributes,
+        Source
     >;
 
     EmptyParticleGetter getter;

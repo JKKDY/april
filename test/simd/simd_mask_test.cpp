@@ -10,6 +10,7 @@
 
 #include "april/simd/packed.hpp"
 #include "april/simd/packed_concept.hpp"
+#include "april/simd/backends/backend_scalar.hpp"
 
 
 namespace {
@@ -435,7 +436,7 @@ TYPED_TEST(SimdMaskTest, SelectUsesMaskLaneByLane) {
     PackedT false_value = PackedT::load_unaligned(false_values.data());
     MaskT mask = MaskT::load_unaligned(mask_values.data());
 
-    PackedT result = select(mask, true_value, false_value);
+    PackedT result = april::select(mask, true_value, false_value);
 
     TestFixture::ExpectPacked(result, expected);
 }
@@ -658,7 +659,7 @@ TEST(SimdMaskPackedInteractionTest, ConvertedMaskCanSelectFloatLanes) {
     FloatPacked true_value(1.0f);
     FloatPacked false_value(-1.0f);
 
-    FloatPacked result = select(float_mask, true_value, false_value);
+    FloatPacked result = april::select(float_mask, true_value, false_value);
     const auto result_values = result.to_array();
 
     for (std::size_t i = 0; i < FloatPacked::size(); ++i) {
@@ -688,7 +689,7 @@ TEST(SimdMaskPackedInteractionTest, ConvertedMaskCanSelectUint64Lanes) {
     UIntPacked true_value(uint64_t{42});
     UIntPacked false_value(uint64_t{7});
 
-    UIntPacked result = select(uint_mask, true_value, false_value);
+    UIntPacked result = april::select(uint_mask, true_value, false_value);
     const auto result_values = result.to_array();
 
     for (std::size_t i = 0; i < UIntPacked::size(); ++i) {

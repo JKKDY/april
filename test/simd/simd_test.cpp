@@ -781,7 +781,7 @@ TYPED_TEST(SimdExplicitWidthTest, SelectUsesEveryMaskLane) {
     PackedT true_value = PackedT::load_unaligned(true_values.data());
     PackedT false_value = PackedT::load_unaligned(false_values.data());
 
-    PackedT result = select(mask, true_value, false_value);
+    PackedT result = april::select(mask, true_value, false_value);
 
     ExpectPackedValues(result, expected);
 }
@@ -1014,7 +1014,7 @@ TEST(SimdWidthInteroperabilityTest, Uint32MaskCanSelectFloat4PackedValues) {
     FloatPacked true_value(10.0f);
     FloatPacked false_value(-10.0f);
 
-    FloatPacked result = select(float_mask, true_value, false_value);
+    FloatPacked result = april::select(float_mask, true_value, false_value);
     const auto actual = result.to_array();
 
     for (size_t i = 0; i < FloatPacked::size(); ++i) {
@@ -1042,7 +1042,7 @@ TEST(SimdWidthInteroperabilityTest, DoubleMaskCanSelectUint64PackedValues) {
     UIntPacked true_value(uint64_t{42});
     UIntPacked false_value(uint64_t{7});
 
-    UIntPacked result = select(uint_mask, true_value, false_value);
+    UIntPacked result = april::select(uint_mask, true_value, false_value);
     const auto actual = result.to_array();
 
     for (size_t i = 0; i < UIntPacked::size(); ++i) {

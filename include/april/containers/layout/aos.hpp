@@ -203,52 +203,52 @@ namespace april::container::layout {
             else if constexpr (F == ParticleField::attributes) return &self.particles[i].attributes;
         }
 
-        template <ParticleField F>
-        auto get_field_ptr_packed(this auto&& self, size_t i) {
-            if constexpr (F == ParticleField::force) {
-                return math::Vec3Location(
-                    simd::StridedLocation(self.particles[i].force.x, sizeof(Particle)),
-                    simd::StridedLocation(self.particles[i].force.z, sizeof(Particle)),
-                    simd::StridedLocation(self.particles[i].force.y, sizeof(Particle))
-                );
-            }
-            else if constexpr (F == ParticleField::position) {
-                return math::Vec3Location(
-                    simd::StridedLocation(self.particles[i].position.x, sizeof(Particle)),
-                    simd::StridedLocation(self.particles[i].position.z, sizeof(Particle)),
-                    simd::StridedLocation(self.particles[i].position.y, sizeof(Particle))
-                );
-            }
-            else if constexpr (F == ParticleField::velocity) {
-                return math::Vec3Location(
-                    simd::StridedLocation(self.particles[i].velocity.x, sizeof(Particle)),
-                    simd::StridedLocation(self.particles[i].velocity.z, sizeof(Particle)),
-                    simd::StridedLocation(self.particles[i].velocity.y, sizeof(Particle))
-                );
-            }
-            else if constexpr (F == ParticleField::old_position) {
-                return math::Vec3Location(
-                    simd::StridedLocation(self.particles[i].old_position.x, sizeof(Particle)),
-                    simd::StridedLocation(self.particles[i].old_position.z, sizeof(Particle)),
-                    simd::StridedLocation(self.particles[i].old_position.y, sizeof(Particle))
-                );
-            }
-            else if constexpr (F == ParticleField::mass) {
-                return simd::StridedLocation(self.particles[i].mass, sizeof(Particle));
-            }
-            else if constexpr (F == ParticleField::state) {
-                return simd::StridedLocation(self.particles[i].state, sizeof(Particle));
-            }
-            else if constexpr (F == ParticleField::type) {
-                return simd::StridedLocation(self.particles[i].type, sizeof(Particle));
-            }
-            else if constexpr (F == ParticleField::id) {
-                return simd::StridedLocation(self.particles[i].id, sizeof(Particle));
-            }
-            else if constexpr (F == ParticleField::attributes) {
-                return simd::StridedLocation(self.particles[i].attributes, sizeof(Particle));
-            }
-        }
+        // template <ParticleField F>
+        // auto get_field_ptr_packed(this auto&& self, size_t i) {
+        //     if constexpr (F == ParticleField::force) {
+        //         return math::Vec3Location(
+        //             simd::StridedLocation(self.particles[i].force.x, sizeof(Particle)),
+        //             simd::StridedLocation(self.particles[i].force.z, sizeof(Particle)),
+        //             simd::StridedLocation(self.particles[i].force.y, sizeof(Particle))
+        //         );
+        //     }
+        //     else if constexpr (F == ParticleField::position) {
+        //         return math::Vec3Location(
+        //             simd::StridedLocation(self.particles[i].position.x, sizeof(Particle)),
+        //             simd::StridedLocation(self.particles[i].position.z, sizeof(Particle)),
+        //             simd::StridedLocation(self.particles[i].position.y, sizeof(Particle))
+        //         );
+        //     }
+        //     else if constexpr (F == ParticleField::velocity) {
+        //         return math::Vec3Location(
+        //             simd::StridedLocation(self.particles[i].velocity.x, sizeof(Particle)),
+        //             simd::StridedLocation(self.particles[i].velocity.z, sizeof(Particle)),
+        //             simd::StridedLocation(self.particles[i].velocity.y, sizeof(Particle))
+        //         );
+        //     }
+        //     else if constexpr (F == ParticleField::old_position) {
+        //         return math::Vec3Location(
+        //             simd::StridedLocation(self.particles[i].old_position.x, sizeof(Particle)),
+        //             simd::StridedLocation(self.particles[i].old_position.z, sizeof(Particle)),
+        //             simd::StridedLocation(self.particles[i].old_position.y, sizeof(Particle))
+        //         );
+        //     }
+        //     else if constexpr (F == ParticleField::mass) {
+        //         return simd::StridedLocation(self.particles[i].mass, sizeof(Particle));
+        //     }
+        //     else if constexpr (F == ParticleField::state) {
+        //         return simd::StridedLocation(self.particles[i].state, sizeof(Particle));
+        //     }
+        //     else if constexpr (F == ParticleField::type) {
+        //         return simd::StridedLocation(self.particles[i].type, sizeof(Particle));
+        //     }
+        //     else if constexpr (F == ParticleField::id) {
+        //         return simd::StridedLocation(self.particles[i].id, sizeof(Particle));
+        //     }
+        //     else if constexpr (F == ParticleField::attributes) {
+        //         return simd::StridedLocation(self.particles[i].attributes, sizeof(Particle));
+        //     }
+        // }
 
 
         template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>

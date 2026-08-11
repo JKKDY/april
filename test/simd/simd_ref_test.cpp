@@ -4,45 +4,58 @@
 
 #include "april/simd/packed_ref.hpp"
 #include "april/simd/packed.hpp"
+#include "april/simd/backends/backend_scalar.hpp"
 
 
 
 
 using BackendTypes = testing::Types<
-   april::simd::Packed<double>,
-   april::simd::Packed<float>
+    april::simd::Packed<double>,
+    april::simd::Packed<float>,
+    april::simd::internal::scalar::Packed<double>,
+    april::simd::internal::scalar::Packed<float>
 >;
 
-template <typename T>
+template<typename T>
 class SimdRefTest : public testing::Test {
 public:
     using Packed = T;
-    using Scalar = T::value_type;
-    using Ref = april::simd::PackedRef<typename T::value_type, T>; // Ensure this matches your alias
+    using Scalar = typename T::value_type;
+    using Location = april::simd::ContiguousLocation<Scalar>;
+    using Ref = april::simd::PackedRef<Location>;
 
-    // Backing memory must be large enough for at least one SIMD vector
+    static_assert(std::same_as<
+        typename Location::packed_type,
+        Packed
+    >);
+
     std::vector<Scalar> buffer;
 
     void SetUp() override {
-        // Resize to safe width (e.g., 8 doubles is enough for AVX-512)
-        // We ensure we have enough space for the widest supported register.
-        size_t safe_size = std::max<size_t>(Packed::size(), 16);
+        const size_t safe_size = std::max<size_t>(Packed::size(), 16);
         buffer.resize(safe_size);
 
-        // Initialize with zeros or a pattern
-        std::fill(buffer.begin(), buffer.end(), static_cast<Scalar>(0.0));
+        std::fill(
+            buffer.begin(),
+            buffer.end(),
+            static_cast<Scalar>(0.0)
+        );
     }
 
-    // Helper to verify all lanes in a packed match a value
     void ExpectAll(const Packed& w, Scalar expected) {
-        auto arr = w.to_array();
-        const double epsilon = std::is_same_v<Scalar, float> ? 1e-5f : 1e-12;
-        for (auto v : arr) {
-            EXPECT_NEAR(static_cast<double>(v), static_cast<double>(expected), epsilon);
+        const auto arr = w.to_array();
+        const double epsilon =
+            std::is_same_v<Scalar, float> ? 1e-5 : 1e-12;
+
+        for (const auto v : arr) {
+            EXPECT_NEAR(
+                static_cast<double>(v),
+                static_cast<double>(expected),
+                epsilon
+            );
         }
     }
 
-    // Helper to verify backing memory was updated correctly
     void ExpectMemory(Scalar expected) {
         for (size_t i = 0; i < Packed::size(); ++i) {
             EXPECT_DOUBLE_EQ(buffer[i], expected)
@@ -57,12 +70,13 @@ TYPED_TEST_SUITE(SimdRefTest, BackendTypes);
 TYPED_TEST(SimdRefTest, LoadStoreInteraction) {
     using Packed = TestFixture::Packed;
     using Ref = TestFixture::Ref;
+    using Location = TestFixture::Location;
 
     // 1. Setup Memory: [10, 10, 10, 10...]
     std::fill(this->buffer.begin(), this->buffer.end(), static_cast<TestFixture::Scalar>(10.0));
 
     // Point Ref to the start of the buffer
-    Ref ref(this->buffer.data());
+    Ref ref(Location{this->buffer.data()});
 
     // 2. Read (Implicit Load)
     Packed w = ref;
@@ -84,13 +98,14 @@ TYPED_TEST(SimdRefTest, MixedArithmetic) {
     using Packed = TestFixture::Packed;
     using Scalar = TestFixture::Scalar;
     using Ref = TestFixture::Ref;
+    using Location = TestFixture::Location;
 
     // We need TWO independent memory blocks for this test
     std::vector<Scalar> buf_a(Packed::size(), 10.0);
     std::vector<Scalar> buf_b(Packed::size(), 2.0);
 
-    Ref a(buf_a.data());
-    Ref b(buf_b.data());
+    Ref a(Location{buf_a.data()});
+    Ref b(Location{buf_b.data()});
 
     Packed w(5.0);
     Scalar s = 3.0;
@@ -121,10 +136,11 @@ TYPED_TEST(SimdRefTest, CompoundAssignments) {
     using Packed = TestFixture::Packed;
     using Scalar = TestFixture::Scalar;
     using Ref = TestFixture::Ref;
+    using Location = TestFixture::Location;
 
     // Setup Memory: [10, 10...]
     std::fill(this->buffer.begin(), this->buffer.end(), static_cast<TestFixture::Scalar>(10.0));
-    Ref r(this->buffer.data());
+    Ref r(Location{this->buffer.data()});
 
     // 1. += Scalar (10 + 2 = 12)
     r += 2.0;
@@ -136,7 +152,7 @@ TYPED_TEST(SimdRefTest, CompoundAssignments) {
 
     // 3. -= Ref (Requires second buffer)
     std::vector<Scalar> buf_other(Packed::size(), 4.0);
-    Ref other(buf_other.data());
+    Ref other(Location{buf_other.data()});
 
     r -= other; // 24 - 4 = 20
     this->ExpectMemory(20.0);
@@ -146,10 +162,11 @@ TYPED_TEST(SimdRefTest, CompoundAssignments) {
 TYPED_TEST(SimdRefTest, MathFunctions) {
     using Packed = TestFixture::Packed;
     using Ref = TestFixture::Ref;
+    using Location = TestFixture::Location;
 
     // Setup: [25, 25...]
     std::fill(this->buffer.begin(), this->buffer.end(), static_cast<TestFixture::Scalar>(25.0));
-    Ref r(this->buffer.data());
+    Ref r(Location{this->buffer.data()});
 
     // sqrt(Ref) -> calls friend sqrt(SimdRef) -> returns Wide
     Packed root = sqrt(r);
@@ -169,14 +186,15 @@ TYPED_TEST(SimdRefTest, Comparisons) {
     using Packed = TestFixture::Packed;
     using Scalar = TestFixture::Scalar;
     using Ref = TestFixture::Ref;
+    using Location = TestFixture::Location;
 
     // Buffer A: [10, 10...]
     std::vector<Scalar> buf_a(Packed::size(), 10.0);
     // Buffer B: [20, 20...]
     std::vector<Scalar> buf_b(Packed::size(), 20.0);
 
-    Ref a(buf_a.data());
-    Ref b(buf_b.data());
+    Ref a(Location{buf_a.data()});
+    Ref b(Location{buf_b.data()});
 
     // a < b should return a Mask (all true)
     auto mask = (a < b);

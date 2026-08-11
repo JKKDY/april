@@ -42,7 +42,7 @@ int main() {
 		{} cfg;
 	cfg.executor_config.n_threads = 1;
 
-	auto container = LinkedCells<Layout::AoSoA<>>();
+	auto container = LinkedCells<Layout::AoS>();
 	auto system = build_system(env, container, cfg);
 
 	auto integrator = VelocityVerlet(system, monitors<Benchmark, ProgressBar, BinaryOutput>)

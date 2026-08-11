@@ -5,45 +5,62 @@
 #include "april/base/types.hpp"
 #include "april/simd/packed.hpp"
 #include "april/simd/masked_packed.hpp"
+#include "april/simd/backends/backend_scalar.hpp"
 
 using namespace april;
 
 
-using SimdTypes = testing::Types<simd::Packed<double>>;
 
 
-template <typename T>
+using SimdTypes = testing::Types<
+    simd::Packed<double>,
+    simd::Packed<float>,
+    simd::internal::scalar::Packed<double>,
+    simd::internal::scalar::Packed<float>
+>;
+
+
+template<typename T>
 class SimdProxyTest : public testing::Test {
 public:
-    using Scalar = T::value_type;
-    using Vec3T  = math::Vec3<T>;           // Vec3<Packed>
-    using Proxy  = math::Vec3Proxy<T>;      // The SoA Proxy
-    using Vec3S  = math::Vec3<Scalar>;      // Scalar Vec3 (gravity, etc.)
+    using Packed = T;
+    using Scalar = Packed::value_type;
 
-    // Backing Memory (SoA Layout)
-    // We resize these to be large enough for the widest SIMD vector (e.g., AVX512 = 8 doubles)
+    using Location = simd::ContiguousLocation<Scalar>;
+    using Ref = simd::PackedRef<Location>;
+
+    using Vec3T = math::Vec3<Packed>;
+    using Proxy = math::Vec3Proxy<Ref>;
+    using Vec3S = math::Vec3<Scalar>;
+
     std::vector<Scalar> x_buf, y_buf, z_buf;
 
     void SetUp() override {
-        // Ensure strictly aligned memory or just enough space.
-        // Vectors are usually aligned enough for load_unaligned.
-        size_t size = std::max<size_t>(16, T::size());
-        x_buf.resize(size, 0.0);
-        y_buf.resize(size, 0.0);
-        z_buf.resize(size, 0.0);
+        const size_t size = std::max<size_t>(16, Packed::size());
+
+        x_buf.resize(size, Scalar{0});
+        y_buf.resize(size, Scalar{0});
+        z_buf.resize(size, Scalar{0});
     }
 
-    // Create a Proxy pointing to the start of the buffers
     Proxy MakeProxy() {
-        return Proxy(x_buf.data(), y_buf.data(), z_buf.data());
+        return Proxy{
+            Ref{Location{x_buf.data()}},
+            Ref{Location{y_buf.data()}},
+            Ref{Location{z_buf.data()}}
+        };
     }
 
-    // Helper: Verify that EVERY lane in the SIMD width matches the expected value
     void ExpectAllLanes(Scalar x, Scalar y, Scalar z) {
-        for(size_t i=0; i < T::size(); ++i) {
-            EXPECT_DOUBLE_EQ(x_buf[i], x) << "Mismatch in X at lane " << i;
-            EXPECT_DOUBLE_EQ(y_buf[i], y) << "Mismatch in Y at lane " << i;
-            EXPECT_DOUBLE_EQ(z_buf[i], z) << "Mismatch in Z at lane " << i;
+        for (size_t i = 0; i < Packed::size(); ++i) {
+            EXPECT_DOUBLE_EQ(x_buf[i], x)
+                << "Mismatch in X at lane " << i;
+
+            EXPECT_DOUBLE_EQ(y_buf[i], y)
+                << "Mismatch in Y at lane " << i;
+
+            EXPECT_DOUBLE_EQ(z_buf[i], z)
+                << "Mismatch in Z at lane " << i;
         }
     }
 };

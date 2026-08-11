@@ -128,16 +128,16 @@ namespace april::container {
 
 		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t index) {
-			return particle::internal::PackedParticleRef<Read, Write, ParticleAttributes> {
+			return particle::internal::make_packed_particle_ref<ParticleAttributes> (
 				self.template access_particle<Read, Write, AccessType::Packed>(index)
-			};
+			);
 		}
 
 		template<ParticleField Read>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t index) {
-			return particle::internal::PackedParticleRef<Read, ParticleField::none, ParticleAttributes> {
+			return particle::internal::make_packed_particle_ref<ParticleAttributes> (
 				self.template access_particle<Read, ParticleField::none, AccessType::Packed>(index)
-			};
+			);
 		}
 
 

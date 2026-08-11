@@ -14,6 +14,7 @@ namespace april::simd {
         using packed_type = PackedT;
         using mask_type = SharedMaskT;
         using value_type = packed_type::value_type;
+        using storage_type = packed_type::storage_type;
 
         MaskedPacked() = default;
         MaskedPacked(const MaskedPacked&) = default;
@@ -33,7 +34,8 @@ namespace april::simd {
         explicit MaskedPacked(const packed_type& value, const mask_type & mask) noexcept
            : data(value), mask(&mask) {}
 
-        void bind_mask(const mask_type& new_mask) noexcept {
+        void bind_mask(mask_type&&) = delete;
+        void bind_mask(mask_type& new_mask) noexcept {
             mask = &new_mask;
         }
 
@@ -52,10 +54,8 @@ namespace april::simd {
             return *this;
         }
 
-        template<typename Scalar>
-        requires std::is_arithmetic_v<Scalar> || std::is_enum_v<Scalar>
-        MaskedPacked& operator=(Scalar rhs) noexcept {
-            return *this = packed_type(static_cast<value_type>(rhs));
+        MaskedPacked& operator=(value_type rhs) noexcept {
+            return *this = packed_type(rhs);
         }
 
         // Arithmetic intentionally returns an ordinary packed value.
@@ -88,28 +88,24 @@ namespace april::simd {
             return *this;
         }
 
-        template<typename Scalar>
-        requires std::is_arithmetic_v<Scalar>
-        MaskedPacked& operator+=(Scalar rhs) noexcept {
-            return *this += packed_type(static_cast<value_type>(rhs));
+        MaskedPacked& operator+=(storage_type rhs) noexcept {
+            data = select(active_mask(), data + rhs, data);
+            return *this;
         }
 
-        template<typename Scalar>
-        requires std::is_arithmetic_v<Scalar>
-        MaskedPacked& operator-=(Scalar rhs) noexcept {
-            return *this -= packed_type(static_cast<value_type>(rhs));
+        MaskedPacked& operator-=(storage_type rhs) noexcept {
+            data = select(active_mask(), data - rhs, data);
+            return *this;
         }
 
-        template<typename Scalar>
-        requires std::is_arithmetic_v<Scalar>
-        MaskedPacked& operator*=(Scalar rhs) noexcept {
-            return *this *= packed_type(static_cast<value_type>(rhs));
+        MaskedPacked& operator*=(storage_type rhs) noexcept {
+            data = select(active_mask(), data * rhs, data);
+            return *this;
         }
 
-        template<typename Scalar>
-        requires std::is_arithmetic_v<Scalar>
-        MaskedPacked& operator/=(Scalar rhs) noexcept {
-            return *this /= packed_type(static_cast<value_type>(rhs));
+        MaskedPacked& operator/=(storage_type rhs) noexcept {
+            data = select(active_mask(), data / rhs, data);
+            return *this;
         }
 
 
@@ -156,6 +152,37 @@ namespace april::simd {
         }
 
         friend packed_type operator/(const packed_type& lhs, const MaskedPacked& rhs) noexcept {
+            return lhs / rhs.data;
+        }
+        friend packed_type operator+(const MaskedPacked& lhs, storage_type rhs) noexcept {
+            return lhs.data + rhs;
+        }
+
+        friend packed_type operator+(storage_type lhs, const MaskedPacked& rhs) noexcept {
+            return lhs + rhs.data;
+        }
+
+        friend packed_type operator-(const MaskedPacked& lhs, storage_type rhs) noexcept {
+            return lhs.data - rhs;
+        }
+
+        friend packed_type operator-(storage_type lhs, const MaskedPacked& rhs) noexcept {
+            return lhs - rhs.data;
+        }
+
+        friend packed_type operator*(const MaskedPacked& lhs, storage_type rhs) noexcept {
+            return lhs.data * rhs;
+        }
+
+        friend packed_type operator*(storage_type lhs, const MaskedPacked& rhs) noexcept {
+            return lhs * rhs.data;
+        }
+
+        friend packed_type operator/(const MaskedPacked& lhs, storage_type rhs) noexcept {
+            return lhs.data / rhs;
+        }
+
+        friend packed_type operator/(storage_type lhs, const MaskedPacked& rhs) noexcept {
             return lhs / rhs.data;
         }
 

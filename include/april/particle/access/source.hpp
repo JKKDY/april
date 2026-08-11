@@ -13,13 +13,10 @@
  */
 #pragma once
 
-#include <ostream>
 #include <type_traits>
 
-#include "april/base/types.hpp"
 #include "april/base/macros.hpp"
 #include "april/particle/properties.hpp"
-#include "april/particle/attributes.hpp"
 
 
 namespace april::particle::internal {
@@ -169,6 +166,9 @@ namespace april::particle::internal {
 		}
 
 	public:
+		static constexpr ParticleField Read = ReadMask;
+		static constexpr ParticleField Write = WriteMask;
+
 		explicit ParticleSource(Getter& getter)
 			: force(init_field<ParticleField::force>(getter))
 			, position(init_field<ParticleField::position>(getter))

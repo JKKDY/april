@@ -10,6 +10,53 @@
 
 namespace april::simd {
 
+    template<typename T, bool = std::is_enum_v<std::remove_cv_t<T>>>
+    struct packed_storage {
+        using type = std::remove_cv_t<T>;
+    };
+
+    template<typename T>
+    struct packed_storage<T, true> {
+        using type = std::underlying_type_t<std::remove_cv_t<T>>;
+    };
+
+    template<typename T>
+    using packed_storage_t = packed_storage<T>::type;
+
+
+
+    template<size_t N>
+    struct ByteOffsets {
+        using value_type = std::ptrdiff_t;
+
+        std::array<value_type, N> values;
+
+        template<std::integral... T>
+            requires (sizeof...(T) == N)
+        constexpr ByteOffsets(T... offsets) noexcept
+            : values{static_cast<value_type>(offsets)...}
+        {}
+
+        template<std::integral T>
+        constexpr ByteOffsets(const std::array<T, N>& offsets) noexcept {
+            for (size_t i = 0; i < N; ++i)
+                values[i] = static_cast<value_type>(offsets[i]);
+        }
+    };
+
+    template<typename... T>
+    ByteOffsets(T...) -> ByteOffsets<sizeof...(T)>;
+
+    template<std::integral T, size_t N>
+    ByteOffsets(const std::array<T, N>&) -> ByteOffsets<N>;
+
+
+    template<typename T>
+    concept IsPackableValue =
+        std::is_arithmetic_v<std::remove_cv_t<T>> ||
+        std::is_enum_v<std::remove_cv_t<T>>;
+
+
     // mask concept
     template<typename M>
     concept HasMaskReductions = requires(const std::remove_cvref_t<M>& mask) {
@@ -163,7 +210,7 @@ namespace april::simd {
 
     template<typename T>
     concept HasFloatingMathFunctions =
-    std::floating_point<typename T::value_type> &&
+    std::floating_point<typename T::storage_type> &&
     requires(const T a, const T b) {
         // Roots and powers
         { T::sqrt(a) }     -> std::same_as<T>;
@@ -209,14 +256,14 @@ namespace april::simd {
     template<typename T>
     concept HasMathFunctions =
         HasCommonMathFunctions<T> &&
-        (!std::floating_point<typename T::value_type> || HasFloatingMathFunctions<T>);
+        (!std::floating_point<typename T::storage_type> || HasFloatingMathFunctions<T>);
 
 
     template<typename T>
     concept HasReductionsOps = requires(const T ct) {
-        { ct.reduce_add() } -> std::same_as<typename T::value_type>;
-        { ct.reduce_min() } -> std::same_as<typename T::value_type>;
-        { ct.reduce_max() } -> std::same_as<typename T::value_type>;
+        { ct.reduce_add() } -> std::same_as<typename T::storage_type>;
+        { ct.reduce_min() } -> std::same_as<typename T::storage_type>;
+        { ct.reduce_max() } -> std::same_as<typename T::storage_type>;
     };
 
     template<typename T> // only for integers
@@ -236,15 +283,25 @@ namespace april::simd {
         && HasComparisonOps<T>
         && HasMathFunctions<T>
         && HasReductionsOps<T>
-        && HasScalarMixedOps<T, typename T::value_type>;
+        && HasScalarMixedOps<T, typename T::storage_type>;
 
     // The Main Concept
     template<typename T>
-    concept IsSimdTypeImpl = requires(T t, const T ct, typename T::value_type scalar, const typename T::value_type* ptr) {
+    concept IsSimdTypeImpl = requires(
+        T t,
+        const T ct,
+        typename T::value_type scalar,
+        const typename T::value_type* ptr,
+        ByteOffsets<T::size()> byte_offsets,
+        std::array<const typename T::value_type*, T::size()> gather_ptrs,
+        std::array<typename T::value_type*, T::size()> scatter_ptrs,
+        std::ptrdiff_t byte_stride
+    ) {
         typename T::value_type;
         typename T::mask_type;
+        typename T::storage_type;
 
-        requires std::is_arithmetic_v<typename T::value_type>;
+        requires std::is_arithmetic_v<typename T::storage_type>;
         requires IsSimdMask<typename T::mask_type>;
 
         { T::size() } -> std::convertible_to<std::size_t>;
@@ -260,19 +317,30 @@ namespace april::simd {
         { T::load_unaligned(ptr) } -> std::same_as<T>;
 
         // gathering
-        // Indirect load via pointer array
-        { T::gather(static_cast<const T::value_type* const*>(nullptr)) } -> std::same_as<T>;
-        // Indirect load via offsets (using a vector of the same width for indices)
-        { T::gather(ptr, t) } -> std::same_as<T>;
+        // base + lane * byte_stride
+        { T::gather_strided(ptr, byte_stride) }-> std::same_as<T>;
+        // Compile-time byte stride
+        { T::template gather_strided<sizeof(typename T::value_type)>(ptr) }-> std::same_as<T>;
+        // Arbitrary byte offsets: base + byte_offsets[lane]
+        { T::gather(ptr, byte_offsets) }-> std::same_as<T>;
+        // Completely arbitrary addresses
+        { T::gather(gather_ptrs) }-> std::same_as<T>;
 
         // storing
-        { ct.store(const_cast<T::value_type*>(ptr)) } -> std::same_as<void>;
-        { ct.store_aligned(const_cast<T::value_type*>(ptr)) } -> std::same_as<void>;
-        { ct.store_unaligned(const_cast<T::value_type*>(ptr)) } -> std::same_as<void>;
+        { ct.store(const_cast<typename T::value_type*>(ptr)) } -> std::same_as<void>;
+        { ct.store_aligned(const_cast<typename T::value_type*>(ptr)) } -> std::same_as<void>;
+        { ct.store_unaligned(const_cast<typename T::value_type*>(ptr)) } -> std::same_as<void>;
 
         // scattering
-        // Indirect store via offsets
-        { ct.scatter(const_cast<T::value_type*>(ptr), t) } -> std::same_as<void>;
+        // Regular byte stride
+        { ct.scatter_strided(const_cast<T::value_type*>(ptr),byte_stride) } -> std::same_as<void>;
+        // Compile-time byte stride
+        { ct.template scatter_strided<sizeof(typename T::value_type)>(const_cast<T::value_type*>(ptr)) } -> std::same_as<void>;
+        // Arbitrary byte offsets
+        { ct.scatter(const_cast<T::value_type*>(ptr), byte_offsets) } -> std::same_as<void>;
+        // Completely arbitrary addresses
+        { ct.scatter(scatter_ptrs) } -> std::same_as<void>;
+
 
         // masking
         { t == t } -> std::same_as<typename T::mask_type>;
@@ -286,7 +354,7 @@ namespace april::simd {
         { ct.template permute<0>() } -> std::same_as<T>;
 
         // bitwise requirement (only enforced if the scalar type is an integer)
-        requires (std::is_integral_v<typename T::value_type> ? HasBitwiseOps<T> : true);
+        requires (std::is_integral_v<typename T::storage_type> ? HasBitwiseOps<T> : true);
 
     } && HasSimdOps<T>;
 

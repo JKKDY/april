@@ -1,55 +1,54 @@
 #pragma once
-#include <april/simd/packed_concept.hpp>
-#include <april/simd/packed.hpp>
-
-
+#include "april/simd/packed_concept.hpp"
+#include "april/simd/packed.hpp"
+#include "april/simd/simd_locations.hpp"
 
 #define AP_SIMD_PROXY_COMPOUND(OP) \
-    PackedRef& operator OP(const PackedT& val) { \
-        (static_cast<PackedT>(*this) OP val).store(ptr); \
-        return *this; \
-    } \
-    template <typename Scalar> requires std::is_arithmetic_v<Scalar> \
-    PackedRef& operator OP(Scalar scalar) { \
-        (static_cast<PackedT>(*this) OP PackedT(static_cast<value_type>(scalar))).store(ptr); \
-        return *this; \
-    } \
-    PackedRef& operator OP(const PackedRef& other) { \
-        (static_cast<PackedT>(*this) OP static_cast<PackedT>(other)).store(ptr); \
-        return *this; \
-    }
+	PackedRef& operator OP(const packed_type& val) { \
+		*this = static_cast<packed_type>(*this) OP val; \
+		return *this; \
+	} \
+	template<typename Scalar> requires std::is_arithmetic_v<Scalar> \
+	PackedRef& operator OP(Scalar scalar) { \
+		*this = static_cast<packed_type>(*this) OP packed_type(static_cast<value_type>(scalar)); \
+		return *this; \
+	} \
+	PackedRef& operator OP(const PackedRef& other) { \
+		*this = static_cast<packed_type>(*this) OP static_cast<packed_type>(other); \
+		return *this; \
+	}
 
 #define AP_SIMD_PROXY_BINARY(OP) \
-    friend PackedT operator OP(const PackedRef& lhs, const PackedRef& rhs) { \
-        return static_cast<PackedT>(lhs) OP static_cast<PackedT>(rhs); \
+    friend packed_type operator OP(const PackedRef& lhs, const PackedRef& rhs) { \
+        return static_cast<packed_type>(lhs) OP static_cast<packed_type>(rhs); \
     } \
     template <typename Scalar> requires std::is_arithmetic_v<Scalar> \
-    friend PackedT operator OP(const PackedRef& lhs, Scalar rhs) { \
-        return static_cast<PackedT>(lhs) OP PackedT(static_cast<value_type>(rhs)); \
+    friend packed_type operator OP(const PackedRef& lhs, Scalar rhs) { \
+        return static_cast<packed_type>(lhs) OP packed_type(static_cast<value_type>(rhs)); \
     } \
     template <typename Scalar> requires std::is_arithmetic_v<Scalar> \
-    friend PackedT operator OP(Scalar lhs, const PackedRef& rhs) { \
-        return PackedT(static_cast<value_type>(lhs)) OP static_cast<PackedT>(rhs); \
+    friend packed_type operator OP(Scalar lhs, const PackedRef& rhs) { \
+        return packed_type(static_cast<value_type>(lhs)) OP static_cast<packed_type>(rhs); \
     } \
-    friend PackedT operator OP(const PackedRef& lhs, const PackedT& rhs) { \
-        return static_cast<PackedT>(lhs) OP rhs; \
+    friend packed_type operator OP(const PackedRef& lhs, const packed_type& rhs) { \
+        return static_cast<packed_type>(lhs) OP rhs; \
     } \
-    friend PackedT operator OP(const PackedT& lhs, const PackedRef& rhs) { \
-        return lhs OP static_cast<PackedT>(rhs); \
+    friend packed_type operator OP(const packed_type& lhs, const PackedRef& rhs) { \
+        return lhs OP static_cast<packed_type>(rhs); \
     }
 
 #define AP_SIMD_PROXY_COMPARE(OP) \
-    friend auto operator OP(const PackedRef& lhs, const PackedRef& rhs) { \
-        return static_cast<PackedT>(lhs) OP static_cast<PackedT>(rhs); \
-    } \
-    template <typename Scalar> requires std::is_arithmetic_v<Scalar> \
-    friend auto operator OP(const PackedRef& lhs, Scalar rhs) { \
-        return static_cast<PackedT>(lhs) OP PackedT(static_cast<value_type>(rhs)); \
-    } \
-    template <typename Scalar> requires std::is_arithmetic_v<Scalar> \
-    friend auto operator OP(Scalar lhs, const PackedRef& rhs) { \
-        return PackedT(static_cast<value_type>(lhs)) OP static_cast<PackedT>(rhs); \
-    }
+	friend auto operator OP(const PackedRef& lhs, const PackedRef& rhs) { \
+		return static_cast<packed_type>(lhs) OP static_cast<packed_type>(rhs); \
+	} \
+	template<april::simd::IsPackableValue Scalar> \
+	friend auto operator OP(const PackedRef& lhs, Scalar rhs) { \
+		return static_cast<packed_type>(lhs) OP packed_type(static_cast<value_type>(rhs)); \
+	} \
+	template<april::simd::IsPackableValue Scalar> \
+	friend auto operator OP(Scalar lhs, const PackedRef& rhs) { \
+		return packed_type(static_cast<value_type>(lhs)) OP static_cast<packed_type>(rhs); \
+	}
 
 
 //----------------------
@@ -57,89 +56,128 @@
 //----------------------
 namespace april::simd {
 
+
+    template<typename T, bool = std::is_enum_v<std::remove_const_t<T>>>
+    struct packed_memory {
+        using type = std::remove_const_t<T>;
+    };
+
+    template<typename T>
+    struct packed_memory<T, true> {
+        using type = std::underlying_type_t<std::remove_const_t<T>>;
+    };
+
+    template<typename T>
+    using packed_memory_t = packed_memory<T>::type;
+
     // T dictates the physical pointer width in memory.
-    // PackedT dictates the hardware register width (defaults to matching T).
-    // Overriding PackedT allows for loading different data types
+    // packed_type dictates the hardware register width (defaults to matching T).
+    // Overriding packed_type allows for loading different data types
     // i.e. trivially convertable or narrower types e.g. loading floats from memory into a simd double register
-    template <typename T, IsSimdType PackedT = Packed<std::remove_const_t<T>>>
+    template<IsLocation Location>
     struct PackedRef {
-        using packed_type = PackedT;
-        using memory_type = std::remove_const_t<T>;
-        using value_type = PackedT::value_type;
-        using mask_type = PackedT::mask_type;
+        using storage_type = Location::storage_type;
+        using value_type = Location::value_type;
+        using packed_type = Location::packed_type;
+        using mask_type = packed_type::mask_type;
 
-        using ptr_type = std::conditional_t<std::is_const_v<PackedT>, const T*, T*>;
+        Location location;
 
-        ptr_type ptr = nullptr;
+        PackedRef(const PackedRef&) = default;
 
-        PackedRef() = default;
-        PackedRef(const PackedRef &) = default;
+        explicit PackedRef(Location location)
+            : location(std::move(location))
+        {}
 
-        explicit PackedRef(ptr_type p) : ptr(p) {}
+        template<IsLocation ULocation>
+        requires
+            std::constructible_from<Location, ULocation> &&
+            std::same_as<typename ULocation::packed_type, packed_type>
+        PackedRef(const PackedRef<ULocation>& other)
+            : location(other.location)
+        {}
 
-        template <typename U_Mem, IsSimdType U_Packed>
-        requires std::convertible_to<U_Mem, memory_type>
-        PackedRef(const PackedRef<U_Mem, U_Packed>& other): ptr(other.ptr) {}
 
 
         // CONVERSIONS & ASSIGNMENT
         // TODO right now we are just using the default load and store, but later we can template on a bool to aligned/unaligned access
         // Implicit Load
-        operator PackedT() const {
-            return PackedT::load(ptr);
+        [[nodiscard]] packed_type load() const {
+            return location.load();
         }
 
-        // Store Value
-        PackedRef& operator=(const PackedT& val) {
-            val.store(ptr);
+        operator packed_type() const {
+            return load();
+        }
+
+
+        // Packed value
+        PackedRef& operator=(const packed_type& value)
+            requires IsWritableLocation<Location>
+        {
+            location.store(value);
             return *this;
         }
 
-        // Store Scalar (broadcast, handles floats, ints, and strong enums natively)
-        template <typename Scalar>
-        requires std::is_arithmetic_v<Scalar> || std::is_enum_v<Scalar>
-        PackedRef& operator=(Scalar scalar) {
-            PackedT(static_cast<value_type>(scalar)).store(ptr);
+        // Semantic scalar
+        template<typename Scalar>
+        requires (
+            IsWritableLocation<Location> &&
+            IsPackableValue<std::remove_cvref_t<Scalar>> &&
+            std::convertible_to<Scalar, value_type>
+        )
+        PackedRef& operator=(Scalar scalar)
+        {
+            location.store(
+                packed_type(static_cast<value_type>(scalar))
+            );
             return *this;
         }
 
-        // Copy from Proxy (Value Copy, with self-assignment check)
-        PackedRef& operator=(const PackedRef& other) {
-            if (this->ptr != other.ptr) {
-                PackedT::load(other.ptr).store(ptr);
-            }
+        // Packed-like/proxy value, e.g. MaskedPacked
+        template<typename P>
+        requires (
+            IsWritableLocation<Location> &&
+            !IsPackableValue<std::remove_cvref_t<P>> &&
+            std::convertible_to<const P&, packed_type>
+        )
+        PackedRef& operator=(const P& value)
+        {
+            location.store(static_cast<packed_type>(value));
             return *this;
         }
+
 
         // UNARY ARITHMETIC
-        friend PackedT operator-(const PackedRef& self) {
-            return -PackedT(self);
+        friend packed_type operator-(const PackedRef& self) {
+            return -packed_type(self);
         }
-        friend PackedT operator+(const PackedRef& self) {
-            return PackedT(self);
+        friend packed_type operator+(const PackedRef& self) {
+            return packed_type(self);
         }
 
         // PERMUTES AND SHUFFLES
         template<size_t... Indices>
-         [[nodiscard]] PackedT permute() const {
-            PackedT val = *this;
+         [[nodiscard]] packed_type permute() const {
+            packed_type val = *this;
             return val.template permute<Indices...>();
         }
         template<unsigned K = 1>
-        [[nodiscard]] PackedT rotate_left() const {
-            PackedT val = *this;
+        [[nodiscard]] packed_type rotate_left() const {
+            packed_type val = *this;
             return val.template rotate_left<K>();
         }
 
         template<unsigned K = 1>
-        [[nodiscard]] PackedT rotate_right() const {
-            PackedT val = *this;
+        [[nodiscard]] packed_type rotate_right() const {
+            packed_type val = *this;
             return val.template rotate_right<K>();
         }
 
         [[nodiscard]] auto to_array() const {
-            return PackedT::load(ptr).to_array();
+            return location.load().to_array();
         }
+
 
         // BINARY ARITHMETIC
         AP_SIMD_PROXY_BINARY(+)

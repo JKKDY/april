@@ -47,7 +47,7 @@ namespace april::simd::internal {
         } else {
             using Q = packed_type_t<T>;
             return P::size() == Q::size() &&
-                   sizeof(typename P::value_type) == sizeof(typename Q::value_type);
+                   sizeof(typename P::storage_type) == sizeof(typename Q::storage_type);
         }
     }();
 

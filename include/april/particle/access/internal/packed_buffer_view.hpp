@@ -49,34 +49,6 @@ namespace april::particle::internal {
 
         using Buffer = PackedParticleBuffer<ReadMask, WriteMask, Attributes, MaskingPolicy>;
 
-        // ==== STOP GAP SOLUTION ==== (will be replaced in C++26 with reflection)
-        // Attribute Vectorization Logic of trivial scalar types
-        template <typename T>
-        struct extract_attr_vector { using type = void; /*Fallback*/ };
-
-        template <typename T> requires IsTriviallyVectorizable<T>
-        struct extract_attr_vector<T> { using type = T::VectorLayout; };
-
-        using attr_vector_t = extract_attr_vector<Attributes>::type;
-
-        // resolve final exposed type based on the Buffer's actual permissions
-        using exposed_attr_t = std::conditional_t<
-            std::is_same_v<decltype(Buffer::attributes), AccessForbidden<ParticleField::attributes>>,
-            AccessForbidden<ParticleField::attributes>,
-            attr_vector_t
-        >;
-
-        static decltype(auto) bind_attributes(Buffer& buf) {
-            if constexpr (std::is_same_v<exposed_attr_t, AccessForbidden<ParticleField::attributes>>) {
-                return AccessForbidden<ParticleField::attributes>{};
-            } else {
-                // Pointer-Interconvertibility: Cast the raw Packed<T> to VectorLayout
-                // Safe reinterpretation thanks to standard layout guarantees
-                return reinterpret_cast<exposed_attr_t&>(buf.attributes);
-            }
-        }
-        // ==== STOP GAP SOLUTION END ====
-
     public:
         static constexpr ParticleField ReadAccess  = ReadMask;
         static constexpr ParticleField WriteAccess = WriteMask & ~ParticleField::id;
@@ -92,7 +64,7 @@ namespace april::particle::internal {
         APRIL_NO_UNIQUE_ADDRESS view_ref_t<ParticleField::type, decltype(Buffer::type)> type;
         APRIL_NO_UNIQUE_ADDRESS view_ref_t<ParticleField::id, decltype(Buffer::id)> id;
 
-        APRIL_NO_UNIQUE_ADDRESS view_ref_t<ParticleField::attributes, exposed_attr_t> attributes;
+        // APRIL_NO_UNIQUE_ADDRESS view_ref_t<ParticleField::attributes, exposed_attr_t> attributes;
 
         /**
           * Binds the buffer's registers to the view's references.
@@ -107,7 +79,7 @@ namespace april::particle::internal {
               state(buf.state),
               type(buf.type),
               id(buf.id),
-              attributes(bind_attributes(buf)),
+              // attributes(bind_attributes(buf)),
               buffer(&buf)
             {}
 

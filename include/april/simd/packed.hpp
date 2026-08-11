@@ -1,5 +1,6 @@
 #pragma once
 #include "april/base/backend_config.hpp"
+#include "april/particle/properties.hpp"
 #include "april/simd/packed_concept.hpp"
 
 
@@ -58,10 +59,8 @@ defined(APRIL_SIMD_BACKEND_SCALAR) \
 #error "[APRIL] No SIMD backend selected."
 #endif
 
-
 // static checks
 namespace april::simd::internal {
-
     template<typename From, typename To>
     concept IsSimdMaskConvertibleTo =
         IsSimdMask<std::remove_cvref_t<From>> &&
@@ -70,26 +69,34 @@ namespace april::simd::internal {
             const std::remove_cvref_t<From>&,
             std::remove_cvref_t<To>
         >;
+}
 
+// need to import here so april::select is findable
+#include "april/simd/math.hpp"
+
+namespace april::simd::internal {
     template<typename Mask, typename Packed>
     concept IsSimdMaskCompatibleWith =
         IsSimdType<std::remove_cvref_t<Packed>> &&
         IsSimdMaskConvertibleTo<
-            std::remove_cvref_t<Mask>,
+               std::remove_cvref_t<Mask>,
             typename std::remove_cvref_t<Packed>::mask_type
         > &&
         requires(
-            const std::remove_cvref_t<Mask>& mask,
+               const std::remove_cvref_t<Mask>& mask,
             const std::remove_cvref_t<Packed>& a,
             const std::remove_cvref_t<Packed>& b
         ) {
-        { select(mask, a, b) } -> std::same_as<std::remove_cvref_t<Packed>>;
+            { april::select(mask, a, b) } -> std::same_as<std::remove_cvref_t<Packed>>;
         };
 
     static_assert(april::simd::IsSimdType<Packed<double>>);
     static_assert(april::simd::IsSimdType<Packed<float>>);
     static_assert(april::simd::IsSimdType<Packed<size_t>>);
     static_assert(april::simd::IsSimdType<Packed<int>>);
+    static_assert(april::simd::IsSimdType<Packed<ParticleState>>);
+    static_assert(april::simd::IsSimdType<Packed<ParticleID>>);
+    static_assert(april::simd::IsSimdType<Packed<ParticleType>>);
 
     static_assert(april::simd::IsSimdMask<PackedMask<double>>);
     static_assert(april::simd::IsSimdMask<PackedMask<float>>);
@@ -117,4 +124,4 @@ namespace april::simd::internal {
     static_assert(!IsSimdMaskCompatibleWith<PackedMask<double, 2>, Packed<float, 4>>);
 }
 
-#include "april/simd/math.hpp"
+

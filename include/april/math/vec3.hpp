@@ -51,7 +51,7 @@ namespace april::math {
     template <IsVectorSuitable T, typename Scalar=T>
     struct Vec3;
 
-    template <typename T>
+    template<typename X, typename Y = X, typename Z = Y>
     struct Vec3Proxy;
 
     // needed for ADL to work
@@ -325,6 +325,174 @@ namespace april::math {
 
 
 
+    // -------------
+    // VEC3 LOCATION
+    // -------------
+    template<typename X, typename Y = X, typename Z = Y>
+    struct Vec3Location {
+        X x;
+        Y y;
+        Z z;
+
+        constexpr Vec3Location(X x, Y y, Z z) noexcept
+            : x(std::move(x)), y(std::move(y)), z(std::move(z)) {}
+    };
+
+    template<typename X, typename Y, typename Z>
+    Vec3Location(X, Y, Z) -> Vec3Location<X, Y, Z>;
+
+    template<typename T>
+    concept IsVec3Location = requires(T t) {
+        t.x;
+        t.y;
+        t.z;
+    };
+
+
+    // ----------
+    // VEC3 PROXY
+    // ----------
+    template<typename T>
+    requires std::integral<std::remove_cv_t<T>> ||
+             std::floating_point<std::remove_cv_t<T>>
+    struct Vec3Proxy<T, T, T>
+    : Vec3Ops<std::remove_cv_t<T>, double>
+    {
+        T& APRIL_RESTRICT x;
+        T& APRIL_RESTRICT y;
+        T& APRIL_RESTRICT z;
+
+        Vec3Proxy(const Vec3Proxy&) = default;
+
+        Vec3Proxy(T& x_ref, T& y_ref, T& z_ref)
+            : x(x_ref), y(y_ref), z(z_ref)
+        {}
+
+        template<typename U>
+        requires std::convertible_to<U, T>
+        explicit Vec3Proxy(Vec3<U>& other)
+            : x(other.x), y(other.y), z(other.z)
+        {}
+
+        template<typename U>
+        requires std::convertible_to<U&, T&>
+        explicit Vec3Proxy(const Vec3Proxy<U>& other)
+            : x(other.x), y(other.y), z(other.z)
+        {}
+
+        Vec3Proxy& operator=(const Vec3<T>& rhs) {
+            x = rhs.x;
+            y = rhs.y;
+            z = rhs.z;
+            return *this;
+        }
+
+        Vec3Proxy& operator=(const Vec3Proxy& rhs) {
+            x = rhs.x;
+            y = rhs.y;
+            z = rhs.z;
+            return *this;
+        }
+
+        operator Vec3<std::remove_cv_t<T>>() const noexcept {
+            return {x, y, z};
+        }
+    };
+
+
+
+    // specialization for packed types
+    template<
+        simd::IsLocation XLocation,
+        simd::IsLocation YLocation,
+        simd::IsLocation ZLocation
+    >
+    requires (
+        std::same_as<typename XLocation::packed_type,typename YLocation::packed_type> &&
+        std::same_as<typename XLocation::packed_type,typename ZLocation::packed_type>
+    )
+    struct Vec3Proxy<
+        simd::PackedRef<XLocation>,
+        simd::PackedRef<YLocation>,
+        simd::PackedRef<ZLocation>
+    > : Vec3Ops<
+        typename XLocation::packed_type,
+        typename XLocation::packed_type
+    > {
+        using XRef = simd::PackedRef<XLocation>;
+        using YRef = simd::PackedRef<YLocation>;
+        using ZRef = simd::PackedRef<ZLocation>;
+
+        using Packed = XLocation::packed_type;
+        using Scalar = Packed::value_type;
+
+        XRef x;
+        YRef y;
+        ZRef z;
+
+        Vec3Proxy(const Vec3Proxy&) = default;
+
+        Vec3Proxy(XRef x_ref, YRef y_ref, ZRef z_ref)
+            : x(std::move(x_ref))
+            , y(std::move(y_ref))
+            , z(std::move(z_ref))
+        {}
+
+        Vec3Proxy& operator=(const Vec3<Packed>& rhs)
+            requires (
+                simd::IsWritableLocation<XLocation> &&
+                simd::IsWritableLocation<YLocation> &&
+                simd::IsWritableLocation<ZLocation>
+            )
+        {
+            x = rhs.x;
+            y = rhs.y;
+            z = rhs.z;
+            return *this;
+        }
+
+        Vec3Proxy& operator=(const Vec3Proxy& rhs)
+            requires (
+                simd::IsWritableLocation<XLocation> &&
+                simd::IsWritableLocation<YLocation> &&
+                simd::IsWritableLocation<ZLocation>
+            )
+        {
+            if (this != &rhs) {
+                x = static_cast<Packed>(rhs.x);
+                y = static_cast<Packed>(rhs.y);
+                z = static_cast<Packed>(rhs.z);
+            }
+
+            return *this;
+        }
+
+        operator Vec3<Packed>() const {
+            return {
+                static_cast<Packed>(x),
+                static_cast<Packed>(y),
+                static_cast<Packed>(z)
+            };
+        }
+    };
+
+    template<
+    simd::IsLocation XLocation,
+    simd::IsLocation YLocation,
+    simd::IsLocation ZLocation
+    >
+    Vec3Proxy(
+        simd::PackedRef<XLocation>,
+        simd::PackedRef<YLocation>,
+        simd::PackedRef<ZLocation>
+    ) -> Vec3Proxy<
+        simd::PackedRef<XLocation>,
+        simd::PackedRef<YLocation>,
+        simd::PackedRef<ZLocation>
+    >;
+
+
+
     // ------------
     // VEC3 POINTER
     // ------------
@@ -392,119 +560,6 @@ namespace april::math {
             APRIL_PREFETCH_NTA(z);
         }
     };
-
-    template<typename X, typename Y = X, typename Z = Y>
-    struct Vec3Location {
-        X x;
-        Y y;
-        Z z;
-
-        constexpr Vec3Location(X x, Y y, Z z) noexcept
-            : x(std::move(x)), y(std::move(y)), z(std::move(z)) {}
-    };
-
-    template<typename X, typename Y, typename Z>
-    Vec3Location(X, Y, Z) -> Vec3Location<X, Y, Z>;
-
-
-    // ----------
-    // VEC3 PROXY
-    // ----------
-    template <typename T>
-    struct Vec3Proxy : Vec3Ops<std::remove_cv_t<T>, double> {
-        T& APRIL_RESTRICT x;
-        T& APRIL_RESTRICT y;
-        T& APRIL_RESTRICT z;
-
-        Vec3Proxy(const Vec3Proxy&) = default;
-
-        Vec3Proxy(T& x_ref, T& y_ref, T& z_ref)
-            : x(x_ref), y(y_ref), z(z_ref) {}
-
-        template<typename U>
-        requires std::convertible_to<U, T>
-        explicit Vec3Proxy(Vec3<U> & other)
-            : x(other.x), y(other.y), z(other.z) {}
-
-        template <typename U>
-        requires std::convertible_to<U&, T&>
-        explicit Vec3Proxy(const Vec3Proxy<U>& other)
-            : x(other.x), y(other.y), z(other.z) {}
-
-        Vec3Proxy& operator=(const Vec3<T>& rhs) {
-            x = rhs.x; y = rhs.y; z = rhs.z;
-            return *this;
-        }
-
-        Vec3Proxy& operator=(const Vec3Proxy& rhs) {
-            x = rhs.x; y = rhs.y; z = rhs.z;
-            return *this;
-        }
-
-        // implicit conversion to Value
-        operator Vec3<std::remove_cv_t<T>>() const noexcept {
-            return Vec3<std::remove_cv_t<T>>(x, y, z);
-        }
-    };
-
-    // specialization for packed types
-    template <simd::IsSimdType T>
-    struct Vec3Proxy<T> : Vec3Ops<std::remove_cv_t<T>, std::remove_cv_t<T>> {
-        using Ref = simd::PackedRef<typename T::value_type, T>;
-        using Scalar = T::value_type;
-
-        // Members are "Reference Wrappers", not C++ references
-        Ref x;
-        Ref y;
-        Ref z;
-        Vec3Proxy(const Vec3Proxy&) = default;
-
-        template<typename U>
-        Vec3Proxy(const Vec3Ptr<U> & ptr): x(ptr.x), y(ptr.y), z(ptr.z) {}
-
-
-        Vec3Proxy(T& x_ref, T& y_ref, T& z_ref)
-            : x(x_ref), y(y_ref), z(z_ref) {}
-
-        template<typename U>
-        requires std::convertible_to<U, T>
-        explicit Vec3Proxy(Vec3<U> & other)
-            : x(other.x), y(other.y), z(other.z) {}
-
-        template <typename U>
-        requires std::convertible_to<U&, T&>
-        explicit Vec3Proxy(const Vec3Proxy<U>& other)
-            : x(other.x), y(other.y), z(other.z) {}
-
-        // Constructor from POINTERS (SoA style)
-        // This is needed for SIMD iterators
-        Vec3Proxy(Scalar* ptr_x, Scalar* ptr_y, Scalar* ptr_z)
-            : x(ptr_x), y(ptr_y), z(ptr_z) {}
-
-        // Assignment from Value (Vec3<Packed>)
-        // "p.pos = result_vec;"
-        Vec3Proxy& operator=(const Vec3<T>& rhs) {
-            x = rhs.x; // Calls PackedRef::operator=(Packed) -> Stores to memory
-            y = rhs.y;
-            z = rhs.z;
-            return *this;
-        }
-
-        // Assignment from other Proxy (Copy Memory to Memory)
-        // "p.pos = p.old_pos;"
-        Vec3Proxy& operator=(const Vec3Proxy& rhs) {
-            if (this != &rhs) {
-                x = rhs.x; // Calls PackedRef::operator=(PackedRef)
-                y = rhs.y;
-                z = rhs.z;
-            }
-            return *this;
-        }
-
-        // Implicit conversion to Value
-        operator Vec3<T>() const { return Vec3<T>(x, y, z); }
-    };
-
 
 
 } // namespace april::utils

@@ -1,12 +1,15 @@
 #pragma once
 #include "april/particle/access/policy.hpp"
+#include "april/particle/properties.hpp"
+#include "april/particle/attributes.hpp"
 
 namespace april::particle::internal {
 
     template <
         ParticleField ReadMask,
         ParticleField WriteMask,
-        IsParticleAttributes Attributes
+        IsParticleAttributes Attributes,
+        typename Source
     >
     struct PackedParticleRef;
 

@@ -41,8 +41,8 @@ namespace april::particle::internal {
     struct is_buffer_view_impl : std::false_type {};
 
     // specialization for the unified types
-    template <ParticleField RM, ParticleField WM, typename U>
-    struct is_packed_ref_impl<PackedParticleRef<RM, WM, U>> : std::true_type {};
+    template <ParticleField RM, ParticleField WM, typename U, typename S>
+    struct is_packed_ref_impl<PackedParticleRef<RM, WM, U, S>> : std::true_type {};
 
     template <ParticleField RM, ParticleField WM, class A, MaskPolicy MP>
     struct is_packed_buffer_impl<PackedParticleBuffer<RM, WM, A, MP>> : std::true_type {};

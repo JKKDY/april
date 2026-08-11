@@ -10,6 +10,7 @@
 #include <utility>
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 
 #include "april/simd/packed_concept.hpp"
 
@@ -18,7 +19,6 @@ namespace april::simd::internal::scalar {
     template<typename T, size_t Width = 0>
     struct Mask {
         using value_type = std::remove_cv_t<T>;
-
         static constexpr size_t lane_count = Width == 0 ? size_t{8} : Width;
 
         using native_type = std::array<bool, lane_count>;
@@ -229,11 +229,12 @@ namespace april::simd::internal::scalar {
     template<typename T, size_t Width = 0>
     struct Packed {
         using value_type = std::remove_cv_t<T>;
+        using storage_type = packed_storage_t<value_type>;
 
         static constexpr size_t lane_count = Width == 0 ? size_t{8} : Width;
 
-        using native_type = std::array<value_type, lane_count>;
-        using mask_type = Mask<value_type, Width>;
+        using native_type = std::array<storage_type, lane_count>;
+        using mask_type = Mask<storage_type, Width>;
         using packed_type = Packed;
 
         static_assert(lane_count > 0, "A SIMD pack must contain at least one lane");
@@ -244,7 +245,7 @@ namespace april::simd::internal::scalar {
         Packed() = default;
 
         Packed(value_type scalar) {
-            data.fill(scalar);
+            data.fill(load_scalar(scalar));
         }
 
         Packed(const native_type& value) : data(value) {}
@@ -252,7 +253,7 @@ namespace april::simd::internal::scalar {
         Packed(native_type&& value) : data(std::move(value)) {}
 
         Packed& operator=(value_type scalar) {
-            data.fill(scalar);
+            data.fill(load_scalar(scalar));
             return *this;
         }
 
@@ -266,94 +267,300 @@ namespace april::simd::internal::scalar {
         // Contiguous loads
         // ----------------
         template<typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        requires (
+            (std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+            (sizeof(PtrT) <= sizeof(storage_type))
+        )
         static Packed load(const PtrT* ptr) {
             return load_unaligned(ptr);
         }
 
         template<typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        requires (
+            (std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+            (sizeof(PtrT) <= sizeof(storage_type))
+        )
         static Packed load_aligned(const PtrT* ptr) {
             return load_unaligned(ptr);
         }
 
         template<typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        requires (
+            (std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+            (sizeof(PtrT) <= sizeof(storage_type))
+        )
         static Packed load_unaligned(const PtrT* ptr) {
             Packed result;
 
             for (size_t i = 0; i < size(); ++i) {
-                result.data[i] = static_cast<value_type>(ptr[i]);
+                result.data[i] = load_scalar(ptr[i]);
             }
 
             return result;
         }
 
-        // -------
-        // Gather
-        // -------
-        template<typename PtrT, typename IndexType>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
-        static Packed gather(const PtrT* base_address, const IndexType& offsets) {
-            Packed result;
 
-            for (size_t i = 0; i < size(); ++i) {
-                result.data[i] = static_cast<value_type>(
-                    base_address[offsets.data[i]]
-                );
-            }
-
-            return result;
-        }
-
-        template<typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
-        static Packed gather(const PtrT* const* pointers) {
-            Packed result;
-
-            for (size_t i = 0; i < size(); ++i) {
-                result.data[i] = static_cast<value_type>(*pointers[i]);
-            }
-
-            return result;
-        }
 
         // -----------------
         // Contiguous stores
         // -----------------
         template<typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        requires (
+            !std::is_const_v<PtrT> &&
+            (std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+            (sizeof(PtrT) <= sizeof(storage_type))
+        )
         void store(PtrT* ptr) const {
             store_unaligned(ptr);
         }
 
         template<typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        requires (
+            !std::is_const_v<PtrT> &&
+            (std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+            (sizeof(PtrT) <= sizeof(storage_type))
+        )
         void store_aligned(PtrT* ptr) const {
             store_unaligned(ptr);
         }
 
         template<typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        requires (
+            !std::is_const_v<PtrT> &&
+            (std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+            (sizeof(PtrT) <= sizeof(storage_type))
+        )
         void store_unaligned(PtrT* ptr) const {
-            for (size_t i = 0; i < size(); ++i) ptr[i] = static_cast<PtrT>(data[i]);
+            for (size_t i = 0; i < size(); ++i) {
+                ptr[i] = store_scalar<PtrT>(data[i]);
+            }
         }
+
+
+        // -------
+        // Gather
+        // -------
+
+        // Compile-time byte stride
+        template<std::ptrdiff_t ByteStride, typename PtrT>
+        requires (
+            (std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+            (sizeof(PtrT) <= sizeof(storage_type))
+        )
+        static Packed gather_strided(const PtrT* ptr) {
+            if constexpr (ByteStride == sizeof(PtrT)) {
+                return load(ptr);
+            } else {
+                Packed result;
+                const auto* base = reinterpret_cast<const std::byte*>(ptr);
+
+                for (size_t i = 0; i < size(); ++i) {
+                    const auto* address = reinterpret_cast<const PtrT*>(
+                        base + static_cast<std::ptrdiff_t>(i) * ByteStride
+                    );
+
+                    result.data[i] = load_scalar(*address);
+                }
+
+                return result;
+            }
+        }
+
+        // Runtime byte stride
+        template<typename PtrT>
+        requires (
+            (std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+            (sizeof(PtrT) <= sizeof(storage_type))
+        )
+        static Packed gather_strided(
+            const PtrT* ptr,
+            const std::ptrdiff_t byte_stride
+        ) {
+            if (byte_stride == sizeof(PtrT)) {
+                return load(ptr);
+            }
+
+            Packed result;
+            const auto* base = reinterpret_cast<const std::byte*>(ptr);
+
+            for (size_t i = 0; i < size(); ++i) {
+                const auto* address = reinterpret_cast<const PtrT*>(
+                    base + static_cast<std::ptrdiff_t>(i) * byte_stride
+                );
+
+                result.data[i] = load_scalar(*address);
+            }
+
+            return result;
+        }
+
+        // Arbitrary byte offsets
+        template<typename PtrT, size_t N>
+        requires (
+            (std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+            (sizeof(PtrT) <= sizeof(storage_type)) &&
+            (N == size())
+        )
+        static Packed gather(
+            const PtrT* ptr,
+            const ByteOffsets<N>& offsets
+        ) {
+            Packed result;
+            const auto* base = reinterpret_cast<const std::byte*>(ptr);
+
+            for (size_t i = 0; i < size(); ++i) {
+                const auto* address = reinterpret_cast<const PtrT*>(
+                    base + offsets.values[i]
+                );
+
+                result.data[i] = load_scalar(*address);
+            }
+
+            return result;
+        }
+
+        // Arbitrary pointers
+        template<typename PointerContainer>
+        requires requires(const PointerContainer& pointers) {
+            pointers[size_t{}];
+            requires std::is_pointer_v<
+                std::remove_cvref_t<decltype(pointers[size_t{}])>
+            >;
+        }
+        static Packed gather(const PointerContainer& pointers) {
+            using pointer_type = std::remove_cvref_t<
+                decltype(pointers[size_t{}])
+            >;
+
+            using PtrT = std::remove_pointer_t<pointer_type>;
+            using raw_type = std::remove_cv_t<PtrT>;
+
+            static_assert(
+                std::is_arithmetic_v<raw_type> ||
+                std::is_enum_v<raw_type>
+            );
+            static_assert(sizeof(raw_type) <= sizeof(storage_type));
+
+            Packed result;
+
+            for (size_t i = 0; i < size(); ++i) {
+                result.data[i] = load_scalar(*pointers[i]);
+            }
+
+            return result;
+        }
+
 
         // -------
         // Scatter
         // -------
 
-        template<typename PtrT, typename IndexType>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
-        void scatter(PtrT* base_address, const IndexType& offsets) const {
-            for (size_t i = 0; i < size(); ++i) {
-                base_address[offsets.data[i]] = static_cast<PtrT>(data[i]);
+        // Compile-time byte stride
+        template<std::ptrdiff_t ByteStride, typename PtrT>
+        requires (
+            !std::is_const_v<PtrT> &&
+            (std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+            (sizeof(PtrT) <= sizeof(storage_type))
+        )
+        void scatter_strided(PtrT* ptr) const {
+            if constexpr (ByteStride == sizeof(PtrT)) {
+                store(ptr);
+            } else {
+                auto* base = reinterpret_cast<std::byte*>(ptr);
+
+                for (size_t i = 0; i < size(); ++i) {
+                    auto* address = reinterpret_cast<PtrT*>(
+                        base + static_cast<std::ptrdiff_t>(i) * ByteStride
+                    );
+
+                    *address = store_scalar<PtrT>(data[i]);
+                }
             }
         }
 
-        // ---------------------
+        // Runtime byte stride
+        template<typename PtrT>
+        requires (
+            !std::is_const_v<PtrT> &&
+            (std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+            (sizeof(PtrT) <= sizeof(storage_type))
+        )
+        void scatter_strided(
+            PtrT* ptr,
+            const std::ptrdiff_t byte_stride
+        ) const {
+            if (byte_stride == sizeof(PtrT)) {
+                store(ptr);
+                return;
+            }
+
+            auto* base = reinterpret_cast<std::byte*>(ptr);
+
+            for (size_t i = 0; i < size(); ++i) {
+                auto* address = reinterpret_cast<PtrT*>(
+                    base + static_cast<std::ptrdiff_t>(i) * byte_stride
+                );
+
+                *address = store_scalar<PtrT>(data[i]);
+            }
+        }
+
+        // Arbitrary byte offsets
+        template<typename PtrT, size_t N>
+        requires (
+            !std::is_const_v<PtrT> &&
+            (std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+            (sizeof(PtrT) <= sizeof(storage_type)) &&
+            (N == size())
+        )
+        void scatter(
+            PtrT* ptr,
+            const ByteOffsets<N>& offsets
+        ) const {
+            auto* base = reinterpret_cast<std::byte*>(ptr);
+
+            for (size_t i = 0; i < size(); ++i) {
+                auto* address = reinterpret_cast<PtrT*>(
+                    base + offsets.values[i]
+                );
+
+                *address = store_scalar<PtrT>(data[i]);
+            }
+        }
+
+        // Arbitrary pointers
+        template<typename PointerContainer>
+        requires requires(const PointerContainer& pointers) {
+            pointers[size_t{}];
+            requires std::is_pointer_v<
+                std::remove_cvref_t<decltype(pointers[size_t{}])>
+            >;
+        }
+        void scatter(const PointerContainer& pointers) const {
+            using pointer_type = std::remove_cvref_t<
+                decltype(pointers[size_t{}])
+            >;
+
+            using PtrT = std::remove_pointer_t<pointer_type>;
+            using raw_type = std::remove_cv_t<PtrT>;
+
+            static_assert(
+                std::is_arithmetic_v<raw_type> ||
+                std::is_enum_v<raw_type>
+            );
+            static_assert(!std::is_const_v<PtrT>);
+            static_assert(sizeof(raw_type) <= sizeof(storage_type));
+
+            for (size_t i = 0; i < size(); ++i) {
+                *pointers[i] = store_scalar<raw_type>(data[i]);
+            }
+        }
+
+
+
+        // ----------------------
         // Permutes and rotations
-        // ---------------------
+        // ----------------------
 
         template<size_t... Indices>
         [[nodiscard]] Packed permute() const {
@@ -404,43 +611,89 @@ namespace april::simd::internal::scalar {
         // --------------------
         // Arithmetic operators
         // --------------------
-
         friend Packed operator+(const Packed& value) {
-            return value.map([](value_type lane) {
+            return value.map([](storage_type lane) {
                 return +lane;
             });
         }
 
         friend Packed operator-(const Packed& value) {
-            return value.map([](value_type lane) {
+            return value.map([](storage_type lane) {
                 return -lane;
             });
         }
 
         friend Packed operator+(const Packed& lhs, const Packed& rhs) {
-            return lhs.zip(rhs, [](value_type a, value_type b) {
+            return lhs.zip(rhs, [](storage_type a, storage_type b) {
                 return a + b;
             });
         }
 
         friend Packed operator-(const Packed& lhs, const Packed& rhs) {
-            return lhs.zip(rhs, [](value_type a, value_type b) {
+            return lhs.zip(rhs, [](storage_type a, storage_type b) {
                 return a - b;
             });
         }
 
         friend Packed operator*(const Packed& lhs, const Packed& rhs) {
-            return lhs.zip(rhs, [](value_type a, value_type b) {
+            return lhs.zip(rhs, [](storage_type a, storage_type b) {
                 return a * b;
             });
         }
 
         friend Packed operator/(const Packed& lhs, const Packed& rhs) {
-            return lhs.zip(rhs, [](value_type a, value_type b) {
+            return lhs.zip(rhs, [](storage_type a, storage_type b) {
                 return a / b;
             });
         }
 
+        friend Packed operator+(const Packed& lhs, storage_type rhs) {
+            return lhs.map([rhs](storage_type a) {
+                return a + rhs;
+            });
+        }
+
+        friend Packed operator+(storage_type lhs, const Packed& rhs) {
+            return rhs + lhs;
+        }
+
+        friend Packed operator-(const Packed& lhs, storage_type rhs) {
+            return lhs.map([rhs](storage_type a) {
+                return a - rhs;
+            });
+        }
+
+        friend Packed operator-(storage_type lhs, const Packed& rhs) {
+            return rhs.map([lhs](storage_type b) {
+                return lhs - b;
+            });
+        }
+
+        friend Packed operator*(const Packed& lhs, storage_type rhs) {
+            return lhs.map([rhs](storage_type a) {
+                return a * rhs;
+            });
+        }
+
+        friend Packed operator*(storage_type lhs, const Packed& rhs) {
+            return rhs * lhs;
+        }
+
+        friend Packed operator/(const Packed& lhs, storage_type rhs) {
+            return lhs.map([rhs](storage_type a) {
+                return a / rhs;
+            });
+        }
+
+        friend Packed operator/(storage_type lhs, const Packed& rhs) {
+            return rhs.map([lhs](storage_type b) {
+                return lhs / b;
+            });
+        }
+
+        // ---------
+        // COMPOUNDS
+        // ---------
         Packed& operator+=(const Packed& rhs) {
             for (size_t i = 0; i < size(); ++i) data[i] += rhs.data[i];
             return *this;
@@ -461,43 +714,135 @@ namespace april::simd::internal::scalar {
             return *this;
         }
 
+        Packed& operator+=(storage_type rhs) {
+            for (auto& lane : data)
+                lane += rhs;
+            return *this;
+        }
+
+        Packed& operator-=(storage_type rhs) {
+            for (auto& lane : data)
+                lane -= rhs;
+            return *this;
+        }
+
+        Packed& operator*=(storage_type rhs) {
+            for (auto& lane : data)
+                lane *= rhs;
+            return *this;
+        }
+
+        Packed& operator/=(storage_type rhs) {
+            for (auto& lane : data)
+                lane /= rhs;
+            return *this;
+        }
+
         // -----------
         // Comparisons
         // -----------
 
         friend mask_type operator==(const Packed& lhs, const Packed& rhs) {
-            return lhs.compare(rhs, [](value_type a, value_type b) {
+            return lhs.compare(rhs, [](storage_type a, storage_type b) {
                 return a == b;
             });
         }
 
         friend mask_type operator!=(const Packed& lhs, const Packed& rhs) {
-            return lhs.compare(rhs, [](value_type a, value_type b) {
+            return lhs.compare(rhs, [](storage_type a, storage_type b) {
                 return a != b;
             });
         }
 
         friend mask_type operator<(const Packed& lhs, const Packed& rhs) {
-            return lhs.compare(rhs, [](value_type a, value_type b) {
+            return lhs.compare(rhs, [](storage_type a, storage_type b) {
                 return a < b;
             });
         }
 
         friend mask_type operator<=(const Packed& lhs, const Packed& rhs) {
-            return lhs.compare(rhs, [](value_type a, value_type b) {
+            return lhs.compare(rhs, [](storage_type a, storage_type b) {
                 return a <= b;
             });
         }
 
         friend mask_type operator>(const Packed& lhs, const Packed& rhs) {
-            return lhs.compare(rhs, [](value_type a, value_type b) {
+            return lhs.compare(rhs, [](storage_type a, storage_type b) {
                 return a > b;
             });
         }
 
         friend mask_type operator>=(const Packed& lhs, const Packed& rhs) {
-            return lhs.compare(rhs, [](value_type a, value_type b) {
+            return lhs.compare(rhs, [](storage_type a, storage_type b) {
                 return a >= b;
+            });
+        }
+
+        friend mask_type operator==(const Packed& lhs, storage_type rhs) {
+            return lhs.test([rhs](storage_type a) {
+                return a == rhs;
+            });
+        }
+
+        friend mask_type operator==(storage_type lhs, const Packed& rhs) {
+            return rhs == lhs;
+        }
+
+        friend mask_type operator!=(const Packed& lhs, storage_type rhs) {
+            return lhs.test([rhs](storage_type a) {
+                return a != rhs;
+            });
+        }
+
+        friend mask_type operator!=(storage_type lhs, const Packed& rhs) {
+            return rhs != lhs;
+        }
+
+        friend mask_type operator<(const Packed& lhs, storage_type rhs) {
+            return lhs.test([rhs](storage_type a) {
+                return a < rhs;
+            });
+        }
+
+        friend mask_type operator<(storage_type lhs, const Packed& rhs) {
+            return rhs.test([lhs](storage_type b) {
+                return lhs < b;
+            });
+        }
+
+        friend mask_type operator<=(const Packed& lhs, storage_type rhs) {
+            return lhs.test([rhs](storage_type a) {
+                return a <= rhs;
+            });
+        }
+
+        friend mask_type operator<=(storage_type lhs, const Packed& rhs) {
+            return rhs.test([lhs](storage_type b) {
+                return lhs <= b;
+            });
+        }
+
+        friend mask_type operator>(const Packed& lhs, storage_type rhs) {
+            return lhs.test([rhs](storage_type a) {
+                return a > rhs;
+            });
+        }
+
+        friend mask_type operator>(storage_type lhs, const Packed& rhs) {
+            return rhs.test([lhs](storage_type b) {
+                return lhs > b;
+            });
+        }
+
+        friend mask_type operator>=(const Packed& lhs, storage_type rhs) {
+            return lhs.test([rhs](storage_type a) {
+                return a >= rhs;
+            });
+        }
+
+        friend mask_type operator>=(storage_type lhs, const Packed& rhs) {
+            return rhs.test([lhs](storage_type b) {
+                return lhs >= b;
             });
         }
 
@@ -528,29 +873,29 @@ namespace april::simd::internal::scalar {
         // ----------------
 
         [[nodiscard]] static Packed abs(const Packed& x) {
-            if constexpr (std::is_unsigned_v<value_type>) {
+            if constexpr (std::is_unsigned_v<storage_type>) {
                 return x;
             } else {
-                return x.map([](value_type value) {
+                return x.map([](storage_type value) {
                     return std::abs(value);
                 });
             }
         }
 
         [[nodiscard]] static Packed min(const Packed& a, const Packed& b) {
-            return a.zip(b, [](value_type lhs, value_type rhs) {
+            return a.zip(b, [](storage_type lhs, storage_type rhs) {
                 return std::min(lhs, rhs);
             });
         }
 
         [[nodiscard]] static Packed max(const Packed& a, const Packed& b) {
-            return a.zip(b, [](value_type lhs, value_type rhs) {
+            return a.zip(b, [](storage_type lhs, storage_type rhs) {
                 return std::max(lhs, rhs);
             });
         }
 
         [[nodiscard]] static Packed clamp(const Packed& x, const Packed& lower, const Packed& upper) {
-            return x.zip3(lower, upper, [](value_type value, value_type lo, value_type hi) {
+            return x.zip3(lower, upper, [](storage_type value, storage_type lo, storage_type hi) {
                 return std::clamp(value, lo, hi);
             });
         }
@@ -559,34 +904,34 @@ namespace april::simd::internal::scalar {
         // Roots and powers
         // ----------------
 
-        [[nodiscard]] static Packed sqrt(const Packed& x) requires std::floating_point<value_type> {
-            return x.map([](value_type value) {
+        [[nodiscard]] static Packed sqrt(const Packed& x) requires std::floating_point<storage_type> {
+            return x.map([](storage_type value) {
                 return std::sqrt(value);
             });
         }
 
-        [[nodiscard]] static Packed rsqrt(const Packed& x) requires std::floating_point<value_type> {
-            return x.map([](value_type value) {
-                return value_type{1} / std::sqrt(value);
+        [[nodiscard]] static Packed rsqrt(const Packed& x) requires std::floating_point<storage_type> {
+            return x.map([](storage_type value) {
+                return storage_type{1} / std::sqrt(value);
             });
         }
 
-        [[nodiscard]] static Packed cbrt(const Packed& x) requires std::floating_point<value_type> {
-            return x.map([](value_type value) {
+        [[nodiscard]] static Packed cbrt(const Packed& x) requires std::floating_point<storage_type> {
+            return x.map([](storage_type value) {
                 return std::cbrt(value);
             });
         }
 
-        [[nodiscard]] static Packed hypot(const Packed& x, const Packed& y) requires std::floating_point<value_type> {
-            return x.zip(y, [](value_type lhs, value_type rhs) {
+        [[nodiscard]] static Packed hypot(const Packed& x, const Packed& y) requires std::floating_point<storage_type> {
+            return x.zip(y, [](storage_type lhs, storage_type rhs) {
                 return std::hypot(lhs, rhs);
             });
         }
 
         [[nodiscard]] static Packed pow(const Packed& x, const Packed& y)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.zip(y, [](value_type lhs, value_type rhs) {
+            return x.zip(y, [](storage_type lhs, storage_type rhs) {
                 return std::pow(lhs, rhs);
             });
         }
@@ -596,63 +941,63 @@ namespace april::simd::internal::scalar {
         // ---------------------------
 
         [[nodiscard]] static Packed exp(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::exp(value);
             });
         }
 
         [[nodiscard]] static Packed exp2(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::exp2(value);
             });
         }
 
         [[nodiscard]] static Packed expm1(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::expm1(value);
             });
         }
 
         [[nodiscard]] static Packed log(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::log(value);
             });
         }
 
         [[nodiscard]] static Packed ln(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
             return log(x);
         }
 
         [[nodiscard]] static Packed log2(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::log2(value);
             });
         }
 
         [[nodiscard]] static Packed log10(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::log10(value);
             });
         }
 
         [[nodiscard]] static Packed log1p(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::log1p(value);
             });
         }
@@ -662,63 +1007,63 @@ namespace april::simd::internal::scalar {
         // -------------
 
         [[nodiscard]] static Packed sin(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::sin(value);
             });
         }
 
         [[nodiscard]] static Packed cos(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::cos(value);
             });
         }
 
         [[nodiscard]] static std::pair<Packed, Packed> sincos(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
             return {sin(x), cos(x)};
         }
 
         [[nodiscard]] static Packed tan(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::tan(value);
             });
         }
 
         [[nodiscard]] static Packed asin(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::asin(value);
             });
         }
 
         [[nodiscard]] static Packed acos(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::acos(value);
             });
         }
 
         [[nodiscard]] static Packed atan(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::atan(value);
             });
         }
 
         [[nodiscard]] static Packed atan2(const Packed& y, const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return y.zip(x, [](value_type y_value, value_type x_value) {
+            return y.zip(x, [](storage_type y_value, storage_type x_value) {
                 return std::atan2(y_value, x_value);
             });
         }
@@ -728,49 +1073,49 @@ namespace april::simd::internal::scalar {
         // ----------
 
         [[nodiscard]] static Packed sinh(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::sinh(value);
             });
         }
 
         [[nodiscard]] static Packed cosh(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::cosh(value);
             });
         }
 
         [[nodiscard]] static Packed tanh(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::tanh(value);
             });
         }
 
         [[nodiscard]] static Packed asinh(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::asinh(value);
             });
         }
 
         [[nodiscard]] static Packed acosh(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::acosh(value);
             });
         }
 
         [[nodiscard]] static Packed atanh(const Packed& x)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.map([](value_type value) {
+            return x.map([](storage_type value) {
                 return std::atanh(value);
             });
         }
@@ -780,50 +1125,50 @@ namespace april::simd::internal::scalar {
         // --------
 
         [[nodiscard]] static Packed floor(const Packed& x) {
-            if constexpr (std::integral<value_type>) {
+            if constexpr (std::integral<storage_type>) {
                 return x;
             } else {
-                return x.map([](value_type value) {
+                return x.map([](storage_type value) {
                     return std::floor(value);
                 });
             }
         }
 
         [[nodiscard]] static Packed ceil(const Packed& x) {
-            if constexpr (std::integral<value_type>) {
+            if constexpr (std::integral<storage_type>) {
                 return x;
             } else {
-                return x.map([](value_type value) {
+                return x.map([](storage_type value) {
                     return std::ceil(value);
                 });
             }
         }
 
         [[nodiscard]] static Packed round(const Packed& x) {
-            if constexpr (std::integral<value_type>) {
+            if constexpr (std::integral<storage_type>) {
                 return x;
             } else {
-                return x.map([](value_type value) {
+                return x.map([](storage_type value) {
                     return std::round(value);
                 });
             }
         }
 
         [[nodiscard]] static Packed trunc(const Packed& x) {
-            if constexpr (std::integral<value_type>) {
+            if constexpr (std::integral<storage_type>) {
                 return x;
             } else {
-                return x.map([](value_type value) {
+                return x.map([](storage_type value) {
                     return std::trunc(value);
                 });
             }
         }
 
         [[nodiscard]] static Packed nearbyint(const Packed& x) {
-            if constexpr (std::integral<value_type>) {
+            if constexpr (std::integral<storage_type>) {
                 return x;
             } else {
-                return x.map([](value_type value) {
+                return x.map([](storage_type value) {
                     return std::nearbyint(value);
                 });
             }
@@ -834,35 +1179,35 @@ namespace april::simd::internal::scalar {
         // ------------------
 
         [[nodiscard]] static Packed fma(const Packed& x, const Packed& y, const Packed& z) {
-            if constexpr (std::integral<value_type>) {
-                return x.zip3(y, z, [](value_type a, value_type b, value_type c) {
+            if constexpr (std::integral<storage_type>) {
+                return x.zip3(y, z, [](storage_type a, storage_type b, storage_type c) {
                     return a * b + c;
                 });
             } else {
-                return x.zip3(y, z, [](value_type a, value_type b, value_type c) {
+                return x.zip3(y, z, [](storage_type a, storage_type b, storage_type c) {
                     return std::fma(a, b, c);
                 });
             }
         }
 
-        [[nodiscard]] static Packed fmod(const Packed& x, const Packed& y) requires std::floating_point<value_type> {
-            return x.zip(y, [](value_type lhs, value_type rhs) {
+        [[nodiscard]] static Packed fmod(const Packed& x, const Packed& y) requires std::floating_point<storage_type> {
+            return x.zip(y, [](storage_type lhs, storage_type rhs) {
                 return std::fmod(lhs, rhs);
             });
         }
 
         [[nodiscard]] static Packed remainder(const Packed& x, const Packed& y)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return x.zip(y, [](value_type lhs, value_type rhs) {
+            return x.zip(y, [](storage_type lhs, storage_type rhs) {
                 return std::remainder(lhs, rhs);
             });
         }
 
         [[nodiscard]] static Packed copysign(const Packed& magnitude, const Packed& sign)
-            requires std::floating_point<value_type>
+            requires std::floating_point<storage_type>
         {
-            return magnitude.zip(sign, [](value_type magnitude_value, value_type sign_value) {
+            return magnitude.zip(sign, [](storage_type magnitude_value, storage_type sign_value) {
                 return std::copysign(magnitude_value, sign_value);
             });
         }
@@ -872,8 +1217,8 @@ namespace april::simd::internal::scalar {
         // --------------
 
         [[nodiscard]] static mask_type isnan(const Packed& x) {
-            if constexpr (std::floating_point<value_type>) {
-                return x.test([](value_type value) {
+            if constexpr (std::floating_point<storage_type>) {
+                return x.test([](storage_type value) {
                     return std::isnan(value);
                 });
             } else {
@@ -882,8 +1227,8 @@ namespace april::simd::internal::scalar {
         }
 
         [[nodiscard]] static mask_type isinf(const Packed& x) {
-            if constexpr (std::floating_point<value_type>) {
-                return x.test([](value_type value) {
+            if constexpr (std::floating_point<storage_type>) {
+                return x.test([](storage_type value) {
                     return std::isinf(value);
                 });
             } else {
@@ -892,8 +1237,8 @@ namespace april::simd::internal::scalar {
         }
 
         [[nodiscard]] static mask_type isfinite(const Packed& x) {
-            if constexpr (std::floating_point<value_type>) {
-                return x.test([](value_type value) {
+            if constexpr (std::floating_point<storage_type>) {
+                return x.test([](storage_type value) {
                     return std::isfinite(value);
                 });
             } else {
@@ -902,14 +1247,14 @@ namespace april::simd::internal::scalar {
         }
 
         [[nodiscard]] static mask_type signbit(const Packed& x) {
-            if constexpr (std::is_unsigned_v<value_type>) {
+            if constexpr (std::is_unsigned_v<storage_type>) {
                 return mask_type{false};
-            } else if constexpr (std::integral<value_type>) {
-                return x.test([](value_type value) {
-                    return value < value_type{0};
+            } else if constexpr (std::integral<storage_type>) {
+                return x.test([](storage_type value) {
+                    return value < storage_type{0};
                 });
             } else {
-                return x.test([](value_type value) {
+                return x.test([](storage_type value) {
                     return std::signbit(value);
                 });
             }
@@ -919,41 +1264,41 @@ namespace april::simd::internal::scalar {
         // Bitwise operators
         // -----------------
 
-        friend Packed operator~(const Packed& value) requires std::integral<value_type> {
-            return value.map([](value_type lane) {
-                return static_cast<value_type>(~lane);
+        friend Packed operator~(const Packed& value) requires std::integral<storage_type> {
+            return value.map([](storage_type lane) {
+                return static_cast<storage_type>(~lane);
             });
         }
 
-        friend Packed operator&(const Packed& lhs, const Packed& rhs) requires std::integral<value_type> {
-            return lhs.zip(rhs, [](value_type a, value_type b) {
-                return static_cast<value_type>(a & b);
+        friend Packed operator&(const Packed& lhs, const Packed& rhs) requires std::integral<storage_type> {
+            return lhs.zip(rhs, [](storage_type a, storage_type b) {
+                return static_cast<storage_type>(a & b);
             });
         }
 
-        friend Packed operator|(const Packed& lhs, const Packed& rhs) requires std::integral<value_type> {
-            return lhs.zip(rhs, [](value_type a, value_type b) {
-                return static_cast<value_type>(a | b);
+        friend Packed operator|(const Packed& lhs, const Packed& rhs) requires std::integral<storage_type> {
+            return lhs.zip(rhs, [](storage_type a, storage_type b) {
+                return static_cast<storage_type>(a | b);
             });
         }
 
-        friend Packed operator^(const Packed& lhs, const Packed& rhs) requires std::integral<value_type> {
-            return lhs.zip(rhs, [](value_type a, value_type b) {
-                return static_cast<value_type>(a ^ b);
+        friend Packed operator^(const Packed& lhs, const Packed& rhs) requires std::integral<storage_type> {
+            return lhs.zip(rhs, [](storage_type a, storage_type b) {
+                return static_cast<storage_type>(a ^ b);
             });
         }
 
-        Packed& operator&=(const Packed& rhs) requires std::integral<value_type> {
+        Packed& operator&=(const Packed& rhs) requires std::integral<storage_type> {
             for (size_t i = 0; i < size(); ++i) data[i] &= rhs.data[i];
             return *this;
         }
 
-        Packed& operator|=(const Packed& rhs) requires std::integral<value_type> {
+        Packed& operator|=(const Packed& rhs) requires std::integral<storage_type> {
             for (size_t i = 0; i < size(); ++i) data[i] |= rhs.data[i];
             return *this;
         }
 
-        Packed& operator^=(const Packed& rhs) requires std::integral<value_type> {
+        Packed& operator^=(const Packed& rhs) requires std::integral<storage_type> {
             for (size_t i = 0; i < size(); ++i) data[i] ^= rhs.data[i];
             return *this;
         }
@@ -962,16 +1307,16 @@ namespace april::simd::internal::scalar {
         // Reductions
         // ----------
 
-        [[nodiscard]] value_type reduce_add() const {
-            value_type result{};
+        [[nodiscard]] storage_type reduce_add() const {
+            storage_type result{};
 
             for (size_t i = 0; i < size(); ++i) result += data[i];
 
             return result;
         }
 
-        [[nodiscard]] value_type reduce_min() const {
-            value_type result = data[0];
+        [[nodiscard]] storage_type reduce_min() const {
+            storage_type result = data[0];
 
             for (size_t i = 1; i < size(); ++i) {
                 if (data[i] < result) result = data[i];
@@ -980,8 +1325,8 @@ namespace april::simd::internal::scalar {
             return result;
         }
 
-        [[nodiscard]] value_type reduce_max() const {
-            value_type result = data[0];
+        [[nodiscard]] storage_type reduce_max() const {
+            storage_type result = data[0];
 
             for (size_t i = 1; i < size(); ++i) {
                 if (data[i] > result) result = data[i];
@@ -995,7 +1340,13 @@ namespace april::simd::internal::scalar {
         // ------------------------
 
         [[nodiscard]] std::array<value_type, size()> to_array() const {
-            return data;
+            std::array<value_type, size()> result;
+
+            for (size_t i = 0; i < size(); ++i) {
+                result[i] = store_scalar<value_type>(data[i]);
+            }
+
+            return result;
         }
 
         [[nodiscard]] std::string to_string() const {
@@ -1013,11 +1364,11 @@ namespace april::simd::internal::scalar {
 
     private:
         template<typename Fn>
-        [[nodiscard]] Packed map(Fn&& fn) const {
+[[nodiscard]] Packed map(Fn&& fn) const {
             Packed result;
 
             for (size_t i = 0; i < size(); ++i) {
-                result.data[i] = static_cast<value_type>(fn(data[i]));
+                result.data[i] = static_cast<storage_type>(fn(data[i]));
             }
 
             return result;
@@ -1028,7 +1379,7 @@ namespace april::simd::internal::scalar {
             Packed result;
 
             for (size_t i = 0; i < size(); ++i) {
-                result.data[i] = static_cast<value_type>(fn(data[i], rhs.data[i]));
+                result.data[i] = static_cast<storage_type>(fn(data[i], rhs.data[i]));
             }
 
             return result;
@@ -1045,12 +1396,12 @@ namespace april::simd::internal::scalar {
             return result;
         }
 
-         template<typename Fn>
+        template<typename Fn>
         [[nodiscard]] Packed zip3(const Packed& b, const Packed& c, Fn&& fn) const {
             Packed result;
 
             for (size_t i = 0; i < size(); ++i) {
-                result.data[i] = static_cast<value_type>(fn(data[i], b.data[i], c.data[i]));
+                result.data[i] = static_cast<storage_type>(fn(data[i], b.data[i], c.data[i]));
             }
 
             return result;
@@ -1065,6 +1416,19 @@ namespace april::simd::internal::scalar {
             }
 
             return result;
+        }
+
+        template<typename U>
+        [[nodiscard]] static constexpr storage_type load_scalar(const U value) noexcept {
+            if constexpr (std::is_enum_v<U>)
+                return static_cast<storage_type>(std::to_underlying(value));
+            else
+                return static_cast<storage_type>(value);
+        }
+
+        template<typename U>
+        [[nodiscard]] static constexpr U store_scalar(const storage_type value) noexcept {
+            return static_cast<U>(value);
         }
     };
 
@@ -1082,4 +1446,6 @@ namespace april::simd::internal::scalar {
     static_assert(april::simd::IsSimdType<Packed<double, 2>>);
     static_assert(april::simd::IsSimdMask<Mask<float, 4>>);
     static_assert(april::simd::IsSimdMask<Mask<double, 2>>);
+
+
 }

@@ -223,30 +223,6 @@ namespace april::simd::internal::xsimd {
         }
 
 
-        // ------------
-        // DATA GATHERS
-        // ------------
-        // Gather via offsets
-        template<typename PtrT, typename IndexType>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
-        static Packed gather(const PtrT* base_addr, const IndexType& offsets) {
-            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
-                alignas(alignof(native_type)) value_type temp[size()];
-                for (size_t i = 0; i < size(); ++i) {
-                    temp[i] = static_cast<value_type>(base_addr[offsets.data[i]]);
-                }
-                return { ::xsimd::load_aligned(temp) };
-            } else {
-                return { native_type::gather(reinterpret_cast<const value_type*>(base_addr), offsets.data) };
-            }
-        }
-
-        // Gather via array of pointers
-        template<typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
-        static Packed gather(const PtrT* const* pointers) {
-            return gather_impl(pointers, std::make_index_sequence<size()>{});
-        }
 
 
         // -----------
@@ -275,25 +251,143 @@ namespace april::simd::internal::xsimd {
         requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
         void store_aligned(PtrT* ptr) const {
             if constexpr (sizeof(PtrT) < sizeof(value_type)) {
-                store_unaligned(ptr);
+                store_unaligned(ptr); // why?
             } else {
                 ::xsimd::store_aligned(reinterpret_cast<value_type*>(ptr), data);
             }
         }
 
-        template<typename PtrT, typename IndexType>
+
+        // ------------
+        // DATA GATHERS
+        // ------------
+        template<typename PtrT>
+        requires (sizeof(PtrT) <= sizeof(value_type))
+        static Packed gather(const PtrT* base_addr, const ByteOffsets<Width>& offsets) {
+            // address(i) =
+            // reinterpret_cast<const std::byte*>(base_addr) + offsets.values[i]
+
+            // TODO:
+            // same-width fast path:
+            //   convert byte offsets to backend-compatible gather indices
+            //   use native_type::gather(...)
+            //
+            // narrower fallback:
+            //   scalar gather -> temp[] -> SIMD load
+        }
+
+        template<typename PtrT>
+        requires (sizeof(PtrT) <= sizeof(value_type))
+        static Packed gather_strided(const PtrT* ptr, const std::ptrdiff_t byte_stride) {
+            // address(i) =
+            // reinterpret_cast<const std::byte*>(ptr) + i * byte_stride
+
+            // TODO:
+            // build ByteOffsets<size()>:
+            //   {0, stride, 2*stride, ...}
+            //
+            // delegate to gather(ptr, offsets)
+        }
+
+
+        template<typename PtrT>
+        requires (sizeof(PtrT) <= sizeof(value_type))
+        void scatter(PtrT* base_addr, const ByteOffsets<Width>& offsets) const {
+            // address(i) =
+            // reinterpret_cast<std::byte*>(base_addr) + offsets.values[i]
+
+            // TODO:
+            // same-width fast path:
+            //   convert byte offsets to backend-compatible scatter indices
+            //   data.scatter(...)
+            //
+            // narrower fallback:
+            //   SIMD store -> temp[] -> scalar scatter
+        }
+
+        template<typename PtrT>
+        requires (sizeof(PtrT) <= sizeof(value_type))
+        void scatter_strided(PtrT* ptr, const std::ptrdiff_t byte_stride) const {
+            // address(i) =
+            // reinterpret_cast<std::byte*>(ptr) + i * byte_stride
+
+            // TODO:
+            // build ByteOffsets<size()>:
+            //   {0, stride, 2*stride, ...}
+            //
+            // delegate to scatter(ptr, offsets)
+        }
+
+        template<std::ptrdiff_t ByteStride, typename PtrT>
         requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
-        void scatter(PtrT* base_addr, const IndexType& offsets) const {
-            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
-                alignas(alignof(native_type)) value_type temp[size()];
-                ::xsimd::store_aligned(temp, data);
-                for (size_t i = 0; i < size(); ++i) {
-                    base_addr[offsets.data[i]] = static_cast<PtrT>(temp[i]);
-                }
+        static Packed gather_strided(const PtrT* ptr) {
+            if constexpr (ByteStride == sizeof(PtrT)) {
+                return load(ptr);
+            } else if constexpr (
+                (ByteStride % sizeof(PtrT) == 0) &&
+                (sizeof(value_type) == 4 || sizeof(value_type) == 8)
+            ) {
+                using index_value_type = std::conditional_t<
+                    sizeof(value_type) == 8,
+                    std::int64_t,
+                    std::int32_t
+                >;
+
+                using index_type = ::xsimd::batch<index_value_type,typename native_type::arch_type>;
+                constexpr std::ptrdiff_t ElementStride = ByteStride / sizeof(PtrT);
+
+                static_assert(index_type::size == size());
+
+                const auto indices = make_strided_indices<ElementStride, index_type>(
+                    std::make_index_sequence<size()>{}
+                );
+
+                return {native_type::gather(ptr, indices)};
             } else {
-                data.scatter(reinterpret_cast<value_type*>(base_addr), offsets.data);
+                return gather_strided_fallback<ByteStride>(
+                    ptr,
+                    std::make_index_sequence<size()>{}
+                );
             }
         }
+
+        template<std::ptrdiff_t ByteStride, typename PtrT>
+        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        void scatter_strided(PtrT* ptr) const {
+            if constexpr (ByteStride == sizeof(PtrT)) {
+                store(ptr);
+            } else if constexpr (
+                (ByteStride % sizeof(PtrT) == 0) &&
+                (sizeof(value_type) == 4 || sizeof(value_type) == 8)
+            ) {
+                using index_value_type = std::conditional_t<
+                    sizeof(value_type) == 8,
+                    std::int64_t,
+                    std::int32_t
+                >;
+
+                using index_type = ::xsimd::batch<index_value_type,typename native_type::arch_type>;
+                constexpr std::ptrdiff_t ElementStride =ByteStride / sizeof(PtrT);
+
+                static_assert(index_type::size == size());
+
+                const auto indices = make_strided_indices<ElementStride, index_type>(
+                    std::make_index_sequence<size()>{}
+                );
+
+                data.scatter(ptr, indices);
+            } else {
+                scatter_strided_fallback<ByteStride>(
+                    ptr,
+                    std::make_index_sequence<size()>{}
+                );
+            }
+        }
+
+
+
+
+
 
         // PERMUTES AND SHUFFLES
         template<size_t... Indices>
@@ -607,18 +701,16 @@ namespace april::simd::internal::xsimd {
         }
 
     private:
-        template<typename PtrT, size_t... Is>
-        static Packed gather_impl(const PtrT* const * pointers, std::index_sequence<Is...>) {
-            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
-                alignas(alignof(native_type)) value_type temp[size()];
-                // Fold expression to unpack the pointers
-                size_t i = 0;
-                ((temp[i++] = static_cast<value_type>(*pointers[Is])), ...);
-                return { ::xsimd::load_aligned(temp) };
-            } else {
-                return { ::xsimd::batch<value_type>(*reinterpret_cast<const value_type*>(pointers[Is])...) };
-            }
+
+        template<std::ptrdiff_t ElementStride, typename IndexType, size_t... Is>
+        static constexpr auto make_strided_indices(std::index_sequence<Is...>) {
+            return IndexType(
+                static_cast<typename IndexType::value_type>(
+                    Is * ElementStride
+                )...
+            );
         }
+
 
         native_type data;
     };

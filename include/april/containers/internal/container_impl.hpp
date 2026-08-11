@@ -189,7 +189,7 @@ namespace april::container {
 
 				if constexpr (particle::IsPackedParticleAccessor<PType>) {
 
-					const auto mask = (p.state & +state) != 0;
+					const auto mask = (p.state & state) != 0;
 					p.mask_with(mask);
 					indexed_kernel(i, p);
 

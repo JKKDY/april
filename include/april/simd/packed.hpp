@@ -23,41 +23,48 @@ defined(APRIL_SIMD_BACKEND_SCALAR) \
     #include "april/simd/backends/backend_xsimd.hpp"
 
     namespace april::simd {
-        template<typename T, size_t W = 8>
-        using Packed = internal::xsimd::Packed<T, W>;
-
-        template<typename T, size_t W = 8>
-        using PackedMask = internal::xsimd::Mask<T, W>;
+        namespace backend = internal::xsimd;
     }
-
 
 #elif defined(APRIL_SIMD_BACKEND_STD_SIMD)
 
-    #include "april/simd/backends/backend_std_simd.hpp"
+#include "april/simd/backends/backend_std_simd.hpp"
 
-    namespace april::simd {
-        template<typename T, size_t W = 2>
-        using Packed = internal::std_simd::Packed<T, W>;
-
-        template<typename T, size_t W = 2>
-        using PackedMask = internal::std_simd::Mask<T, W>;
+namespace april::simd {
+        namespace backend = internal::std_simd;
     }
 
 #elif defined(APRIL_SIMD_BACKEND_SCALAR)
 
-    #include "april/simd/backends/backend_scalar.hpp"
+#include "april/simd/backends/backend_scalar.hpp"
 
-    namespace april::simd {
-        template<typename T, size_t W = 8>
-        using Packed = internal::scalar::Packed<T, W>;
-
-        template<typename T, size_t W = 8>
-        using PackedMask = internal::scalar::Mask<T, W>;
+namespace april::simd {
+        namespace backend = internal::scalar;
     }
 
 #else
 #error "[APRIL] No SIMD backend selected."
 #endif
+
+
+
+namespace april::simd {
+
+    inline constexpr size_t float_width =
+        backend::Packed<float, 0>::size();
+
+    inline constexpr size_t double_width =
+        backend::Packed<double, 0>::size();
+
+
+    template<typename T, size_t W = double_width>
+    using Packed = backend::Packed<T, W>;
+
+    template<typename T, size_t W = double_width>
+    using PackedMask = backend::Mask<T, W>;
+
+}
+
 
 // static checks
 namespace april::simd::internal {

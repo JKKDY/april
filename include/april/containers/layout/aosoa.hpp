@@ -426,6 +426,13 @@ namespace april::container::layout {
         }
 
         template <ParticleField F>
+        APRIL_FORCE_INLINE auto get_field_ptr_packed(this auto&& self, size_t i) {
+            // locate data, then forward to the fast path
+            const auto [chunk_idx, lane_idx] = self.locate(i);
+            return self.template get_field_ptr_packed<F>(chunk_idx, lane_idx);
+        }
+
+        template <ParticleField F>
         APRIL_FORCE_INLINE auto get_field_ptr(this auto&& self, size_t chunk_idx, size_t lane_idx) {
             auto& chunk = self.ptr_chunks[chunk_idx];
 
@@ -445,6 +452,60 @@ namespace april::container::layout {
             else if constexpr (F == ParticleField::type) return &chunk.type[lane_idx];
             else if constexpr (F == ParticleField::id) return &chunk.id[lane_idx];
             else if constexpr (F == ParticleField::attributes) return &chunk.attributes[lane_idx];
+        }
+
+        template<ParticleField F>
+        APRIL_FORCE_INLINE auto get_field_ptr_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
+            auto& chunk = self.ptr_chunks[chunk_idx];
+
+            APRIL_ASSERT(
+                lane_idx % packed::size() == 0,
+                "Packed AoSoA access must start on a SIMD-width boundary"
+            );
+
+            if constexpr (F == ParticleField::position) {
+                return math::Vec3Location{
+                    simd::aligned_location(&chunk.pos_x[lane_idx]),
+                    simd::aligned_location(&chunk.pos_y[lane_idx]),
+                    simd::aligned_location(&chunk.pos_z[lane_idx])
+                };
+            }
+            else if constexpr (F == ParticleField::velocity) {
+                return math::Vec3Location{
+                    simd::aligned_location(&chunk.vel_x[lane_idx]),
+                    simd::aligned_location(&chunk.vel_y[lane_idx]),
+                    simd::aligned_location(&chunk.vel_z[lane_idx])
+                };
+            }
+            else if constexpr (F == ParticleField::force) {
+                return math::Vec3Location{
+                    simd::aligned_location(&chunk.frc_x[lane_idx]),
+                    simd::aligned_location(&chunk.frc_y[lane_idx]),
+                    simd::aligned_location(&chunk.frc_z[lane_idx])
+                };
+            }
+            else if constexpr (F == ParticleField::old_position) {
+                return math::Vec3Location{
+                    simd::aligned_location(&chunk.old_x[lane_idx]),
+                    simd::aligned_location(&chunk.old_y[lane_idx]),
+                    simd::aligned_location(&chunk.old_z[lane_idx])
+                };
+            }
+            else if constexpr (F == ParticleField::mass) {
+                return simd::aligned_location(&chunk.mass[lane_idx]);
+            }
+            else if constexpr (F == ParticleField::state) {
+                return simd::contiguous_location(&chunk.state[lane_idx]);
+            }
+            else if constexpr (F == ParticleField::type) {
+                return simd::contiguous_location(&chunk.type[lane_idx]);
+            }
+            else if constexpr (F == ParticleField::id) {
+                return simd::contiguous_location(&chunk.id[lane_idx]);
+            }
+            else if constexpr (F == ParticleField::attributes) {
+                return &chunk.attributes[lane_idx];
+            }
         }
 
     private:

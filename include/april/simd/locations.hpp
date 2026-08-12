@@ -36,48 +36,53 @@ namespace april::simd {
 
 
 
-
-    template<typename T, bool = std::is_enum_v<std::remove_cv_t<T>>>
-    struct location_value {
-        using type = std::remove_cv_t<T>;
+    enum class Alignment {
+        Unaligned,
+        Aligned
     };
 
-    template<typename T>
-    struct location_value<T, true> {
-        using type = std::underlying_type_t<std::remove_cv_t<T>>;
-    };
 
-    template<typename T>
-    using location_value_t = location_value<T>::type;
-
-
-
-
-    template<typename T>
+    template<typename T, Alignment A = Alignment::Unaligned>
     struct ContiguousLocation {
-        using value_type =  std::remove_cv_t<T>;
-        using storage_type = packed_storage_t<value_type>;
-        using packed_type = Packed<value_type>;
+            using value_type = std::remove_cv_t<T>;
+            using storage_type = packed_storage_t<value_type>;
+            using packed_type = Packed<value_type>;
 
-        T* ptr;
+            T* ptr;
 
-        [[nodiscard]] packed_type load() const noexcept {
-            return packed_type::load(ptr);
-        }
+            [[nodiscard]] packed_type load() const noexcept {
+                auto* storage = reinterpret_cast<const storage_type*>(ptr);
 
-        void store(const packed_type& value) const noexcept
-            requires (!std::is_const_v<T>)
-        {
-            value.store(ptr);
-        }
-    };
+                if constexpr (A == Alignment::Aligned)
+                    return packed_type::load_aligned(storage);
+                else
+                    return packed_type::load_unaligned(storage);
+            }
 
+            void store(const packed_type& value) const noexcept
+                requires (!std::is_const_v<T>)
+            {
+                auto* storage = reinterpret_cast<storage_type*>(ptr);
 
+                if constexpr (A == Alignment::Aligned)
+                    value.store_aligned(storage);
+                else
+                    value.store_unaligned(storage);
+            }
+        };
 
     template<typename T>
     ContiguousLocation(T*) -> ContiguousLocation<T>;
 
+    template<typename T>
+    auto aligned_location(T* ptr) {
+        return ContiguousLocation<T, Alignment::Aligned>{ptr};
+    }
 
+    template<typename T>
+    auto contiguous_location(T* ptr) {
+        return ContiguousLocation<T, Alignment::Unaligned>{ptr};
+    }
 
     inline constexpr std::ptrdiff_t dynamic_stride = -1;
 

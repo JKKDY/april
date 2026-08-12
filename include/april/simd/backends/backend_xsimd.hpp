@@ -12,62 +12,232 @@
 #include "april/simd/packed_concept.hpp"
 
 namespace april::simd::internal::xsimd {
-    template<typename T, size_t Width = 0> struct Packed;
+
+
+	template<typename T, size_t Width>
+	consteval bool has_sized_batch() {
+		if constexpr (Width == 0)
+			return true;
+		else
+			return !std::is_void_v<::xsimd::make_sized_batch_t<T, Width>>;
+	}
+
+	template<typename T, size_t Width>
+	struct native_storage {
+		using storage_type = std::remove_cv_t<T>;
+
+		using int16_type = std::conditional_t<
+			std::is_signed_v<storage_type>,
+			std::int16_t,
+			std::uint16_t
+		>;
+
+		using int32_type = std::conditional_t<
+			std::is_signed_v<storage_type>,
+			std::int32_t,
+			std::uint32_t
+		>;
+
+		using int64_type = std::conditional_t<
+			std::is_signed_v<storage_type>,
+			std::int64_t,
+			std::uint64_t
+		>;
+
+		using type = std::conditional_t<
+			has_sized_batch<storage_type, Width>(),
+			storage_type,
+			std::conditional_t<
+				std::integral<storage_type> &&
+				sizeof(storage_type) < sizeof(int16_type) &&
+				has_sized_batch<int16_type, Width>(),
+				int16_type,
+				std::conditional_t<
+					std::integral<storage_type> &&
+					sizeof(storage_type) < sizeof(int32_type) &&
+					has_sized_batch<int32_type, Width>(),
+					int32_type,
+					std::conditional_t<
+						std::integral<storage_type> &&
+						sizeof(storage_type) < sizeof(int64_type) &&
+						has_sized_batch<int64_type, Width>(),
+						int64_type,
+						void
+					>
+				>
+			>
+		>;
+	};
+
+	template<typename T, size_t Width>
+	using native_storage_t = typename native_storage<T, Width>::type;
+
+
+    template<typename T, size_t Width> struct Packed;
 
 
     template<typename T, size_t Width = 0>
     struct Mask {
-        using native_type = Packed<T, Width>::native_type::batch_bool_type;
+        using value_type = std::remove_cv_t<T>;
+        using native_type = typename Packed<T, Width>::native_type::batch_bool_type;
 
         Mask() = default;
-        Mask(native_type d) : data(d) {}
-        Mask(bool val) : data(val) {}
 
-        operator native_type() const { return data; }
-        static constexpr size_t size() { return native_type::size; }
+        Mask(bool value)
+            : data(value)
+        {}
+
+        Mask(const native_type& value)
+            : data(value)
+        {}
+
+        Mask(native_type&& value)
+            : data(std::move(value))
+        {}
+
+        Mask(const Mask&) = default;
+        Mask(Mask&&) = default;
+
+        Mask& operator=(const Mask&) = default;
+        Mask& operator=(Mask&&) = default;
+
+        [[nodiscard]] static constexpr size_t size() {
+            return native_type::size;
+        }
+
+        // Implicit conversion between masks with the same logical width.
+        template<typename U>
+        requires (!std::same_as<T, U> && (size() == Mask<U, Width>::size()))
+        Mask(const Mask<U, Width>& other)
+        : data(convert_mask(other))
+            {}
 
         template<typename U>
-        requires (size() == Mask<U, Width>::size())
-        operator Mask<U, Width>() const {
-            if constexpr (sizeof(T) == sizeof(U)) {
-                // Zero-cost hardware reinterpret for same-size types
-                return { ::xsimd::bitwise_cast<typename Mask<U, Width>::native_type>(data) };
-            } else {
-                // Generates hardware widening/narrowing instructions
-                return { ::xsimd::batch_bool_cast<U>(data) };
-            }
+        requires (!std::same_as<T, U> && (size() == Mask<U, Width>::size()))
+        Mask& operator=(const Mask<U, Width>& other) {
+            data = convert_mask(other);
+            return *this;
+        }
+
+        Mask& operator=(bool value) {
+            data = native_type(value);
+            return *this;
+        }
+
+        [[nodiscard]] const native_type& native() const noexcept {
+            return data;
+        }
+
+        [[nodiscard]] native_type& native() noexcept {
+            return data;
         }
 
 
-        // DATA LOADS
-        static Mask load(const bool* ptr) { return { native_type::load_unaligned(ptr) }; }
-        static Mask load_aligned(const bool* ptr) { return { native_type::load_aligned(ptr) }; }
-        static Mask load_unaligned(const bool* ptr) { return { native_type::load_unaligned(ptr) }; }
+        // Loads
+        static Mask load(const bool* ptr) {
+	        return load_unaligned(ptr);
+        }
 
-        // DATA STORES
-        void store(bool* ptr) const { data.store_unaligned(ptr); }
-        void store_aligned(bool* ptr) const { data.store_aligned(ptr); }
-        void store_unaligned(bool* ptr) const { data.store_unaligned(ptr); }
+        static Mask load_aligned(const bool* ptr) {
+	        return Mask{native_type::load_aligned(ptr)};
+        }
 
-        // Logical Reductions
-        [[nodiscard]] static bool all(const Mask& mask) { return ::xsimd::all(mask.data); }
-        [[nodiscard]] static bool any(const Mask& mask) { return ::xsimd::any(mask.data); }
-        [[nodiscard]] static bool none(const Mask& mask) { return !::xsimd::any(mask.data); }
+        static Mask load_unaligned(const bool* ptr) {
+	        return Mask{native_type::load_unaligned(ptr)};
+        }
 
-        // Bitwise/Logical Ops
-        friend Mask operator~(const Mask& m) { return { ~m.data }; }
-        friend Mask operator!(const Mask& m) { return { !m.data }; }
-        friend Mask operator^(const Mask& lhs, const Mask& rhs) { return { lhs.data ^ rhs.data }; }
-        friend Mask operator&&(const Mask& lhs, const Mask& rhs) { return { lhs.data && rhs.data }; }
-        friend Mask operator&(const Mask& lhs, const Mask& rhs)  { return { lhs.data & rhs.data }; }
-        friend Mask operator||(const Mask& lhs, const Mask& rhs) { return { lhs.data || rhs.data }; }
-        friend Mask operator|(const Mask& lhs, const Mask& rhs)  { return { lhs.data | rhs.data }; }
+        // Stores
+        void store(bool* ptr) const {
+	        store_unaligned(ptr);
+        }
 
-        // equality
-        friend Mask operator==(const Mask& lhs, const Mask& rhs) { return { lhs.data == rhs.data }; }
-        friend Mask operator!=(const Mask& lhs, const Mask& rhs) { return { lhs.data != rhs.data }; }
+        void store_aligned(bool* ptr) const {
+	        data.store_aligned(ptr);
+        }
 
-        // rotates
+        void store_unaligned(bool* ptr) const {
+	        data.store_unaligned(ptr);
+        }
+
+        // Logical reductions
+        [[nodiscard]] static bool all(const Mask& mask) {
+	        return ::xsimd::all(mask.data);
+        }
+
+        [[nodiscard]] static bool any(const Mask& mask) {
+	        return ::xsimd::any(mask.data);
+        }
+
+        [[nodiscard]] static bool none(const Mask& mask) {
+	        return !::xsimd::any(mask.data);
+        }
+
+        // Logical operators
+        friend Mask operator!(const Mask& mask) {
+	        return Mask{!mask.data};
+        }
+
+        template<typename U>
+        friend Mask operator&&(const Mask& lhs, const Mask<U, Width>& rhs) {
+	        return Mask{lhs.data && convert_mask(rhs)};
+        }
+
+        template<typename U>
+        friend Mask operator||(const Mask& lhs, const Mask<U, Width>& rhs) {
+	        return Mask{lhs.data || convert_mask(rhs)};
+        }
+
+        // Bitwise operators
+        friend Mask operator~(const Mask& mask) {
+	        return Mask{~mask.data};
+        }
+
+        template<typename U>
+        friend Mask operator&(const Mask& lhs, const Mask<U, Width>& rhs) {
+	        return Mask{lhs.data & convert_mask(rhs)};
+        }
+
+        template<typename U>
+        friend Mask operator|(const Mask& lhs, const Mask<U, Width>& rhs) {
+	        return Mask{lhs.data | convert_mask(rhs)};
+        }
+
+        template<typename U>
+        friend Mask operator^(const Mask& lhs, const Mask<U, Width>& rhs) {
+	        return Mask{lhs.data ^ convert_mask(rhs)};
+        }
+
+        // Lane-wise equality
+        template<typename U>
+        friend Mask operator==(const Mask& lhs, const Mask<U, Width>& rhs) {
+	        return Mask{lhs.data == convert_mask(rhs)};
+        }
+
+        template<typename U>
+        friend Mask operator!=(const Mask& lhs, const Mask<U, Width>& rhs) {
+	        return Mask{lhs.data != convert_mask(rhs)};
+        }
+
+        // Compound operators
+        template<typename U>
+        Mask& operator&=(const Mask<U, Width>& rhs) {
+	        data = data & convert_mask(rhs);
+	        return *this;
+        }
+
+        template<typename U>
+        Mask& operator|=(const Mask<U, Width>& rhs) {
+	        data = data | convert_mask(rhs);
+	        return *this;
+        }
+
+        template<typename U>
+        Mask& operator^=(const Mask<U, Width>& rhs) {
+	        data = data ^ convert_mask(rhs);
+	        return *this;
+        }
+
+        // Rotations
         template<unsigned K = 1>
         void rotate_right() {
             rotate<K>();
@@ -78,20 +248,15 @@ namespace april::simd::internal::xsimd {
             rotate<(size() - (K % size())) % size()>();
         }
 
-
         // EXPORTS / DEBUGGING
-        [[nodiscard]] uint64_t to_bitmask() const {
-            return data.mask();
+        [[nodiscard]] std::uint64_t to_bitmask() const {
+            static_assert(size() <= 64, "Mask bit export supports at most 64 lanes");
+            return static_cast<std::uint64_t>(data.mask());
         }
 
-        static Mask from_bitmask(uint64_t bits) {
-            std::array<bool, size()> lanes{};
-
-            for (size_t i = 0; i < size(); ++i) {
-                lanes[i] = ((bits >> i) & uint64_t{1}) != 0;
-            }
-
-            return load_unaligned(lanes.data());
+        static Mask from_bitmask(const std::uint64_t bits) {
+            static_assert(size() <= 64, "Mask bit import supports at most 64 lanes");
+            return Mask{native_type::from_mask(bits)};
         }
 
         [[nodiscard]] std::array<bool, size()> to_array() const {
@@ -114,6 +279,18 @@ namespace april::simd::internal::xsimd {
 
         native_type data;
     private:
+        template<typename U>
+        [[nodiscard]] static native_type convert_mask(
+            const Mask<U, Width>& other
+        ) {
+            static_assert(
+                size() == Mask<U, Width>::size(),
+                "Cannot convert masks with different logical widths"
+            );
+
+            return native_type::from_mask(other.to_bitmask());
+        }
+
         template<unsigned K>
         void rotate() {
             constexpr unsigned Shift = K % size();
@@ -137,589 +314,1368 @@ namespace april::simd::internal::xsimd {
             } else {
                 // SSE/AVX masks occupy full SIMD lanes, where native rotation is cheaper.
                 using Batch = native_type::batch_type;
-                data = ::xsimd::rotate_right<Shift>(Batch(data)) != Batch(T{0});
+                using BatchValue = Batch::value_type;
+
+                data = ::xsimd::rotate_right<Shift>(Batch(data)) != Batch(BatchValue{0});
             }
         }
     };
-
-    // Mixed-type bitwise operators
-    template <typename T, typename U, size_t Width>
-    requires (sizeof(T) == sizeof(U) && !std::is_same_v<T, U>)
-    Mask<T, Width> operator&(const Mask<T, Width>& lhs, const Mask<U, Width>& rhs) {
-        return lhs & static_cast<Mask<T, Width>>(rhs);
-    }
-
-    template <typename T, typename U, size_t Width>
-    requires (sizeof(T) == sizeof(U) && !std::is_same_v<T, U>)
-    Mask<T, Width> operator|(const Mask<T, Width>& lhs, const Mask<U, Width>& rhs) {
-        return lhs | static_cast<Mask<T, Width>>(rhs);
-    }
-
-    template <typename T, typename U, size_t Width>
-    requires (sizeof(T) == sizeof(U) && !std::is_same_v<T, U>)
-    Mask<T, Width> operator^(const Mask<T, Width>& lhs, const Mask<U, Width>& rhs) {
-        return lhs ^ static_cast<Mask<T, Width>>(rhs);
-    }
 
 
 
 
     template<typename T, size_t Width>
-    struct Packed {
-        using value_type = std::remove_cv_t<T>;
-        using mask_type = Mask<value_type, Width>;
-        using packed_type = Packed;
+	struct Packed {
+    	using value_type = std::remove_cv_t<T>;
+    	using storage_type = packed_storage_t<value_type>;
+    	using native_storage_type = native_storage_t<storage_type, Width>;
 
-        using native_type = std::conditional_t<
-            Width == 0,
-            ::xsimd::batch<value_type>,
-            ::xsimd::make_sized_batch_t<value_type, Width>
-        >;
+    	static_assert(
+			!std::is_void_v<native_storage_type>,
+			"xsimd cannot represent this type at the requested SIMD width"
+		);
 
-        static constexpr size_t size() { return native_type::size; }
+    	using native_type = std::conditional_t<
+			Width == 0,
+			::xsimd::batch<native_storage_type>,
+			::xsimd::make_sized_batch_t<native_storage_type, Width>
+		>;
+
+    	using mask_type = Mask<storage_type, Width>;
+    	using packed_type = Packed;
+
+    	static_assert(
+			Width == 0 || native_type::size == Width,
+			"Native SIMD width does not match logical SIMD width"
+		);
 
         Packed() = default;
-        Packed(T scalar) : data(scalar) {}
-        Packed(native_type d) : data(d) {}
 
-        Packed& operator=(T scalar) {
-            data = native_type(scalar);
+        Packed(value_type value)
+            : data(native_type{load_scalar(value)})
+        {}
+
+        Packed(const native_type& value)
+            : data(value)
+        {}
+
+        Packed(native_type&& value)
+            : data(std::move(value))
+        {}
+
+        Packed(const Packed&) = default;
+        Packed(Packed&&) = default;
+
+        Packed& operator=(const Packed&) = default;
+        Packed& operator=(Packed&&) = default;
+
+        Packed& operator=(value_type value) {
+            data = native_type{load_scalar(value)};
             return *this;
         }
 
-        // ----------
-        // DATA LOADS
-        // ----------
-        template<typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
-        static Packed load(const PtrT* ptr) { return load_unaligned(ptr); }
+        [[nodiscard]] static constexpr size_t size() {
+            return native_type::size;
+        }
 
-        template<typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
-        static Packed load_unaligned(const PtrT* ptr) {
-            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
-                alignas(alignof(native_type)) value_type temp[size()];
-                for (size_t i = 0; i < size(); ++i)
-                    temp[i] = static_cast<value_type>(ptr[i]);
+        [[nodiscard]] const native_type& native() const noexcept {
+            return data;
+        }
 
-                return { native_type::load_aligned(temp) };
-            } else {
-                return { native_type::load_unaligned(
-                    reinterpret_cast<const value_type*>(ptr)
-                ) };
-            }
+        [[nodiscard]] native_type& native() noexcept {
+            return data;
+        }
+
+        // Contiguous loads
+        // ----------------
+        template<typename PtrT>
+        requires (IsPackableValue<std::remove_cv_t<PtrT>> && (sizeof(PtrT) <= sizeof(storage_type)))
+        static Packed load(const PtrT* ptr) {
+	        return load_unaligned(ptr);
         }
 
         template<typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        requires (IsPackableValue<std::remove_cv_t<PtrT>> && (sizeof(PtrT) <= sizeof(storage_type)))
         static Packed load_aligned(const PtrT* ptr) {
-            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
-                return load_unaligned(ptr);
-            } else {
-                return { native_type::load_aligned(
-                    reinterpret_cast<const value_type*>(ptr)
-                ) };
-            }
+	        if constexpr (std::is_enum_v<std::remove_cv_t<PtrT>>) {
+		        alignas(alignof(native_type)) storage_type temp[size()];
+
+		        for (size_t i = 0; i < size(); ++i)
+			        temp[i] = load_scalar(ptr[i]);
+
+		        return Packed{native_type::load_aligned(temp)};
+	        }
+	        else {
+		        return Packed{native_type::load_aligned(ptr)};
+	        }
+        }
+
+        template<typename PtrT>
+        requires (IsPackableValue<std::remove_cv_t<PtrT>> && (sizeof(PtrT) <= sizeof(storage_type)))
+        static Packed load_unaligned(const PtrT* ptr) {
+	        if constexpr (std::is_enum_v<std::remove_cv_t<PtrT>>) {
+		        alignas(alignof(native_type)) storage_type temp[size()];
+
+		        for (size_t i = 0; i < size(); ++i)
+			        temp[i] = load_scalar(ptr[i]);
+
+		        return Packed{native_type::load_aligned(temp)};
+	        }
+	        else {
+		        return Packed{native_type::load_unaligned(ptr)};
+	        }
         }
 
 
-
-
-        // -----------
-        // DATA STORES
-        // -----------
-        // Default store delegates to unaligned
-        template <typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
-        void store(PtrT* ptr) const { store_unaligned(ptr); }
-
-        template <typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
-        void store_unaligned(PtrT* ptr) const {
-            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
-                alignas(alignof(native_type)) value_type temp[size()];
-                ::xsimd::store_aligned(temp, data);
-                for (size_t i = 0; i < size(); ++i) {
-                    ptr[i] = static_cast<PtrT>(temp[i]);
-                }
-            } else {
-                ::xsimd::store_unaligned(reinterpret_cast<value_type*>(ptr), data);
-            }
+        // -----------------
+        // Contiguous stores
+        // -----------------
+        template<typename PtrT>
+        requires (
+	        !std::is_const_v<PtrT> &&
+	        (IsPackableValue<std::remove_cv_t<PtrT>> && (sizeof(PtrT) <= sizeof(storage_type)))
+        )
+        void store(PtrT* ptr) const {
+	        store_unaligned(ptr);
         }
 
-        template <typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
+        template<typename PtrT>
+        requires (
+            !std::is_const_v<PtrT> &&
+            (IsPackableValue<std::remove_cv_t<PtrT>> && (sizeof(PtrT) <= sizeof(storage_type)))
+        )
         void store_aligned(PtrT* ptr) const {
-            if constexpr (sizeof(PtrT) < sizeof(value_type)) {
-                store_unaligned(ptr); // why?
-            } else {
-                ::xsimd::store_aligned(reinterpret_cast<value_type*>(ptr), data);
-            }
-        }
+	        if constexpr (std::is_enum_v<std::remove_cv_t<PtrT>>) {
+		        alignas(alignof(native_type)) storage_type temp[size()];
+		        data.store_aligned(temp);
 
-
-        // ------------
-        // DATA GATHERS
-        // ------------
-        template<typename PtrT>
-        requires (sizeof(PtrT) <= sizeof(value_type))
-        static Packed gather(const PtrT* base_addr, const ByteOffsets<Width>& offsets) {
-            // address(i) =
-            // reinterpret_cast<const std::byte*>(base_addr) + offsets.values[i]
-
-            // TODO:
-            // same-width fast path:
-            //   convert byte offsets to backend-compatible gather indices
-            //   use native_type::gather(...)
-            //
-            // narrower fallback:
-            //   scalar gather -> temp[] -> SIMD load
+		        for (size_t i = 0; i < size(); ++i)
+			        ptr[i] = store_scalar<PtrT>(temp[i]);
+	        }
+	        else {
+		        data.store_aligned(ptr);
+	        }
         }
 
         template<typename PtrT>
-        requires (sizeof(PtrT) <= sizeof(value_type))
-        static Packed gather_strided(const PtrT* ptr, const std::ptrdiff_t byte_stride) {
-            // address(i) =
-            // reinterpret_cast<const std::byte*>(ptr) + i * byte_stride
+        requires (
+            !std::is_const_v<PtrT> &&
+            (IsPackableValue<std::remove_cv_t<PtrT>> && (sizeof(PtrT) <= sizeof(storage_type)))
+        )
+        void store_unaligned(PtrT* ptr) const {
+	        if constexpr (std::is_enum_v<std::remove_cv_t<PtrT>>) {
+		        alignas(alignof(native_type)) storage_type temp[size()];
+		        data.store_aligned(temp);
 
-            // TODO:
-            // build ByteOffsets<size()>:
-            //   {0, stride, 2*stride, ...}
-            //
-            // delegate to gather(ptr, offsets)
+		        for (size_t i = 0; i < size(); ++i)
+			        ptr[i] = store_scalar<PtrT>(temp[i]);
+	        }
+	        else {
+		        data.store_unaligned(ptr);
+	        }
         }
 
 
-        template<typename PtrT>
-        requires (sizeof(PtrT) <= sizeof(value_type))
-        void scatter(PtrT* base_addr, const ByteOffsets<Width>& offsets) const {
-            // address(i) =
-            // reinterpret_cast<std::byte*>(base_addr) + offsets.values[i]
+    	// ------------
+    	// Gather Loads
+    	// ------------
+    	// Compile-time byte stride
+    	template<std::ptrdiff_t ByteStride, typename PtrT>
+		requires(IsPackableValue<std::remove_cv_t<PtrT>> && (sizeof(PtrT) <= sizeof(storage_type)))
+		static Packed gather_strided(const PtrT* ptr) {
+        	static_assert(ByteStride > 0, "Byte stride must be positive");
 
-            // TODO:
-            // same-width fast path:
-            //   convert byte offsets to backend-compatible scatter indices
-            //   data.scatter(...)
-            //
-            // narrower fallback:
-            //   SIMD store -> temp[] -> scalar scatter
+        	// Contiguous case.
+        	if constexpr (ByteStride == sizeof(PtrT)) {
+        		return load(ptr);
+        	}
+        	// xsimd gather uses element indices, so a native gather is possible
+        	// whenever the byte stride is exactly representable in PtrT elements.
+        	else if constexpr (
+				!std::is_enum_v<std::remove_cv_t<PtrT>> &&
+				ByteStride % sizeof(PtrT) == 0
+			) {
+        		using arch_type = native_type::arch_type;
+        		using index_value_type = ::xsimd::as_integer_t<storage_type>;
+        		using index_type = ::xsimd::batch<index_value_type, arch_type>;
+
+        		static_assert(index_type::size == size());
+
+        		constexpr std::ptrdiff_t ElementStride =
+					ByteStride / sizeof(PtrT);
+
+        		constexpr auto indices =
+					::xsimd::make_batch_constant<
+						index_value_type,
+						StridedIndices<ElementStride>,
+						arch_type
+					>();
+
+        		return Packed{
+        			native_type::gather(ptr, indices.as_batch())
+				};
+			}
+        	// Enum memory, or a stride which cannot be expressed in PtrT elements.
+        	else {
+        		alignas(alignof(native_type))
+				std::array<storage_type, size()> values;
+
+        		const auto* bytes =
+					reinterpret_cast<const std::byte*>(ptr);
+
+        		for (size_t i = 0; i < size(); ++i) {
+        			PtrT value;
+
+        			std::memcpy(
+						&value,
+						bytes + i * ByteStride,
+						sizeof(PtrT)
+					);
+
+        			values[i] = load_scalar(value);
+        		}
+
+        		return Packed{
+        			native_type::load_aligned(values.data())
+				};
+        	}
         }
 
-        template<typename PtrT>
-        requires (sizeof(PtrT) <= sizeof(value_type))
-        void scatter_strided(PtrT* ptr, const std::ptrdiff_t byte_stride) const {
-            // address(i) =
-            // reinterpret_cast<std::byte*>(ptr) + i * byte_stride
+    	// Runtime byte stride
+		template<typename PtrT>
+		requires (
+			(IsPackableValue<std::remove_cvref_t<PtrT>>) &&
+			(sizeof(PtrT) <= sizeof(storage_type))
+		)
+		static Packed gather_strided(
+			const PtrT* ptr,
+			const std::ptrdiff_t byte_stride
+		) {
+			// Contiguous case.
+			if (byte_stride == static_cast<std::ptrdiff_t>(sizeof(PtrT)))
+				return load(ptr);
 
-            // TODO:
-            // build ByteOffsets<size()>:
-            //   {0, stride, 2*stride, ...}
-            //
-            // delegate to scatter(ptr, offsets)
+			// Native xsimd gather when the stride is representable
+			// exactly in PtrT elements.
+			if constexpr (!std::is_enum_v<std::remove_cv_t<PtrT>>) {
+				if (byte_stride > 0 && byte_stride % sizeof(PtrT) == 0) {
+					using arch_type = native_type::arch_type;
+					using index_value_type = ::xsimd::as_integer_t<storage_type>;
+					using index_type = ::xsimd::batch<index_value_type, arch_type>;
+
+					static_assert(index_type::size == size());
+
+					const std::ptrdiff_t element_stride =
+						byte_stride / sizeof(PtrT);
+
+					const std::ptrdiff_t max_index =
+						element_stride * static_cast<std::ptrdiff_t>(size() - 1);
+
+					if (max_index <= static_cast<std::ptrdiff_t>(
+						std::numeric_limits<index_value_type>::max()
+					)) {
+						alignas(alignof(index_type))
+						std::array<index_value_type, size()> indices;
+
+						for (size_t i = 0; i < size(); ++i) {
+							indices[i] = static_cast<index_value_type>(
+								static_cast<std::ptrdiff_t>(i) * element_stride
+							);
+						}
+
+						const index_type index_batch =
+							index_type::load_aligned(indices.data());
+
+						return Packed{
+							native_type::gather(ptr, index_batch)
+						};
+					}
+				}
+			}
+
+			// Enum memory, non-element-aligned stride, or an index range
+			// too large for xsimd's index batch.
+			alignas(alignof(native_type))
+			std::array<storage_type, size()> values;
+
+			const auto* bytes =
+				reinterpret_cast<const std::byte*>(ptr);
+
+			for (size_t i = 0; i < size(); ++i) {
+				PtrT value;
+
+				std::memcpy(
+					&value,
+					bytes + static_cast<std::ptrdiff_t>(i) * byte_stride,
+					sizeof(PtrT)
+				);
+
+				values[i] = load_scalar(value);
+			}
+
+			return Packed{
+				native_type::load_aligned(values.data())
+			};
+		}
+
+    	// Arbitrary byte offsets
+    	template<typename PtrT, size_t N>
+		requires (
+			(IsPackableValue<std::remove_cvref_t<PtrT>>) &&
+			(sizeof(PtrT) <= sizeof(storage_type)) &&
+			(N == size())
+		)
+		static Packed gather(
+			const PtrT* ptr,
+			const ByteOffsets<N>& offsets
+		) {
+        	if constexpr (!std::is_enum_v<std::remove_cv_t<PtrT>>) {
+        		using arch_type = native_type::arch_type;
+        		using index_value_type = ::xsimd::as_integer_t<storage_type>;
+        		using index_type = ::xsimd::batch<index_value_type, arch_type>;
+
+        		static_assert(index_type::size == size());
+
+        		alignas(alignof(index_type))
+				std::array<index_value_type, size()> indices;
+
+        		bool native_compatible = true;
+
+        		for (size_t i = 0; i < size(); ++i) {
+        			const std::ptrdiff_t offset = offsets.values[i];
+
+        			if (offset % static_cast<std::ptrdiff_t>(sizeof(PtrT)) != 0) {
+        				native_compatible = false;
+        				break;
+        			}
+
+        			const std::ptrdiff_t index =
+						offset / static_cast<std::ptrdiff_t>(sizeof(PtrT));
+
+        			if (
+						index < static_cast<std::ptrdiff_t>(
+							std::numeric_limits<index_value_type>::min()
+						) ||
+						index > static_cast<std::ptrdiff_t>(
+							std::numeric_limits<index_value_type>::max()
+						)
+					) {
+        				native_compatible = false;
+        				break;
+					}
+
+        			indices[i] = static_cast<index_value_type>(index);
+        		}
+
+        		if (native_compatible) {
+        			const index_type index_batch =
+						index_type::load_aligned(indices.data());
+
+        			return Packed{
+        				native_type::gather(ptr, index_batch)
+					};
+        		}
+        	}
+
+        	// Enum memory, non-element-aligned offsets, or offsets too large
+        	// for the xsimd index representation.
+        	alignas(alignof(native_type))
+			std::array<storage_type, size()> values;
+
+        	const auto* bytes =
+				reinterpret_cast<const std::byte*>(ptr);
+
+        	for (size_t i = 0; i < size(); ++i) {
+        		PtrT value;
+
+        		std::memcpy(
+					&value,
+					bytes + offsets.values[i],
+					sizeof(PtrT)
+				);
+
+        		values[i] = load_scalar(value);
+        	}
+
+        	return Packed{
+        		native_type::load_aligned(values.data())
+			};
         }
 
-        template<std::ptrdiff_t ByteStride, typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
-        static Packed gather_strided(const PtrT* ptr) {
-            if constexpr (ByteStride == sizeof(PtrT)) {
-                return load(ptr);
-            } else if constexpr (
-                (ByteStride % sizeof(PtrT) == 0) &&
-                (sizeof(value_type) == 4 || sizeof(value_type) == 8)
-            ) {
-                using index_value_type = std::conditional_t<
-                    sizeof(value_type) == 8,
-                    std::int64_t,
-                    std::int32_t
-                >;
+    	// Arbitrary pointers
+    	template<typename PointerContainer>
+		requires requires(const PointerContainer& pointers) {
+        	pointers[size_t{}];
 
-                using index_type = ::xsimd::batch<index_value_type,typename native_type::arch_type>;
-                constexpr std::ptrdiff_t ElementStride = ByteStride / sizeof(PtrT);
+        	requires std::is_pointer_v<
+				std::remove_cvref_t<decltype(pointers[size_t{}])>
+			>;
+		}
+    	static Packed gather(const PointerContainer& pointers) {
+        	using pointer_type =
+				std::remove_cvref_t<decltype(pointers[size_t{}])>;
 
-                static_assert(index_type::size == size());
+        	using pointed_type =
+				std::remove_pointer_t<pointer_type>;
 
-                const auto indices = make_strided_indices<ElementStride, index_type>(
-                    std::make_index_sequence<size()>{}
-                );
+        	using source_type =
+				std::remove_cv_t<pointed_type>;
 
-                return {native_type::gather(ptr, indices)};
-            } else {
-                return gather_strided_fallback<ByteStride>(
-                    ptr,
-                    std::make_index_sequence<size()>{}
-                );
-            }
-        }
+        	static_assert(
+				std::is_arithmetic_v<source_type> ||
+				std::is_enum_v<source_type>,
+				"Gather pointers must point to arithmetic or enum values"
+			);
 
-        template<std::ptrdiff_t ByteStride, typename PtrT>
-        requires std::is_arithmetic_v<PtrT> && (sizeof(PtrT) <= sizeof(value_type))
-        void scatter_strided(PtrT* ptr) const {
-            if constexpr (ByteStride == sizeof(PtrT)) {
-                store(ptr);
-            } else if constexpr (
-                (ByteStride % sizeof(PtrT) == 0) &&
-                (sizeof(value_type) == 4 || sizeof(value_type) == 8)
-            ) {
-                using index_value_type = std::conditional_t<
-                    sizeof(value_type) == 8,
-                    std::int64_t,
-                    std::int32_t
-                >;
+        	static_assert(
+				sizeof(source_type) <= sizeof(storage_type),
+				"Gather source type is wider than packed storage type"
+			);
 
-                using index_type = ::xsimd::batch<index_value_type,typename native_type::arch_type>;
-                constexpr std::ptrdiff_t ElementStride =ByteStride / sizeof(PtrT);
+        	alignas(alignof(native_type))
+			std::array<storage_type, size()> values;
 
-                static_assert(index_type::size == size());
+        	for (size_t i = 0; i < size(); ++i)
+        		values[i] = load_scalar(*pointers[i]);
 
-                const auto indices = make_strided_indices<ElementStride, index_type>(
-                    std::make_index_sequence<size()>{}
-                );
-
-                data.scatter(ptr, indices);
-            } else {
-                scatter_strided_fallback<ByteStride>(
-                    ptr,
-                    std::make_index_sequence<size()>{}
-                );
-            }
+        	return Packed{
+        		native_type::load_aligned(values.data())
+			};
         }
 
 
+    	// --------------
+    	// Scatter Stores
+    	// --------------
+    	// Compile-time byte stride
+    	template<std::ptrdiff_t ByteStride, typename PtrT>
+		requires(
+			!std::is_const_v<PtrT> &&
+			IsPackableValue<std::remove_cv_t<PtrT>> &&
+			(sizeof(PtrT) <= sizeof(storage_type))
+		)
+		void scatter_strided(PtrT* ptr) const {
+        	static_assert(ByteStride > 0, "Byte stride must be positive");
+
+        	// Contiguous case.
+        	if constexpr (ByteStride == sizeof(PtrT)) {
+        		store(ptr);
+        	}
+        	// Native xsimd scatter when the byte stride can be represented
+        	// exactly as a PtrT element stride.
+        	else if constexpr (
+				!std::is_enum_v<std::remove_cv_t<PtrT>> &&
+				ByteStride % sizeof(PtrT) == 0
+			) {
+        		using arch_type = native_type::arch_type;
+        		using index_value_type = ::xsimd::as_integer_t<storage_type>;
+
+        		constexpr std::ptrdiff_t ElementStride =
+					ByteStride / sizeof(PtrT);
+
+        		constexpr auto indices =
+					::xsimd::make_batch_constant<
+						index_value_type,
+						StridedIndices<ElementStride>,
+						arch_type
+					>();
+
+        		data.scatter(ptr, indices.as_batch());
+			}
+        	// Enum memory, or a stride not representable in PtrT elements.
+        	else {
+        		alignas(alignof(native_type))
+				std::array<storage_type, size()> values;
+
+        		data.store_aligned(values.data());
+
+        		auto* bytes =
+					reinterpret_cast<std::byte*>(ptr);
+
+        		for (size_t i = 0; i < size(); ++i) {
+        			const PtrT value =
+						store_scalar<PtrT>(values[i]);
+
+        			std::memcpy(
+						bytes + i * ByteStride,
+						&value,
+						sizeof(PtrT)
+					);
+        		}
+        	}
+        }
+
+
+    	// Runtime byte stride
+		template<typename PtrT>
+		requires (
+			!std::is_const_v<PtrT> &&
+			(std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+			(sizeof(PtrT) <= sizeof(storage_type))
+		)
+		void scatter_strided(
+			PtrT* ptr,
+			const std::ptrdiff_t byte_stride
+		) const {
+			// Contiguous case.
+			if (byte_stride == static_cast<std::ptrdiff_t>(sizeof(PtrT))) {
+				store(ptr);
+				return;
+			}
+
+			// Native xsimd scatter when the stride is representable
+			// exactly in PtrT elements.
+			if constexpr (!std::is_enum_v<std::remove_cv_t<PtrT>>) {
+				if (byte_stride > 0 && byte_stride % sizeof(PtrT) == 0) {
+					using arch_type = native_type::arch_type;
+					using index_value_type = ::xsimd::as_integer_t<storage_type>;
+					using index_type = ::xsimd::batch<index_value_type, arch_type>;
+
+					static_assert(index_type::size == size());
+
+					const std::ptrdiff_t element_stride =
+						byte_stride / static_cast<std::ptrdiff_t>(sizeof(PtrT));
+
+					const std::ptrdiff_t max_index =
+						element_stride * static_cast<std::ptrdiff_t>(size() - 1);
+
+					if (max_index <= static_cast<std::ptrdiff_t>(
+						std::numeric_limits<index_value_type>::max()
+					)) {
+						alignas(alignof(index_type))
+						std::array<index_value_type, size()> indices;
+
+						for (size_t i = 0; i < size(); ++i) {
+							indices[i] = static_cast<index_value_type>(
+								static_cast<std::ptrdiff_t>(i) * element_stride
+							);
+						}
+
+						const index_type index_batch =
+							index_type::load_aligned(indices.data());
+
+						data.scatter(ptr, index_batch);
+						return;
+					}
+				}
+			}
+
+			// Enum memory, non-element-aligned stride, or an index range
+			// too large for xsimd's index batch.
+			alignas(alignof(native_type))
+			std::array<storage_type, size()> values;
+
+			data.store_aligned(values.data());
+
+			auto* bytes =
+				reinterpret_cast<std::byte*>(ptr);
+
+			for (size_t i = 0; i < size(); ++i) {
+				const PtrT value =
+					store_scalar<PtrT>(values[i]);
+
+				std::memcpy(
+					bytes + static_cast<std::ptrdiff_t>(i) * byte_stride,
+					&value,
+					sizeof(PtrT)
+				);
+			}
+		}
+
+    	// Arbitrary byte offsets
+    	template<typename PtrT, size_t N>
+		requires (
+			!std::is_const_v<PtrT> &&
+			(std::is_arithmetic_v<std::remove_cv_t<PtrT>> || std::is_enum_v<std::remove_cv_t<PtrT>>) &&
+			(sizeof(PtrT) <= sizeof(storage_type)) &&
+			(N == size())
+		)
+		void scatter(
+			PtrT* ptr,
+			const ByteOffsets<N>& offsets
+		) const {
+        	if constexpr (!std::is_enum_v<std::remove_cv_t<PtrT>>) {
+        		using arch_type = native_type::arch_type;
+        		using index_value_type = ::xsimd::as_integer_t<storage_type>;
+        		using index_type = ::xsimd::batch<index_value_type, arch_type>;
+
+        		static_assert(index_type::size == size());
+
+        		alignas(alignof(index_type))
+				std::array<index_value_type, size()> indices;
+
+        		bool native_compatible = true;
+
+        		for (size_t i = 0; i < size(); ++i) {
+        			const std::ptrdiff_t offset = offsets.values[i];
+
+        			if (offset % static_cast<std::ptrdiff_t>(sizeof(PtrT)) != 0) {
+        				native_compatible = false;
+        				break;
+        			}
+
+        			const std::ptrdiff_t index =
+						offset / static_cast<std::ptrdiff_t>(sizeof(PtrT));
+
+        			if (
+						index < static_cast<std::ptrdiff_t>(
+							std::numeric_limits<index_value_type>::min()
+						) ||
+						index > static_cast<std::ptrdiff_t>(
+							std::numeric_limits<index_value_type>::max()
+						)
+					) {
+        				native_compatible = false;
+        				break;
+					}
+
+        			indices[i] = static_cast<index_value_type>(index);
+        		}
+
+        		if (native_compatible) {
+        			const index_type index_batch =
+						index_type::load_aligned(indices.data());
+
+        			data.scatter(ptr, index_batch);
+        			return;
+        		}
+        	}
+
+        	// Enum memory, non-element-aligned offsets, or offsets too large
+        	// for the xsimd index representation.
+        	alignas(alignof(native_type))
+			std::array<storage_type, size()> values;
+
+        	data.store_aligned(values.data());
+
+        	auto* bytes =
+				reinterpret_cast<std::byte*>(ptr);
+
+        	for (size_t i = 0; i < size(); ++i) {
+        		const PtrT value =
+					store_scalar<PtrT>(values[i]);
+
+        		std::memcpy(
+					bytes + offsets.values[i],
+					&value,
+					sizeof(PtrT)
+				);
+        	}
+        }
+
+    	// Arbitrary pointers
+    	template<typename PointerContainer>
+		requires requires(const PointerContainer& pointers) {
+        	pointers[size_t{}];
+
+        	requires std::is_pointer_v<
+				std::remove_cvref_t<decltype(pointers[size_t{}])>
+			>;
+		}
+    	void scatter(const PointerContainer& pointers) const {
+        	using pointer_type =
+				std::remove_cvref_t<decltype(pointers[size_t{}])>;
+
+        	using pointed_type =
+				std::remove_pointer_t<pointer_type>;
+
+        	using destination_type =
+				std::remove_cv_t<pointed_type>;
+
+        	static_assert(
+				!std::is_const_v<pointed_type>,
+				"Scatter pointers must point to writable values"
+			);
+
+        	static_assert(
+				std::is_arithmetic_v<destination_type> ||
+				std::is_enum_v<destination_type>,
+				"Scatter pointers must point to arithmetic or enum values"
+			);
+
+        	static_assert(
+				sizeof(destination_type) <= sizeof(storage_type),
+				"Scatter destination type is wider than packed storage type"
+			);
+
+        	alignas(alignof(native_type))
+			std::array<storage_type, size()> values;
+
+        	data.store_aligned(values.data());
+
+        	for (size_t i = 0; i < size(); ++i) {
+        		*pointers[i] =
+					store_scalar<destination_type>(values[i]);
+        	}
+        }
 
 
 
-
-        // PERMUTES AND SHUFFLES
+        // ----------------------
+        // Permutes and rotations
+        // ----------------------
         template<size_t... Indices>
-         [[nodiscard]] Packed permute() const {
-            return { ::xsimd::swizzle<Indices...>(data) };
+        [[nodiscard]] Packed permute() const {
+	        static_assert(sizeof...(Indices) > 0, "A permutation requires at least one index");
+	        static_assert(((Indices < size()) && ...), "Permutation index is outside the pack");
+	        static_assert(
+		        sizeof...(Indices) == 1 || sizeof...(Indices) == size(),
+		        "A permutation must provide one index or exactly one index per lane"
+	        );
+
+	        using arch_type = native_type::arch_type;
+
+	        constexpr auto indices =
+		        ::xsimd::make_batch_constant<
+			        native_storage_type,
+			        PermuteIndices<Indices...>,
+			        arch_type
+		        >();
+
+	        return Packed{::xsimd::swizzle(data, indices)};
         }
+
         template<unsigned K = 1>
         [[nodiscard]] Packed rotate_left() const {
-            // xsimd only has rotate_right, so we compute the complement
-            constexpr unsigned Shift = (size() - (K % size())) % size(); // extra modulo so if K == size we get shift = 0
-            return { ::xsimd::rotate_right<Shift>(data) };
+	        constexpr unsigned Shift = K % size();
+	        return Packed{::xsimd::rotate_left<Shift>(data)};
         }
+
         template<unsigned K = 1>
         [[nodiscard]] Packed rotate_right() const {
-            return { ::xsimd::rotate_right<K>(data) };
+	        constexpr unsigned Shift = K % size();
+	        return Packed{::xsimd::rotate_right<Shift>(data)};
         }
 
-        // ARITHMETIC
-        friend Packed operator+(const Packed& rhs) { return { +rhs.data };  }
-        friend Packed operator-(const Packed& rhs) { return { -rhs.data };  }
-        friend Packed operator+(const Packed& lhs, const Packed& rhs) { return { lhs.data + rhs.data }; }
-        friend Packed operator-(const Packed& lhs, const Packed& rhs) { return { lhs.data - rhs.data }; }
-        friend Packed operator*(const Packed& lhs, const Packed& rhs) { return { lhs.data * rhs.data }; }
-        friend Packed operator/(const Packed& lhs, const Packed& rhs) { return { lhs.data / rhs.data }; }
 
-        Packed& operator+=(const Packed& rhs) { data += rhs.data; return *this; }
-        Packed& operator-=(const Packed& rhs) { data -= rhs.data; return *this; }
-        Packed& operator*=(const Packed& rhs) { data *= rhs.data; return *this; }
-        Packed& operator/=(const Packed& rhs) { data /= rhs.data; return *this; }
-
-        // COMPARISONS
-        friend mask_type operator==(const Packed& lhs, const Packed& rhs) { return { lhs.data == rhs.data }; }
-        friend mask_type operator!=(const Packed& lhs, const Packed& rhs) { return { lhs.data != rhs.data }; }
-        friend mask_type operator<(const Packed& lhs, const Packed& rhs)  { return { lhs.data < rhs.data }; }
-        friend mask_type operator<=(const Packed& lhs, const Packed& rhs) { return { lhs.data <= rhs.data }; }
-        friend mask_type operator>(const Packed& lhs, const Packed& rhs)  { return { lhs.data > rhs.data }; }
-        friend mask_type operator>=(const Packed& lhs, const Packed& rhs) { return { lhs.data >= rhs.data }; }
-
-        // SELECTION
-        [[nodiscard]] static Packed select(const mask_type& mask, const Packed& true_value, const Packed& false_value) {
-            return { ::xsimd::select(mask.data, true_value.data, false_value.data) };
+        // --------------------
+        // Arithmetic operators
+        // --------------------
+        friend Packed operator+(const Packed& value) {
+	        return Packed{+value.data};
         }
 
-        // BASIC NUMERICS
+        friend Packed operator-(const Packed& value) {
+	        return Packed{-value.data};
+        }
+
+        friend Packed operator+(const Packed& lhs, const Packed& rhs) {
+	        return Packed{lhs.data + rhs.data};
+        }
+
+        friend Packed operator-(const Packed& lhs, const Packed& rhs) {
+	        return Packed{lhs.data - rhs.data};
+        }
+
+        friend Packed operator*(const Packed& lhs, const Packed& rhs) {
+	        return Packed{lhs.data * rhs.data};
+        }
+
+        friend Packed operator/(const Packed& lhs, const Packed& rhs) {
+	        return Packed{lhs.data / rhs.data};
+        }
+
+        friend Packed operator+(const Packed& lhs, storage_type rhs) {
+	        return Packed{lhs.data + native_type{rhs}};
+        }
+
+        friend Packed operator+(storage_type lhs, const Packed& rhs) {
+	        return Packed{native_type{lhs} + rhs.data};
+        }
+
+        friend Packed operator-(const Packed& lhs, storage_type rhs) {
+	        return Packed{lhs.data - native_type{rhs}};
+        }
+
+        friend Packed operator-(storage_type lhs, const Packed& rhs) {
+	        return Packed{native_type{lhs} - rhs.data};
+        }
+
+        friend Packed operator*(const Packed& lhs, storage_type rhs) {
+	        return Packed{lhs.data * native_type{rhs}};
+        }
+
+        friend Packed operator*(storage_type lhs, const Packed& rhs) {
+	        return Packed{native_type{lhs} * rhs.data};
+        }
+
+        friend Packed operator/(const Packed& lhs, storage_type rhs) {
+	        return Packed{lhs.data / native_type{rhs}};
+        }
+
+        friend Packed operator/(storage_type lhs, const Packed& rhs) {
+	        return Packed{native_type{lhs} / rhs.data};
+        }
+
+
+        // ---------
+        // Compounds
+        // ---------
+        Packed& operator+=(const Packed& rhs) {
+	        data += rhs.data;
+	        return *this;
+        }
+
+        Packed& operator-=(const Packed& rhs) {
+	        data -= rhs.data;
+	        return *this;
+        }
+
+        Packed& operator*=(const Packed& rhs) {
+	        data *= rhs.data;
+	        return *this;
+        }
+
+        Packed& operator/=(const Packed& rhs) {
+	        data /= rhs.data;
+	        return *this;
+        }
+
+        Packed& operator+=(storage_type rhs) {
+	        data += native_type{rhs};
+	        return *this;
+        }
+
+        Packed& operator-=(storage_type rhs) {
+	        data -= native_type{rhs};
+	        return *this;
+        }
+
+        Packed& operator*=(storage_type rhs) {
+	        data *= native_type{rhs};
+	        return *this;
+        }
+
+        Packed& operator/=(storage_type rhs) {
+	        data /= native_type{rhs};
+	        return *this;
+        }
+
+
+        // -----------
+        // Comparisons
+        // -----------
+        friend mask_type operator==(const Packed& lhs, const Packed& rhs) {
+	        return mask_type{lhs.data == rhs.data};
+        }
+
+        friend mask_type operator!=(const Packed& lhs, const Packed& rhs) {
+	        return mask_type{lhs.data != rhs.data};
+        }
+
+        friend mask_type operator<(const Packed& lhs, const Packed& rhs) {
+	        return mask_type{lhs.data < rhs.data};
+        }
+
+        friend mask_type operator<=(const Packed& lhs, const Packed& rhs) {
+	        return mask_type{lhs.data <= rhs.data};
+        }
+
+        friend mask_type operator>(const Packed& lhs, const Packed& rhs) {
+	        return mask_type{lhs.data > rhs.data};
+        }
+
+        friend mask_type operator>=(const Packed& lhs, const Packed& rhs) {
+	        return mask_type{lhs.data >= rhs.data};
+        }
+
+        friend mask_type operator==(const Packed& lhs, storage_type rhs) {
+	        return mask_type{lhs.data == native_type{rhs}};
+        }
+
+        friend mask_type operator==(storage_type lhs, const Packed& rhs) {
+	        return mask_type{native_type{lhs} == rhs.data};
+        }
+
+        friend mask_type operator!=(const Packed& lhs, storage_type rhs) {
+	        return mask_type{lhs.data != native_type{rhs}};
+        }
+
+        friend mask_type operator!=(storage_type lhs, const Packed& rhs) {
+	        return mask_type{native_type{lhs} != rhs.data};
+        }
+
+        friend mask_type operator<(const Packed& lhs, storage_type rhs) {
+	        return mask_type{lhs.data < native_type{rhs}};
+        }
+
+        friend mask_type operator<(storage_type lhs, const Packed& rhs) {
+	        return mask_type{native_type{lhs} < rhs.data};
+        }
+
+        friend mask_type operator<=(const Packed& lhs, storage_type rhs) {
+	        return mask_type{lhs.data <= native_type{rhs}};
+        }
+
+        friend mask_type operator<=(storage_type lhs, const Packed& rhs) {
+	        return mask_type{native_type{lhs} <= rhs.data};
+        }
+
+        friend mask_type operator>(const Packed& lhs, storage_type rhs) {
+	        return mask_type{lhs.data > native_type{rhs}};
+        }
+
+        friend mask_type operator>(storage_type lhs, const Packed& rhs) {
+	        return mask_type{native_type{lhs} > rhs.data};
+        }
+
+        friend mask_type operator>=(const Packed& lhs, storage_type rhs) {
+	        return mask_type{lhs.data >= native_type{rhs}};
+        }
+
+        friend mask_type operator>=(storage_type lhs, const Packed& rhs) {
+	        return mask_type{native_type{lhs} >= rhs.data};
+        }
+
+
+        // ---------
+        // Selection
+        // ---------
+        [[nodiscard]] static Packed select(
+	        const mask_type& mask,
+	        const Packed& true_value,
+	        const Packed& false_value
+        ) {
+	        return Packed{
+		        ::xsimd::select(mask.native(), true_value.data, false_value.data)
+	        };
+        }
+
+
+        // ----------------
+        // Basic operations
+        // ----------------
         [[nodiscard]] static Packed abs(const Packed& x) {
-            if constexpr (std::is_unsigned_v<value_type>) return x;
-            else return { ::xsimd::abs(x.data) };
+	        if constexpr (std::is_unsigned_v<storage_type>)
+		        return x;
+	        else
+		        return Packed{::xsimd::abs(x.data)};
         }
 
         [[nodiscard]] static Packed min(const Packed& a, const Packed& b) {
-            return { ::xsimd::min(a.data, b.data) };
+	        return Packed{::xsimd::min(a.data, b.data)};
         }
 
         [[nodiscard]] static Packed max(const Packed& a, const Packed& b) {
-            return { ::xsimd::max(a.data, b.data) };
+	        return Packed{::xsimd::max(a.data, b.data)};
         }
 
-        [[nodiscard]] static Packed clamp(const Packed& x, const Packed& lo, const Packed& hi) {
-            return { ::xsimd::clip(x.data, lo.data, hi.data) };
+        [[nodiscard]] static Packed clamp(
+	        const Packed& x,
+	        const Packed& lower,
+	        const Packed& upper
+        ) {
+	        return Packed{::xsimd::clip(x.data, lower.data, upper.data)};
         }
 
-        // ROOTS AND POWERS
-        [[nodiscard]] static Packed sqrt(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::sqrt(x.data) };
+
+        // ----------------
+        // Roots and powers
+        // ----------------
+        [[nodiscard]] static Packed sqrt(const Packed& x)
+	        requires std::floating_point<storage_type>
+        {
+	        return Packed{::xsimd::sqrt(x.data)};
         }
 
         [[nodiscard]] static Packed rsqrt(const Packed& x)
-        requires std::floating_point<value_type> {
+	        requires std::floating_point<storage_type>
+        {
         #if APRIL_FAST_MATH_ENABLED
-            return { ::xsimd::rsqrt(x.data) };
+	        return Packed{::xsimd::rsqrt(x.data)};
         #else
-            return { native_type(value_type{1}) / ::xsimd::sqrt(x.data) };
+	        return Packed{
+		        native_type{storage_type{1}} / ::xsimd::sqrt(x.data)
+	        };
         #endif
         }
 
-        [[nodiscard]] static Packed fast_rsqrt(const Packed& x)
-        requires std::floating_point<value_type> {
-            return { ::xsimd::rsqrt(x.data) };
+        [[nodiscard]] static Packed cbrt(const Packed& x)
+	        requires std::floating_point<storage_type>
+        {
+	        return Packed{::xsimd::cbrt(x.data)};
         }
 
-        [[nodiscard]] static Packed cbrt(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::cbrt(x.data) };
+        [[nodiscard]] static Packed hypot(const Packed& x, const Packed& y)
+	        requires std::floating_point<storage_type>
+        {
+	        return Packed{::xsimd::hypot(x.data, y.data)};
         }
 
-        [[nodiscard]] static Packed hypot(const Packed& x, const Packed& y) requires std::floating_point<value_type> {
-            return { ::xsimd::hypot(x.data, y.data) };
+        [[nodiscard]] static Packed pow(const Packed& x, const Packed& y)
+	        requires std::floating_point<storage_type>
+        {
+	        return Packed{::xsimd::pow(x.data, y.data)};
         }
 
-        [[nodiscard]] static Packed pow(const Packed& x, const Packed& y) requires std::floating_point<value_type> {
-            return { ::xsimd::pow(x.data, y.data) };
+
+        // ---------------------------
+        // Exponential and logarithmic
+        // ---------------------------
+    	[[nodiscard]] static Packed exp(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::exp(x.data)};
         }
 
-        // EXPONENTIAL AND LOGARITHMIC
-        [[nodiscard]] static Packed exp(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::exp(x.data) };
+    	[[nodiscard]] static Packed exp2(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::exp2(x.data)};
         }
 
-        [[nodiscard]] static Packed exp2(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::exp2(x.data) };
+    	[[nodiscard]] static Packed expm1(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::expm1(x.data)};
         }
 
-        [[nodiscard]] static Packed expm1(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::expm1(x.data) };
+    	[[nodiscard]] static Packed log(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::log(x.data)};
         }
 
-        [[nodiscard]] static Packed log(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::log(x.data) };
+    	[[nodiscard]] static Packed ln(const Packed& x) requires std::floating_point<storage_type> {
+        	return log(x);
         }
 
-        [[nodiscard]] static Packed ln(const Packed& x) requires std::floating_point<value_type> {
-            return log(x);
+    	[[nodiscard]] static Packed log2(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::log2(x.data)};
         }
 
-        [[nodiscard]] static Packed log2(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::log2(x.data) };
+    	[[nodiscard]] static Packed log10(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::log10(x.data)};
         }
 
-        [[nodiscard]] static Packed log10(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::log10(x.data) };
+    	[[nodiscard]] static Packed log1p(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::log1p(x.data)};
         }
 
-        [[nodiscard]] static Packed log1p(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::log1p(x.data) };
+
+        // -------------
+        // Trigonometric
+        // -------------
+    	[[nodiscard]] static Packed sin(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::sin(x.data)};
         }
 
-        // TRIGONOMETRIC
-        [[nodiscard]] static Packed sin(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::sin(x.data) };
+    	[[nodiscard]] static Packed cos(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::cos(x.data)};
         }
 
-        [[nodiscard]] static Packed cos(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::cos(x.data) };
+    	[[nodiscard]] static std::pair<Packed, Packed> sincos(const Packed& x) requires std::floating_point<storage_type> {
+        	auto [sin_value, cos_value] = ::xsimd::sincos(x.data);
+        	return {
+        		Packed{sin_value},
+				Packed{cos_value}
+        	};
         }
 
-        [[nodiscard]] static std::pair<Packed, Packed> sincos(const Packed& x) requires std::floating_point<value_type> {
-            auto [sin_value, cos_value] = ::xsimd::sincos(x.data);
-            return { Packed{sin_value}, Packed{cos_value} };
+    	[[nodiscard]] static Packed tan(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::tan(x.data)};
         }
 
-        [[nodiscard]] static Packed tan(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::tan(x.data) };
+    	[[nodiscard]] static Packed asin(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::asin(x.data)};
         }
 
-        [[nodiscard]] static Packed asin(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::asin(x.data) };
+    	[[nodiscard]] static Packed acos(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::acos(x.data)};
         }
 
-        [[nodiscard]] static Packed acos(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::acos(x.data) };
+    	[[nodiscard]] static Packed atan(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::atan(x.data)};
         }
 
-        [[nodiscard]] static Packed atan(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::atan(x.data) };
+    	[[nodiscard]] static Packed atan2(const Packed& y, const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::atan2(y.data, x.data)};
         }
 
-        [[nodiscard]] static Packed atan2(const Packed& y, const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::atan2(y.data, x.data) };
+
+        // ----------
+        // Hyperbolic
+        // ----------
+    	[[nodiscard]] static Packed sinh(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::sinh(x.data)};
         }
 
-        // HYPERBOLIC
-        [[nodiscard]] static Packed sinh(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::sinh(x.data) };
+    	[[nodiscard]] static Packed cosh(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::cosh(x.data)};
         }
 
-        [[nodiscard]] static Packed cosh(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::cosh(x.data) };
+    	[[nodiscard]] static Packed tanh(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::tanh(x.data)};
         }
 
-        [[nodiscard]] static Packed tanh(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::tanh(x.data) };
+    	[[nodiscard]] static Packed asinh(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::asinh(x.data)};
         }
 
-        [[nodiscard]] static Packed asinh(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::asinh(x.data) };
+    	[[nodiscard]] static Packed acosh(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::acosh(x.data)};
         }
 
-        [[nodiscard]] static Packed acosh(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::acosh(x.data) };
+    	[[nodiscard]] static Packed atanh(const Packed& x) requires std::floating_point<storage_type> {
+        	return Packed{::xsimd::atanh(x.data)};
         }
 
-        [[nodiscard]] static Packed atanh(const Packed& x) requires std::floating_point<value_type> {
-            return { ::xsimd::atanh(x.data) };
-        }
 
-        // ROUNDING
+        // --------
+        // Rounding
+        // --------
         [[nodiscard]] static Packed floor(const Packed& x) {
-            if constexpr (std::integral<value_type>) return x;
-            else return { ::xsimd::floor(x.data) };
+	        if constexpr (std::integral<storage_type>)
+		        return x;
+	        else
+		        return Packed{::xsimd::floor(x.data)};
         }
 
         [[nodiscard]] static Packed ceil(const Packed& x) {
-            if constexpr (std::integral<value_type>) return x;
-            else return { ::xsimd::ceil(x.data) };
+	        if constexpr (std::integral<storage_type>)
+		        return x;
+	        else
+		        return Packed{::xsimd::ceil(x.data)};
         }
 
         [[nodiscard]] static Packed round(const Packed& x) {
-            if constexpr (std::integral<value_type>) return x;
-            else return { ::xsimd::round(x.data) };
+	        if constexpr (std::integral<storage_type>)
+		        return x;
+	        else
+		        return Packed{::xsimd::round(x.data)};
         }
 
         [[nodiscard]] static Packed trunc(const Packed& x) {
-            if constexpr (std::integral<value_type>) return x;
-            else return { ::xsimd::trunc(x.data) };
+	        if constexpr (std::integral<storage_type>)
+		        return x;
+	        else
+		        return Packed{::xsimd::trunc(x.data)};
         }
 
         [[nodiscard]] static Packed nearbyint(const Packed& x) {
-            if constexpr (std::integral<value_type>) return x;
-            else return { ::xsimd::nearbyint(x.data) };
+	        if constexpr (std::integral<storage_type>)
+		        return x;
+	        else
+		        return Packed{::xsimd::nearbyint(x.data)};
         }
 
-        // NUMERIC
-        [[nodiscard]] static Packed fma(const Packed& x, const Packed& y, const Packed& z) {
-            return { ::xsimd::fma(x.data, y.data, z.data) };
+
+        // ------------------
+        // Numeric operations
+        // ------------------
+        [[nodiscard]] static Packed fma(
+	        const Packed& x,
+	        const Packed& y,
+	        const Packed& z
+        ) {
+	        return Packed{::xsimd::fma(x.data, y.data, z.data)};
         }
 
-        [[nodiscard]] static Packed fmod(const Packed& x, const Packed& y) requires std::floating_point<value_type> {
-            return { ::xsimd::fmod(x.data, y.data) };
+        [[nodiscard]] static Packed fmod(const Packed& x, const Packed& y)
+	        requires std::floating_point<storage_type>
+        {
+	        return Packed{::xsimd::fmod(x.data, y.data)};
         }
 
         [[nodiscard]] static Packed remainder(const Packed& x, const Packed& y)
-        requires std::floating_point<value_type> {
-            return { ::xsimd::remainder(x.data, y.data) };
+	        requires std::floating_point<storage_type>
+        {
+	        return Packed{::xsimd::remainder(x.data, y.data)};
         }
 
-        [[nodiscard]] static Packed copysign(const Packed& magnitude, const Packed& sign)
-        requires std::floating_point<value_type> {
-            return { ::xsimd::copysign(magnitude.data, sign.data) };
+        [[nodiscard]] static Packed copysign(
+	        const Packed& magnitude,
+	        const Packed& sign
+        )
+	        requires std::floating_point<storage_type>
+        {
+	        return Packed{
+		        ::xsimd::copysign(magnitude.data, sign.data)
+	        };
         }
 
-        // CLASSIFICATION
+
+        // --------------
+        // Classification
+        // --------------
         [[nodiscard]] static mask_type isnan(const Packed& x) {
-            if constexpr (std::floating_point<value_type>) return { ::xsimd::isnan(x.data) };
-            else return { false };
+	        if constexpr (std::floating_point<storage_type>)
+		        return mask_type{::xsimd::isnan(x.data)};
+	        else
+		        return mask_type{false};
         }
 
         [[nodiscard]] static mask_type isinf(const Packed& x) {
-            if constexpr (std::floating_point<value_type>) return { ::xsimd::isinf(x.data) };
-            else return { false };
+	        if constexpr (std::floating_point<storage_type>)
+		        return mask_type{::xsimd::isinf(x.data)};
+	        else
+		        return mask_type{false};
         }
 
         [[nodiscard]] static mask_type isfinite(const Packed& x) {
-            if constexpr (std::floating_point<value_type>) return { ::xsimd::isfinite(x.data) };
-            else return { true };
+	        if constexpr (std::floating_point<storage_type>)
+		        return mask_type{::xsimd::isfinite(x.data)};
+	        else
+		        return mask_type{true};
         }
 
         [[nodiscard]] static mask_type signbit(const Packed& x) {
-            if constexpr (std::is_unsigned_v<value_type>) {
-                return { false };
-            } else if constexpr (std::integral<value_type>) {
-                return { x.data < native_type{value_type{0}} };
-            } else {
-                using integer_type = std::conditional_t<
-                    sizeof(value_type) == 4,
-                    std::uint32_t,
-                    std::uint64_t
-                >;
+	        if constexpr (std::is_unsigned_v<storage_type>) {
+		        return mask_type{false};
+	        }
+	        else if constexpr (std::integral<storage_type>) {
+		        return mask_type{
+			        x.data < native_type{storage_type{0}}
+		        };
+	        }
+	        else {
+		        using integer_type = std::conditional_t<
+			        sizeof(storage_type) == 4,
+			        std::uint32_t,
+			        std::uint64_t
+		        >;
 
-                const auto sign_bits =
-                    ::xsimd::bitwise_cast<integer_type>(::xsimd::bitofsign(x.data));
+		        const auto sign_bits =
+			        ::xsimd::bitwise_cast<integer_type>(
+				        ::xsimd::bitofsign(x.data)
+			        );
 
-                return {
-                    ::xsimd::batch_bool_cast<value_type>(
-                        sign_bits != decltype(sign_bits){integer_type{0}}
-                    )
-                };
-            }
+		        const auto integer_mask =
+			        sign_bits != decltype(sign_bits){integer_type{0}};
+
+		        return mask_type{
+			        ::xsimd::batch_bool_cast<storage_type>(integer_mask)
+		        };
+	        }
         }
 
-        // BITWISE (strictly constrained to integer types)
-        friend Packed operator~(const Packed& rhs) requires std::is_integral_v<T> { return { ~rhs.data }; }
-        friend Packed operator&(const Packed& lhs, const Packed& rhs) requires std::is_integral_v<T> { return { lhs.data & rhs.data }; }
-        friend Packed operator|(const Packed& lhs, const Packed& rhs) requires std::is_integral_v<T> { return { lhs.data | rhs.data }; }
-        friend Packed operator^(const Packed& lhs, const Packed& rhs) requires std::is_integral_v<T> { return { lhs.data ^ rhs.data }; }
-
-        Packed& operator&=(const Packed& rhs) requires std::is_integral_v<T> { data &= rhs.data; return *this; }
-        Packed& operator|=(const Packed& rhs) requires std::is_integral_v<T> { data |= rhs.data; return *this; }
-        Packed& operator^=(const Packed& rhs) requires std::is_integral_v<T> { data ^= rhs.data; return *this; }
-
-        // REDUCTIONS
-        [[nodiscard]] T reduce_add() const { return ::xsimd::reduce_add(data); }
-        [[nodiscard]] T reduce_min() const { return ::xsimd::reduce_min(data); }
-        [[nodiscard]] T reduce_max() const { return ::xsimd::reduce_max(data); }
-
-
-        // MASKING
-        // Performs: result[i] = mask[i] ? true_val[i] : false_val[i]
-        friend Packed select(const mask_type& mask, const Packed& true_value, const Packed& false_value) {
-            return { ::xsimd::select(mask.data, true_value.data, false_value.data) };
+    	// -----------------
+		// Bitwise operators
+		// -----------------
+    	friend Packed operator~(const Packed& value) requires std::integral<storage_type> {
+        	return Packed{~value.data};
         }
 
-        // DEBUGGING
-        [[nodiscard]] std::array<T, size()> to_array() const {
-            alignas(alignof(native_type)) std::array<T, size()> result;
-            store_aligned(result.data());
-            return result;
+    	friend Packed operator&(const Packed& lhs, const Packed& rhs) requires std::integral<storage_type> {
+        	return Packed{lhs.data & rhs.data};
         }
 
-        [[nodiscard]] std::string to_string() const {
-            std::stringstream ss;
-            // Create a temporary buffer on the stack
-            alignas(64) T buffer[size()];
-            store(buffer); // Uses the existing store_unaligned internally
-
-            ss << "[";
-            for (size_t i = 0; i < size(); ++i) {
-                ss << buffer[i];
-                if (i < size() - 1) ss << ", ";
-            }
-            ss << "]";
-            return ss.str();
+    	friend Packed operator|(const Packed& lhs, const Packed& rhs) requires std::integral<storage_type> {
+        	return Packed{lhs.data | rhs.data};
         }
 
-    private:
-
-        template<std::ptrdiff_t ElementStride, typename IndexType, size_t... Is>
-        static constexpr auto make_strided_indices(std::index_sequence<Is...>) {
-            return IndexType(
-                static_cast<typename IndexType::value_type>(
-                    Is * ElementStride
-                )...
-            );
+    	friend Packed operator^(const Packed& lhs, const Packed& rhs) requires std::integral<storage_type> {
+        	return Packed{lhs.data ^ rhs.data};
         }
+
+    	Packed& operator&=(const Packed& rhs) requires std::integral<storage_type> {
+        	data &= rhs.data;
+        	return *this;
+        }
+
+    	Packed& operator|=(const Packed& rhs) requires std::integral<storage_type> {
+        	data |= rhs.data;
+        	return *this;
+        }
+
+    	Packed& operator^=(const Packed& rhs) requires std::integral<storage_type> {
+        	data ^= rhs.data;
+        	return *this;
+        }
+
+
+		// ----------
+		// Reductions
+		// ----------
+		[[nodiscard]] storage_type reduce_add() const {
+			return static_cast<storage_type>(::xsimd::reduce_add(data));
+		}
+
+		[[nodiscard]] storage_type reduce_min() const {
+			return static_cast<storage_type>(::xsimd::reduce_min(data));
+		}
+
+		[[nodiscard]] storage_type reduce_max() const {
+			return static_cast<storage_type>(::xsimd::reduce_max(data));
+		}
+
+
+		// ------------------------
+		// Debugging and inspection
+		// ------------------------
+		[[nodiscard]] std::array<value_type, size()> to_array() const {
+			alignas(alignof(native_type)) std::array<storage_type, size()> storage;
+			data.store_aligned(storage.data());
+
+			std::array<value_type, size()> result;
+
+			for (size_t i = 0; i < size(); ++i)
+				result[i] = store_scalar<value_type>(storage[i]);
+
+			return result;
+		}
+
+		[[nodiscard]] std::string to_string() const {
+			alignas(alignof(native_type)) std::array<storage_type, size()> storage;
+			data.store_aligned(storage.data());
+
+			std::stringstream ss;
+			ss << "[";
+
+			for (size_t i = 0; i < size(); ++i) {
+				ss << storage[i];
+				if (i < size() - 1)
+					ss << ", ";
+			}
+
+			ss << "]";
+			return ss.str();
+		}
+
 
 
         native_type data;
+
+    private:
+        template<typename U>
+        [[nodiscard]] static constexpr storage_type load_scalar(U value) noexcept {
+            if constexpr (std::is_enum_v<U>)
+                return static_cast<storage_type>(std::to_underlying(value));
+            else
+                return static_cast<storage_type>(value);
+        }
+
+        template<typename U>
+        [[nodiscard]] static constexpr U store_scalar(storage_type value) noexcept {
+            return static_cast<U>(value);
+        }
+
+    	template<std::ptrdiff_t ElementStride>
+		struct StridedIndices {
+        	using index_value_type =
+				::xsimd::as_integer_t<native_storage_type>;
+
+        	static constexpr index_value_type get(
+				const unsigned i,
+				const unsigned
+			) {
+        		return static_cast<index_value_type>(
+					i * ElementStride
+				);
+        	}
+        };
+
+        template<size_t... Indices>
+        struct PermuteIndices {
+            static constexpr unsigned get(const unsigned i, const unsigned) {
+                constexpr std::array<size_t, sizeof...(Indices)> indices{Indices...};
+
+                if constexpr (sizeof...(Indices) == 1)
+                    return static_cast<unsigned>(indices[0]);
+                else
+                    return static_cast<unsigned>(indices[i]);
+            }
+        };
     };
 
 
-    static_assert(april::simd::IsSimdType<Packed<double>>);
-    static_assert(april::simd::IsSimdType<Packed<float>>);
-    static_assert(april::simd::IsSimdType<Packed<size_t>>);
-    static_assert(april::simd::IsSimdType<Packed<int>>);
+
+    static_assert(april::simd::IsSimdType<Packed<double, 0>>);
+    static_assert(april::simd::IsSimdType<Packed<float, 0>>);
+    static_assert(april::simd::IsSimdType<Packed<size_t, 0>>);
+    static_assert(april::simd::IsSimdType<Packed<int, 0>>);
 
     static_assert(april::simd::IsSimdMask<Mask<double>>);
     static_assert(april::simd::IsSimdMask<Mask<float>>);

@@ -23,10 +23,10 @@ defined(APRIL_SIMD_BACKEND_SCALAR) \
     #include "april/simd/backends/backend_xsimd.hpp"
 
     namespace april::simd {
-        template<typename T, size_t W = 0>
+        template<typename T, size_t W = 8>
         using Packed = internal::xsimd::Packed<T, W>;
 
-        template<typename T, size_t W = 0>
+        template<typename T, size_t W = 8>
         using PackedMask = internal::xsimd::Mask<T, W>;
     }
 

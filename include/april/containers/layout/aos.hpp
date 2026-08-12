@@ -247,6 +247,9 @@ namespace april::container::layout {
             else if constexpr (F == ParticleField::id) {
                 return simd::make_strided_location<stride>(self.particles[i].id);
             }
+            else if constexpr (F == ParticleField::attributes) {
+                return  &self.particles[i].attributes;
+            }
         }
 
 

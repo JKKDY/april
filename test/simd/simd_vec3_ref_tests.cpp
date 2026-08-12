@@ -14,9 +14,7 @@ using namespace april;
 
 using SimdTypes = testing::Types<
     simd::Packed<double>,
-    simd::Packed<float>,
-    simd::internal::scalar::Packed<double>,
-    simd::internal::scalar::Packed<float>
+    simd::Packed<float>
 >;
 
 

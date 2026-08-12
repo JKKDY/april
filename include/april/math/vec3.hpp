@@ -171,22 +171,6 @@ namespace april::math {
             return self.x * rhs.x + self.y * rhs.y + self.z * rhs.z;
         }
 
-        // [[nodiscard]] Scalar norm_squared(this const auto& self) noexcept {
-        //     return self.dot(self);
-        // }
-        //
-        // [[nodiscard]] Scalar norm(this const auto& self) noexcept {
-        //     return april::sqrt(self.norm_squared());
-        // }
-        //
-        // [[nodiscard]] Scalar inv_norm(this const auto& self) noexcept {
-        //     return april::rsqrt(self.norm_squared());
-        // }
-        //
-        // [[nodiscard]] Scalar inv_norm_sq(this const auto& self) noexcept {
-        //     return 1 / self.norm_squared();
-        // }
-
         [[nodiscard]] auto norm_squared(this const auto& self) noexcept {
             return self.dot(self);
         }

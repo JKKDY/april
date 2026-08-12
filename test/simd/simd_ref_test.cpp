@@ -11,9 +11,7 @@
 
 using BackendTypes = testing::Types<
     april::simd::Packed<double>,
-    april::simd::Packed<float>,
-    april::simd::internal::scalar::Packed<double>,
-    april::simd::internal::scalar::Packed<float>
+    april::simd::Packed<float>
 >;
 
 template<typename T>

@@ -27,6 +27,7 @@ jobs:
             build_type: Release
             cxx: clang++-18
             cc: clang-18
+            simd_backend: XSIMD
             cmake_flags: ""
 
           - name: macOS (Apple Clang, Release)
@@ -35,6 +36,7 @@ jobs:
             build_type: Release
             cxx: clang++
             cc: clang
+            simd_backend: XSIMD
             cmake_flags: "-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0"
 
           - name: macOS (GCC 14, Release)
@@ -44,6 +46,7 @@ jobs:
             build_type: Release
             cxx: g++-14
             cc: gcc-14
+            simd_backend: XSIMD
             cmake_flags: "-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0"
             xcode_version: "16.4"
 
@@ -52,6 +55,7 @@ jobs:
             build_type: Release
             cxx: cl
             cc: cl
+            simd_backend: XSIMD
             cmake_flags: ""
 
           - name: Windows (MinGW, Release)
@@ -59,6 +63,7 @@ jobs:
             build_type: Release
             cxx: g++
             cc: gcc
+            simd_backend: XSIMD
             cmake_flags: ""
 
           # -----------------------------------------
@@ -69,6 +74,7 @@ jobs:
             build_type: Debug
             cxx: clang++-18
             cc: clang-18
+            simd_backend: XSIMD
             cmake_flags: "-DAPRIL_USE_ASAN=ON -DAPRIL_USE_UBSAN=ON"
 
           - name: Linux (GCC 14, TSAN)
@@ -76,6 +82,7 @@ jobs:
             build_type: Debug
             cxx: g++-14
             cc: gcc-14
+            simd_backend: XSIMD
             cmake_flags: "-DAPRIL_USE_TSAN=ON"
 
           # -----------------------------------------
@@ -86,13 +93,15 @@ jobs:
             build_type: Release
             cxx: g++-14
             cc: gcc-14
-            cmake_flags: "-DAPRIL_ENABLE_XSIMD=OFF -DAPRIL_ENABLE_OPENMP=ON"
+            simd_backend: STD_SIMD
+            cmake_flags: "-DAPRIL_ENABLE_OPENMP=ON"
 
           - name: Windows (MSVC, OpenMP)
             os: windows-latest
             build_type: Release
             cxx: cl
             cc: cl
+            simd_backend: XSIMD
             cmake_flags: "-DAPRIL_ENABLE_OPENMP=ON"
 
     steps:
@@ -164,22 +173,23 @@ jobs:
             "-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}"
             "-DCMAKE_C_COMPILER=${{ matrix.cc }}"
             "-DCMAKE_CXX_COMPILER=${{ matrix.cxx }}"
+            "-DAPRIL_SIMD_BACKEND=${{ matrix.simd_backend }}"
             -DAPRIL_BUILD_TESTS=ON
             -DAPRIL_BUILD_EXAMPLES=ON
             -DAPRIL_ENABLE_FAST_MATH=OFF
           )
-          
+
           if [[ -n "${SDKROOT:-}" ]]; then
             cmake_args+=("-DCMAKE_OSX_SYSROOT=$SDKROOT")
           fi
-          
+
           extra_flags="${{ matrix.cmake_flags }}"
-          
+
           if [[ -n "$extra_flags" ]]; then
             read -ra parsed_flags <<< "$extra_flags"
             cmake_args+=("${parsed_flags[@]}")
           fi
-          
+
           cmake "${cmake_args[@]}"
 
       - name: Build all targets
@@ -225,6 +235,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-18 \
             -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DAPRIL_SIMD_BACKEND=SCALAR \
             -DAPRIL_BUILD_TESTS=ON \
             -DAPRIL_BUILD_EXAMPLES=OFF \
             -DAPRIL_ENABLE_FAST_MATH=OFF \

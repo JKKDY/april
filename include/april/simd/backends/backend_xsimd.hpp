@@ -386,6 +386,7 @@ namespace april::simd::internal::xsimd {
             return data;
         }
 
+    	// ----------------
         // Contiguous loads
         // ----------------
         template<typename PtrT>

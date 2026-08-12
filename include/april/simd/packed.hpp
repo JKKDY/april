@@ -36,10 +36,10 @@ defined(APRIL_SIMD_BACKEND_SCALAR) \
     #include "april/simd/backends/backend_std_simd.hpp"
 
     namespace april::simd {
-        template<typename T, size_t W = 0>
+        template<typename T, size_t W = 2>
         using Packed = internal::std_simd::Packed<T, W>;
 
-        template<typename T, size_t W = 0>
+        template<typename T, size_t W = 2>
         using PackedMask = internal::std_simd::Mask<T, W>;
     }
 
@@ -48,10 +48,10 @@ defined(APRIL_SIMD_BACKEND_SCALAR) \
     #include "april/simd/backends/backend_scalar.hpp"
 
     namespace april::simd {
-        template<typename T, size_t W = 0>
+        template<typename T, size_t W = 8>
         using Packed = internal::scalar::Packed<T, W>;
 
-        template<typename T, size_t W = 0>
+        template<typename T, size_t W = 8>
         using PackedMask = internal::scalar::Mask<T, W>;
     }
 

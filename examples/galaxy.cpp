@@ -93,6 +93,11 @@ int main() {
             .as_type(0));
     }
 
+    struct :
+            RuntimeConfig<exec::DefaultThreadExecutor>,
+            CompileTimeConfig<ParallelPolicy::Threaded, VectorPolicy::Scalar>
+        {} cfg;
+
     // 4. Configure the APRIL Environment
     // We register our custom SoftGravity force here
     auto env = Environment(forces<SoftGravity>)
@@ -104,7 +109,7 @@ int main() {
 
     // 5. Build System using DirectSum (for exact O(n^2) gravity)
     auto container = DirectSum<Layout::AoS>();
-    auto system = build_system(env, container);
+    auto system = build_system(env, container, cfg);
 
     // 6. Run the Simulation with Yoshida4
     auto integrator = Yoshida4(system, monitors<ProgressBar, BinaryOutput>)

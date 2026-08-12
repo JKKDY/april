@@ -538,70 +538,146 @@ TEST(PackedParticleReductionTest, MaskedReduceIntoScalar) {
 //----------------
 // ATTRIBUTE TESTS
 //----------------
-struct TestCharge {
-    APRIL_TRIVIAL_ATTRIBUTE(double, q);
+
+
+
+
+
+struct TestAttributes {
+    double charge = 0.0;
+    size_t touched_by_lane = std::numeric_limits<size_t>::max();
 };
 
-// Trivial SIMD Attributes Lifecycle
-// Verifies the engine correctly casts and vectorizes custom user structs
-// TEST(PackedParticleAttributesTest, SIMDAttributeLifecycle) {
-//     constexpr size_t Count = packed::size();
-//
-//     std::vector<double> pos_x(Count, 0.0);
-//     std::vector<double> pos_y(Count, 0.0);
-//     std::vector<double> pos_z(Count, 0.0);
-//
-//     std::vector<TestCharge> charges(Count);
-//     for (size_t i = 0; i < Count; ++i) {
-//         charges[i].q = static_cast<double>(i) * 2.0;
-//     }
-//
-//     constexpr auto Mask =
-//         ParticleField::position |
-//         ParticleField::attributes;
-//
-//     auto get_field = [&]<ParticleField F>() {
-//         if constexpr (F == ParticleField::position) {
-//             return math::Vec3Location{
-//                 pos_x.data(),
-//                 pos_y.data(),
-//                 pos_z.data()
-//             };
-//         } else if constexpr (F == ParticleField::attributes) {
-//             return charges.data();
-//         }
-//     };
-//
-//     auto src = make_particle_source<Mask, Mask>(get_field);
-//
-//     PackedParticleRef<Mask, Mask, TestCharge> ref(src);
-//     auto buffer = ref.load_buffer();
-//
-//     auto view = buffer.to_view();
-//     auto q_vals = view.attributes.q.to_array();
-//
-//     for (size_t i = 0; i < Count; ++i) {
-//         EXPECT_DOUBLE_EQ(q_vals[i], static_cast<double>(i) * 2.0);
-//     }
-//
-//     view.attributes.q += view.attributes.q;
-//     buffer.update_into(ref);
-//
-//     for (size_t i = 0; i < Count; ++i) {
-//         EXPECT_DOUBLE_EQ(
-//             buffer.attributes.to_array()[i],
-//             static_cast<double>(i) * 4.0
-//         );
-//     }
-//
-//     for (size_t i = 0; i < Count; ++i) {
-//         EXPECT_DOUBLE_EQ(
-//             charges[i].q,
-//             static_cast<double>(i) * 4.0
-//         );
-//     }
-// }
-//
+TEST(PackedParticleAttributesTest, AttributesAreForwardedIntoPackedKernel) {
+    constexpr size_t Width = packed::size();
+
+    std::array<TestAttributes, Width> attributes{};
+
+    for (size_t lane = 0; lane < Width; ++lane)
+        attributes[lane].charge = static_cast<double>(lane + 1);
+
+    constexpr ParticleField Read =
+        ParticleField::attributes;
+
+    constexpr ParticleField Write =
+        ParticleField::attributes;
+
+    auto get_field = [&]<ParticleField F>() {
+        if constexpr (F == ParticleField::attributes)
+            return attributes.data();
+    };
+
+    auto source = make_particle_source<Read, Write>(get_field);
+
+    using AttributeSource = decltype(source);
+
+    using Ref = PackedParticleRef<
+        Read,
+        Write,
+        TestAttributes,
+        AttributeSource
+    >;
+
+    Ref ref(source);
+
+    auto buffer =
+        ref.load_buffer<MaskPolicy::Enabled>();
+
+    auto view = buffer.to_view();
+
+    std::array<bool, Width> active_lanes{};
+
+    for (size_t lane = 0; lane < Width; ++lane)
+        active_lanes[lane] = (lane % 2) == 0;
+
+    const auto mask =
+        packed::mask_type::load_unaligned(active_lanes.data());
+
+    view.mask_with(mask);
+
+    // Simulated packed kernel
+    for (size_t lane = 0; lane < Width; ++lane) {
+        if (!view.attributes.active(lane))
+            continue;
+
+        auto& attr = view.attributes[lane];
+
+        attr.charge *= 10.0;
+        attr.touched_by_lane = lane;
+    }
+
+    // Attribute writes are direct; no update_into().
+    for (size_t lane = 0; lane < Width; ++lane) {
+        if ((lane % 2) == 0) {
+            EXPECT_DOUBLE_EQ(
+                attributes[lane].charge,
+                static_cast<double>(lane + 1) * 10.0
+            );
+
+            EXPECT_EQ(
+                attributes[lane].touched_by_lane,
+                lane
+            );
+        } else {
+            EXPECT_DOUBLE_EQ(
+                attributes[lane].charge,
+                static_cast<double>(lane + 1)
+            );
+
+            EXPECT_EQ(
+                attributes[lane].touched_by_lane,
+                std::numeric_limits<size_t>::max()
+            );
+        }
+    }
+}
+
+TEST(PackedParticleAttributesTest, ReadOnlyAttributesAreConstInKernel) {
+    constexpr size_t Width = packed::size();
+
+    std::array<TestAttributes, Width> attributes{};
+
+    constexpr ParticleField Read =
+        ParticleField::attributes;
+
+    constexpr ParticleField Write =
+        ParticleField::none;
+
+    auto get_field = [&]<ParticleField F>() {
+        if constexpr (F == ParticleField::attributes)
+            return attributes.data();
+    };
+
+    auto source = make_particle_source<Read, Write>(get_field);
+
+    using AttributeSource = decltype(source);
+
+    using Ref = PackedParticleRef<
+        Read,
+        Write,
+        TestAttributes,
+        AttributeSource
+    >;
+
+    Ref ref(source);
+
+    auto buffer = ref.load_buffer();
+    auto view = buffer.to_view();
+
+    using AttributeRef =
+        decltype(view.attributes[0]);
+
+    static_assert(std::same_as<
+        AttributeRef,
+        const TestAttributes&
+    >);
+
+    EXPECT_EQ(
+        &view.attributes[0],
+        &attributes[0]
+    );
+}
+
 
 namespace {
 

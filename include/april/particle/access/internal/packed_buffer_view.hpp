@@ -63,8 +63,7 @@ namespace april::particle::internal {
         APRIL_NO_UNIQUE_ADDRESS view_ref_t<ParticleField::state, decltype(Buffer::state)> state;
         APRIL_NO_UNIQUE_ADDRESS view_ref_t<ParticleField::type, decltype(Buffer::type)> type;
         APRIL_NO_UNIQUE_ADDRESS view_ref_t<ParticleField::id, decltype(Buffer::id)> id;
-
-        // APRIL_NO_UNIQUE_ADDRESS view_ref_t<ParticleField::attributes, exposed_attr_t> attributes;
+        APRIL_NO_UNIQUE_ADDRESS view_ref_t<ParticleField::attributes, decltype(Buffer::attributes)> attributes;
 
         /**
           * Binds the buffer's registers to the view's references.
@@ -79,7 +78,7 @@ namespace april::particle::internal {
               state(buf.state),
               type(buf.type),
               id(buf.id),
-              // attributes(bind_attributes(buf)),
+              attributes(buf.attributes),
               buffer(&buf)
             {}
 

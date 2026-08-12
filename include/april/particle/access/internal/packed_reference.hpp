@@ -31,31 +31,35 @@ namespace april::particle::internal {
         using raw_source_field_t = std::remove_cvref_t<decltype(std::declval<const Source&>().template get<F>())>;
 
         template<ParticleField F>
-        static constexpr auto init_field(const Source & source) {
+        static constexpr auto init_field(const Source& source) {
             if constexpr (!has_field_v<ReadAccess | WriteAccess, F>) {
                 return AccessForbidden<F>();
             } else {
                 auto source_field = source.template get<F>();
                 using source_field_t = std::remove_cvref_t<decltype(source_field)>;
 
-                auto to_location = []<typename FieldT>(const FieldT & field) {
-                    if constexpr (std::is_pointer_v<FieldT>) {
-                        return  simd::ContiguousLocation<std::remove_pointer_t<FieldT>>(field);
-                    } else if constexpr (simd::IsLocation<FieldT>){
-                        return field;
-                    } else {
-                        static_assert(false, "field type is not a raw pointer, nor a valid Location");
-                    }
-                };
-
-                if constexpr (math::IsVec3Location<source_field_t>){
-                    return math::Vec3Proxy(
-                        simd::PackedRef(to_location(source_field.x)),
-                        simd::PackedRef(to_location(source_field.y)),
-                        simd::PackedRef(to_location(source_field.z))
-                    );
+                if constexpr (F == ParticleField::attributes) {
+                    return source_field;
                 } else {
-                    return  simd::PackedRef(to_location(source_field));
+                    auto to_location = []<typename FieldT>(const FieldT& field) {
+                        if constexpr (std::is_pointer_v<FieldT>) {
+                            return simd::ContiguousLocation<std::remove_pointer_t<FieldT>>(field);
+                        } else if constexpr (simd::IsLocation<FieldT>) {
+                            return field;
+                        } else {
+                            static_assert(false, "field type is not a raw pointer, nor a valid Location");
+                        }
+                    };
+
+                    if constexpr (math::IsVec3Location<source_field_t>) {
+                        return math::Vec3Proxy(
+                            simd::PackedRef(to_location(source_field.x)),
+                            simd::PackedRef(to_location(source_field.y)),
+                            simd::PackedRef(to_location(source_field.z))
+                        );
+                    } else {
+                        return simd::PackedRef(to_location(source_field));
+                    }
                 }
             }
         }
@@ -73,6 +77,7 @@ namespace april::particle::internal {
           , state(init_field<ParticleField::state>(source))
           , type(init_field<ParticleField::type>(source))
           , id(init_field<ParticleField::id>(source))
+          , attributes(init_field<ParticleField::attributes>(source))
         {}
 
         /**
@@ -90,7 +95,7 @@ namespace april::particle::internal {
               , state(r.state)
               , type(r.type)
               , id(r.id)
-              // , attributes(r.attributes)
+              , attributes(r.attributes)
         {}
 
         /**
@@ -121,7 +126,7 @@ namespace april::particle::internal {
         APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::type> type;
         APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::id> id;
 
-        AccessForbidden<ParticleField::attributes> attributes;
+        APRIL_NO_UNIQUE_ADDRESS field_t<ParticleField::attributes> attributes;
     };
 
     template<

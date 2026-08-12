@@ -4,11 +4,8 @@
 
 #include "april/exec/policy.hpp"
 #include "april/exec/kernel.hpp"
-#include "april/exec/threading/executor_config.hpp"
 #include "april/exec/threading/executor_reference.hpp"
 #include "april/exec/config.hpp"
-
-#include "april/math/range.hpp"
 
 #include "april/interactions/interaction_table.hpp"
 
@@ -16,9 +13,7 @@
 #include "april/core/internal/environment_traits.hpp"
 
 #include "april/particle/access/scalar_access.hpp"
-#include "april/particle/access/packed_access.hpp"
 #include "april/particle/access/policy.hpp"
-
 
 
 namespace april::container {

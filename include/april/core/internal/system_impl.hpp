@@ -112,10 +112,8 @@ namespace april {
 				};
 
 				constexpr bool force_scalar =
-					(static_cast<bool>(M & ParticleField::attributes) && !particle::IsVectorizable<ParticleAttributes>)
-					|| ForceT::vector_mode == exec::ExecutionMode::Scalar
-					|| vector_policy == VectorPolicy::Scalar;
-
+					ForceT::vector_mode == exec::ExecutionMode::Scalar ||
+					vector_policy == VectorPolicy::Scalar;
 				constexpr VectorPolicy vp = force_scalar ? VectorPolicy::Scalar : VectorPolicy::Auto;
 
 				execute_batch_kernel<vp>(

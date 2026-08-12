@@ -46,6 +46,13 @@ namespace april::particle::internal {
     private:
         struct NoMask {
             NoMask(bool) {}
+            bool active(size_t) {return true; }
+            uint64_t bitmask() {return ~uint64_t{0}; }
+            std::array<bool, packed::size()> array_mask() {
+                std::array<bool, packed::size()> result{};
+                result.fill(true);
+                return result;
+            }
             template <unsigned K> void rotate_left() {}
             template <unsigned K> void rotate_right() {};
         };
@@ -55,6 +62,15 @@ namespace april::particle::internal {
             packed::mask_type,
             NoMask
         >;
+
+
+        using AttributeT = std::conditional_t<
+            has_field_v<EffectiveWriteMask, ParticleField::attributes>,
+            Attributes,
+            const Attributes
+        >;
+
+        using AttributesPack = simd::PointerPack<AttributeT, mask_type, packed::size()>;
 
         // if in ReadMask or WriteMask return type T else return Poison
         template <typename T, ParticleField F>
@@ -97,7 +113,7 @@ namespace april::particle::internal {
         APRIL_NO_UNIQUE_ADDRESS packed_field_t<ParticleType, ParticleField::type> type;
         APRIL_NO_UNIQUE_ADDRESS packed_field_t<ParticleID, ParticleField::id> id;
 
-        // APRIL_NO_UNIQUE_ADDRESS packed_attr_t<ParticleField::attributes> attributes;
+        APRIL_NO_UNIQUE_ADDRESS buffer_field_t<AttributesPack, ParticleField::attributes> attributes;
 
         PackedParticleBuffer() {
             bind_masks();
@@ -137,13 +153,8 @@ namespace april::particle::internal {
                 type = source.type.load();
             if constexpr (has_field_v<ReadMask, ParticleField::id>)
                 id = source.id.load();
-
-            // if constexpr (has_field_v<ReadMask, ParticleField::attributes>) {
-            //     // Cast the AoS struct pointer to an arithmetic pointer
-            //     // IsTriviallyVectorizable ensures that this reinterpret casting will work fine
-            //     auto ptr = reinterpret_cast<const attr_scalar_t*>(source.attributes);
-            //     attributes = decltype(attributes)::load_unaligned(ptr);
-            // }
+            if constexpr (has_field_v<ReadMask | EffectiveWriteMask, ParticleField::attributes>)
+                attributes = AttributesPack(source.attributes, write_mask);
 
             // Zero-initialize Write-Only accumulators (WOMask).
             // This transforms the register into a "delta-buffer" for numerical types
@@ -157,10 +168,6 @@ namespace april::particle::internal {
                 force = pvec3(0.0);
             if constexpr (has_field_v<WOMask, ParticleField::mass>)
                 mass = 0.0;
-
-            // if constexpr (has_field_v<WOMask, ParticleField::attributes>) {
-            //     attributes = decltype(attributes)(0);
-            // }
         }
 
         /**
@@ -199,10 +206,13 @@ namespace april::particle::internal {
             if constexpr (has_field_v<ReadMask, ParticleField::type>) type = scalar.type;
             if constexpr (has_field_v<ReadMask, ParticleField::id>) id = scalar.id;
 
-            // if constexpr (has_field_v<ReadMask, ParticleField::attributes>) {
-            //     auto ptr = reinterpret_cast<const attr_scalar_t*>(&scalar.attributes);
-            //     attributes = decltype(attributes)(*ptr);
-            // }
+            if constexpr (has_field_v<ReadMask, ParticleField::attributes>) {
+                std::array<AttributeT*, packed::size()> ptrs;
+                for (size_t i = 0; i < ptrs.size(); i++) {
+                    ptrs[i] = &scalar.attributes;
+                }
+                attributes = AttributesPack(ptrs, write_mask);
+            }
         }
 
         // buffers are meant to be ephemeral and thus should not be copied around
@@ -223,7 +233,7 @@ namespace april::particle::internal {
         template <unsigned K = 1>
         APRIL_FORCE_INLINE void rotate_left() {
             auto rotate_vec = [&]<ParticleField field>(auto&& vec) APRIL_FORCE_INLINE {
-                if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, field>) {
+                if constexpr (particle::internal::has_field_v<ReadMask | EffectiveWriteMask, field>) {
                     vec.x = vec.x.template rotate_left<K>();
                     vec.y = vec.y.template rotate_left<K>();
                     vec.z = vec.z.template rotate_left<K>();
@@ -231,19 +241,24 @@ namespace april::particle::internal {
             };
 
             auto rotate_scalar = [&]<ParticleField field>(auto&& scalar) APRIL_FORCE_INLINE {
-                if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, field>) {
+                if constexpr (particle::internal::has_field_v<ReadMask | EffectiveWriteMask, field>) {
                     scalar = scalar.template rotate_left<K>();
                 }
             };
 
             rotate(rotate_vec, rotate_scalar);
+
+            if constexpr (has_field_v<ReadMask | EffectiveWriteMask, ParticleField::attributes>)
+                attributes.template rotate_left<K>();
+
             write_mask.template rotate_left<K>();
+
         }
 
         template <unsigned K = 1>
         APRIL_FORCE_INLINE void rotate_right() {
             auto rotate_vec = [&]<ParticleField field>(auto&& vec) APRIL_FORCE_INLINE {
-                if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, field>) {
+                if constexpr (particle::internal::has_field_v<ReadMask | EffectiveWriteMask, field>) {
                     vec.x = vec.x.template rotate_right<K>();
                     vec.y = vec.y.template rotate_right<K>();
                     vec.z = vec.z.template rotate_right<K>();
@@ -251,12 +266,16 @@ namespace april::particle::internal {
             };
 
             auto rotate_scalar = [&]<ParticleField field>(auto&& scalar) APRIL_FORCE_INLINE {
-                if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, field>) {
+                if constexpr (particle::internal::has_field_v<ReadMask | EffectiveWriteMask, field>) {
                     scalar = scalar.template rotate_right<K>();
                 }
             };
 
             rotate(rotate_vec, rotate_scalar);
+
+            if constexpr (has_field_v<ReadMask | EffectiveWriteMask, ParticleField::attributes>)
+                attributes.template rotate_right<K>();
+
             write_mask.template rotate_right<K>();
         }
 
@@ -271,7 +290,6 @@ namespace april::particle::internal {
             if constexpr (has_field_v<WOMask, ParticleField::velocity>) velocity += other.velocity;
             if constexpr (has_field_v<WOMask, ParticleField::force>) force += other.force;
             if constexpr (has_field_v<WOMask, ParticleField::mass>) mass += other.mass;
-            // if constexpr (has_field_v<WOMask, ParticleField::attributes>) attributes += other.attributes;
         }
 
         /**
@@ -297,9 +315,6 @@ namespace april::particle::internal {
             if constexpr (has_field_v<WOMask, ParticleField::mass>) {
                 mass += select(mask, other.mass, null);
             }
-            // if constexpr (has_field_v<WOMask, ParticleField::attributes>) {
-            //     attributes += select(mask, other.attributes, decltype(attributes)(0));
-            // }
         }
 
         /**
@@ -333,17 +348,6 @@ namespace april::particle::internal {
             if constexpr (has_field_v<RWMask, ParticleField::state>) packed_ref.state = state;
             if constexpr (has_field_v<RWMask, ParticleField::type>) packed_ref.type = type;
 
-            // ATTRIBUTES
-            // if constexpr (has_field_v<WOMask, ParticleField::attributes>) {
-            //     auto ptr = reinterpret_cast<attr_scalar_t*>(packed_ref.attributes);
-            //     auto current = decltype(attributes)::load_unaligned(ptr);
-            //     (current + attributes).store_unaligned(ptr);
-            // }
-            // else if constexpr (has_field_v<RWMask, ParticleField::attributes>) {
-            //     auto ptr = reinterpret_cast<attr_scalar_t*>(packed_ref.attributes);
-            //     attributes.store_unaligned(ptr);
-            // }
-
             // id is not assignable
         }
 
@@ -365,20 +369,6 @@ namespace april::particle::internal {
                 packed_ref.mass += select(mask, mass, 0.0);
             else if constexpr (has_field_v<RWMask, ParticleField::mass>)
                 packed_ref.mass = select(mask, mass, packed_ref.mass);
-
-            // ATTRIBUTES (Masked read-modify-write)
-            // if constexpr (has_field_v<WOMask, ParticleField::attributes>) {
-            //     auto ptr = reinterpret_cast<attr_scalar_t*>(packed_ref.attributes);
-            //     auto current = decltype(attributes)::load_unaligned(ptr);
-            //     auto updated = current + select(mask, attributes, 0.0);
-            //     updated.store_unaligned(ptr);
-            // }
-            // else if constexpr (has_field_v<RWMask, ParticleField::attributes>) {
-            //     auto ptr = reinterpret_cast<attr_scalar_t*>(packed_ref.attributes);
-            //     auto current = decltype(attributes)::load_unaligned(ptr);
-            //     auto updated = select(mask, attributes, current);
-            //     updated.store_unaligned(ptr);
-            // }
         }
 
         /**
@@ -400,14 +390,6 @@ namespace april::particle::internal {
                 p.mass += mass.reduce_add();
             else if constexpr (has_field_v<RWMask, ParticleField::mass>)
                 static_assert(sizeof(ScalarAccessor) == 0, "Cannot reduce RW mass.");
-
-            // if constexpr (has_field_v<WOMask, ParticleField::attributes>) {
-            //     auto ptr = reinterpret_cast<attr_scalar_t*>(&p.attributes);
-            //     *ptr += attributes.reduce_add();
-            // }
-            // else if constexpr (has_field_v<RWMask, ParticleField::attributes>) {
-            //     static_assert(sizeof(ScalarAccessor) == 0, "FATAL: Cannot reduce RW attributes.");
-            // }
         }
 
         /**
@@ -426,15 +408,6 @@ namespace april::particle::internal {
                 p.mass += select(mask, mass, 0.0).reduce_add();
             else if constexpr (has_field_v<RWMask, ParticleField::mass>)
                 static_assert(sizeof(ScalarAccessor) == 0, "FATAL: Cannot masked reduce RW mass.");
-
-            // ATTRIBUTES
-            // if constexpr (has_field_v<WOMask, ParticleField::attributes>) {
-            //     auto ptr = reinterpret_cast<attr_scalar_t*>(&p.attributes);
-            //     *ptr += select(mask, attributes, decltype(attributes)(0)).reduce_add();
-            // }
-            // else if constexpr (has_field_v<RWMask, ParticleField::attributes>) {
-            //     static_assert(sizeof(ScalarAccessor) == 0, "FATAL: Cannot masked reduce RW attributes.");
-            // }
         }
 
     private:
@@ -464,8 +437,6 @@ namespace april::particle::internal {
                 state.bind_mask(write_mask);
             if constexpr (has_field_v<EffectiveWriteMask, ParticleField::type>)
                 type.bind_mask(write_mask);
-            // if constexpr (has_field_v<EffectiveWriteMask, ParticleField::attributes>)
-            //     attributes.bind_mask(write_mask);
         }
 
         // Unified vector write-back (masked) for WO and WR fields
@@ -512,7 +483,6 @@ namespace april::particle::internal {
             }
         }
 
-
         template <typename RotateVec, typename RotateScalar>
         APRIL_FORCE_INLINE void rotate(RotateVec&& rotate_vec, RotateScalar&& rotate_scalar) {
             rotate_vec.template operator()<ParticleField::position>(position);
@@ -524,7 +494,6 @@ namespace april::particle::internal {
             rotate_scalar.template operator()<ParticleField::state>(state);
             rotate_scalar.template operator()<ParticleField::type>(type);
             rotate_scalar.template operator()<ParticleField::id>(id);
-            // rotate_scalar.template operator()<ParticleField::attributes>(attributes);
         }
     };
 }

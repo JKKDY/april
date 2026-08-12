@@ -2,8 +2,14 @@
 
 #include <type_traits>
 
+#include "april/particle/attributes.hpp"
 #include "april/simd/packed.hpp"
 #include "april/simd/packed_concept.hpp"
+
+
+namespace april {
+    enum class MaskPolicy;
+}
 
 namespace april::simd {
     template<typename From, typename To>
@@ -33,6 +39,69 @@ namespace april::simd {
         requires(Loc location, const typename Loc::packed_type value) {
             location.store(value);
         };
+
+    template<typename T, typename Mask, size_t Width = double_width>
+        requires particle::IsParticleAttributes<std::remove_const_t<T>>
+    struct PointerPack {
+        using value_type = T;
+
+    private:
+        std::array<T*, Width> ptrs{};
+        size_t offset = 0;
+        Mask* mask = nullptr;
+
+    public:
+        constexpr PointerPack() = default;
+
+        template<typename U> requires std::convertible_to<U*, T*>
+        constexpr explicit PointerPack(U* ptr, Mask& mask) noexcept
+        : mask(&mask) {
+            for (size_t i = 0; i < Width; ++i)
+                ptrs[i] = ptr + i;
+        }
+
+        constexpr explicit PointerPack(std::array<T*, Width> ptrs, Mask& mask) noexcept
+            : ptrs(ptrs), mask(&mask)
+        {}
+
+        template<typename U> requires std::convertible_to<U*, T*>
+        constexpr explicit PointerPack(const std::array<U*, Width>& source, Mask& mask) noexcept
+        : mask(&mask) {
+            for (size_t i = 0; i < Width; ++i)
+                ptrs[i] = source[i];
+        }
+
+        [[nodiscard]] bool active(const size_t lane) const noexcept {
+            const auto bits = mask->to_bitmask();
+            return (bits & (decltype(bits){1} << lane)) != 0;
+        }
+
+        [[nodiscard]] auto bitmask() const noexcept {
+            return mask->to_bitmask();
+        }
+
+        [[nodiscard]] auto array_mask() const noexcept {
+            return mask->to_array();
+        }
+
+        [[nodiscard]] T& operator[](const size_t lane) noexcept {
+            return *ptrs[(lane + offset) % Width];
+        }
+
+        [[nodiscard]] const T& operator[](size_t lane) const noexcept {
+            return *ptrs[(lane + offset) % Width];
+        }
+
+        template<unsigned K = 1>
+        void rotate_left() noexcept {
+            offset = (offset + K) % Width;
+        }
+
+        template<unsigned K = 1>
+        void rotate_right() noexcept {
+            offset = (offset + Width - (K % Width)) % Width;
+        }
+    };
 
 
 

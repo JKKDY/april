@@ -248,7 +248,13 @@ namespace april::container::layout {
                 return simd::make_strided_location<stride>(self.particles[i].id);
             }
             else if constexpr (F == ParticleField::attributes) {
-                return  &self.particles[i].attributes;
+                using AttributeT = std::remove_reference_t<decltype((self.particles[i].attributes))>;
+                std::array<AttributeT*, packed::size()> ptrs;
+
+                for (size_t lane = 0; lane < packed::size(); ++lane)
+                    ptrs[lane] = &self.particles[i + lane].attributes;
+
+                return ptrs;
             }
         }
 

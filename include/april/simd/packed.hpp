@@ -97,31 +97,31 @@ namespace april::simd::internal {
             { april::select(mask, a, b) } -> std::same_as<std::remove_cvref_t<Packed>>;
         };
 
-    static_assert(april::simd::IsSimdType<Packed<double>>);
-    static_assert(april::simd::IsSimdType<Packed<float>>);
-    static_assert(april::simd::IsSimdType<Packed<size_t>>);
-    static_assert(april::simd::IsSimdType<Packed<int>>);
-    static_assert(april::simd::IsSimdType<Packed<ParticleState>>);
-    static_assert(april::simd::IsSimdType<Packed<ParticleID>>);
-    static_assert(april::simd::IsSimdType<Packed<ParticleType>>);
+    static_assert(april::simd::IsSimdType<Packed<double, 0>>);
+    static_assert(april::simd::IsSimdType<Packed<float, 0>>);
+    static_assert(april::simd::IsSimdType<Packed<uint64_t, 0>>);
+    static_assert(april::simd::IsSimdType<Packed<int, 0>>);
+    static_assert(april::simd::IsSimdType<Packed<ParticleState, 0>>);
+    static_assert(april::simd::IsSimdType<Packed<ParticleID, 0>>);
+    static_assert(april::simd::IsSimdType<Packed<ParticleType, 0>>);
 
     static_assert(april::simd::IsSimdMask<PackedMask<double>>);
     static_assert(april::simd::IsSimdMask<PackedMask<float>>);
     static_assert(april::simd::IsSimdMask<PackedMask<size_t>>);
     static_assert(april::simd::IsSimdMask<PackedMask<int>>);
 
-    static_assert(IsSimdMaskConvertibleTo<PackedMask<float>, PackedMask<int>>);
-    static_assert(IsSimdMaskConvertibleTo<PackedMask<int>, PackedMask<float>>);
+    static_assert(IsSimdMaskConvertibleTo<PackedMask<float, 0>, PackedMask<int, 0>>);
+    static_assert(IsSimdMaskConvertibleTo<PackedMask<int, 0>, PackedMask<float, 0>>);
     static_assert(IsSimdMaskConvertibleTo<PackedMask<double>, PackedMask<size_t>>);
     static_assert(IsSimdMaskConvertibleTo<PackedMask<size_t>, PackedMask<double>>);
 
-    static_assert(IsSimdMaskCompatibleWith<PackedMask<int>, Packed<float>>);
-    static_assert(IsSimdMaskCompatibleWith<PackedMask<float>, Packed<int>>);
+    static_assert(IsSimdMaskCompatibleWith<PackedMask<int, 0>, Packed<float, 0>>);
+    static_assert(IsSimdMaskCompatibleWith<PackedMask<float, 0>, Packed<int, 0>>);
     static_assert(IsSimdMaskCompatibleWith<PackedMask<size_t>, Packed<double>>);
     static_assert(IsSimdMaskCompatibleWith<PackedMask<double>, Packed<size_t>>);
 
-    static_assert(std::same_as<Packed<float>::mask_type, PackedMask<float>>);
-    static_assert(std::same_as<Packed<int>::mask_type, PackedMask<int>>);
+    static_assert(std::same_as<Packed<float, 0>::mask_type, PackedMask<float, 0>>);
+    static_assert(std::same_as<Packed<int, 0>::mask_type, PackedMask<int, 0>>);
     static_assert(std::same_as<Packed<double>::mask_type, PackedMask<double>>);
     static_assert(std::same_as<Packed<size_t>::mask_type, PackedMask<size_t>>);
 

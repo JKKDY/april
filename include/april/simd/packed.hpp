@@ -97,16 +97,16 @@ namespace april::simd::internal {
             { april::select(mask, a, b) } -> std::same_as<std::remove_cvref_t<Packed>>;
         };
 
-    static_assert(april::simd::IsSimdType<Packed<double, 0>>);
-    static_assert(april::simd::IsSimdType<Packed<float, 0>>);
+    static_assert(april::simd::IsSimdType<Packed<double, double_width>>);
+    static_assert(april::simd::IsSimdType<Packed<float, float_width>>);
     static_assert(april::simd::IsSimdType<Packed<uint64_t, 0>>);
     static_assert(april::simd::IsSimdType<Packed<int, 0>>);
     static_assert(april::simd::IsSimdType<Packed<ParticleState, 0>>);
     static_assert(april::simd::IsSimdType<Packed<ParticleID, 0>>);
     static_assert(april::simd::IsSimdType<Packed<ParticleType, 0>>);
 
-    static_assert(april::simd::IsSimdMask<PackedMask<double>>);
-    static_assert(april::simd::IsSimdMask<PackedMask<float>>);
+    static_assert(april::simd::IsSimdMask<PackedMask<double, double_width>>);
+    static_assert(april::simd::IsSimdMask<PackedMask<float, float_width>>);
     static_assert(april::simd::IsSimdMask<PackedMask<size_t>>);
     static_assert(april::simd::IsSimdMask<PackedMask<int>>);
 

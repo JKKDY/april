@@ -19,7 +19,11 @@ class SimdRefTest : public testing::Test {
 public:
     using Packed = T;
     using Scalar = T::value_type;
-    using Location = april::simd::ContiguousLocation<Scalar>;
+	using Location = april::simd::ContiguousLocation<
+		Scalar,
+		april::simd::Alignment::Unaligned,
+		T::size()
+	>;
     using Ref = april::simd::PackedRef<Location>;
 
     static_assert(std::same_as<
@@ -223,7 +227,7 @@ TYPED_TEST(SimdRefTest, StaticStridedLocationLoad) {
 	using Scalar = TestFixture::Scalar;
 
 	static constexpr std::ptrdiff_t Stride = 3 * sizeof(Scalar);
-	using Location = april::simd::StridedLocation<Scalar, Stride>;
+	using Location = april::simd::StridedLocation<Scalar, Stride, Packed::size()>;
 
 	static_assert(april::simd::IsLocation<Location>);
 	static_assert(april::simd::IsWritableLocation<Location>);
@@ -247,7 +251,7 @@ TYPED_TEST(SimdRefTest, StaticStridedLocationStore) {
 	using Scalar = TestFixture::Scalar;
 
 	static constexpr std::ptrdiff_t Stride = 3 * sizeof(Scalar);
-	using Location = april::simd::StridedLocation<Scalar, Stride>;
+	using Location = april::simd::StridedLocation<Scalar, Stride, Packed::size()>;
 
 	std::vector<Scalar> memory(Packed::size() * 3, Scalar{-1});
 
@@ -273,7 +277,7 @@ TYPED_TEST(SimdRefTest, StaticStridedPackedRefLoadStore) {
 	using Scalar = TestFixture::Scalar;
 
 	static constexpr std::ptrdiff_t Stride = 3 * sizeof(Scalar);
-	using Location = april::simd::StridedLocation<Scalar, Stride>;
+	using Location = april::simd::StridedLocation<Scalar, Stride, Packed::size()>;
 	using Ref = april::simd::PackedRef<Location>;
 
 	std::vector<Scalar> memory(Packed::size() * 3, Scalar{-1});
@@ -303,7 +307,11 @@ TYPED_TEST(SimdRefTest, StaticStridedPackedRefLoadStore) {
 TYPED_TEST(SimdRefTest, RuntimeStridedLocationLoad) {
 	using Packed = TestFixture::Packed;
 	using Scalar = TestFixture::Scalar;
-	using Location = april::simd::StridedLocation<Scalar>;
+	using Location = april::simd::StridedLocation<
+		Scalar,
+		april::simd::dynamic_stride,
+		Packed::size()
+	>;
 
 	const std::ptrdiff_t stride = 3 * sizeof(Scalar);
 
@@ -327,7 +335,11 @@ TYPED_TEST(SimdRefTest, RuntimeStridedLocationLoad) {
 TYPED_TEST(SimdRefTest, RuntimeStridedLocationStore) {
 	using Packed = TestFixture::Packed;
 	using Scalar = TestFixture::Scalar;
-	using Location = april::simd::StridedLocation<Scalar>;
+	using Location = april::simd::StridedLocation<
+		Scalar,
+		april::simd::dynamic_stride,
+		Packed::size()
+	>;
 
 	const std::ptrdiff_t stride = 3 * sizeof(Scalar);
 
@@ -351,10 +363,19 @@ TYPED_TEST(SimdRefTest, RuntimeStridedLocationStore) {
 }
 
 TYPED_TEST(SimdRefTest, RuntimeStridedPackedRefCompoundAssignment) {
-	using Packed = TestFixture::Packed;
-	using Scalar = TestFixture::Scalar;
-	using Location = april::simd::StridedLocation<Scalar>;
+	using Packed = typename TestFixture::Packed;
+	using Scalar = typename TestFixture::Scalar;
+	using Location = april::simd::StridedLocation<
+		Scalar,
+		april::simd::dynamic_stride,
+		Packed::size()
+	>;
 	using Ref = april::simd::PackedRef<Location>;
+
+	static_assert(std::same_as<
+		typename Location::packed_type,
+		Packed
+	>);
 
 	const std::ptrdiff_t stride = 4 * sizeof(Scalar);
 
@@ -383,7 +404,7 @@ TYPED_TEST(SimdRefTest, RuntimeStridedPackedRefCompoundAssignment) {
 TYPED_TEST(SimdRefTest, GatherLocationLoad) {
 	using Packed = TestFixture::Packed;
 	using Scalar = TestFixture::Scalar;
-	using Location = april::simd::GatherLocation<Scalar>;
+	using Location = april::simd::GatherLocation<Scalar,Packed::size()>;
 
 	static_assert(april::simd::IsLocation<Location>);
 	static_assert(april::simd::IsWritableLocation<Location>);
@@ -415,7 +436,7 @@ TYPED_TEST(SimdRefTest, GatherLocationLoad) {
 TYPED_TEST(SimdRefTest, GatherLocationStore) {
 	using Packed = TestFixture::Packed;
 	using Scalar = TestFixture::Scalar;
-	using Location = april::simd::GatherLocation<Scalar>;
+	using Location = april::simd::GatherLocation<Scalar,Packed::size()>;
 
 	std::vector<Scalar> memory(Packed::size() * 2, Scalar{-1});
 	std::array<std::ptrdiff_t, Packed::size()> raw_offsets{};
@@ -451,7 +472,7 @@ TYPED_TEST(SimdRefTest, GatherLocationStore) {
 TYPED_TEST(SimdRefTest, GatherPackedRefLoadStore) {
 	using Packed = TestFixture::Packed;
 	using Scalar = TestFixture::Scalar;
-	using Location = april::simd::GatherLocation<Scalar>;
+	using Location = april::simd::GatherLocation<Scalar,Packed::size()>;
 	using Ref = april::simd::PackedRef<Location>;
 
 	std::vector<Scalar> memory(Packed::size() * 3, Scalar{-1});

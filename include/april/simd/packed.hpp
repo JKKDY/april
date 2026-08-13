@@ -50,12 +50,9 @@ namespace april::simd {
 
 namespace april::simd {
 
-    inline constexpr size_t float_width =
-        backend::Packed<float, 0>::size();
-
-    inline constexpr size_t double_width =
-        backend::Packed<double, 0>::size();
-
+    inline constexpr size_t float_width = backend::Packed<float, 0>::size();
+    inline constexpr size_t double_width = backend::Packed<double, 0>::size();
+    inline constexpr size_t packed_width = double_width;
 
     template<typename T, size_t W = double_width>
     using Packed = backend::Packed<T, W>;

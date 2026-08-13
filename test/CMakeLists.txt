@@ -12,6 +12,18 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(test_april
         test_april.cpp
+
+        math/range_test.cpp
+        math/vec3_test.cpp
+        math/vec3_ref_test.cpp
+
+        simd/simd_test.cpp
+        simd/simd_ref_test.cpp
+        simd/simd_vec3_ref_tests.cpp
+        simd/simd_masked_packed_test.cpp
+        simd/simd_mask_test.cpp
+        simd/simd_math_test.cpp
+
         monitors/output_test.cpp
         monitors/xyz_test.cpp
         monitors/vtp_test.cpp
@@ -36,18 +48,6 @@ add_executable(test_april
         particle/particle_fields_test.cpp
         particle/particle_generators_test.cpp
         particle/packed_fields_test.cpp
-
-        math/range_test.cpp
-        math/vec3_test.cpp
-        math/vec3_ref_test.cpp
-
-        simd/simd_test.cpp
-        simd/simd_ref_test.cpp
-        simd/simd_vec3_ref_tests.cpp
-        simd/simd_masked_packed_test.cpp
-        simd/simd_mask_test.cpp
-        simd/simd_math_test.cpp
-
 
         forces/interaction_test.cpp
         forces/forces_test.cpp

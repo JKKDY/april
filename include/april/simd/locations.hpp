@@ -40,7 +40,7 @@ namespace april::simd {
             location.store(value);
         };
 
-    template<typename T, typename Mask, size_t Width = double_width>
+    template<typename T, typename Mask, size_t Width = packed_width>
         requires particle::IsParticleAttributes<std::remove_const_t<T>>
     struct PointerPack {
         using value_type = T;
@@ -111,11 +111,11 @@ namespace april::simd {
     };
 
 
-    template<typename T, Alignment A = Alignment::Unaligned>
+    template<typename T, Alignment A = Alignment::Unaligned, size_t W=packed_width>
     struct ContiguousLocation {
             using value_type = std::remove_cv_t<T>;
             using storage_type = packed_storage_t<value_type>;
-            using packed_type = Packed<value_type>;
+            using packed_type = Packed<value_type, W>;
 
             T* ptr;
 
@@ -155,16 +155,16 @@ namespace april::simd {
 
     inline constexpr std::ptrdiff_t dynamic_stride = -1;
 
-    template<typename T, std::ptrdiff_t ByteStride = dynamic_stride>
+    template<typename T, std::ptrdiff_t ByteStride = dynamic_stride, size_t W=packed_width>
     struct StridedLocation;
 
     // static stride
-    template<typename T, std::ptrdiff_t ByteStride>
+    template<typename T, std::ptrdiff_t ByteStride, size_t W>
     requires (ByteStride != dynamic_stride)
-    struct StridedLocation<T, ByteStride> {
+    struct StridedLocation<T, ByteStride, W> {
         using value_type = std::remove_cv_t<T>;
         using storage_type = packed_storage_t<value_type>;
-        using packed_type = Packed<value_type>;
+        using packed_type = Packed<value_type, W>;
 
         static_assert(ByteStride > 0, "StridedLocation requires a positive byte stride");
         static_assert(
@@ -194,11 +194,11 @@ namespace april::simd {
     };
 
     // runtime stride
-    template<typename T>
-    struct StridedLocation<T, dynamic_stride> {
+    template<typename T, size_t W>
+    struct StridedLocation<T, dynamic_stride, W> {
         using value_type = std::remove_cv_t<T>;
         using storage_type = packed_storage_t<value_type>;
-        using packed_type = Packed<value_type>;
+        using packed_type = Packed<value_type, W>;
 
         T* ptr;
         std::ptrdiff_t byte_stride;
@@ -223,29 +223,22 @@ namespace april::simd {
     };
 
 
-    template<typename T>
-    StridedLocation(T*, std::ptrdiff_t) -> StridedLocation<T, dynamic_stride>;
-
-    template<typename T>
-    StridedLocation(T&, std::ptrdiff_t) -> StridedLocation<T, dynamic_stride>;
-
-
-    template<std::ptrdiff_t ByteStride, typename T>
+    template<std::ptrdiff_t ByteStride, typename T, size_t W=packed_width>
     [[nodiscard]] constexpr auto make_strided_location(T& value) noexcept {
-        return StridedLocation<T, ByteStride>{value};
+        return StridedLocation<T, ByteStride, W>{value};
     }
 
-    template<std::ptrdiff_t ByteStride, typename T>
+    template<std::ptrdiff_t ByteStride, typename T, size_t W=packed_width>
     [[nodiscard]] constexpr auto make_strided_location(T* ptr) noexcept {
-        return StridedLocation<T, ByteStride>{ptr};
+        return StridedLocation<T, ByteStride, W>{ptr};
     }
 
 
-    template<typename T>
+    template<typename T, size_t W=packed_width>
     struct GatherLocation {
         using value_type = std::remove_cv_t<T>;
         using storage_type = packed_storage_t<value_type>;
-        using packed_type = Packed<value_type>;
+        using packed_type = Packed<value_type, W>;
         using offsets_type = ByteOffsets<packed_type::size()>;
 
         T* ptr;
@@ -272,11 +265,11 @@ namespace april::simd {
 
     template<typename T, size_t N>
     GatherLocation(T*, const ByteOffsets<N>&)
-        -> GatherLocation<T>;
+        -> GatherLocation<T, N>;
 
     template<typename T, size_t N>
     GatherLocation(T&, const ByteOffsets<N>&)
-        -> GatherLocation<T>;
+        -> GatherLocation<T, N>;
 
 
     static_assert(IsWritableLocation<ContiguousLocation<double>>);

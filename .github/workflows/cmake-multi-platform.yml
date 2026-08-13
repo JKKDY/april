@@ -19,109 +19,171 @@ jobs:
 
       matrix:
         include:
-          # -------------------------------------------
-          # RELEASE BUILDS
-          # -------------------------------------------
-          - name: Linux (Clang 18, XSIMD, AVX2, Release)
+          # =========================================================
+          # XSIMD — ISA COVERAGE
+          # =========================================================
+
+          # Baseline x86-64:
+          # SSE + SSE2
+          - name: Linux (Clang 18, XSIMD, SSE2)
             os: ubuntu-24.04
             build_type: Release
             cxx: clang++-18
             cc: clang-18
             simd_backend: XSIMD
-            cxx_flags: "-mavx2"
+            arch_flags: "-DAPRIL_MARCH=x86-64"
             cmake_flags: ""
+            run_tests: true
 
-          - name: macOS (Apple Clang, XSIMD, Release)
-            # Native Apple/NEON path.
-            os: macos-latest
-            build_type: Release
-            cxx: clang++
-            cc: clang
-            simd_backend: XSIMD
-            cxx_flags: ""
-            cmake_flags: "-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0"
-
-          - name: macOS (GCC 14, XSIMD, Release)
-            os: macos-15
+          # x86-64-v2:
+          # SSE3 + SSSE3 + SSE4.1 + SSE4.2
+          - name: Linux (GCC 14, XSIMD, SSE4.2)
+            os: ubuntu-24.04
             build_type: Release
             cxx: g++-14
             cc: gcc-14
             simd_backend: XSIMD
-            cxx_flags: ""
-            cmake_flags: "-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0"
-            xcode_version: "16.4"
+            arch_flags: "-DAPRIL_MARCH=x86-64-v2"
+            cmake_flags: ""
+            run_tests: true
 
-          - name: Windows (MSVC, XSIMD, AVX2, Release)
+          # x86-64-v3:
+          # AVX + AVX2 + FMA
+          - name: Linux (Clang 18, XSIMD, AVX2)
+            os: ubuntu-24.04
+            build_type: Release
+            cxx: clang++-18
+            cc: clang-18
+            simd_backend: XSIMD
+            arch_flags: "-DAPRIL_MARCH=x86-64-v3"
+            cmake_flags: ""
+            run_tests: true
+
+          # x86-64-v4:
+          # AVX-512F/BW/CD/DQ/VL
+          #
+          # Compile-only because GitHub's standard x64 runner does not
+          # guarantee that the host CPU exposes AVX-512.
+          - name: Linux (GCC 14, XSIMD, AVX-512, Compile)
+            os: ubuntu-24.04
+            build_type: Release
+            cxx: g++-14
+            cc: gcc-14
+            simd_backend: XSIMD
+            arch_flags: "-DAPRIL_MARCH=x86-64-v4"
+            cmake_flags: ""
+            run_tests: false
+
+          # Apple Silicon / ARM64 NEON
+          - name: macOS (Apple Clang, XSIMD, NEON)
+            os: macos-15
+            build_type: Release
+            cxx: clang++
+            cc: clang
+            simd_backend: XSIMD
+            arch_flags: ""
+            cmake_flags: "-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0"
+            run_tests: true
+
+          # Linux ARM64 / NEON
+          - name: Linux ARM64 (Clang 18, XSIMD, NEON)
+            os: ubuntu-24.04-arm
+            build_type: Release
+            cxx: clang++-18
+            cc: clang-18
+            simd_backend: XSIMD
+            arch_flags: ""
+            cmake_flags: ""
+            run_tests: true
+
+          # =========================================================
+          # WINDOWS
+          # =========================================================
+
+          - name: Windows (MSVC, XSIMD, AVX2)
             os: windows-latest
             build_type: Release
             cxx: cl
             cc: cl
             simd_backend: XSIMD
-            cxx_flags: "/arch:AVX2"
+            arch_flags: "-DAPRIL_MSVC_ARCH=AVX2"
             cmake_flags: ""
+            run_tests: true
 
-          - name: Windows (MinGW, XSIMD, AVX2, Release)
+          - name: Windows (MinGW, XSIMD, AVX2)
             os: windows-latest
             build_type: Release
             cxx: g++
             cc: gcc
             simd_backend: XSIMD
-            cxx_flags: "-mavx2"
+            arch_flags: "-DAPRIL_MARCH=x86-64-v3"
             cmake_flags: ""
+            run_tests: true
 
-          # -----------------------------------------
-          # DEBUG / SANITIZER BUILDS
-          # -----------------------------------------
-          - name: Linux (Clang 18, XSIMD, AVX2, ASAN + UBSAN)
+          # =========================================================
+          # SANITIZERS
+          #
+          # No architecture override here. These are correctness jobs,
+          # not ISA coverage jobs.
+          # =========================================================
+
+          - name: Linux (Clang 18, XSIMD, ASAN + UBSAN)
             os: ubuntu-24.04
             build_type: Debug
             cxx: clang++-18
             cc: clang-18
             simd_backend: XSIMD
-            cxx_flags: "-mavx2"
+            arch_flags: ""
             cmake_flags: "-DAPRIL_USE_ASAN=ON -DAPRIL_USE_UBSAN=ON"
+            run_tests: true
 
-          - name: Linux (GCC 14, XSIMD, AVX2, TSAN)
+          - name: Linux (GCC 14, XSIMD, TSAN)
             os: ubuntu-24.04
             build_type: Debug
             cxx: g++-14
             cc: gcc-14
             simd_backend: XSIMD
-            cxx_flags: "-mavx2"
+            arch_flags: ""
             cmake_flags: "-DAPRIL_USE_TSAN=ON"
+            run_tests: true
 
-          # -----------------------------------------
+          # =========================================================
           # STD::SIMD
-          # -----------------------------------------
-          - name: Linux (Clang 18, std::simd, Release)
+          # =========================================================
+
+          - name: Linux (Clang 18, std::simd)
             os: ubuntu-24.04
             build_type: Release
             cxx: clang++-18
             cc: clang-18
             simd_backend: STD_SIMD
-            cxx_flags: ""
+            arch_flags: "-DAPRIL_MARCH=x86-64"
             cmake_flags: ""
+            run_tests: true
 
-          - name: Linux (GCC 14, std::simd + OpenMP)
+          - name: Linux (GCC 14, std::simd, AVX2 + OpenMP)
             os: ubuntu-24.04
             build_type: Release
             cxx: g++-14
             cc: gcc-14
             simd_backend: STD_SIMD
-            cxx_flags: ""
+            arch_flags: "-DAPRIL_MARCH=x86-64-v3"
             cmake_flags: "-DAPRIL_ENABLE_OPENMP=ON"
+            run_tests: true
 
-          # -----------------------------------------
-          # OTHER EXECUTION BACKENDS
-          # -----------------------------------------
+          # =========================================================
+          # EXECUTOR COVERAGE
+          # =========================================================
+
           - name: Windows (MSVC, XSIMD, AVX2 + OpenMP)
             os: windows-latest
             build_type: Release
             cxx: cl
             cc: cl
             simd_backend: XSIMD
-            cxx_flags: "/arch:AVX2"
+            arch_flags: "-DAPRIL_MSVC_ARCH=AVX2"
             cmake_flags: "-DAPRIL_ENABLE_OPENMP=ON"
+            run_tests: true
 
     steps:
       - name: Check out code
@@ -139,38 +201,6 @@ jobs:
             g++-14 \
             clang-18
 
-      - name: Install GCC 14 (macOS)
-        if: runner.os == 'macOS' && matrix.cxx == 'g++-14'
-        shell: bash
-        run: |
-          if ! command -v g++-14 >/dev/null 2>&1; then
-            brew install gcc@14
-          fi
-
-          g++-14 --version
-
-      - name: Select macOS SDK for GCC
-        if: runner.os == 'macOS' && matrix.cxx == 'g++-14'
-        shell: bash
-        run: |
-          DEVELOPER_DIR="/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
-
-          if [[ ! -d "$DEVELOPER_DIR" ]]; then
-            echo "Xcode developer directory not found: $DEVELOPER_DIR"
-            exit 1
-          fi
-
-          SDKROOT="$(
-            DEVELOPER_DIR="$DEVELOPER_DIR" \
-              xcrun --sdk macosx --show-sdk-path
-          )"
-
-          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
-          echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
-
-          echo "Selected developer directory: $DEVELOPER_DIR"
-          echo "Selected SDK: $SDKROOT"
-
       - name: Set up MSVC Developer Command Prompt
         if: matrix.cxx == 'cl'
         uses: ilammy/msvc-dev-cmd@v1
@@ -181,6 +211,11 @@ jobs:
           "${{ matrix.cxx }}" --version || true
           cmake --version
           ninja --version
+
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            uname -m
+            lscpu || true
+          fi
 
       - name: Configure CMake
         shell: bash
@@ -198,8 +233,11 @@ jobs:
             -DAPRIL_ENABLE_FAST_MATH=OFF
           )
 
-          if [[ -n "${SDKROOT:-}" ]]; then
-            cmake_args+=("-DCMAKE_OSX_SYSROOT=$SDKROOT")
+          arch_flags="${{ matrix.arch_flags }}"
+
+          if [[ -n "$arch_flags" ]]; then
+            read -ra parsed_arch_flags <<< "$arch_flags"
+            cmake_args+=("${parsed_arch_flags[@]}")
           fi
 
           extra_flags="${{ matrix.cmake_flags }}"
@@ -219,6 +257,7 @@ jobs:
             -j 4
 
       - name: Run tests
+        if: matrix.run_tests
         shell: bash
         run: |
           ctest \
@@ -227,7 +266,7 @@ jobs:
             --build-config "${{ matrix.build_type }}"
 
   coverage:
-    name: Linux (Clang 18, Coverage)
+    name: Linux (Clang 18, Scalar, Coverage)
     runs-on: ubuntu-24.04
 
     steps:

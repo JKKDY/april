@@ -197,18 +197,19 @@ TYPED_TEST(SimdMathTest, SelectionAndBasicFunctions) {
     static_assert(std::same_as<decltype(april::select(mask, x, y)), PackedT>);
     static_assert(std::same_as<decltype(april::select(mask, x, 2.25)), PackedT>);
     static_assert(std::same_as<decltype(april::select(mask, 2.25, y)), PackedT>);
-    TestFixture::ExpectPacked(april::select(mask, x, y), [&](std::size_t i) { return i % 2 == 0 ? xv[i] : yv[i]; });
-    TestFixture::ExpectPacked(april::select(mask, x, 2.25), [&](std::size_t i) { return i % 2 == 0 ? xv[i] : Scalar{2.25}; });
-    TestFixture::ExpectPacked(april::select(mask, 2.25, y), [&](std::size_t i) { return i % 2 == 0 ? Scalar{2.25} : yv[i]; });
+    TestFixture::ExpectPacked(april::select(mask, x, y),
+        [&](std::size_t i) { return i % 2 == 0 ? xv[i] : yv[i]; });
+    TestFixture::ExpectPacked(april::select(mask, x, 2.25),
+        [&](std::size_t i) { return i % 2 == 0 ? xv[i] : Scalar{2.25}; });
+    TestFixture::ExpectPacked(april::select(mask, 2.25, y),
+        [&](std::size_t i) { return i % 2 == 0 ? Scalar{2.25} : yv[i]; });
 
-    using CompatibleMask = std::conditional_t<
-        std::same_as<Scalar, float>,
-        april::simd::PackedMask<int>,
-        april::simd::PackedMask<std::size_t>
-    >;
+    using CompatibleMask = april::simd::PackedMask<int,PackedT::size()>;
+
     const auto mask_values = mask.to_array();
     const CompatibleMask compatible_mask = CompatibleMask::load_unaligned(mask_values.data());
-    TestFixture::ExpectPacked(april::select(compatible_mask, x, y), [&](std::size_t i) { return mask_values[i] ? xv[i] : yv[i]; });
+    TestFixture::ExpectPacked(april::select(compatible_mask, x, y),
+        [&](std::size_t i) { return mask_values[i] ? xv[i] : yv[i]; });
 
     TestFixture::CheckUnary(x, xv,
         [](const auto& a) { return april::abs(a); },
@@ -428,9 +429,13 @@ TYPED_TEST(SimdMathTest, PackedRefAndMaskedPackedForwarding) {
 	using PackedT = TestFixture::PackedT;
 	using Scalar = TestFixture::Scalar;
 	using MaskT = TestFixture::MaskT;
-	using LocationT = april::simd::ContiguousLocation<Scalar>;
-	using RefT = april::simd::PackedRef<LocationT>;
-	using MaskedT = april::simd::MaskedPacked<april::simd::Packed<Scalar>>;
+    using LocationT = april::simd::ContiguousLocation<
+         Scalar,
+         april::simd::Alignment::Unaligned,
+         PackedT::size()
+     >;
+    using RefT = april::simd::PackedRef<LocationT>;
+    using MaskedT = april::simd::MaskedPacked<PackedT>;
 
 	static_assert(std::same_as<typename LocationT::packed_type, PackedT>);
 
@@ -556,8 +561,8 @@ TYPED_TEST(IntegerSimdMathTest, CommonMathAndScalarInteroperability) {
 TYPED_TEST(SimdMathTest, MaskedPackedInteroperability) {
     using PackedT = TestFixture::PackedT;
     using Scalar = TestFixture::Scalar;
+    using MaskedT = april::simd::MaskedPacked<PackedT>;
     using MaskT = TestFixture::MaskT;
-    using MaskedT = april::simd::MaskedPacked<april::simd::Packed<Scalar>>;
 
     const auto a_values = TestFixture::Values([](std::size_t i) {
         constexpr double values[] = {0.25, 1.0, 2.25, 4.0};

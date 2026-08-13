@@ -23,7 +23,12 @@ public:
     using Packed = T;
     using Scalar = Packed::value_type;
 
-    using Location = simd::ContiguousLocation<Scalar>;
+    using Location = april::simd::ContiguousLocation<
+        Scalar,
+        april::simd::Alignment::Unaligned,
+        T::size()
+    >;
+
     using Ref = simd::PackedRef<Location>;
 
     using Vec3T = math::Vec3<Packed>;

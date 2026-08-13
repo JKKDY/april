@@ -1211,13 +1211,23 @@ namespace april::simd::internal::std_simd {
 				return Packed{stdx::abs(x.data)};
 		}
 
-		[[nodiscard]] static Packed min(const Packed& a, const Packed& b) {
-			return Packed{stdx::min(a.data, b.data)};
-		}
+    	[[nodiscard]] storage_type reduce_min() const noexcept {
+        	return stdx::reduce(data, [](const auto& a, const auto& b) {
+				if constexpr (requires { stdx::min(a, b); })
+					return stdx::min(a, b);
+				else
+					return std::min(a, b);
+			});
+        }
 
-		[[nodiscard]] static Packed max(const Packed& a, const Packed& b) {
-			return Packed{stdx::max(a.data, b.data)};
-		}
+    	[[nodiscard]] storage_type reduce_max() const noexcept {
+        	return stdx::reduce(data, [](const auto& a, const auto& b) {
+				if constexpr (requires { stdx::max(a, b); })
+					return stdx::max(a, b);
+				else
+					return std::max(a, b);
+			});
+        }
 
 		[[nodiscard]] static Packed clamp(
 			const Packed& x,

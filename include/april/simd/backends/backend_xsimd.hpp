@@ -440,40 +440,40 @@ namespace april::simd::internal::xsimd {
 	        store_unaligned(ptr);
         }
 
-        template<typename PtrT>
-        requires (
-            !std::is_const_v<PtrT> &&
-            (IsPackableValue<std::remove_cv_t<PtrT>> && (sizeof(PtrT) <= sizeof(storage_type)))
-        )
-        void store_aligned(PtrT* ptr) const {
-	        if constexpr (std::is_enum_v<std::remove_cv_t<PtrT>>) {
-		        alignas(alignof(native_type)) storage_type temp[size()];
-		        data.store_aligned(temp);
+    	template<typename PtrT>
+    	requires (
+			!std::is_const_v<PtrT> &&
+			IsPackableValue<std::remove_cv_t<PtrT>> &&
+			(sizeof(PtrT) <= sizeof(storage_type))
+		)
+    	void store_aligned(PtrT* ptr) const {
+        	if constexpr (std::same_as<std::remove_cv_t<PtrT>, storage_type>) {
+        		data.store_aligned(ptr);
+        	} else {
+        		alignas(alignof(native_type)) storage_type temp[size()];
+        		data.store_aligned(temp);
 
-		        for (size_t i = 0; i < size(); ++i)
-			        ptr[i] = store_scalar<PtrT>(temp[i]);
-	        }
-	        else {
-		        data.store_aligned(ptr);
-	        }
+        		for (size_t i = 0; i < size(); ++i)
+        			ptr[i] = store_scalar<PtrT>(temp[i]);
+        	}
         }
 
-        template<typename PtrT>
-        requires (
-            !std::is_const_v<PtrT> &&
-            (IsPackableValue<std::remove_cv_t<PtrT>> && (sizeof(PtrT) <= sizeof(storage_type)))
-        )
-        void store_unaligned(PtrT* ptr) const {
-	        if constexpr (std::is_enum_v<std::remove_cv_t<PtrT>>) {
-		        alignas(alignof(native_type)) storage_type temp[size()];
-		        data.store_aligned(temp);
+    	template<typename PtrT>
+		requires (
+			!std::is_const_v<PtrT> &&
+			IsPackableValue<std::remove_cv_t<PtrT>> &&
+			(sizeof(PtrT) <= sizeof(storage_type))
+		)
+		void store_unaligned(PtrT* ptr) const {
+        	if constexpr (std::same_as<std::remove_cv_t<PtrT>, storage_type>) {
+        		data.store_unaligned(ptr);
+        	} else {
+        		alignas(alignof(native_type)) storage_type temp[size()];
+        		data.store_aligned(temp);
 
-		        for (size_t i = 0; i < size(); ++i)
-			        ptr[i] = store_scalar<PtrT>(temp[i]);
-	        }
-	        else {
-		        data.store_unaligned(ptr);
-	        }
+        		for (size_t i = 0; i < size(); ++i)
+        			ptr[i] = store_scalar<PtrT>(temp[i]);
+        	}
         }
 
 

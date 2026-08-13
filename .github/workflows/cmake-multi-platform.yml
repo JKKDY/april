@@ -64,6 +64,9 @@ jobs:
           #
           # Compile-only because GitHub's standard x64 runner does not
           # guarantee that the host CPU exposes AVX-512.
+          #
+          # GoogleTest discovery is configured as PRE_TEST below, so
+          # test_april is compiled and linked here but never executed.
           - name: Linux (GCC 14, XSIMD, AVX-512, Compile Only)
             os: ubuntu-24.04
             build_type: Release
@@ -231,6 +234,11 @@ jobs:
             -DAPRIL_BUILD_TESTS=ON
             -DAPRIL_BUILD_EXAMPLES=ON
             -DAPRIL_ENABLE_FAST_MATH=OFF
+
+            # Important:
+            # Do not execute GoogleTest binaries as a post-build
+            # discovery step. Test discovery happens when ctest runs.
+            -DCMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE=PRE_TEST
           )
 
           arch_flags="${{ matrix.arch_flags }}"
@@ -297,7 +305,8 @@ jobs:
             -DAPRIL_BUILD_TESTS=ON \
             -DAPRIL_BUILD_EXAMPLES=OFF \
             -DAPRIL_ENABLE_FAST_MATH=OFF \
-            -DAPRIL_ENABLE_COVERAGE=ON
+            -DAPRIL_ENABLE_COVERAGE=ON \
+            -DCMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE=PRE_TEST
 
       - name: Build
         shell: bash

@@ -2,9 +2,9 @@
 
 #include "april/base/concepts.hpp"
 
-#include "environment_data.hpp"
+#include "april/core/internal/environment_data.hpp"
 #include "april/particle/properties.hpp"
-#include "../../particle/record.hpp"
+#include "april/particle/record.hpp"
 
 #include "april/interactions/force.hpp"
 #include "april/interactions/interaction_table.hpp"

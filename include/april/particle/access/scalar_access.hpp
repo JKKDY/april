@@ -17,13 +17,46 @@
 #include "april/base/types.hpp"
 #include "april/base/macros.hpp"
 #include "april/particle/properties.hpp"
-#include "source.hpp"
+#include "april/particle/access/source.hpp"
 #include "april/particle/attributes.hpp"
+#include "april/particle/access/internal/packed_reference.hpp"
+#include "april/particle/access/policy.hpp"
+#include "april/math/vec3.hpp"
 
 namespace april::particle::internal {
-	// forward declarations
-	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT> struct ScalarParticleRef;
-	template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes> struct PackedParticleBuffer;
+
+	template<ParticleField M, ParticleField N, IsParticleAttributes UserDataT>
+	struct ScalarParticleRef;
+
+	template <ParticleField ReadMask, ParticleField WriteMask, IsParticleAttributes Attributes, MaskPolicy MaskPolicy>
+	struct PackedParticleBuffer;
+
+
+	template<typename T>
+	constexpr decltype(auto) init_scalar_location(T* ptr) noexcept {
+		return *ptr;
+	}
+
+	template<typename T>
+	constexpr auto init_scalar_location(math::Vec3<T>* ptr) noexcept {
+		return math::Vec3Proxy<T>(ptr->x, ptr->y, ptr->z);
+	}
+
+	template<typename T>
+	constexpr auto init_scalar_location(const math::Vec3<T>* ptr) noexcept {
+		return math::Vec3Proxy<const T>(ptr->x, ptr->y, ptr->z);
+	}
+
+	template<typename X, typename Y, typename Z>
+	constexpr auto init_scalar_location(const math::Vec3Location<X, Y, Z>& location) noexcept {
+		using T = std::remove_reference_t<decltype(*location.x)>;
+
+		return math::Vec3Proxy<T>(
+			*location.x,
+			*location.y,
+			*location.z
+		);
+	}
 
 	/**
 	 * Helper to initialize field references from a data source.
@@ -33,7 +66,7 @@ namespace april::particle::internal {
 	template<ParticleField ReadMask, ParticleField WriteMask, ParticleField F, typename Source>
 	constexpr decltype(auto) init_scalar_field(const Source& src) {
 		if constexpr (particle::internal::has_field_v<ReadMask | WriteMask, F>) {
-			return *src.template get<F>();
+			return init_scalar_location(src.template get<F>());
 		} else {
 			return internal::AccessForbidden<F>();
 		}
@@ -117,8 +150,9 @@ namespace april::particle::internal {
 		* Broadcasts this scalar particle's data into a SIMD buffer.
 		* Used in N x 1 interactions (Block vs Scalar).
 		*/
+		template<MaskPolicy mask_policy = MaskPolicy::Disabled>
 		auto broadcast() const noexcept {
-		   return PackedParticleBuffer<ReadAccess, WriteAccess, Attributes>(*this);
+		   return PackedParticleBuffer<ReadAccess, WriteAccess, Attributes, mask_policy>(*this);
 		}
 
 		// Data Fields: Mutable Type, Const Type, Field Enum

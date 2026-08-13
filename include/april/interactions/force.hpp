@@ -6,10 +6,11 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
+#include <algorithm>
 
 
 #include "april/base/types.hpp"
-#include "../particle/access/packed_access.hpp"
+#include "april/particle/access/packed_access.hpp"
 #include "april/particle/properties.hpp"
 #include "april/exec/policy.hpp"
 
@@ -65,6 +66,8 @@ namespace april::interactions {
 
 
             constexpr bool is_vector = particle::IsPackedParticleAccessor<P1Type>;
+            constexpr auto packed_mode = exec::ExecutionMode::Packed;
+            constexpr auto scalar_mode = exec::ExecutionMode::Scalar;
             if constexpr (is_vector) {
                 // Try Vector Override First
                 if constexpr (requires { self.eval_vector(p1, p2, r); }) {
@@ -73,10 +76,10 @@ namespace april::interactions {
                     return self.eval_vector(p1, p2, r);
                 }
                 // Try Templated Generic Next
-                else if constexpr (requires { self.template eval<is_vector>(p1, p2, r); }) {
-                    static_assert(requires { { self.template eval<is_vector>(p1, p2, r) } -> std::same_as<ReturnType>; },
+                else if constexpr (requires { self.template eval<packed_mode>(p1, p2, r); }) {
+                    static_assert(requires { { self.template eval<packed_mode>(p1, p2, r) } -> std::same_as<ReturnType>; },
                         "[APRIL] Force: eval<true> must return the same vector type as 'r' (pvec3)");
-                    return self.template eval<is_vector>(p1, p2, r);
+                    return self.template eval<packed_mode>(p1, p2, r);
                 }
                 // Fallback to Non-Templated Generic
                 else {
@@ -84,8 +87,7 @@ namespace april::interactions {
                         "[APRIL] Force: must implement eval(p1, p2, r), eval<packed>(p1, p2, r), or eval_vector(p1, p2, r)");
                     return self.eval(p1, p2, r);
                 }
-            }
-            else {
+            } else {
                 // Try Scalar Override First
                 if constexpr (requires { self.eval_scalar(p1, p2, r); }) {
                     static_assert(requires { { self.eval_scalar(p1, p2, r) } -> std::same_as<ReturnType>; },
@@ -93,10 +95,10 @@ namespace april::interactions {
                     return self.eval_scalar(p1, p2, r);
                 }
                 // Try Templated Generic Next
-                else if constexpr (requires { self.template eval<is_vector>(p1, p2, r); }) {
-                    static_assert(requires { { self.template eval<is_vector>(p1, p2, r) } -> std::same_as<ReturnType>; },
+                else if constexpr (requires { self.template eval<scalar_mode>(p1, p2, r); }) {
+                    static_assert(requires { { self.template eval<scalar_mode>(p1, p2, r) } -> std::same_as<ReturnType>; },
                         "[APRIL] Force: eval<false> must return the same vector type as 'r' (vec3)");
-                    return self.template eval<is_vector>(p1, p2, r);
+                    return self.template eval<scalar_mode>(p1, p2, r);
                 }
                 // Fallback to Non-Templated Generic
                 else {

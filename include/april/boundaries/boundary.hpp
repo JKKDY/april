@@ -7,14 +7,13 @@
 
 #include "april/base/concepts.hpp"
 #include "april/particle/properties.hpp"
-#include "../particle/access/scalar_access.hpp"
+#include "april/particle/access/scalar_access.hpp"
 #include "april/core/domain.hpp"
 
 
 namespace april {
 	struct OpenBoundary;
 
-	// TODO apply bitmask enum
 	enum class DomainFace : uint8_t {
 		XMinus = 0, XPlus = 1,
 		YMinus = 2, YPlus = 3,
@@ -108,7 +107,7 @@ namespace april::boundary {
 
 			static_assert(
 			  (IncomingMask & Required) == Required,
-			  "ParticleView is missing required fields for this Force."
+			  "ParticleView is missing required fields for this Boundary."
 		  );
 
 			self.apply(particle, domain_box, face);

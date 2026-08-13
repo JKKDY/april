@@ -194,13 +194,13 @@ namespace april::container::layout {
         template<ParticleField F>
         auto get_field_ptr(this auto&& self, size_t i) {
             if constexpr (F == ParticleField::position)
-                return math::Vec3Ptr { self.data.ptr_pos_x + i, self.data.ptr_pos_y + i, self.data.ptr_pos_z + i };
+                return math::Vec3Location { self.data.ptr_pos_x + i, self.data.ptr_pos_y + i, self.data.ptr_pos_z + i };
             else if constexpr (F == ParticleField::velocity)
-                return math::Vec3Ptr { self.data.ptr_vel_x + i, self.data.ptr_vel_y + i, self.data.ptr_vel_z + i };
+                return math::Vec3Location { self.data.ptr_vel_x + i, self.data.ptr_vel_y + i, self.data.ptr_vel_z + i };
             else if constexpr (F == ParticleField::force)
-                return math::Vec3Ptr { self.data.ptr_frc_x + i, self.data.ptr_frc_y + i, self.data.ptr_frc_z + i };
+                return math::Vec3Location { self.data.ptr_frc_x + i, self.data.ptr_frc_y + i, self.data.ptr_frc_z + i };
             else if constexpr (F == ParticleField::old_position)
-                return math::Vec3Ptr { self.data.ptr_old_x + i, self.data.ptr_old_y + i, self.data.ptr_old_z + i };
+                return math::Vec3Location { self.data.ptr_old_x + i, self.data.ptr_old_y + i, self.data.ptr_old_z + i };
 
             else if constexpr (F == ParticleField::mass)      return self.data.ptr_mass + i;
             else if constexpr (F == ParticleField::state)     return self.data.ptr_state + i;
@@ -210,7 +210,7 @@ namespace april::container::layout {
         }
 
 
-        template<ParallelPolicy P, exec::ExecutionMode E, bool is_const, exec::IsKernel Kernel>
+        template<ParallelPolicy P, exec::ExecutionMode E, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel && kernel, const size_t start, const size_t end) {
             using K = std::remove_cvref_t<Kernel>;
             math::Range range = {start, end};
@@ -227,23 +227,24 @@ namespace april::container::layout {
 
             // scalar/vector routing
             auto process_chunk = [&](const math::Range & chunk) {
-                // process a chunk of work in scalar mode
                 if constexpr (E == exec::ExecutionMode::Scalar) {
+                    // process a chunk of work in scalar mode
                     for (size_t i : chunk) {
                         kernel(i, get_scalar(i));
                     }
-                }
-
-                // process a chunk of work in vector mode
-                else if constexpr (E == exec::ExecutionMode::Packed ||
+                } else if constexpr (E == exec::ExecutionMode::Packed ||
                     E == (exec::ExecutionMode::Scalar | exec::ExecutionMode::Packed)) {
+                    // process a chunk of work in vector mode
                     const size_t body = chunk.size() / packed::size();
                     const size_t tail = chunk.size() % packed::size();
 
                     //body (loads are unaligned so no need for a head)
                     for (size_t i = 0; i < body; i++) {
                         size_t idx = chunk.start + i * packed::size();
-                        kernel(idx, get_vector_ref(idx));
+                        auto ref = get_vector_ref(idx);
+                        auto buffer = ref.template load_buffer<MP>();
+                        kernel(idx, buffer.to_view());
+                        buffer.update_into(ref);
                     }
 
                     // tail (with mask)
@@ -253,7 +254,10 @@ namespace april::container::layout {
 
                         const size_t tail_idx = chunk.start + body * packed::size();
                         auto ref = get_vector_ref(tail_idx);
-                        kernel(tail_idx, ref.mask_with(mask));
+                        auto buffer = ref.template load_buffer<MaskPolicy::Enabled>();
+                        buffer.mask_with(mask);
+                        kernel(tail_idx, buffer.to_view());
+                        buffer.update_into(ref);
                     }
                 } else {
                     static_assert(false, "Execution mode must be a valid value (Scalar, Vector, Hybrid)");

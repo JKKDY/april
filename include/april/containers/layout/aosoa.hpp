@@ -9,7 +9,7 @@
 #include "april/base/types.hpp"
 #include "april/particle/properties.hpp"
 #include "april/exec/policy.hpp"
-#include "../../exec/threading/scheduling.hpp"
+#include "april/exec/threading/scheduling.hpp"
 
 
 #include "april/containers/layout/internal/soa_chunk.hpp"
@@ -52,29 +52,29 @@ namespace april::container::layout {
         template <ParticleField Read, ParticleField Write>
         [[nodiscard]] auto at(this auto&& self, size_t chunk_idx, size_t lane_idx) {
             return particle::internal::ScalarParticleRef<Read, Write, ParticleAttributes>{
-                self.template access_particle<Read, Write>(chunk_idx, lane_idx)
+                self.template access_particle<Read, Write, AccessType::Scalar>(chunk_idx, lane_idx)
             };
         }
 
         template <ParticleField Read>
         [[nodiscard]] auto view(this const auto& self, size_t chunk_idx, size_t lane_idx) {
             return particle::internal::ScalarParticleRef<Read, ParticleField::none, ParticleAttributes>{
-                self.template access_particle<Read, ParticleField::none>(chunk_idx, lane_idx)
+                self.template access_particle<Read, ParticleField::none, AccessType::Scalar>(chunk_idx, lane_idx)
             };
         }
 
         template <ParticleField Read, ParticleField Write>
         [[nodiscard]] auto at_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
-            return particle::internal::PackedParticleRef<Read, Write, ParticleAttributes>{
-                self.template access_particle<Read, Write>(chunk_idx, lane_idx)
-            };
+            return particle::internal::make_packed_particle_ref<ParticleAttributes> (
+                self.template access_particle<Read, Write, AccessType::Packed>(chunk_idx, lane_idx)
+            );
         }
 
         template <ParticleField Read>
         [[nodiscard]] auto view_packed(this const auto& self, size_t chunk_idx, size_t lane_idx) {
-            return particle::internal::PackedParticleRef<Read, ParticleField::none, ParticleAttributes>{
-                self.template access_particle<Read, ParticleField::none>(chunk_idx, lane_idx)
-            };
+            return particle::internal::make_packed_particle_ref<ParticleAttributes> (
+                self.template access_particle<Read, ParticleField::none, AccessType::Packed>(chunk_idx, lane_idx)
+            );
         }
 
 
@@ -426,18 +426,25 @@ namespace april::container::layout {
         }
 
         template <ParticleField F>
-        APRIL_FORCE_INLINE auto get_field_ptr(this auto&& self, size_t chunk_idx, size_t lane_idx) {            // locate data
+        APRIL_FORCE_INLINE auto get_field_ptr_packed(this auto&& self, size_t i) {
+            // locate data, then forward to the fast path
+            const auto [chunk_idx, lane_idx] = self.locate(i);
+            return self.template get_field_ptr_packed<F>(chunk_idx, lane_idx);
+        }
+
+        template <ParticleField F>
+        APRIL_FORCE_INLINE auto get_field_ptr(this auto&& self, size_t chunk_idx, size_t lane_idx) {
             auto& chunk = self.ptr_chunks[chunk_idx];
 
             // return vector pointer
             if constexpr (F == ParticleField::position)
-                return math::Vec3Ptr{&chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx]};
+                return math::Vec3Location{&chunk.pos_x[lane_idx], &chunk.pos_y[lane_idx], &chunk.pos_z[lane_idx]};
             else if constexpr (F == ParticleField::velocity)
-                return math::Vec3Ptr{&chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx]};
+                return math::Vec3Location{&chunk.vel_x[lane_idx], &chunk.vel_y[lane_idx], &chunk.vel_z[lane_idx]};
             else if constexpr (F == ParticleField::force)
-                return math::Vec3Ptr{&chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx]};
+                return math::Vec3Location{&chunk.frc_x[lane_idx], &chunk.frc_y[lane_idx], &chunk.frc_z[lane_idx]};
             else if constexpr (F == ParticleField::old_position)
-                return math::Vec3Ptr{&chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx]};
+                return math::Vec3Location{&chunk.old_x[lane_idx], &chunk.old_y[lane_idx], &chunk.old_z[lane_idx]};
 
             // return scalar pointer
             else if constexpr (F == ParticleField::mass) return &chunk.mass[lane_idx];
@@ -447,10 +454,64 @@ namespace april::container::layout {
             else if constexpr (F == ParticleField::attributes) return &chunk.attributes[lane_idx];
         }
 
+        template<ParticleField F>
+        APRIL_FORCE_INLINE auto get_field_ptr_packed(this auto&& self, size_t chunk_idx, size_t lane_idx) {
+            auto& chunk = self.ptr_chunks[chunk_idx];
+
+            APRIL_ASSERT(
+                lane_idx % packed::size() == 0,
+                "Packed AoSoA access must start on a SIMD-width boundary"
+            );
+
+            if constexpr (F == ParticleField::position) {
+                return math::Vec3Location{
+                    simd::aligned_location(&chunk.pos_x[lane_idx]),
+                    simd::aligned_location(&chunk.pos_y[lane_idx]),
+                    simd::aligned_location(&chunk.pos_z[lane_idx])
+                };
+            }
+            else if constexpr (F == ParticleField::velocity) {
+                return math::Vec3Location{
+                    simd::aligned_location(&chunk.vel_x[lane_idx]),
+                    simd::aligned_location(&chunk.vel_y[lane_idx]),
+                    simd::aligned_location(&chunk.vel_z[lane_idx])
+                };
+            }
+            else if constexpr (F == ParticleField::force) {
+                return math::Vec3Location{
+                    simd::aligned_location(&chunk.frc_x[lane_idx]),
+                    simd::aligned_location(&chunk.frc_y[lane_idx]),
+                    simd::aligned_location(&chunk.frc_z[lane_idx])
+                };
+            }
+            else if constexpr (F == ParticleField::old_position) {
+                return math::Vec3Location{
+                    simd::aligned_location(&chunk.old_x[lane_idx]),
+                    simd::aligned_location(&chunk.old_y[lane_idx]),
+                    simd::aligned_location(&chunk.old_z[lane_idx])
+                };
+            }
+            else if constexpr (F == ParticleField::mass) {
+                return simd::aligned_location(&chunk.mass[lane_idx]);
+            }
+            else if constexpr (F == ParticleField::state) {
+                return simd::contiguous_location(&chunk.state[lane_idx]);
+            }
+            else if constexpr (F == ParticleField::type) {
+                return simd::contiguous_location(&chunk.type[lane_idx]);
+            }
+            else if constexpr (F == ParticleField::id) {
+                return simd::contiguous_location(&chunk.id[lane_idx]);
+            }
+            else if constexpr (F == ParticleField::attributes) {
+                return &chunk.attributes[lane_idx];
+            }
+        }
+
     private:
         alignas(64) packed::value_type idx_arr[packed::size()]{}; // for creating packed masks quickly
 
-        template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
+        template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
         void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
             // route scalar/vector execution
             auto process_sub_range = [&](const size_t r_start, const size_t r_end) APRIL_FORCE_INLINE {
@@ -458,7 +519,7 @@ namespace april::container::layout {
                     self.template iterate_range_scalar<P, is_const>(kernel, r_start, r_end);
                 } else if constexpr (V == exec::ExecutionMode::Packed ||
                     V == (exec::ExecutionMode::Scalar | exec::ExecutionMode::Packed)) {
-                    self.template iterate_range_vector<P, is_const>(kernel, r_start, r_end);
+                    self.template iterate_range_vector<P, is_const, MP>(kernel, r_start, r_end);
                 } else {
                     static_assert(false,"[APRIL] invalid ExecutionMode in AoSoA::iterate_range");
                 }
@@ -522,7 +583,7 @@ namespace april::container::layout {
             }
         }
 
-        template <ParallelPolicy P, bool is_const, exec::IsKernel Kernel>
+        template <ParallelPolicy P, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
         APRIL_FORCE_INLINE void iterate_range_vector(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
             using K = std::remove_cvref_t<Kernel>;
             if (start >= end) return;
@@ -543,18 +604,36 @@ namespace april::container::layout {
 
             auto exec_vector = [&](size_t c, size_t i) APRIL_FORCE_INLINE {
                 const size_t physical_idx = (c << chunk_shift) | i;
-                if constexpr (is_const) kernel(physical_idx, self.template view_packed<K::Read>(c, i));
-                else kernel(physical_idx, self.template at_packed<K::Read, K::Write>(c, i));
+
+                if constexpr (is_const) {
+                    auto ref = self.template view_packed<K::Read>(c, i);
+                    auto buffer = ref.load_buffer();
+                    auto view = buffer.to_view();
+
+                    kernel(physical_idx, view);
+                } else {
+                    auto ref = self.template at_packed<K::Read, K::Write>(c, i);
+                    auto buffer = ref.template load_buffer<MP>();
+                    auto view = buffer.to_view();
+
+                    kernel(physical_idx, view);
+                    buffer.update_into(ref);
+                }
             };
 
             auto exec_vector_masked = [&](size_t c, size_t i, auto mask) APRIL_FORCE_INLINE {
                 const size_t physical_idx = (c << chunk_shift) | i;
                 if constexpr (is_const) {
                     auto ref = self.template view_packed<K::Read>(c, i);
-                    kernel(physical_idx, ref.mask_with(mask));
+                    auto buffer = ref.load_buffer();
+                    kernel(physical_idx, buffer.to_view());
+                    buffer.update_into(ref);
                 } else {
                     auto ref = self.template at_packed<K::Read, K::Write>(c, i);
-                    kernel(physical_idx, ref.mask_with(mask));
+                    auto buffer = ref.template load_buffer<MaskPolicy::Enabled>();
+                    buffer.mask_with(mask);
+                    kernel(physical_idx, buffer.to_view());
+                    buffer.update_into(ref);
                 }
             };
 

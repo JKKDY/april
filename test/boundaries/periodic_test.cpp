@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 #include "utils.h"
 #include "april/containers/direct_sum.hpp"
-#include "../../include/april/containers/layout/layout.hpp"
+#include "april/containers/layout/layout.hpp"
 #include "april/containers/linked_cells.hpp"
 
 using namespace april;
 
-#include "../../include/april/particle/access/scalar_access.hpp"
+#include "april/particle/access/scalar_access.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/periodic.hpp"
@@ -22,26 +22,6 @@ inline particle::ParticleRecord<NoParticleAttributes> make_particle(const vec3& 
 	return p;
 }
 
-template<ParticleField Mask, typename RecordT>
-auto make_source(RecordT& record) {
-	// Determine constness based on RecordT (allows making const sources from const records)
-	using UserDataT = RecordT::particle_attributes_t;
-
-	particle::internal::ParticleSource<Mask, Mask, UserDataT> src;
-
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)    src.attributes    = &record.attributes;
-
-	return src;
-}
-
 
 // Direct Application Tests
 TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
@@ -52,7 +32,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XPlus) {
 
 	// Particle just beyond +X boundary
 	auto p = make_particle({10.2, 5.0, 5.0});
-	auto src = make_source<Mask>(p);
+	auto src = make_particle_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	periodic.apply(ref, box, DomainFace::XPlus);
@@ -69,7 +49,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsAcrossDomain_XMinus) {
 
 	// Particle just beyond -X boundary
 	auto p = make_particle({-0.3, 5.0, 5.0});
-	const auto src = make_source<Mask>(p);
+	const auto src = make_particle_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	periodic.apply(ref, box, DomainFace::XMinus);
@@ -108,7 +88,7 @@ TEST(PeriodicBoundaryTest, Apply_WrapsEachAxisCorrectly) {
 
 	for (size_t i = 0; i < faces.size(); ++i) {
 		auto p = make_particle(start_positions[i]);
-		auto src = make_source<Mask>(p);
+		auto src = make_particle_source<Mask>(p);
 		particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 		periodic.apply(ref, box, faces[i]);
 		EXPECT_NEAR(p.position.x, expected[i].x, 1e-12);
@@ -141,7 +121,7 @@ TEST(PeriodicBoundaryTest, CompiledBoundary_Apply_WrapsCorrectly) {
 	auto compiled = boundary::internal::compile_boundary(variant, core::Box::from_domain(domain), DomainFace::ZPlus);
 
 	auto p = make_particle({5,5,10.2});
-	auto src = make_source<Mask>(p);
+	auto src = make_particle_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	core::Box box({0,0,0}, {10,10,10});

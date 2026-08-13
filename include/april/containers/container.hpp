@@ -4,11 +4,8 @@
 
 #include "april/exec/policy.hpp"
 #include "april/exec/kernel.hpp"
-#include "april/exec/threading/executor_config.hpp"
 #include "april/exec/threading/executor_reference.hpp"
 #include "april/exec/config.hpp"
-
-#include "april/math/range.hpp"
 
 #include "april/interactions/interaction_table.hpp"
 
@@ -16,8 +13,7 @@
 #include "april/core/internal/environment_traits.hpp"
 
 #include "april/particle/access/scalar_access.hpp"
-#include "april/particle/access/packed_access.hpp"
-
+#include "april/particle/access/policy.hpp"
 
 
 namespace april::container {
@@ -114,29 +110,29 @@ namespace april::container {
 		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at(this auto&& self, size_t index) {
 			return particle::internal::ScalarParticleRef<Read, Write, ParticleAttributes> {
-				self.template access_particle<Read, Write>(index)
+				self.template access_particle<Read, Write, AccessType::Scalar>(index)
 			};
 		}
 
 		template<ParticleField Read>
 		[[nodiscard]] auto view(this const auto& self, size_t index) {
 			return particle::internal::ScalarParticleRef<Read, ParticleField::none, ParticleAttributes> {
-				self.template access_particle<Read, ParticleField::none>(index)
+				self.template access_particle<Read, ParticleField::none, AccessType::Scalar>(index)
 			};
 		}
 
 		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at_packed(this auto&& self, size_t index) {
-			return particle::internal::PackedParticleRef<Read, Write, ParticleAttributes> {
-				self.template access_particle<Read, Write>(index)
-			};
+			return particle::internal::make_packed_particle_ref<ParticleAttributes> (
+				self.template access_particle<Read, Write, AccessType::Packed>(index)
+			);
 		}
 
 		template<ParticleField Read>
 		[[nodiscard]] auto view_packed(this const auto& self, size_t index) {
-			return particle::internal::PackedParticleRef<Read, ParticleField::none, ParticleAttributes> {
-				self.template access_particle<Read, ParticleField::none>(index)
-			};
+			return particle::internal::make_packed_particle_ref<ParticleAttributes> (
+				self.template access_particle<Read, ParticleField::none, AccessType::Packed>(index)
+			);
 		}
 
 
@@ -144,14 +140,14 @@ namespace april::container {
 		template<ParticleField Read, ParticleField Write>
 		[[nodiscard]] auto at_id(this auto&& self, ParticleID id) {
 			return particle::internal::ScalarParticleRef<Read, Write, ParticleAttributes> {
-				self.template access_particle_id<Read, Write>(id)
+				self.template access_particle_id<Read, Write, AccessType::Scalar>(id)
 			};
 		}
 
 		template<ParticleField Read>
 		[[nodiscard]] auto view_id(this const auto & self, ParticleID id) {
 			return particle::internal::ScalarParticleRef<Read, ParticleField::none, ParticleAttributes> {
-				self.template access_particle_id<Read, ParticleField::none>(id)
+				self.template access_particle_id<Read, ParticleField::none, AccessType::Scalar>(id)
 			};
 		}
 
@@ -162,6 +158,7 @@ namespace april::container {
 		template <ParticleField Mask>
 	    APRIL_FORCE_INLINE void prefetch_particle(this const auto& self, auto... args);
 
+		// prefetch non temporal data (NTA)
 	    template <ParticleField Mask>
 	    APRIL_FORCE_INLINE void prefetch_particle_nta(this const auto& self, auto... args);
 
@@ -169,7 +166,8 @@ namespace april::container {
 		// ------------------
 		// PARTICLE ITERATION
 		// ------------------
-		// filter by state (safe, performs checks to skip garbage data)
+
+		/// @brief filter by state (safe, performs checks to skip garbage data)
 		template<
 			ParallelPolicy P = ParallelPolicy::Serial,
 			VectorPolicy V = vector_policy,
@@ -178,18 +176,30 @@ namespace april::container {
 			self.template invoke_iterate_state<P, V, false>(func, state);
 		} // TODO add shortcuiting (if kernel returns a bool, stop when a true is encountered)
 
-		// direct range based access (fast & branchless but unsafe; will not perform any checks)
+		// /// @brief
+		// template<
+		// 	ParallelPolicy P = parallel_policy,
+		// 	VectorPolicy V = vector_policy,
+		// 	exec::IsKernel Kernel>
+		// void for_each_particle_until(this auto&& self, Kernel && func) const {
+		//
+		// }
+
+		/// @brief direct range based access (fast & branchless but unsafe; will not perform any checks)
 		template<
 			ParallelPolicy P = ParallelPolicy::Serial,
 			VectorPolicy V = vector_policy,
+			MaskPolicy MP = MaskPolicy::Disabled,
 			exec::IsKernel Kernel>
 		void for_each_particle(this auto&& self, size_t start, size_t stop, Kernel && func) {
 			APRIL_ASSERT(start <= self.capacity(), "Start index out of bounds: " + std::to_string(start));
 			APRIL_ASSERT(stop <= self.capacity(), "Stop index out of bounds: " + std::to_string(stop));
 			APRIL_ASSERT(start <= stop, "Invalid range: start > stop");
 
-			self.template invoke_iterate_range<P, V, false>(func, start, stop);
+			self.template invoke_iterate_range<P, V, false, MP>(func, start, stop);
 		}
+
+
 
 
 		template<ParticleField M, typename T, typename Mapper, typename Reducer = std::plus<T>>
@@ -231,9 +241,7 @@ namespace april::container {
 		[[nodiscard]] ParticleID invoke_max_id(this const auto& self) {
 			return self.max_id();
 		}
-		[[nodiscard]] std::vector<math::Range> iteration_ranges() const {
-			return {}; // TODO implement safe_iteration_ranges
-		}
+
 
 
 		// ---------------
@@ -337,25 +345,20 @@ namespace april::container {
 		exec::ThreadExecutorRef<ThreadExecutor> thread_executor;
 
 
-		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
+		template<ParallelPolicy P, VectorPolicy V, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
 		void invoke_iterate_range(this auto&& self, Kernel && func, size_t start, size_t end);
 
 		template<ParallelPolicy P, VectorPolicy V, bool is_const, exec::IsKernel Kernel>
 		void invoke_iterate_state(this auto&& self, Kernel && func, ParticleState state);
 
-		template<ParticleField F>
-		auto invoke_get_field_ptr(this auto&& self, auto ... args);
-
-		template<ParticleField F>
-		auto invoke_get_field_ptr_id(this auto&& self, ParticleID id);
 
 		//------------------------
 		// PARTICLE DATA ACCESSORS
 		//------------------------
-		template<ParticleField Read, ParticleField Write>
+		template<ParticleField Read, ParticleField Write, AccessType Access>
 		[[nodiscard]] auto access_particle(this auto&& self, const auto ... args);
 
-		template<ParticleField Read, ParticleField Write>
+		template<ParticleField Read, ParticleField Write, AccessType Access>
 		[[nodiscard]] auto access_particle_id(this auto&& self, const ParticleID id);
 	};
 

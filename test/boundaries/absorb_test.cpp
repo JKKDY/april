@@ -1,19 +1,17 @@
 #include <gtest/gtest.h>
 
-#include "../../include/april/particle/access/scalar_access.hpp"
+#include "april/particle/access/scalar_access.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/boundaries/boundary_table.hpp"
 #include "april/boundaries/absorb.hpp"
 #include "april/containers/direct_sum.hpp"
-#include "../../include/april/containers/layout/layout.hpp"
+#include "april/containers/layout/layout.hpp"
 #include "april/containers/linked_cells.hpp"
 
 #include "utils.h"
 using namespace april;
 
 
-
-using PID = ParticleID;
 
 // simple helper to make a dummy particle
 static particle::ParticleRecord<NoParticleAttributes> make_alive_particle() {
@@ -26,25 +24,7 @@ static particle::ParticleRecord<NoParticleAttributes> make_alive_particle() {
 	return p;
 }
 
-template<ParticleField Mask, typename RecordT>
-auto make_source(RecordT& record) {
-	// Determine constness based on RecordT (allows making const sources from const records)
-	using UserDataT = RecordT::particle_attributes_t;
 
-	particle::internal::ParticleSource<Mask, Mask, UserDataT> src;
-
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::position>)     src.position     = &record.position;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::velocity>)     src.velocity     = &record.velocity;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::force>)        src.force        = &record.force;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::old_position>) src.old_position = &record.old_position;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::mass>)         src.mass         = &record.mass;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::state>)        src.state        = &record.state;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::type>)         src.type         = &record.type;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::id>)           src.id           = &record.id;
-	if constexpr (particle::internal::has_field_v<Mask, ParticleField::attributes>)    src.attributes    = &record.attributes;
-
-	return src;
-}
 
 // Direct application should mark particle DEAD
 TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
@@ -54,7 +34,7 @@ TEST(AbsorbBoundaryTest, Apply_SetsParticleDead) {
 	const core::Box box {{0,0,0}, {10,10,10}};
 
 	auto p = make_alive_particle();
-	auto src = make_source<Mask>(p);
+	auto src = make_particle_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	absorb.apply(ref, box, DomainFace::XPlus);
@@ -86,7 +66,7 @@ TEST(AbsorbBoundaryTest, CompiledBoundary_Apply_SetsParticleDead) {
 	auto compiled = boundary::internal::compile_boundary(absorb, core::Box::from_domain(domain), DomainFace::XPlus);
 
 	auto p = make_alive_particle();
-	auto src = make_source<Mask>(p);
+	auto src = make_particle_source<Mask>(p);
 	particle::internal::ScalarParticleRef<Mask, Mask, NoParticleAttributes> ref(src);
 
 	core::Box box{{0,0,0}, {10,10,10}};

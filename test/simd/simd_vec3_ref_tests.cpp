@@ -4,45 +4,65 @@
 
 #include "april/base/types.hpp"
 #include "april/simd/packed.hpp"
+#include "april/simd/masked_packed.hpp"
 
 using namespace april;
 
 
-using SimdTypes = testing::Types<simd::Packed<double>>;
 
 
-template <typename T>
+using SimdTypes = testing::Types<
+    april::simd::Packed<float, april::simd::float_width>,
+    april::simd::Packed<double, april::simd::double_width>
+>;
+
+
+template<typename T>
 class SimdProxyTest : public testing::Test {
 public:
-    using Scalar = T::value_type;
-    using Vec3T  = math::Vec3<T>;           // Vec3<Packed>
-    using Proxy  = math::Vec3Proxy<T>;      // The SoA Proxy
-    using Vec3S  = math::Vec3<Scalar>;      // Scalar Vec3 (gravity, etc.)
+    using Packed = T;
+    using Scalar = Packed::value_type;
 
-    // Backing Memory (SoA Layout)
-    // We resize these to be large enough for the widest SIMD vector (e.g., AVX512 = 8 doubles)
+    using Location = april::simd::ContiguousLocation<
+        Scalar,
+        april::simd::Alignment::Unaligned,
+        T::size()
+    >;
+
+    using Ref = simd::PackedRef<Location>;
+
+    using Vec3T = math::Vec3<Packed>;
+    using Proxy = math::Vec3Proxy<Ref>;
+    using Vec3S = math::Vec3<Scalar>;
+
     std::vector<Scalar> x_buf, y_buf, z_buf;
 
     void SetUp() override {
-        // Ensure strictly aligned memory or just enough space.
-        // Vectors are usually aligned enough for load_unaligned.
-        size_t size = std::max<size_t>(16, T::size());
-        x_buf.resize(size, 0.0);
-        y_buf.resize(size, 0.0);
-        z_buf.resize(size, 0.0);
+        const size_t size = std::max<size_t>(16, Packed::size());
+
+        x_buf.resize(size, Scalar{0});
+        y_buf.resize(size, Scalar{0});
+        z_buf.resize(size, Scalar{0});
     }
 
-    // Create a Proxy pointing to the start of the buffers
     Proxy MakeProxy() {
-        return Proxy(x_buf.data(), y_buf.data(), z_buf.data());
+        return Proxy{
+            Ref{Location{x_buf.data()}},
+            Ref{Location{y_buf.data()}},
+            Ref{Location{z_buf.data()}}
+        };
     }
 
-    // Helper: Verify that EVERY lane in the SIMD width matches the expected value
     void ExpectAllLanes(Scalar x, Scalar y, Scalar z) {
-        for(size_t i=0; i < T::size(); ++i) {
-            EXPECT_DOUBLE_EQ(x_buf[i], x) << "Mismatch in X at lane " << i;
-            EXPECT_DOUBLE_EQ(y_buf[i], y) << "Mismatch in Y at lane " << i;
-            EXPECT_DOUBLE_EQ(z_buf[i], z) << "Mismatch in Z at lane " << i;
+        for (size_t i = 0; i < Packed::size(); ++i) {
+            EXPECT_DOUBLE_EQ(x_buf[i], x)
+                << "Mismatch in X at lane " << i;
+
+            EXPECT_DOUBLE_EQ(y_buf[i], y)
+                << "Mismatch in Y at lane " << i;
+
+            EXPECT_DOUBLE_EQ(z_buf[i], z)
+                << "Mismatch in Z at lane " << i;
         }
     }
 };
@@ -135,6 +155,7 @@ TYPED_TEST(SimdProxyTest, PhysicsKernel) {
     auto p = this->MakeProxy();
     using Vec3T = TestFixture::Vec3T;
     using Vec3S = TestFixture::Vec3S;
+    using Scalar = TestFixture::Scalar;
 
     // Init Position: {10, 10, 10}
     p = Vec3T(10.0, 10.0, 10.0);
@@ -143,7 +164,11 @@ TYPED_TEST(SimdProxyTest, PhysicsKernel) {
     Vec3T velocity(1.0, 0.0, 0.0);
 
     // Gravity: {0, -10, 0} (Global constant)
-    Vec3S gravity(0.0, -10.0, 0.0);
+    Vec3S gravity(
+        static_cast<Scalar>(0.0),
+        static_cast<Scalar>(-9.81),
+        static_cast<Scalar>(0.0)
+    );
 
     double dt = 0.1;
 
@@ -154,12 +179,80 @@ TYPED_TEST(SimdProxyTest, PhysicsKernel) {
     // X: 10 + 1*0.1 + 0 = 10.1
     // Y: 10 + 0 - 10*0.5*0.01 = 9.95
     // Z: 10
-    this->ExpectAllLanes(10.1, 9.95, 10.0);
+    this->ExpectAllLanes(
+        static_cast<Scalar>(10.1),
+        static_cast<Scalar>(9.95095),
+        static_cast<Scalar>(10.0)
+    );
 }
 
 
 
+// Vec3Proxy<Packed> += Vec3<MaskedPacked<Packed>>
+TYPED_TEST(SimdProxyTest, AddMaskedPackedVectorToProxy) {
+    using Packed = TypeParam;
+    using Mask = typename Packed::mask_type;
+    using Masked = simd::MaskedPacked<Packed, Mask>;
+    using MaskedVec3 = math::Vec3<Masked>;
 
+    auto p = this->MakeProxy();
+    p = typename TestFixture::Vec3T(10.0, 20.0, 30.0);
+
+    const Mask mask(true);
+
+    MaskedVec3 delta(
+        Masked(Packed(1.0), mask),
+        Masked(Packed(2.0), mask),
+        Masked(Packed(3.0), mask)
+    );
+
+    p += delta;
+
+    this->ExpectAllLanes(11.0, 22.0, 33.0);
+}
+
+
+TYPED_TEST(SimdProxyTest, AddLaneVaryingMaskedPackedVectorToProxy) {
+    using Packed = TypeParam;
+    using Scalar = typename TestFixture::Scalar;
+    using Mask = typename Packed::mask_type;
+    using Masked = simd::MaskedPacked<Packed, Mask>;
+    using MaskedVec3 = math::Vec3<Masked>;
+
+    auto p = this->MakeProxy();
+    p = typename TestFixture::Vec3T(10.0, 20.0, 30.0);
+
+    std::vector<Scalar> x_values(Packed::size());
+    std::vector<Scalar> y_values(Packed::size());
+    std::vector<Scalar> z_values(Packed::size());
+
+    for (size_t i = 0; i < Packed::size(); ++i) {
+        x_values[i] = static_cast<Scalar>(i + 1);
+        y_values[i] = static_cast<Scalar>(i + 2);
+        z_values[i] = static_cast<Scalar>(i + 3);
+    }
+
+    const Mask mask(true);
+
+    MaskedVec3 delta(
+        Masked(Packed::load_unaligned(x_values.data()), mask),
+        Masked(Packed::load_unaligned(y_values.data()), mask),
+        Masked(Packed::load_unaligned(z_values.data()), mask)
+    );
+
+    p += delta;
+
+    for (size_t i = 0; i < Packed::size(); ++i) {
+        EXPECT_DOUBLE_EQ(this->x_buf[i], 10.0 + x_values[i])
+            << "Mismatch in X at lane " << i;
+
+        EXPECT_DOUBLE_EQ(this->y_buf[i], 20.0 + y_values[i])
+            << "Mismatch in Y at lane " << i;
+
+        EXPECT_DOUBLE_EQ(this->z_buf[i], 30.0 + z_values[i])
+            << "Mismatch in Z at lane " << i;
+    }
+}
 
 
 

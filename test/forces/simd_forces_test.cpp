@@ -16,6 +16,63 @@ using PackedTypes = testing::Types<
     simd::Packed<double>
 >;
 
+template<typename R>
+static auto make_dispatch_result(const R & r, const double value) {
+    using Result = std::remove_cvref_t<R>;
+    using Value = std::remove_cvref_t<decltype(r.x)>;
+
+    return Result(
+        Value(value),
+        Value(0.0),
+        Value(0.0)
+    );
+}
+
+
+// Only implements the execution-mode template.
+// This verifies that Force::operator() passes the correct mode.
+struct ModeDispatchForce final : interactions::Force {
+    static constexpr auto fields = ParticleField::none;
+
+    ModeDispatchForce() : Force(interactions::no_cutoff) {}
+
+    template<exec::ExecutionMode Mode>
+    auto eval(const auto &, const auto &, const auto & r) const {
+        if constexpr (Mode == exec::ExecutionMode::Packed) {
+            return make_dispatch_result(r, 2.0);
+        } else {
+            static_assert(Mode == exec::ExecutionMode::Scalar);
+            return make_dispatch_result(r, 1.0);
+        }
+    }
+};
+
+
+// Implements every dispatch variant.
+// This verifies that the explicit scalar and packed overrides take priority.
+struct OverrideDispatchForce final : interactions::Force {
+    static constexpr auto fields = ParticleField::none;
+
+    OverrideDispatchForce() : Force(interactions::no_cutoff) {}
+
+    auto eval_scalar(const auto &, const auto &, const auto & r) const {
+        return make_dispatch_result(r, 1.0);
+    }
+
+    auto eval_vector(const auto &, const auto &, const auto & r) const {
+        return make_dispatch_result(r, 2.0);
+    }
+
+    template<exec::ExecutionMode Mode>
+    auto eval(const auto &, const auto &, const auto & r) const {
+        return make_dispatch_result(r, 3.0);
+    }
+
+    auto eval(const auto &, const auto &, const auto & r) const {
+        return make_dispatch_result(r, 4.0);
+    }
+};
+
 template <typename T>
 class ForceKernelTest : public testing::Test {
 public:
@@ -196,7 +253,123 @@ TYPED_TEST(ForceKernelTest, NoForce) {
     }
 }
 
+struct EmptyParticleGetter {
+    template<ParticleField F>
+    auto operator()() const {
 
+    }
+};
+
+TYPED_TEST(ForceKernelTest, DispatchesCorrectExecutionMode) {
+    using Packed = TestFixture::Packed;
+    using Vec3P = TestFixture::Vec3P;
+
+    using Source = particle::internal::ParticleSource<
+    ParticleField::none,
+    ParticleField::none,
+    EmptyParticleGetter
+>;
+
+    using ScalarParticle = particle::internal::ScalarParticleRef<
+        ParticleField::none,
+        ParticleField::none,
+        NoParticleAttributes
+    >;
+
+    using PackedParticle = particle::internal::PackedParticleRef<
+        ParticleField::none,
+        ParticleField::none,
+        NoParticleAttributes,
+        Source
+    >;
+
+    EmptyParticleGetter getter;
+    Source source(getter);
+
+    ScalarParticle scalar_particle(source);
+    PackedParticle packed_particle(source);
+
+    ModeDispatchForce force;
+
+    const auto scalar_result = force(
+        scalar_particle,
+        scalar_particle,
+        vec3{}
+    );
+
+    EXPECT_DOUBLE_EQ(scalar_result.x, 1.0);
+    EXPECT_DOUBLE_EQ(scalar_result.y, 0.0);
+    EXPECT_DOUBLE_EQ(scalar_result.z, 0.0);
+
+    const auto packed_result = force(
+        packed_particle,
+        packed_particle,
+        Vec3P(Packed(0.0), Packed(0.0), Packed(0.0))
+    );
+
+    const auto x = packed_result.x.to_array();
+    const auto y = packed_result.y.to_array();
+    const auto z = packed_result.z.to_array();
+
+    for (size_t i = 0; i < TestFixture::Width; i++) {
+        EXPECT_DOUBLE_EQ(x[i], 2.0);
+        EXPECT_DOUBLE_EQ(y[i], 0.0);
+        EXPECT_DOUBLE_EQ(z[i], 0.0);
+    }
+}
+
+
+TYPED_TEST(ForceKernelTest, PrefersExplicitExecutionModeOverrides) {
+    using Packed = TestFixture::Packed;
+    using Vec3P = TestFixture::Vec3P;
+
+    using Source = particle::internal::ParticleSource<
+    ParticleField::none,
+    ParticleField::none,
+    EmptyParticleGetter
+>;
+
+    using ScalarParticle = particle::internal::ScalarParticleRef<
+        ParticleField::none,
+        ParticleField::none,
+        NoParticleAttributes
+    >;
+
+    using PackedParticle = particle::internal::PackedParticleRef<
+        ParticleField::none,
+        ParticleField::none,
+        NoParticleAttributes,
+        Source
+    >;
+
+    EmptyParticleGetter getter;
+    Source source(getter);
+
+    ScalarParticle scalar_particle(source);
+    PackedParticle packed_particle(source);
+
+    OverrideDispatchForce force;
+
+    const auto scalar_result = force(
+        scalar_particle,
+        scalar_particle,
+        vec3{}
+    );
+
+    EXPECT_DOUBLE_EQ(scalar_result.x, 1.0);
+
+    const auto packed_result = force(
+        packed_particle,
+        packed_particle,
+        Vec3P(Packed(0.0), Packed(0.0), Packed(0.0))
+    );
+
+    const auto x = packed_result.x.to_array();
+
+    for (size_t i = 0; i < TestFixture::Width; i++) {
+        EXPECT_DOUBLE_EQ(x[i], 2.0);
+    }
+}
 
 
 

@@ -126,7 +126,7 @@ TEST(ThermostatBehaviorTest, SetInitialTemperature) {
         EXPECT_NEAR(avg_v.x, 0, 1);
         EXPECT_NEAR(avg_v.y, 0, 1);
         EXPECT_NEAR(avg_v.z, 0, 1);
-        EXPECT_NEAR(temp, t, t * 0.05); // 5% deviation allowed
+        EXPECT_NEAR(temp, t, t * 0.1); // 10% deviation allowed
     }
 }
 

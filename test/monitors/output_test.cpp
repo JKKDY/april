@@ -41,57 +41,99 @@ using namespace april::core;
 class DummySystem {
 public:
 	using user_data_t = NoParticleAttributes;
-	template<ParticleField M> using ParticleRef         = particle::internal::ScalarParticleRef<M, M, user_data_t>;
-	template<ParticleField M> using ParticleView         = particle::internal::ScalarParticleRef<M, ParticleField::none, user_data_t>;
+
+	template<ParticleField M>
+	using ParticleRef =
+		particle::internal::ScalarParticleRef<M, M, user_data_t>;
+
+	template<ParticleField M>
+	using ParticleView =
+		particle::internal::ScalarParticleRef<
+			M,
+			ParticleField::none,
+			user_data_t
+		>;
 
 	explicit DummySystem(
 		const size_t step,
 		const double time,
 		std::vector<ParticleRec> particle_data
-	) : particles(std::move(particle_data)), step_(step), time_(time)
+	)
+		: particles(std::move(particle_data))
+		, step_(step)
+		, time_(time)
 	{}
 
-	// mock data
 	std::vector<ParticleRec> particles;
 	size_t step_ = 0;
 	double time_ = 0.0;
 	Box sim_box = {{0,0,0}, {1,1,1}};
 
-	// Implement minimal API for read-only tests
-	[[nodiscard]] size_t size(ParticleState = ParticleState::ALL) const noexcept { return particles.size(); }
-	[[nodiscard]] size_t step() const noexcept { return step_; }
-	[[nodiscard]] double time() const noexcept { return time_; }
-	[[nodiscard]] Box box() const noexcept { return sim_box; }
+	[[nodiscard]] size_t size(
+		ParticleState = ParticleState::ALL
+	) const noexcept {
+		return particles.size();
+	}
 
-	template<ParallelPolicy P = ParallelPolicy::Serial, VectorPolicy V = VectorPolicy::Auto, typename Kernel>
-		void for_each_particle_view(Kernel && func, ParticleState = ParticleState::ALL) const {
+	[[nodiscard]] size_t step() const noexcept {
+		return step_;
+	}
+
+	[[nodiscard]] double time() const noexcept {
+		return time_;
+	}
+
+	[[nodiscard]] Box box() const noexcept {
+		return sim_box;
+	}
+
+	template<
+		ParallelPolicy P = ParallelPolicy::Serial,
+		VectorPolicy V = VectorPolicy::Auto,
+		typename Kernel
+	>
+	void for_each_particle_view(
+		Kernel&& func,
+		ParticleState = ParticleState::ALL
+	) const {
 		using K = std::remove_cvref_t<Kernel>;
+
 		for (size_t i = 0; i < size(); i++) {
-			const auto & p = view<K::Read>(i);
+			const auto& p = view<K::Read>(i);
 			func(p);
 		}
 	}
 
 	template<ParticleField M>
 	[[nodiscard]] auto view(const size_t index) const noexcept {
-		// 1. Get reference to storage
 		const ParticleRec& record = particles.at(index);
 
-		// 2. Create Source (IsConst = true)
-		// We map the requested fields M to the record's members
-		particle::internal::ParticleSource<M, ParticleField::none, user_data_t> src;
+		auto get_field = [&]<ParticleField F>() {
+			if constexpr (F == ParticleField::position)
+				return &record.position;
+			else if constexpr (F == ParticleField::velocity)
+				return &record.velocity;
+			else if constexpr (F == ParticleField::force)
+				return &record.force;
+			else if constexpr (F == ParticleField::old_position)
+				return &record.old_position;
+			else if constexpr (F == ParticleField::mass)
+				return &record.mass;
+			else if constexpr (F == ParticleField::state)
+				return &record.state;
+			else if constexpr (F == ParticleField::type)
+				return &record.type;
+			else if constexpr (F == ParticleField::id)
+				return &record.id;
+			else if constexpr (F == ParticleField::attributes)
+				return &record.attributes;
+		};
 
-		if constexpr (particle::internal::has_field_v<M, ParticleField::position>)     src.position     = &record.position;
-		if constexpr (particle::internal::has_field_v<M, ParticleField::velocity>)     src.velocity     = &record.velocity;
-		if constexpr (particle::internal::has_field_v<M, ParticleField::force>)        src.force        = &record.force;
-		if constexpr (particle::internal::has_field_v<M, ParticleField::old_position>) src.old_position = &record.old_position;
-		if constexpr (particle::internal::has_field_v<M, ParticleField::mass>)         src.mass         = &record.mass;
-		if constexpr (particle::internal::has_field_v<M, ParticleField::state>)        src.state        = &record.state;
-		if constexpr (particle::internal::has_field_v<M, ParticleField::type>)         src.type         = &record.type;
-		if constexpr (particle::internal::has_field_v<M, ParticleField::id>)           src.id           = &record.id;
-		if constexpr (particle::internal::has_field_v<M, ParticleField::attributes>)    src.attributes    = &record.attributes;
+		auto src = particle::internal::make_particle_source<
+			M,
+			ParticleField::none
+		>(get_field);
 
-		// 3. Construct View
 		return ParticleView<M>(src);
 	}
 

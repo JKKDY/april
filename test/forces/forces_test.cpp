@@ -32,16 +32,9 @@ protected:
     double mass1{}, mass2{};
     ForceTestUserData data1, data2;
 
-    // B. The Source (The struct of pointers)
-    // IsConst = false allows us to point to our mutable member variables
-    using SourceT = particle::internal::ParticleSource<TestMask, TestMask, ForceTestUserData>;
-    SourceT source1;
-    SourceT source2;
-
     vec3 r_vec;
 
     void SetUp() override {
-        // Initialize Data
         pos1 = {0.0, 0.0, 0.0};
         mass1 = 10.0;
         data1.charge = 1.0;
@@ -51,23 +44,44 @@ protected:
         data2.charge = -2.0;
 
         r_vec = pos2 - pos1;
-
-        // Initialize Sources (Point to the data)
-        source1.position  = &pos1;
-        source1.mass      = &mass1;
-        source1.attributes = &data1;
-
-        source2.position  = &pos2;
-        source2.mass      = &mass2;
-        source2.attributes = &data2;
     }
 
-    // Helper to generate the View expected by the Force operator
+    [[nodiscard]] auto make_source(
+        const vec3& position,
+        const double& mass,
+        const ForceTestUserData& attributes
+    ) const {
+        auto get_field = [&]<ParticleField F>() {
+            if constexpr (F == ParticleField::position) return &position;
+            else if constexpr (F == ParticleField::mass) return &mass;
+            else if constexpr (F == ParticleField::attributes) return &attributes;
+        };
+
+        return ParticleSource<
+            TestMask,
+            ParticleField::none,
+            decltype(get_field)
+        >(get_field);
+    }
+
     [[nodiscard]] auto get_view1() const {
-        return ScalarParticleRef<TestMask, TestMask, ForceTestUserData>(source1);
+        auto source = make_source(pos1, mass1, data1);
+
+        return ScalarParticleRef<
+            TestMask,
+            ParticleField::none,
+            ForceTestUserData
+        >(source);
     }
+
     [[nodiscard]] auto get_view2() const {
-        return ScalarParticleRef<TestMask, TestMask, ForceTestUserData>(source2);
+        auto source = make_source(pos2, mass2, data2);
+
+        return ScalarParticleRef<
+            TestMask,
+            ParticleField::none,
+            ForceTestUserData
+        >(source);
     }
 };
 

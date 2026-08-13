@@ -38,7 +38,7 @@ namespace april::container::layout {
         }
 
         [[nodiscard]] ParticleID max_id() const {
-            return static_cast<ParticleID>(particles.size());
+            return static_cast<ParticleID>(num_particles);
         }
 
         [[nodiscard]] bool contains_id(const ParticleID id) const {
@@ -50,25 +50,14 @@ namespace april::container::layout {
         }
 
 
+
         // QUERIES
         [[nodiscard]] size_t capacity() const {
             return particle_count();
         }
 
         [[nodiscard]] size_t particle_count() const {
-            return particles.size();
-        }
-
-
-        // DISABLE PACKED ACCESS
-        template <ParticleField R, ParticleField W>
-        [[nodiscard]] auto at_packed(this auto&&, size_t) {
-            static_assert(false, "AoS does not support packed access");
-        }
-
-        template <ParticleField R>
-        [[nodiscard]] auto view_packed(this const auto&, size_t) {
-            static_assert(false, "AoS does not support packed access");
+            return num_particles;
         }
 
     protected:
@@ -81,19 +70,30 @@ namespace april::container::layout {
         exec::BlockConfig pair_schedule_config;
         exec::BlockConfig linear_schedule_config;
 
+        size_t num_particles;
+
         void build_storage(const std::vector<Particle>& particles_in) {
+            num_particles = particles_in.size();
+
+            const size_t padded_size =
+                ((num_particles + simd::packed_width - 1) / simd::packed_width) * simd::packed_width;
+
             particles = std::vector(particles_in);
+            particles.resize(padded_size);
+
             bin_starts.clear();
             bin_sizes.clear();
             bin_starts.push_back(0);
-            bin_sizes.push_back(particles.size());
-            id_to_index_map.resize(particles.size());
+
+            bin_sizes.push_back(num_particles);
+            id_to_index_map.resize(num_particles);
+
             for (size_t i = 0; i < particles.size(); i++) {
                 const auto id = static_cast<size_t>(particles[i].id);
                 id_to_index_map[id] = i;
             }
 
-            tmp.resize(particles.size());
+            tmp.resize(padded_size);
         }
 
 
@@ -202,33 +202,126 @@ namespace april::container::layout {
             else if constexpr (F == ParticleField::attributes) return &self.particles[i].attributes;
         }
 
+        template<ParticleField F>
+        auto get_field_ptr_packed(this auto&& self, size_t i) {
+            constexpr auto stride = sizeof(Particle);
 
-        template <ParallelPolicy P, exec::ExecutionMode V, bool is_const, exec::IsKernel Kernel>
-        void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
-            static_assert(V != exec::ExecutionMode::Packed,
-                          "AoS cannot be vectorized. Change the vector policy to scalar or auto.");
+            if constexpr (F == ParticleField::force) {
+                return math::Vec3Location(
+                    simd::make_strided_location<stride>(self.particles[i].force.x),
+                    simd::make_strided_location<stride>(self.particles[i].force.y),
+                    simd::make_strided_location<stride>(self.particles[i].force.z)
+                );
+            }
+            else if constexpr (F == ParticleField::position) {
+                return math::Vec3Location(
+                    simd::make_strided_location<stride>(self.particles[i].position.x),
+                    simd::make_strided_location<stride>(self.particles[i].position.y),
+                    simd::make_strided_location<stride>(self.particles[i].position.z)
+                );
+            }
+            else if constexpr (F == ParticleField::velocity) {
+                return math::Vec3Location(
+                    simd::make_strided_location<stride>(self.particles[i].velocity.x),
+                    simd::make_strided_location<stride>(self.particles[i].velocity.y),
+                    simd::make_strided_location<stride>(self.particles[i].velocity.z)
+                );
+            }
+            else if constexpr (F == ParticleField::old_position) {
+                return math::Vec3Location(
+                    simd::make_strided_location<stride>(self.particles[i].old_position.x),
+                    simd::make_strided_location<stride>(self.particles[i].old_position.y),
+                    simd::make_strided_location<stride>(self.particles[i].old_position.z)
+                );
+            }
+            else if constexpr (F == ParticleField::mass) {
+                return simd::make_strided_location<stride>(self.particles[i].mass);
+            }
+            else if constexpr (F == ParticleField::state) {
+                return simd::make_strided_location<stride>(self.particles[i].state);
+            }
+            else if constexpr (F == ParticleField::type) {
+                return simd::make_strided_location<stride>(self.particles[i].type);
+            }
+            else if constexpr (F == ParticleField::id) {
+                return simd::make_strided_location<stride>(self.particles[i].id);
+            }
+            else if constexpr (F == ParticleField::attributes) {
+                using AttributeT = std::remove_reference_t<decltype((self.particles[i].attributes))>;
+                std::array<AttributeT*, packed::size()> ptrs;
 
-            auto run_kernel = [&](size_t i) APRIL_FORCE_INLINE {
-                using K = std::remove_cvref_t<Kernel>;
-                if constexpr (is_const) {
-                    kernel(i, self.template view<K::Read>(i));
-                } else {
-                    kernel(i, self.template at<K::Read, K::Write>(i));
-                }
-            };
+                for (size_t lane = 0; lane < packed::size(); ++lane)
+                    ptrs[lane] = &self.particles[i + lane].attributes;
 
-            math::Range full_range = {start, end};
-            if constexpr (P == ParallelPolicy::Threaded) {
-                auto schedule = exec::make_linear_schedule(full_range, self.linear_schedule_config);
-
-                self.thread_executor.execute(schedule.size(), [&](size_t i) {
-                    for (size_t j : schedule[i]) run_kernel(j);
-                });
-            } else if constexpr (P == ParallelPolicy::Serial){
-                for (size_t j : full_range) run_kernel(j);
-            } else {
-                static_assert(false, "invalid Parallel Policy");
+                return ptrs;
             }
         }
+
+
+        template<ParallelPolicy P, exec::ExecutionMode E, bool is_const, MaskPolicy MP, exec::IsKernel Kernel>
+        void iterate_range(this auto&& self, Kernel&& kernel, const size_t start, const size_t end) {
+	        using K = std::remove_cvref_t<Kernel>;
+	        math::Range range = {start, end};
+
+	        auto get_scalar = [&](size_t i) APRIL_FORCE_INLINE {
+		        if constexpr (is_const) return self.template view<K::Read>(i);
+		        else return self.template at<K::Read, K::Write>(i);
+	        };
+
+	        auto get_vector_ref = [&](size_t i) APRIL_FORCE_INLINE {
+		        if constexpr (is_const) return self.template view_packed<K::Read>(i);
+		        else return self.template at_packed<K::Read, K::Write>(i);
+	        };
+
+	        auto process_chunk = [&](const math::Range& chunk) {
+		        if constexpr (E == exec::ExecutionMode::Scalar) {
+			        for (size_t i : chunk) {
+				        kernel(i, get_scalar(i));
+			        }
+		        }
+		        else if constexpr (+(E & exec::ExecutionMode::Packed)) {
+			        const size_t body = chunk.size() / packed::size();
+			        const size_t tail = chunk.size() % packed::size();
+
+			        for (size_t i = 0; i < body; ++i) {
+				        const size_t idx = chunk.start + i * packed::size();
+
+				        auto ref = get_vector_ref(idx);
+				        auto buffer = ref.template load_buffer<MP>();
+				        kernel(idx, buffer.to_view());
+
+				        if constexpr (!is_const) {
+					        buffer.update_into(ref);
+				        }
+			        }
+
+			        if (tail > 0) {
+				        const size_t tail_idx = chunk.start + body * packed::size();
+
+				        for (size_t i = tail_idx; i < chunk.stop; ++i) {
+					        kernel(i, get_scalar(i));
+				        }
+			        }
+		        }
+		        else {
+			        static_assert(false, "Execution mode must be a valid value (Scalar, Packed, Hybrid)");
+		        }
+	        };
+
+	        if constexpr (P == ParallelPolicy::Serial) {
+		        process_chunk(range);
+	        }
+	        else if constexpr (P == ParallelPolicy::Threaded) {
+		        const auto blocks = exec::make_linear_schedule(range, self.linear_schedule_config);
+
+		        self.thread_executor.execute(blocks.size(), [&](const size_t i) {
+			        process_chunk(blocks[i]);
+		        });
+	        }
+	        else {
+		        static_assert(false, "Invalid ParallelPolicy");
+	        }
+        }
+
     };
 }

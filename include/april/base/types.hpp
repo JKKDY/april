@@ -22,8 +22,10 @@ namespace april {
 
 	using packed = simd::Packed<VEC3_TYPE>;
 	using packed_mask = simd::PackedMask<VEC3_TYPE>;
-	using packedd = simd::Packed<double>;
-	using packedf = simd::Packed<float>;
+
+
+	using packedd = simd::Packed<double, simd::double_width>;
+	using packedf = simd::Packed<float, simd::float_width>;
 
 	using packedi = simd::Packed<std::conditional_t<sizeof(VEC3_TYPE) == 8, int64_t, int32_t>>;
 	using packedu = simd::Packed<std::conditional_t<sizeof(VEC3_TYPE) == 8, uint64_t, uint32_t>>;

@@ -3,23 +3,21 @@
 #include <chrono>
 
 #include <april/april.hpp>
-#include "utils.h"
 
-#include "utils.h"
 #include "april/containers/direct_sum.hpp"
-#include "../../include/april/exec/threading/backends/sequential_executor.hpp"
+#include "april/exec/threading/backends/sequential_executor.hpp"
 
 using namespace april;
 
 // Configuration
-static constexpr int NX = 10, NY = 10, NZ = 10;
+static constexpr int NX = 20, NY = 20, NZ = 20;
 static constexpr int STEPS = 50;
 static constexpr double A = 1.1225;
 static constexpr double MASS = 1.0;
 static constexpr double SIGMA = 1.0;
 static constexpr double EPSILON = 5.0;
 static constexpr double R_CUT = 3.0 * SIGMA;
-static constexpr double DT = 0.0002;
+static constexpr double DT = 0.005;
 
 // HANDCODED BASELINE
 namespace baseline {
@@ -127,9 +125,9 @@ double run_april_benchmark() {
 
 double get_allowed_tolerance() {
 #if defined(_MSC_VER) && !defined(__clang__)
-    return 1.6; // MSVC is allowed more overhead due to conservative inlining
+    return 1.4; // MSVC is allowed more overhead due to conservative inlining
 #elif defined(__apple_build_version__)
-    return 1.3; // Apple Clang is more conservative than upstream Clang/GCC
+    return 1.2; // Apple Clang is more conservative than upstream Clang/GCC
 #else
     return 1.1;
 #endif
@@ -146,8 +144,8 @@ TEST(PerformanceRegression, DirectSumAoS_vs_Handcoded) {
     baseline::run_benchmark();
     run_april_benchmark();
 
-    constexpr int max_attempts = 5;
-    constexpr double tolerance = 1.15; // 15% allowance for abstraction/CI noise
+    constexpr int max_attempts = 10;
+    constexpr double tolerance = 1.1; // 10% allowance for abstraction/CI noise
 
     for (int attempt = 1; attempt <= max_attempts; ++attempt) {
         std::cout << "\n[   INFO   ] --- Attempt " << attempt << " of " << max_attempts << " ---" << std::endl;

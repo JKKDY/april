@@ -1,9 +1,14 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <algorithm>
+#include <array>
+#include <type_traits>
+#include <utility>
+#include <concepts>
 
-#include "../../include/april/particle/access/source.hpp"
-#include "../../include/april/particle/access/packed_access.hpp"
+
+#include "april/particle/access/source.hpp"
+#include "april/particle/access/packed_access.hpp"
 #include "april/base/types.hpp"
 
 using namespace april;
@@ -12,8 +17,6 @@ using namespace april::particle::internal;
 
 // Define a test mask (Standard Physics Fields)
 static constexpr auto TestMask = ParticleField::position | ParticleField::velocity | ParticleField::force | ParticleField::mass;
-
-using PackedParticle = PackedParticleRef<TestMask, TestMask, NoParticleAttributes>;
 
 class PackedParticleViewsTest : public testing::Test {
 protected:
@@ -30,41 +33,42 @@ protected:
         force_x.resize(Count, 0.0); force_y.resize(Count, 0.0); force_z.resize(Count, 0.0);
         mass.resize(Count, 0.0);
 
-        // Particle i has position {i, i, i} and mass 1.0
-        for(size_t i=0; i<Count; ++i) {
+        for (size_t i = 0; i < Count; ++i) {
             const double val = static_cast<double>(i);
-            pos_x[i] = val; pos_y[i] = val; pos_z[i] = val;
-            vel_x[i] = 1.0; vel_y[i] = 0.0; vel_z[i] = 0.0; // Moving right
+
+            pos_x[i] = val;
+            pos_y[i] = val;
+            pos_z[i] = val;
+
+            vel_x[i] = 1.0;
+            vel_y[i] = 0.0;
+            vel_z[i] = 0.0;
+
             mass[i] = 2.0;
         }
     }
 
-    auto get_source() {
-        internal::ParticleSource<TestMask, TestMask, NoParticleAttributes> src;
+public:
+    [[nodiscard]] auto get_source() {
+        auto get_field = [&]<ParticleField F>() {
+            if constexpr (F == ParticleField::position)
+                return math::Vec3Location{pos_x.data(), pos_y.data(), pos_z.data()};
+            else if constexpr (F == ParticleField::velocity)
+                return math::Vec3Location{vel_x.data(), vel_y.data(), vel_z.data()};
+            else if constexpr (F == ParticleField::force)
+                return math::Vec3Location{force_x.data(), force_y.data(), force_z.data()};
+            else if constexpr (F == ParticleField::mass)
+                return mass.data();
+        };
 
-        // Setup SoA Pointers for Position
-        src.position.x = pos_x.data();
-        src.position.y = pos_y.data();
-        src.position.z = pos_z.data();
-
-        // Velocity
-        src.velocity.x = vel_x.data();
-        src.velocity.y = vel_y.data();
-        src.velocity.z = vel_z.data();
-
-        // Force
-        src.force.x = force_x.data();
-        src.force.y = force_y.data();
-        src.force.z = force_z.data();
-
-        // Mass
-        src.mass = mass.data();
-
-        return src;
+        return make_particle_source<TestMask, TestMask>(get_field);
     }
 
-    // Helper: Verify data at specific index
-    void ExpectParticle(const size_t index, const vec3& expected_pos, const vec3& expected_force) const {
+    void ExpectParticle(
+        const size_t index,
+        const vec3& expected_pos,
+        const vec3& expected_force
+    ) const {
         EXPECT_DOUBLE_EQ(pos_x[index], expected_pos.x);
         EXPECT_DOUBLE_EQ(pos_y[index], expected_pos.y);
         EXPECT_DOUBLE_EQ(pos_z[index], expected_pos.z);
@@ -75,6 +79,8 @@ protected:
     }
 };
 
+using Source = decltype(std::declval<PackedParticleViewsTest&>().get_source());
+using PackedParticle = PackedParticleRef<TestMask, TestMask, NoParticleAttributes, Source>;
 
 // Instantiation & Read Check
 TEST_F(PackedParticleViewsTest, ReadValues) {
@@ -166,10 +172,10 @@ concept VelocityAssignable =
     };
 TEST_F(PackedParticleViewsTest, ConstView) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, TestMask,NoParticleAttributes> ref(src);
+    PackedParticleRef<TestMask, TestMask,NoParticleAttributes, decltype(src)> ref(src);
 
     // Convert to View
-    const PackedParticleRef<TestMask, ParticleField::none, NoParticleAttributes> view = ref.to_view();
+    const PackedParticleRef<TestMask, ParticleField::none, NoParticleAttributes, decltype(src)> view = ref.to_view();
 
     // Read is allowed
     const pvec3 v = view.velocity;
@@ -178,7 +184,7 @@ TEST_F(PackedParticleViewsTest, ConstView) {
     // Write should fail compile on view, should succeed on ref
     // TODO
     // static_assert(!VelocityAssignable<PackedParticleRef<TestMask, ParticleField::none, NoParticleAttributes>>);
-    static_assert( VelocityAssignable<PackedParticleRef<TestMask, TestMask, NoParticleAttributes>>);
+    static_assert( VelocityAssignable<PackedParticleRef<TestMask, TestMask, NoParticleAttributes, decltype(src)>>);
 }
 
 
@@ -188,7 +194,7 @@ TEST_F(PackedParticleViewsTest, ConstView) {
 // and that modifying the registers DOES NOT touch memory until commit.
 TEST_F(PackedParticleViewsTest, BufferIsolation) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, TestMask, NoParticleAttributes> ref(src);
+    PackedParticle ref(src);
 
     // 1. Load into Registers
     auto buffer = ref.load_buffer();
@@ -226,7 +232,7 @@ TEST_F(PackedParticleViewsTest, BufferIsolation) {
 // Verifies "rotate_left" shifts elements correctly across the whole vector.
 TEST_F(PackedParticleViewsTest, BufferRotation) {
     const auto src = get_source();
-    const PackedParticleRef<TestMask, TestMask, NoParticleAttributes> ref(src);
+    const PackedParticle ref(src);
 
     // Memory setup: Position X is {0, 1, 2, 3 ...}
     auto buffer = ref.load_buffer();
@@ -263,7 +269,7 @@ TEST_F(PackedParticleViewsTest, BufferRotation) {
 // Verifies that we can write specific fields back to memory for ALL lanes.
 TEST_F(PackedParticleViewsTest, BufferCommit) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, TestMask, NoParticleAttributes> ref(src);
+    PackedParticle ref(src);
 
     auto buffer = ref.load_buffer();
 
@@ -295,10 +301,10 @@ TEST_F(PackedParticleViewsTest, BufferCommit) {
 // A robust integration test for the loop logic.
 TEST_F(PackedParticleViewsTest, SystolicLoopSim) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, TestMask, NoParticleAttributes> p1(src);
+    PackedParticle p1(src);
 
     // p1 and p2 point to same memory: PosX = {0, 1, 2, 3}
-    const PackedParticleRef<TestMask, TestMask, NoParticleAttributes> p2(src);
+    const PackedParticle p2(src);
 
     auto b1 = p1.load_buffer();
     auto b2 = p2.load_buffer();
@@ -345,64 +351,62 @@ TEST_F(PackedParticleViewsTest, SystolicLoopSim) {
 // Verifies that a packed buffer is correctly populated across all lanes
 // when constructed from a single scalar particle accessor.
 TEST_F(PackedParticleViewsTest, BufferBroadcastFromScalar) {
-    // 1. Setup a single scalar particle
-    double s_pos_x = 1.5, s_pos_y = 2.5, s_pos_z = 3.5;
-    double s_vel_x = 4.5, s_vel_y = 5.5, s_vel_z = 6.5;
-    double s_frc_x = 7.5, s_frc_y = 8.5, s_frc_z = 9.5;
-    double s_mass  = 10.5;
+	// 1. Setup a single scalar particle
+	double s_pos_x = 1.5, s_pos_y = 2.5, s_pos_z = 3.5;
+	double s_vel_x = 4.5, s_vel_y = 5.5, s_vel_z = 6.5;
+	double s_frc_x = 7.5, s_frc_y = 8.5, s_frc_z = 9.5;
+	double s_mass = 10.5;
 
-    ParticleSource<TestMask, TestMask, NoParticleAttributes> scalar_src;
-    scalar_src.position.x = &s_pos_x;
-    scalar_src.position.y = &s_pos_y;
-    scalar_src.position.z = &s_pos_z;
-    scalar_src.velocity.x = &s_vel_x;
-    scalar_src.velocity.y = &s_vel_y;
-    scalar_src.velocity.z = &s_vel_z;
-    scalar_src.force.x = &s_frc_x;
-    scalar_src.force.y = &s_frc_y;
-    scalar_src.force.z = &s_frc_z;
-    scalar_src.mass = &s_mass;
+	auto get_field = [&]<ParticleField F>() {
+		if constexpr (F == ParticleField::position)
+			return math::Vec3Location{&s_pos_x, &s_pos_y, &s_pos_z};
+		else if constexpr (F == ParticleField::velocity)
+			return math::Vec3Location{&s_vel_x, &s_vel_y, &s_vel_z};
+		else if constexpr (F == ParticleField::force)
+			return math::Vec3Location{&s_frc_x, &s_frc_y, &s_frc_z};
+		else if constexpr (F == ParticleField::mass)
+			return &s_mass;
+	};
 
-    // Create the scalar reference
-    ScalarParticleRef<TestMask, TestMask, NoParticleAttributes> scalar_ref(scalar_src);
+	auto scalar_src = particle::internal::make_particle_source<TestMask, TestMask>(get_field);
+	ScalarParticleRef<TestMask, TestMask, NoParticleAttributes> scalar_ref(scalar_src);
 
-    // 2. Broadcast into a SIMD buffer
-    auto buffer = scalar_ref.broadcast();
+	// 2. Broadcast into a SIMD buffer
+	auto buffer = scalar_ref.broadcast();
 
-    // 3. Verify all lanes contain the exact scalar values
-    constexpr size_t Width = packedd::size();
+	// 3. Verify all lanes contain the exact scalar values
+	constexpr size_t Width = packedd::size();
 
-    auto pos_x = buffer.position.x.to_array();
-    auto pos_y = buffer.position.y.to_array();
-    auto pos_z = buffer.position.z.to_array();
+	auto pos_x = buffer.position.x.to_array();
+	auto pos_y = buffer.position.y.to_array();
+	auto pos_z = buffer.position.z.to_array();
 
-    auto vel_x = buffer.velocity.x.to_array();
-    auto vel_y = buffer.velocity.y.to_array();
-    auto vel_z = buffer.velocity.z.to_array();
+	auto vel_x = buffer.velocity.x.to_array();
+	auto vel_y = buffer.velocity.y.to_array();
+	auto vel_z = buffer.velocity.z.to_array();
 
-    auto frc_x = buffer.force.x.to_array();
-    auto frc_y = buffer.force.y.to_array();
-    auto frc_z = buffer.force.z.to_array();
+	auto frc_x = buffer.force.x.to_array();
+	auto frc_y = buffer.force.y.to_array();
+	auto frc_z = buffer.force.z.to_array();
 
-    auto mass_arr = buffer.mass.to_array();
+	auto mass_arr = buffer.mass.to_array();
 
-    for(size_t i = 0; i < Width; ++i) {
-        EXPECT_DOUBLE_EQ(pos_x[i], 1.5) << "Broadcast failed on position.x at lane " << i;
-        EXPECT_DOUBLE_EQ(pos_y[i], 2.5) << "Broadcast failed on position.y at lane " << i;
-        EXPECT_DOUBLE_EQ(pos_z[i], 3.5) << "Broadcast failed on position.z at lane " << i;
+	for (size_t i = 0; i < Width; ++i) {
+		EXPECT_DOUBLE_EQ(pos_x[i], 1.5) << "Broadcast failed on position.x at lane " << i;
+		EXPECT_DOUBLE_EQ(pos_y[i], 2.5) << "Broadcast failed on position.y at lane " << i;
+		EXPECT_DOUBLE_EQ(pos_z[i], 3.5) << "Broadcast failed on position.z at lane " << i;
 
-        EXPECT_DOUBLE_EQ(vel_x[i], 4.5) << "Broadcast failed on velocity.x at lane " << i;
-        EXPECT_DOUBLE_EQ(vel_y[i], 5.5) << "Broadcast failed on velocity.y at lane " << i;
-        EXPECT_DOUBLE_EQ(vel_z[i], 6.5) << "Broadcast failed on velocity.z at lane " << i;
+		EXPECT_DOUBLE_EQ(vel_x[i], 4.5) << "Broadcast failed on velocity.x at lane " << i;
+		EXPECT_DOUBLE_EQ(vel_y[i], 5.5) << "Broadcast failed on velocity.y at lane " << i;
+		EXPECT_DOUBLE_EQ(vel_z[i], 6.5) << "Broadcast failed on velocity.z at lane " << i;
 
-        EXPECT_DOUBLE_EQ(frc_x[i], 7.5) << "Broadcast failed on force.x at lane " << i;
-        EXPECT_DOUBLE_EQ(frc_y[i], 8.5) << "Broadcast failed on force.y at lane " << i;
-        EXPECT_DOUBLE_EQ(frc_z[i], 9.5) << "Broadcast failed on force.z at lane " << i;
+		EXPECT_DOUBLE_EQ(frc_x[i], 7.5) << "Broadcast failed on force.x at lane " << i;
+		EXPECT_DOUBLE_EQ(frc_y[i], 8.5) << "Broadcast failed on force.y at lane " << i;
+		EXPECT_DOUBLE_EQ(frc_z[i], 9.5) << "Broadcast failed on force.z at lane " << i;
 
-        EXPECT_DOUBLE_EQ(mass_arr[i], 10.5) << "Broadcast failed on mass at lane " << i;
-    }
+		EXPECT_DOUBLE_EQ(mass_arr[i], 10.5) << "Broadcast failed on mass at lane " << i;
+	}
 }
-
 
 // ---------------------
 // BUFFER AND VIEW TESTS
@@ -413,7 +417,7 @@ TEST_F(PackedParticleViewsTest, BufferBroadcastFromScalar) {
 // registers back to memory across all lanes.
 TEST_F(PackedParticleViewsTest, BufferUpdateIntoUnmasked) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, TestMask, NoParticleAttributes> ref(src);
+    PackedParticle ref(src);
 
     auto buffer = ref.load_buffer();
 
@@ -438,7 +442,7 @@ TEST_F(PackedParticleViewsTest, BufferUpdateIntoUnmasked) {
 // in lanes that are outside the active bounds.
 TEST_F(PackedParticleViewsTest, BufferUpdateIntoMasked) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, TestMask, NoParticleAttributes> ref(src);
+    PackedParticle ref(src);
 
     auto buffer = ref.load_buffer();
 
@@ -472,7 +476,7 @@ TEST_F(PackedParticleViewsTest, BufferUpdateIntoMasked) {
 // without allowing assignment.
 TEST_F(PackedParticleViewsTest, BufferToView) {
     const auto src = get_source();
-    PackedParticleRef<TestMask, ParticleField::none, NoParticleAttributes> ref(src);
+    PackedParticleRef<TestMask, ParticleField::none, NoParticleAttributes, decltype(src)> ref(src);
 
     auto buffer = ref.load_buffer();
     auto view = buffer.to_view();
@@ -491,34 +495,40 @@ TEST_F(PackedParticleViewsTest, BufferToView) {
 // Verifies that a pure Write-Only buffer can horizontally reduce its SIMD lanes
 // into a single scalar particle (used during Newton's 3rd Law / Cell sorting)
 TEST(PackedParticleReductionTest, MaskedReduceIntoScalar) {
-    // Setup a pure Write-Only target
     constexpr auto ROMask = ParticleField::none;
     constexpr auto WOMask = ParticleField::force;
 
-    // Single scalar particle to receive the reduced forces
     double s_frc_x = 0.0, s_frc_y = 0.0, s_frc_z = 0.0;
-    ParticleSource<ROMask, WOMask, NoParticleAttributes> s_src;
-    s_src.force.x = &s_frc_x;
-    s_src.force.y = &s_frc_y;
-    s_src.force.z = &s_frc_z;
+
+    auto get_field = [&]<ParticleField F>() {
+        return math::Vec3Location{
+            &s_frc_x,
+            &s_frc_y,
+            &s_frc_z
+        };
+    };
+
+    auto s_src = make_particle_source<ROMask, WOMask>(get_field);
     ScalarParticleRef<ROMask, WOMask, NoParticleAttributes> scalar_ref(s_src);
 
-    // Create a dummy buffer and accumulate some forces into it
-    PackedParticleBuffer<ROMask, WOMask, NoParticleAttributes> buffer;
-    buffer.force = pvec3(1.0, 2.0, 3.0); // Every lane has {1, 2, 3}
+    PackedParticleBuffer<
+        ROMask,
+        WOMask,
+        NoParticleAttributes,
+        MaskPolicy::Disabled
+    > buffer;
 
-    // Create a mask that is only TRUE for the first 3 lanes
+    buffer.force = pvec3(1.0, 2.0, 3.0);
+
     constexpr size_t Width = packed::size();
     std::vector<double> seq(Width);
-    for(size_t i = 0; i < Width; ++i) seq[i] = static_cast<double>(i);
+    for (size_t i = 0; i < Width; ++i) seq[i] = static_cast<double>(i);
 
     packed indices = packed::load_unaligned(seq.data());
-    auto mask = (indices < 2.0);
+    auto mask = indices < 2.0;
 
-    // Reduce
     buffer.reduce_into(scalar_ref, mask);
 
-    // Expected: 2 lanes * 1.0 = 3.0
     EXPECT_DOUBLE_EQ(s_frc_x, 2.0);
     EXPECT_DOUBLE_EQ(s_frc_y, 4.0);
     EXPECT_DOUBLE_EQ(s_frc_z, 6.0);
@@ -528,61 +538,655 @@ TEST(PackedParticleReductionTest, MaskedReduceIntoScalar) {
 //----------------
 // ATTRIBUTE TESTS
 //----------------
-struct TestCharge {
-    APRIL_TRIVIAL_ATTRIBUTE(double, q);
+
+
+
+
+
+struct TestAttributes {
+    double charge = 0.0;
+    size_t touched_by_lane = std::numeric_limits<size_t>::max();
 };
 
-// Trivial SIMD Attributes Lifecycle
-// Verifies the engine correctly casts and vectorizes custom user structs
-TEST(PackedParticleAttributesTest, SIMDAttributeLifecycle) {
-    constexpr size_t Count = packed::size();
+TEST(PackedParticleAttributesTest, AttributesAreForwardedIntoPackedKernel) {
+    constexpr size_t Width = packed::size();
 
-    // Memory setup
-    std::vector<double> pos_x(Count, 0.0);
-    std::vector<double> pos_y(Count, 0.0);
-    std::vector<double> pos_z(Count, 0.0);
-    std::vector<TestCharge> charges(Count);
-    for(size_t i=0; i<Count; ++i) {
-        charges[i].q = static_cast<double>(i) * 2.0; // 0.0, 2.0, 4.0, ...
-    }
+    std::array<TestAttributes, Width> attributes{};
 
-    constexpr auto Mask = ParticleField::position | ParticleField::attributes;
-    ParticleSource<Mask, Mask, TestCharge> src;
-    src.position.x = pos_x.data();
-    src.position.y = pos_y.data();
-    src.position.z = pos_z.data();
+    for (size_t lane = 0; lane < Width; ++lane)
+        attributes[lane].charge = static_cast<double>(lane + 1);
 
-    src.attributes = charges.data();
+    constexpr ParticleField Read =
+        ParticleField::attributes;
 
-    // Load
-    PackedParticleRef<Mask, Mask, TestCharge> ref(src);
-    auto buffer = ref.load_buffer();
+    constexpr ParticleField Write =
+        ParticleField::attributes;
 
-    // Verify Read (Via View mapping)
+    auto get_field = [&]<ParticleField F>() {
+        if constexpr (F == ParticleField::attributes)
+            return attributes.data();
+    };
+
+    auto source = make_particle_source<Read, Write>(get_field);
+
+    using AttributeSource = decltype(source);
+
+    using Ref = PackedParticleRef<
+        Read,
+        Write,
+        TestAttributes,
+        AttributeSource
+    >;
+
+    Ref ref(source);
+
+    auto buffer =
+        ref.load_buffer<MaskPolicy::Enabled>();
+
     auto view = buffer.to_view();
-    auto q_vals = view.attributes.q.to_array(); // Beautiful user syntax
 
-    for(size_t i=0; i<Count; ++i) {
-        EXPECT_DOUBLE_EQ(q_vals[i], static_cast<double>(i) * 2.0);
+    std::array<bool, Width> active_lanes{};
+
+    for (size_t lane = 0; lane < Width; ++lane)
+        active_lanes[lane] = (lane % 2) == 0;
+
+    const auto mask =
+        packed::mask_type::load_unaligned(active_lanes.data());
+
+    view.mask_with(mask);
+
+    // Simulated packed kernel
+    for (size_t lane = 0; lane < Width; ++lane) {
+        if (!view.attributes.active(lane))
+            continue;
+
+        auto& attr = view.attributes[lane];
+
+        attr.charge *= 10.0;
+        attr.touched_by_lane = lane;
     }
 
-    // Modify & Write-back
-    view.attributes.q += view.attributes.q; // Double the charges
+    // Attribute writes are direct; no update_into().
+    for (size_t lane = 0; lane < Width; ++lane) {
+        if ((lane % 2) == 0) {
+            EXPECT_DOUBLE_EQ(
+                attributes[lane].charge,
+                static_cast<double>(lane + 1) * 10.0
+            );
+
+            EXPECT_EQ(
+                attributes[lane].touched_by_lane,
+                lane
+            );
+        } else {
+            EXPECT_DOUBLE_EQ(
+                attributes[lane].charge,
+                static_cast<double>(lane + 1)
+            );
+
+            EXPECT_EQ(
+                attributes[lane].touched_by_lane,
+                std::numeric_limits<size_t>::max()
+            );
+        }
+    }
+}
+
+TEST(PackedParticleAttributesTest, ReadOnlyAttributesAreConstInKernel) {
+    constexpr size_t Width = packed::size();
+
+    std::array<TestAttributes, Width> attributes{};
+
+    constexpr ParticleField Read =
+        ParticleField::attributes;
+
+    constexpr ParticleField Write =
+        ParticleField::none;
+
+    auto get_field = [&]<ParticleField F>() {
+        if constexpr (F == ParticleField::attributes)
+            return attributes.data();
+    };
+
+    auto source = make_particle_source<Read, Write>(get_field);
+
+    using AttributeSource = decltype(source);
+
+    using Ref = PackedParticleRef<
+        Read,
+        Write,
+        TestAttributes,
+        AttributeSource
+    >;
+
+    Ref ref(source);
+
+    auto buffer = ref.load_buffer();
+    auto view = buffer.to_view();
+
+    using AttributeRef =
+        decltype(view.attributes[0]);
+
+    static_assert(std::same_as<
+        AttributeRef,
+        const TestAttributes&
+    >);
+
+    EXPECT_EQ(
+        &view.attributes[0],
+        &attributes[0]
+    );
+}
+
+
+namespace {
+
+using ParticleMaskT = packed::mask_type;
+
+template<typename Predicate>
+ParticleMaskT MakeParticleMask(Predicate&& predicate) {
+    std::array<bool, packed::size()> lanes{};
+
+    for (std::size_t i = 0; i < lanes.size(); ++i) {
+        lanes[i] = static_cast<bool>(predicate(i));
+    }
+
+    return ParticleMaskT::load_unaligned(lanes.data());
+}
+
+ParticleMaskT FirstParticleLanes(std::size_t count) {
+    return MakeParticleMask([count](std::size_t lane) {
+        return lane < count;
+    });
+}
+
+ParticleMaskT AlternatingParticleLanes(
+    bool first_lane_active = true
+) {
+    return MakeParticleMask([first_lane_active](std::size_t lane) {
+        return ((lane % 2) == 0) == first_lane_active;
+    });
+}
+
+template<typename View>
+concept SupportsMaskWith = requires(
+    View& view,
+    const ParticleMaskT& mask
+) {
+    view.mask_with(mask);
+};
+
+} // namespace
+
+
+// ---------------------------------------------------------
+// COMPILE-TIME MASKING POLICY
+// ---------------------------------------------------------
+
+
+TEST(PackedParticleMaskedBufferTest, OnlyWritableFieldsAreMasked) {
+    constexpr ParticleField Read =
+        ParticleField::position |
+        ParticleField::mass;
+
+    constexpr ParticleField Write =
+        ParticleField::force;
+
+    using Buffer = PackedParticleBuffer<
+        Read,
+        Write,
+        NoParticleAttributes,
+        MaskPolicy::Enabled
+    >;
+
+    using PositionComponent = std::remove_cvref_t<
+        decltype(std::declval<Buffer&>().position.x)
+    >;
+
+    using ForceComponent = std::remove_cvref_t<
+        decltype(std::declval<Buffer&>().force.x)
+    >;
+
+    using MassField = std::remove_cvref_t<
+        decltype(std::declval<Buffer&>().mass)
+    >;
+
+    static_assert(std::same_as<PositionComponent, packed>);
+    static_assert(std::same_as<MassField, packed>);
+
+    static_assert(std::same_as<
+        ForceComponent,
+        simd::MaskedPacked<packed, ParticleMaskT>
+    >);
+}
+
+
+TEST(PackedParticleMaskedBufferTest, MaskWithExistsOnlyOnMaskedView) {
+    using MaskedBuffer = PackedParticleBuffer<
+        TestMask,
+        TestMask,
+        NoParticleAttributes,
+        MaskPolicy::Enabled
+    >;
+
+    using UnmaskedBuffer = PackedParticleBuffer<
+        TestMask,
+        TestMask,
+        NoParticleAttributes,
+        MaskPolicy::Disabled
+    >;
+
+    using MaskedView = decltype(
+        std::declval<MaskedBuffer&>().to_view()
+    );
+
+    using UnmaskedView = decltype(
+        std::declval<UnmaskedBuffer&>().to_view()
+    );
+
+    static_assert(SupportsMaskWith<MaskedView>);
+    static_assert(!SupportsMaskWith<UnmaskedView>);
+}
+
+
+// ---------------------------------------------------------
+// DEFAULT MASK STATE
+// ---------------------------------------------------------
+
+TEST_F(
+    PackedParticleViewsTest,
+    EnabledBufferInitiallyAllowsWritesToEveryLane
+) {
+    const auto src = get_source();
+    PackedParticle ref(src);
+
+    auto buffer =
+        ref.load_buffer<MaskPolicy::Enabled>();
+
+    auto view = buffer.to_view();
+
+    view.position.x += 5.0;
+
     buffer.update_into(ref);
 
-    for(size_t i=0; i<Count; ++i) {
-        EXPECT_DOUBLE_EQ(buffer.attributes.to_array()[i], static_cast<double>(i) * 4.0);
-    }
+    constexpr std::size_t Width = packed::size();
 
-    // Verify Memory
-    for(size_t i=0; i<Count; ++i) {
-        EXPECT_DOUBLE_EQ(charges[i].q, static_cast<double>(i) * 4.0);
+    for (std::size_t i = 0; i < Width; ++i) {
+        EXPECT_DOUBLE_EQ(
+            pos_x[i],
+            static_cast<double>(i) + 5.0
+        ) << "lane " << i;
     }
 }
 
 
+// ---------------------------------------------------------
+// READ-WRITE FIELD MASKING
+// ---------------------------------------------------------
+
+TEST_F(
+    PackedParticleViewsTest,
+    MaskedViewUpdatesOnlyActiveReadWriteLanes
+) {
+    const auto src = get_source();
+    PackedParticle ref(src);
+
+    auto buffer =
+        ref.load_buffer<MaskPolicy::Enabled>();
+
+    auto view = buffer.to_view();
+
+    const auto active = AlternatingParticleLanes();
+    view.mask_with(active);
+
+    view.position += pvec3(10.0, 20.0, 30.0);
+    view.velocity = pvec3(7.0, 8.0, 9.0);
+    view.force = pvec3(4.0, 5.0, 6.0);
+    view.mass *= 3.0;
+
+    buffer.update_into(ref);
+
+    constexpr std::size_t Width = packed::size();
+
+    for (std::size_t i = 0; i < Width; ++i) {
+        const bool lane_active = (i % 2) == 0;
+        const double initial_position = static_cast<double>(i);
+
+        EXPECT_DOUBLE_EQ(
+            pos_x[i],
+            lane_active
+                ? initial_position + 10.0
+                : initial_position
+        ) << "position.x lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            pos_y[i],
+            lane_active
+                ? initial_position + 20.0
+                : initial_position
+        ) << "position.y lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            pos_z[i],
+            lane_active
+                ? initial_position + 30.0
+                : initial_position
+        ) << "position.z lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            vel_x[i],
+            lane_active ? 7.0 : 1.0
+        ) << "velocity.x lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            vel_y[i],
+            lane_active ? 8.0 : 0.0
+        ) << "velocity.y lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            vel_z[i],
+            lane_active ? 9.0 : 0.0
+        ) << "velocity.z lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            force_x[i],
+            lane_active ? 4.0 : 0.0
+        ) << "force.x lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            force_y[i],
+            lane_active ? 5.0 : 0.0
+        ) << "force.y lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            force_z[i],
+            lane_active ? 6.0 : 0.0
+        ) << "force.z lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            mass[i],
+            lane_active ? 6.0 : 2.0
+        ) << "mass lane " << i;
+    }
+}
 
 
+// ---------------------------------------------------------
+// PROSPECTIVE AND CUMULATIVE MASKING
+// ---------------------------------------------------------
+
+TEST_F(
+    PackedParticleViewsTest,
+    MaskWithIsProspectiveAndCumulative
+) {
+    const auto src = get_source();
+    PackedParticle ref(src);
+
+    auto buffer =
+        ref.load_buffer<MaskPolicy::Enabled>();
+
+    auto view = buffer.to_view();
+
+    // The initial write mask is all true.
+    view.position.x += 1.0;
+
+    const std::size_t half =
+        (packed::size() + 1) / 2;
+
+    // Restrict later mutations to the first half.
+    view.mask_with(FirstParticleLanes(half));
+    view.position.x += 10.0;
+
+    // mask_with() intersects with the current mask.
+    view.mask_with(AlternatingParticleLanes());
+    view.position.x += 100.0;
+
+    buffer.update_into(ref);
+
+    constexpr std::size_t Width = packed::size();
+
+    for (std::size_t i = 0; i < Width; ++i) {
+        double expected = static_cast<double>(i);
+
+        // This mutation occurred before any mask restriction.
+        expected += 1.0;
+
+        if (i < half) {
+            expected += 10.0;
+        }
+
+        if (i < half && (i % 2) == 0) {
+            expected += 100.0;
+        }
+
+        EXPECT_DOUBLE_EQ(pos_x[i], expected)
+            << "lane " << i;
+    }
+}
+
+
+// ---------------------------------------------------------
+// WRITE-ONLY ACCUMULATION
+// ---------------------------------------------------------
+
+TEST_F(
+    PackedParticleViewsTest,
+    MaskedWriteOnlyFieldAccumulatesOnlyActiveLanes
+) {
+    constexpr ParticleField Read =
+        ParticleField::position |
+        ParticleField::velocity |
+        ParticleField::mass;
+
+    constexpr ParticleField Write =
+        ParticleField::force;
+
+    const auto src = get_source();
+    using Ref = PackedParticleRef<
+        Read,
+        Write,
+        NoParticleAttributes,
+        Source
+    >;
+
+    std::fill(force_x.begin(), force_x.end(), 10.0);
+    std::fill(force_y.begin(), force_y.end(), 20.0);
+    std::fill(force_z.begin(), force_z.end(), 30.0);
+
+    Ref ref(src);
+
+    auto buffer =
+        ref.load_buffer<MaskPolicy::Enabled>();
+
+    auto view = buffer.to_view();
+
+    const auto active = AlternatingParticleLanes();
+    view.mask_with(active);
+
+    // A write-only force field begins as a zero delta buffer.
+    view.force += pvec3(1.0, 2.0, 3.0);
+    view.force += pvec3(4.0, 5.0, 6.0);
+
+    buffer.update_into(ref);
+
+    constexpr std::size_t Width = packed::size();
+
+    for (std::size_t i = 0; i < Width; ++i) {
+        const bool lane_active = (i % 2) == 0;
+
+        EXPECT_DOUBLE_EQ(
+            force_x[i],
+            lane_active ? 15.0 : 10.0
+        ) << "force.x lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            force_y[i],
+            lane_active ? 27.0 : 20.0
+        ) << "force.y lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            force_z[i],
+            lane_active ? 39.0 : 30.0
+        ) << "force.z lane " << i;
+    }
+}
+
+
+// ---------------------------------------------------------
+// MASK ROTATION
+// ---------------------------------------------------------
+
+TEST_F(
+    PackedParticleViewsTest,
+    BufferRotationKeepsMaskAlignedWithParticleData
+) {
+    const auto src = get_source();
+    PackedParticle ref(src);
+
+    auto buffer =
+        ref.load_buffer<MaskPolicy::Enabled>();
+
+    auto view = buffer.to_view();
+
+    // Only original lane zero may be mutated.
+    view.mask_with(
+        MakeParticleMask([](std::size_t lane) {
+            return lane == 0;
+        })
+    );
+
+    // Original lane zero moves to lane one.
+    buffer.rotate_right();
+
+    view.position.x += 100.0;
+
+    const auto values =
+        static_cast<packed>(view.position.x).to_array();
+
+    constexpr std::size_t Width = packed::size();
+    constexpr std::size_t ActiveLane = 1 % Width;
+
+    for (std::size_t i = 0; i < Width; ++i) {
+        const std::size_t source_lane =
+            (i + Width - 1) % Width;
+
+        double expected =
+            static_cast<double>(source_lane);
+
+        if (i == ActiveLane) {
+            expected += 100.0;
+        }
+
+        EXPECT_DOUBLE_EQ(values[i], expected)
+            << "lane " << i;
+    }
+}
+
+
+// ---------------------------------------------------------
+// INTERNAL AND EXTERNAL MASK COMPOSITION
+// ---------------------------------------------------------
+
+TEST_F(
+    PackedParticleViewsTest,
+    CommitMaskComposesWithBufferWriteMask
+) {
+    const auto src = get_source();
+    PackedParticle ref(src);
+
+    auto buffer =
+        ref.load_buffer<MaskPolicy::Enabled>();
+
+    auto view = buffer.to_view();
+
+    const std::size_t half =
+        (packed::size() + 1) / 2;
+
+    // Controls which lanes are mutated in the register buffer.
+    view.mask_with(FirstParticleLanes(half));
+    view.position.x += 50.0;
+
+    // Controls which lanes are committed to memory.
+    const auto commit_mask =
+        AlternatingParticleLanes();
+
+    buffer.update_into(ref, commit_mask);
+
+    constexpr std::size_t Width = packed::size();
+
+    for (std::size_t i = 0; i < Width; ++i) {
+        const bool changed =
+            i < half &&
+            (i % 2) == 0;
+
+        const double expected =
+            static_cast<double>(i) +
+            (changed ? 50.0 : 0.0);
+
+        EXPECT_DOUBLE_EQ(pos_x[i], expected)
+            << "lane " << i;
+    }
+}
+
+
+// ---------------------------------------------------------
+// SHARED MASK ACROSS WRITABLE FIELDS
+// ---------------------------------------------------------
+
+TEST_F(
+    PackedParticleViewsTest,
+    OneViewMaskControlsEveryWritableField
+) {
+    const auto src = get_source();
+    PackedParticle ref(src);
+
+    auto buffer =
+        ref.load_buffer<MaskPolicy::Enabled>();
+
+    auto view = buffer.to_view();
+
+    const auto active =
+        MakeParticleMask([](std::size_t lane) {
+            return lane == 1 || lane == 3;
+        });
+
+    view.mask_with(active);
+
+    view.position.x += 100.0;
+    view.velocity.y += 200.0;
+    view.force.z += 300.0;
+    view.mass += 400.0;
+
+    buffer.update_into(ref);
+
+    constexpr std::size_t Width = packed::size();
+
+    for (std::size_t i = 0; i < Width; ++i) {
+        const bool lane_active =
+            i == 1 || i == 3;
+
+        EXPECT_DOUBLE_EQ(
+            pos_x[i],
+            static_cast<double>(i) +
+                (lane_active ? 100.0 : 0.0)
+        ) << "position.x lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            vel_y[i],
+            lane_active ? 200.0 : 0.0
+        ) << "velocity.y lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            force_z[i],
+            lane_active ? 300.0 : 0.0
+        ) << "force.z lane " << i;
+
+        EXPECT_DOUBLE_EQ(
+            mass[i],
+            lane_active ? 402.0 : 2.0
+        ) << "mass lane " << i;
+    }
+}
 
 
 

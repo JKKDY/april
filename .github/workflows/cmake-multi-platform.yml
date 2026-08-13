@@ -22,86 +22,105 @@ jobs:
           # -------------------------------------------
           # RELEASE BUILDS
           # -------------------------------------------
-          - name: Linux (Clang 18, Release)
+          - name: Linux (Clang 18, XSIMD, AVX2, Release)
             os: ubuntu-24.04
             build_type: Release
             cxx: clang++-18
             cc: clang-18
             simd_backend: XSIMD
+            cxx_flags: "-mavx2"
             cmake_flags: ""
 
-          - name: macOS (Apple Clang, Release)
-            # Tests the default out-of-the-box Mac experience and NEON SIMD
+          - name: macOS (Apple Clang, XSIMD, Release)
+            # Native Apple/NEON path.
             os: macos-latest
             build_type: Release
             cxx: clang++
             cc: clang
             simd_backend: XSIMD
+            cxx_flags: ""
             cmake_flags: "-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0"
 
-          - name: macOS (GCC 14, Release)
-            # GCC 14 is paired with Xcode 16.4 and the macOS 15 SDK.
-            # Newer macOS SDK headers are currently incompatible with GCC 14.
+          - name: macOS (GCC 14, XSIMD, Release)
             os: macos-15
             build_type: Release
             cxx: g++-14
             cc: gcc-14
             simd_backend: XSIMD
+            cxx_flags: ""
             cmake_flags: "-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0"
             xcode_version: "16.4"
 
-          - name: Windows (MSVC, Release)
+          - name: Windows (MSVC, XSIMD, AVX2, Release)
             os: windows-latest
             build_type: Release
             cxx: cl
             cc: cl
             simd_backend: XSIMD
+            cxx_flags: "/arch:AVX2"
             cmake_flags: ""
 
-          - name: Windows (MinGW, Release)
+          - name: Windows (MinGW, XSIMD, AVX2, Release)
             os: windows-latest
             build_type: Release
             cxx: g++
             cc: gcc
             simd_backend: XSIMD
+            cxx_flags: "-mavx2"
             cmake_flags: ""
 
           # -----------------------------------------
-          # DEBUG BUILDS
+          # DEBUG / SANITIZER BUILDS
           # -----------------------------------------
-          - name: Linux (Clang 18, ASAN + UBSAN)
+          - name: Linux (Clang 18, XSIMD, AVX2, ASAN + UBSAN)
             os: ubuntu-24.04
             build_type: Debug
             cxx: clang++-18
             cc: clang-18
             simd_backend: XSIMD
+            cxx_flags: "-mavx2"
             cmake_flags: "-DAPRIL_USE_ASAN=ON -DAPRIL_USE_UBSAN=ON"
 
-          - name: Linux (GCC 14, TSAN)
+          - name: Linux (GCC 14, XSIMD, AVX2, TSAN)
             os: ubuntu-24.04
             build_type: Debug
             cxx: g++-14
             cc: gcc-14
             simd_backend: XSIMD
+            cxx_flags: "-mavx2"
             cmake_flags: "-DAPRIL_USE_TSAN=ON"
 
           # -----------------------------------------
-          # NON-DEFAULT BACKENDS
+          # STD::SIMD
           # -----------------------------------------
+          - name: Linux (Clang 18, std::simd, Release)
+            os: ubuntu-24.04
+            build_type: Release
+            cxx: clang++-18
+            cc: clang-18
+            simd_backend: STD_SIMD
+            cxx_flags: ""
+            cmake_flags: ""
+
           - name: Linux (GCC 14, std::simd + OpenMP)
             os: ubuntu-24.04
             build_type: Release
             cxx: g++-14
             cc: gcc-14
             simd_backend: STD_SIMD
+            cxx_flags: ""
             cmake_flags: "-DAPRIL_ENABLE_OPENMP=ON"
 
-          - name: Windows (MSVC, OpenMP)
+          # -----------------------------------------
+          # OTHER EXECUTION BACKENDS
+          # -----------------------------------------
+          - name: Windows (MSVC, XSIMD, AVX2 + OpenMP)
             os: windows-latest
             build_type: Release
             cxx: cl
             cc: cl
             simd_backend: XSIMD
+            cxx_flags: "/arch:AVX2"
             cmake_flags: "-DAPRIL_ENABLE_OPENMP=ON"
 
     steps:

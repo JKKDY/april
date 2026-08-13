@@ -10,15 +10,15 @@
 
 
 using BackendTypes = testing::Types<
-    april::simd::Packed<double>,
-    april::simd::Packed<float>
+	april::simd::Packed<float, april::simd::float_width>,
+	april::simd::Packed<double, april::simd::double_width>
 >;
 
 template<typename T>
 class SimdRefTest : public testing::Test {
 public:
     using Packed = T;
-    using Scalar = typename T::value_type;
+    using Scalar = T::value_type;
     using Location = april::simd::ContiguousLocation<Scalar>;
     using Ref = april::simd::PackedRef<Location>;
 

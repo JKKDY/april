@@ -4,8 +4,7 @@
 #include "april/boundaries/boundary.hpp"
 #include "april/exec/policy.hpp"
 #include "april/interactions/force.hpp"
-#include "april/particle/attributes.hpp"
-#include "../../exec/threading/scheduling.hpp"
+#include "april/exec/threading/scheduling.hpp"
 
 namespace april {
 

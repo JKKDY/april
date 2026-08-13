@@ -56,7 +56,6 @@ namespace april::container::internal {
 					return kernel(std::forward<decltype(p)>(p)); // user only wants particle
 				} else {
 					// TODO in C++26 use std::format and introspection to print the received signature
-					// TODO print kernel name by implementing a name demangler
 					static_assert(false,
 						"[APRIL] Kernel is malformed! It must have signature (size_t, auto&& p) or (auto&& p)."
 					);

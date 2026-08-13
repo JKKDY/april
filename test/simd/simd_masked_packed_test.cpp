@@ -11,12 +11,11 @@
 #include "april/simd/packed_ref.hpp"
 #include "april/simd/packed_concept.hpp"
 
-#include "april/simd/backends/backend_scalar.hpp"
 
 
 using MaskedPackedBackendTypes = testing::Types<
-    april::simd::Packed<double>,
-    april::simd::Packed<float>
+    april::simd::Packed<float, april::simd::float_width>,
+    april::simd::Packed<double, april::simd::double_width>
 >;
 
 
@@ -24,7 +23,7 @@ template<typename T>
 class MaskedPackedTest : public testing::Test {
 public:
     using packed_type = T;
-    using scalar_type = typename packed_type::value_type;
+    using scalar_type = packed_type::value_type;
     using mask_type = april::simd::PackedMask<scalar_type>;
     using masked_type = april::simd::MaskedPacked<packed_type>;
 

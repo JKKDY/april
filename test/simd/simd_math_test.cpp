@@ -26,8 +26,8 @@
 namespace {
 
 using FloatingSimdTypes = testing::Types<
-    april::simd::Packed<float>,
-    april::simd::Packed<double>
+    april::simd::Packed<float, april::simd::float_width>,
+    april::simd::Packed<double, april::simd::double_width>
 >;
 
 template<typename T>

@@ -17,8 +17,8 @@
 
 
 using BackendTypes = testing::Types<
-    april::simd::Packed<double>,
-    april::simd::Packed<float>,
+    april::simd::Packed<float, april::simd::float_width>,
+    april::simd::Packed<double, april::simd::double_width>,
     april::simd::internal::scalar::Packed<double>,
     april::simd::internal::scalar::Packed<float>
 >;

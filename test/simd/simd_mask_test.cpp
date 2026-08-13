@@ -23,8 +23,8 @@ namespace {
 
 
     using PublicPackedTypes = testing::Types<
-        april::simd::Packed<float>,
-        april::simd::Packed<double>,
+        april::simd::Packed<float, april::simd::float_width>,
+        april::simd::Packed<double, april::simd::double_width>,
         april::simd::Packed<uint32_t>,
         april::simd::Packed<uint64_t>
     >;
@@ -147,8 +147,8 @@ TYPED_TEST_SUITE(SimdMaskTest, PublicPackedTypes);
 // ---------------------------------------------------------
 
 TYPED_TEST(SimdMaskTest, SatisfiesPublicSimdContracts) {
-    using PackedT = typename TestFixture::PackedT;
-    using MaskT = typename TestFixture::MaskT;
+    using PackedT = TestFixture::PackedT;
+    using MaskT = TestFixture::MaskT;
 
     static_assert(april::simd::IsSimdType<PackedT>);
     static_assert(april::simd::IsSimdMask<MaskT>);

@@ -5,7 +5,6 @@
 #include "april/base/types.hpp"
 #include "april/simd/packed.hpp"
 #include "april/simd/masked_packed.hpp"
-#include "april/simd/backends/backend_scalar.hpp"
 
 using namespace april;
 
@@ -13,8 +12,8 @@ using namespace april;
 
 
 using SimdTypes = testing::Types<
-    simd::Packed<double>,
-    simd::Packed<float>
+    april::simd::Packed<float, april::simd::float_width>,
+    april::simd::Packed<double, april::simd::double_width>
 >;
 
 

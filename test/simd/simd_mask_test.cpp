@@ -10,10 +10,28 @@
 
 #include "april/simd/packed.hpp"
 #include "april/simd/packed_concept.hpp"
-#include "april/simd/backends/backend_scalar.hpp"
 
 
 namespace {
+    using FloatPacked = april::simd::Packed<
+        float,
+        april::simd::float_width
+    >;
+
+    using UInt32Packed = april::simd::Packed<
+        uint32_t,
+        april::simd::float_width
+    >;
+
+    using DoublePacked = april::simd::Packed<
+        double,
+        april::simd::double_width
+    >;
+
+    using UInt64Packed = april::simd::Packed<
+        uint64_t,
+        april::simd::double_width
+    >;
 
     template<typename PackedT>
     using MaskOf = decltype(
@@ -445,92 +463,54 @@ TYPED_TEST(SimdMaskTest, SelectUsesMaskLaneByLane) {
 // ---------------------------------------------------------
 // MASK CASTING CONTRACT
 // ---------------------------------------------------------
-
 TEST(SimdMaskCastTest, FloatToUint32PreservesLanes) {
-    ValidateMaskCast<
-        april::simd::Packed<float>,
-        april::simd::Packed<uint32_t>
-    >();
+	ValidateMaskCast<FloatPacked, UInt32Packed>();
 }
-
 
 TEST(SimdMaskCastTest, Uint32ToFloatPreservesLanes) {
-    ValidateMaskCast<
-        april::simd::Packed<uint32_t>,
-        april::simd::Packed<float>
-    >();
+	ValidateMaskCast<UInt32Packed, FloatPacked>();
 }
-
 
 TEST(SimdMaskCastTest, DoubleToUint64PreservesLanes) {
-    ValidateMaskCast<
-        april::simd::Packed<double>,
-        april::simd::Packed<uint64_t>
-    >();
+	ValidateMaskCast<DoublePacked, UInt64Packed>();
 }
-
 
 TEST(SimdMaskCastTest, Uint64ToDoublePreservesLanes) {
-    ValidateMaskCast<
-        april::simd::Packed<uint64_t>,
-        april::simd::Packed<double>
-    >();
+	ValidateMaskCast<UInt64Packed, DoublePacked>();
 }
-
 
 TEST(SimdMaskCastTest, FloatToDoubleFollowsLaneCountConstraint) {
-    ValidateMaskCast<
-        april::simd::Packed<float>,
-        april::simd::Packed<double>
-    >();
+	ValidateMaskCast<FloatPacked, DoublePacked>();
 }
-
 
 TEST(SimdMaskCastTest, DoubleToFloatFollowsLaneCountConstraint) {
-    ValidateMaskCast<
-        april::simd::Packed<double>,
-        april::simd::Packed<float>
-    >();
+	ValidateMaskCast<DoublePacked, FloatPacked>();
 }
-
 
 TEST(SimdMaskCastTest, Uint32ToUint64FollowsLaneCountConstraint) {
-    ValidateMaskCast<
-        april::simd::Packed<uint32_t>,
-        april::simd::Packed<uint64_t>
-    >();
+	ValidateMaskCast<UInt32Packed, UInt64Packed>();
 }
-
 
 TEST(SimdMaskCastTest, Uint64ToUint32FollowsLaneCountConstraint) {
-    ValidateMaskCast<
-        april::simd::Packed<uint64_t>,
-        april::simd::Packed<uint32_t>
-    >();
+	ValidateMaskCast<UInt64Packed, UInt32Packed>();
 }
 
-
 TEST(SimdMaskCastTest, SameWidthRoundTripPreservesLanes) {
-    using FloatPacked = april::simd::Packed<float>;
-    using UIntPacked = april::simd::Packed<uint32_t>;
+	using FloatMask = MaskOf<FloatPacked>;
+	using UIntMask = MaskOf<UInt32Packed>;
 
-    using FloatMask = MaskOf<FloatPacked>;
-    using UIntMask = MaskOf<UIntPacked>;
+	static_assert(FloatMask::size() == UIntMask::size());
 
-    static_assert(FloatMask::size() == UIntMask::size());
+	std::array<bool, FloatMask::size()> pattern{};
+	for (std::size_t i = 0; i < FloatMask::size(); ++i)
+		pattern[i] = (i % 3) == 0;
 
-    std::array<bool, FloatMask::size()> pattern{};
+	FloatMask original = FloatMask::load_unaligned(pattern.data());
+	UIntMask converted = static_cast<UIntMask>(original);
+	FloatMask round_trip = static_cast<FloatMask>(converted);
 
-    for (std::size_t i = 0; i < FloatMask::size(); ++i) {
-        pattern[i] = (i % 3) == 0;
-    }
-
-    FloatMask original = FloatMask::load_unaligned(pattern.data());
-    UIntMask converted = static_cast<UIntMask>(original);
-    FloatMask round_trip = static_cast<FloatMask>(converted);
-
-    ExpectSameMask(original, converted);
-    ExpectSameMask(original, round_trip);
+	ExpectSameMask(original, converted);
+	ExpectSameMask(original, round_trip);
 }
 
 
@@ -539,98 +519,78 @@ TEST(SimdMaskCastTest, SameWidthRoundTripPreservesLanes) {
 // ---------------------------------------------------------
 
 TEST(SimdMixedMaskTest, FloatAndUint32ReturnsLeftMaskType) {
-    using FloatPacked = april::simd::Packed<float>;
-    using UIntPacked = april::simd::Packed<uint32_t>;
+	using FloatMask = MaskOf<FloatPacked>;
+	using UIntMask = MaskOf<UInt32Packed>;
 
-    using FloatMask = MaskOf<FloatPacked>;
-    using UIntMask = MaskOf<UIntPacked>;
+	static_assert(FloatMask::size() == UIntMask::size());
 
-    static_assert(FloatMask::size() == UIntMask::size());
+	std::array<bool, FloatMask::size()> lhs_values{};
+	std::array<bool, UIntMask::size()> rhs_values{};
 
-    std::array<bool, FloatMask::size()> lhs_values{};
-    std::array<bool, UIntMask::size()> rhs_values{};
+	for (std::size_t i = 0; i < FloatMask::size(); ++i) {
+		lhs_values[i] = (i % 2) == 0;
+		rhs_values[i] = (i % 3) == 0;
+	}
 
-    for (std::size_t i = 0; i < FloatMask::size(); ++i) {
-        lhs_values[i] = (i % 2) == 0;
-        rhs_values[i] = (i % 3) == 0;
-    }
+	FloatMask lhs = FloatMask::load_unaligned(lhs_values.data());
+	UIntMask rhs = UIntMask::load_unaligned(rhs_values.data());
 
-    FloatMask lhs = FloatMask::load_unaligned(lhs_values.data());
-    UIntMask rhs = UIntMask::load_unaligned(rhs_values.data());
+	auto result = lhs & rhs;
+	static_assert(std::same_as<decltype(result), FloatMask>);
 
-    auto result = lhs & rhs;
-
-    static_assert(std::same_as<decltype(result), FloatMask>);
-
-    const auto result_values = result.to_array();
-
-    for (std::size_t i = 0; i < FloatMask::size(); ++i) {
-        EXPECT_EQ(result_values[i], lhs_values[i] && rhs_values[i]);
-    }
+	const auto result_values = result.to_array();
+	for (std::size_t i = 0; i < FloatMask::size(); ++i)
+		EXPECT_EQ(result_values[i], lhs_values[i] && rhs_values[i]);
 }
-
 
 TEST(SimdMixedMaskTest, Uint32OrFloatReturnsLeftMaskType) {
-    using FloatPacked = april::simd::Packed<float>;
-    using UIntPacked = april::simd::Packed<uint32_t>;
+	using FloatMask = MaskOf<FloatPacked>;
+	using UIntMask = MaskOf<UInt32Packed>;
 
-    using FloatMask = MaskOf<FloatPacked>;
-    using UIntMask = MaskOf<UIntPacked>;
+	static_assert(FloatMask::size() == UIntMask::size());
 
-    static_assert(FloatMask::size() == UIntMask::size());
+	std::array<bool, FloatMask::size()> lhs_values{};
+	std::array<bool, UIntMask::size()> rhs_values{};
 
-    std::array<bool, FloatMask::size()> lhs_values{};
-    std::array<bool, UIntMask::size()> rhs_values{};
+	for (std::size_t i = 0; i < UIntMask::size(); ++i) {
+		lhs_values[i] = (i % 2) == 0;
+		rhs_values[i] = (i % 3) == 0;
+	}
 
-    for (std::size_t i = 0; i < UIntMask::size(); ++i) {
-        lhs_values[i] = (i % 2) == 0;
-        rhs_values[i] = (i % 3) == 0;
-    }
+	UIntMask lhs = UIntMask::load_unaligned(rhs_values.data());
+	FloatMask rhs = FloatMask::load_unaligned(lhs_values.data());
 
-    UIntMask lhs = UIntMask::load_unaligned(rhs_values.data());
-    FloatMask rhs = FloatMask::load_unaligned(lhs_values.data());
+	auto result = lhs | rhs;
+	static_assert(std::same_as<decltype(result), UIntMask>);
 
-    auto result = lhs | rhs;
-
-    static_assert(std::same_as<decltype(result), UIntMask>);
-
-    const auto result_values = result.to_array();
-
-    for (std::size_t i = 0; i < UIntMask::size(); ++i) {
-        EXPECT_EQ(result_values[i], rhs_values[i] || lhs_values[i]);
-    }
+	const auto result_values = result.to_array();
+	for (std::size_t i = 0; i < UIntMask::size(); ++i)
+		EXPECT_EQ(result_values[i], rhs_values[i] || lhs_values[i]);
 }
 
-
 TEST(SimdMixedMaskTest, DoubleXorUint64ReturnsLeftMaskType) {
-    using DoublePacked = april::simd::Packed<double>;
-    using UIntPacked = april::simd::Packed<uint64_t>;
+	using DoubleMask = MaskOf<DoublePacked>;
+	using UIntMask = MaskOf<UInt64Packed>;
 
-    using DoubleMask = MaskOf<DoublePacked>;
-    using UIntMask = MaskOf<UIntPacked>;
+	static_assert(DoubleMask::size() == UIntMask::size());
 
-    static_assert(DoubleMask::size() == UIntMask::size());
+	std::array<bool, DoubleMask::size()> lhs_values{};
+	std::array<bool, UIntMask::size()> rhs_values{};
 
-    std::array<bool, DoubleMask::size()> lhs_values{};
-    std::array<bool, UIntMask::size()> rhs_values{};
+	for (std::size_t i = 0; i < DoubleMask::size(); ++i) {
+		lhs_values[i] = (i % 2) == 0;
+		rhs_values[i] = (i % 3) == 0;
+	}
 
-    for (std::size_t i = 0; i < DoubleMask::size(); ++i) {
-        lhs_values[i] = (i % 2) == 0;
-        rhs_values[i] = (i % 3) == 0;
-    }
+	DoubleMask lhs = DoubleMask::load_unaligned(lhs_values.data());
+	UIntMask rhs = UIntMask::load_unaligned(rhs_values.data());
 
-    DoubleMask lhs = DoubleMask::load_unaligned(lhs_values.data());
-    UIntMask rhs = UIntMask::load_unaligned(rhs_values.data());
+	auto result = lhs ^ rhs;
+	static_assert(std::same_as<decltype(result), DoubleMask>);
 
-    auto result = lhs ^ rhs;
-
-    static_assert(std::same_as<decltype(result), DoubleMask>);
-
-    const auto result_values = result.to_array();
-
-    for (std::size_t i = 0; i < DoubleMask::size(); ++i) {
-        EXPECT_EQ(result_values[i], lhs_values[i] != rhs_values[i]);
-    }
+	const auto result_values = result.to_array();
+	for (std::size_t i = 0; i < DoubleMask::size(); ++i)
+		EXPECT_EQ(result_values[i], lhs_values[i] != rhs_values[i]);
 }
 
 
@@ -639,62 +599,49 @@ TEST(SimdMixedMaskTest, DoubleXorUint64ReturnsLeftMaskType) {
 // ---------------------------------------------------------
 
 TEST(SimdMaskPackedInteractionTest, ConvertedMaskCanSelectFloatLanes) {
-    using FloatPacked = april::simd::Packed<float>;
-    using UIntPacked = april::simd::Packed<uint32_t>;
+	using FloatMask = MaskOf<FloatPacked>;
+	using UIntMask = MaskOf<UInt32Packed>;
 
-    using FloatMask = MaskOf<FloatPacked>;
-    using UIntMask = MaskOf<UIntPacked>;
+	static_assert(FloatPacked::size() == UInt32Packed::size());
 
-    static_assert(FloatPacked::size() == UIntPacked::size());
+	std::array<bool, UIntMask::size()> mask_values{};
+	for (std::size_t i = 0; i < UIntMask::size(); ++i)
+		mask_values[i] = (i % 2) == 0;
 
-    std::array<bool, UIntMask::size()> mask_values{};
+	UIntMask source_mask = UIntMask::load_unaligned(mask_values.data());
+	FloatMask float_mask = static_cast<FloatMask>(source_mask);
 
-    for (std::size_t i = 0; i < UIntMask::size(); ++i) {
-        mask_values[i] = (i % 2) == 0;
-    }
+	FloatPacked true_value(1.0f);
+	FloatPacked false_value(-1.0f);
 
-    UIntMask source_mask = UIntMask::load_unaligned(mask_values.data());
-    FloatMask float_mask = static_cast<FloatMask>(source_mask);
+	FloatPacked result = april::select(float_mask, true_value, false_value);
+	const auto result_values = result.to_array();
 
-    FloatPacked true_value(1.0f);
-    FloatPacked false_value(-1.0f);
-
-    FloatPacked result = april::select(float_mask, true_value, false_value);
-    const auto result_values = result.to_array();
-
-    for (std::size_t i = 0; i < FloatPacked::size(); ++i) {
-        EXPECT_EQ(result_values[i], mask_values[i] ? 1.0f : -1.0f);
-    }
+	for (std::size_t i = 0; i < FloatPacked::size(); ++i)
+		EXPECT_EQ(result_values[i], mask_values[i] ? 1.0f : -1.0f);
 }
 
-
 TEST(SimdMaskPackedInteractionTest, ConvertedMaskCanSelectUint64Lanes) {
-    using DoublePacked = april::simd::Packed<double>;
-    using UIntPacked = april::simd::Packed<uint64_t>;
+	using DoubleMask = MaskOf<DoublePacked>;
+	using UIntMask = MaskOf<UInt64Packed>;
 
-    using DoubleMask = MaskOf<DoublePacked>;
-    using UIntMask = MaskOf<UIntPacked>;
+	static_assert(DoublePacked::size() == UInt64Packed::size());
 
-    static_assert(DoublePacked::size() == UIntPacked::size());
+	std::array<bool, DoubleMask::size()> mask_values{};
+	for (std::size_t i = 0; i < DoubleMask::size(); ++i)
+		mask_values[i] = (i % 3) != 0;
 
-    std::array<bool, DoubleMask::size()> mask_values{};
+	DoubleMask source_mask = DoubleMask::load_unaligned(mask_values.data());
+	UIntMask uint_mask = static_cast<UIntMask>(source_mask);
 
-    for (std::size_t i = 0; i < DoubleMask::size(); ++i) {
-        mask_values[i] = (i % 3) != 0;
-    }
+	UInt64Packed true_value(uint64_t{42});
+	UInt64Packed false_value(uint64_t{7});
 
-    DoubleMask source_mask = DoubleMask::load_unaligned(mask_values.data());
-    UIntMask uint_mask = static_cast<UIntMask>(source_mask);
+	UInt64Packed result = april::select(uint_mask, true_value, false_value);
+	const auto result_values = result.to_array();
 
-    UIntPacked true_value(uint64_t{42});
-    UIntPacked false_value(uint64_t{7});
-
-    UIntPacked result = april::select(uint_mask, true_value, false_value);
-    const auto result_values = result.to_array();
-
-    for (std::size_t i = 0; i < UIntPacked::size(); ++i) {
-        EXPECT_EQ(result_values[i], mask_values[i] ? uint64_t{42} : uint64_t{7});
-    }
+	for (std::size_t i = 0; i < UInt64Packed::size(); ++i)
+		EXPECT_EQ(result_values[i], mask_values[i] ? uint64_t{42} : uint64_t{7});
 }
 
 

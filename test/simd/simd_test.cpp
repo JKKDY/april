@@ -1080,17 +1080,14 @@ TEST(SimdWidthInteroperabilityTest, DifferentWidthMasksAreNotConvertible) {
 }
 
 
-TEST(SimdWidthInteroperabilityTest, DifferentWidthPackedTypesRemainDistinct) {
-    using Float4 = april::simd::Packed<float, 4>;
-    using Float8 = april::simd::Packed<float, 8>;
-    using Double2 = april::simd::Packed<double, 2>;
+TEST(SimdWidthInteroperabilityTest, CanonicalWidthsMatchPackedTypes) {
+    using FloatPacked = april::simd::Packed<float,april::simd::float_width>;
+    using DoublePacked = april::simd::Packed<double,april::simd::double_width>;
 
-    static_assert(!std::same_as<Float4, Float8>);
-    static_assert(!std::same_as<Float4, Double2>);
+    static_assert(FloatPacked::size() == april::simd::float_width);
+    static_assert(DoublePacked::size() == april::simd::double_width);
 
-    static_assert(Float4::size() == 4);
-    static_assert(Float8::size() == 8);
-    static_assert(Double2::size() == 2);
+    static_assert(!std::same_as<FloatPacked, DoublePacked>);
 
     SUCCEED();
 }

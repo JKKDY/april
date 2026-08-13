@@ -38,7 +38,7 @@ namespace april::container::layout {
         }
 
         [[nodiscard]] ParticleID max_id() const {
-            return static_cast<ParticleID>(particles.size());
+            return static_cast<ParticleID>(num_particles);
         }
 
         [[nodiscard]] bool contains_id(const ParticleID id) const {
@@ -57,20 +57,8 @@ namespace april::container::layout {
         }
 
         [[nodiscard]] size_t particle_count() const {
-            return particles.size();
+            return num_particles;
         }
-
-
-        // // DISABLE PACKED ACCESS
-        // template <ParticleField R, ParticleField W>
-        // [[nodiscard]] auto at_packed(this auto&&, size_t) {
-        //     static_assert(false, "AoS does not support packed access");
-        // }
-        //
-        // template <ParticleField R>
-        // [[nodiscard]] auto view_packed(this const auto&, size_t) {
-        //     static_assert(false, "AoS does not support packed access");
-        // }
 
     protected:
         std::vector<Particle> tmp = {};
@@ -82,19 +70,30 @@ namespace april::container::layout {
         exec::BlockConfig pair_schedule_config;
         exec::BlockConfig linear_schedule_config;
 
+        size_t num_particles;
+
         void build_storage(const std::vector<Particle>& particles_in) {
+            num_particles = particles_in.size();
+
+            const size_t padded_size =
+                ((num_particles + simd::packed_width - 1) / simd::packed_width) * simd::packed_width;
+
             particles = std::vector(particles_in);
+            particles.resize(padded_size);
+
             bin_starts.clear();
             bin_sizes.clear();
             bin_starts.push_back(0);
-            bin_sizes.push_back(particles.size());
-            id_to_index_map.resize(particles.size());
+
+            bin_sizes.push_back(num_particles);
+            id_to_index_map.resize(num_particles);
+
             for (size_t i = 0; i < particles.size(); i++) {
                 const auto id = static_cast<size_t>(particles[i].id);
                 id_to_index_map[id] = i;
             }
 
-            tmp.resize(particles.size());
+            tmp.resize(padded_size);
         }
 
 

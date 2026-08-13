@@ -64,7 +64,7 @@ jobs:
           #
           # Compile-only because GitHub's standard x64 runner does not
           # guarantee that the host CPU exposes AVX-512.
-          - name: Linux (GCC 14, XSIMD, AVX-512, Compile)
+          - name: Linux (GCC 14, XSIMD, AVX-512, Compile Only)
             os: ubuntu-24.04
             build_type: Release
             cxx: g++-14

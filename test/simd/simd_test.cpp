@@ -1082,13 +1082,14 @@ TEST(SimdWidthInteroperabilityTest, DifferentWidthMasksAreNotConvertible) {
 
 TEST(SimdWidthInteroperabilityTest, DifferentWidthPackedTypesRemainDistinct) {
     using Float4 = april::simd::Packed<float, 4>;
-    using FloatNative = april::simd::Packed<float>;
+    using Float8 = april::simd::Packed<float, 8>;
     using Double2 = april::simd::Packed<double, 2>;
 
-    static_assert(!std::same_as<Float4, FloatNative>);
+    static_assert(!std::same_as<Float4, Float8>);
     static_assert(!std::same_as<Float4, Double2>);
 
     static_assert(Float4::size() == 4);
+    static_assert(Float8::size() == 8);
     static_assert(Double2::size() == 2);
 
     SUCCEED();
@@ -1097,7 +1098,7 @@ TEST(SimdWidthInteroperabilityTest, DifferentWidthPackedTypesRemainDistinct) {
 
 
 TYPED_TEST(SimdExplicitWidthTest, MaskRotationUsesExplicitWidth) {
-    using MaskT = typename TestFixture::MaskT;
+    using MaskT = TestFixture::MaskT;
 
     std::array<bool, TestFixture::Width> input{};
     input[0] = true;

@@ -464,8 +464,9 @@ TYPED_TEST(SimdRefTest, GatherLocationStore) {
 		const bool selected =
 			std::find(indices.begin(), indices.end(), i) != indices.end();
 
-		if (!selected)
+		if (!selected) {
 			EXPECT_DOUBLE_EQ(memory[i], Scalar{-1});
+		}
 	}
 }
 
@@ -503,8 +504,9 @@ TYPED_TEST(SimdRefTest, GatherPackedRefLoadStore) {
 		const bool selected =
 			std::find(indices.begin(), indices.end(), i) != indices.end();
 
-		if (!selected)
+		if (!selected) {
 			EXPECT_DOUBLE_EQ(memory[i], Scalar{-1});
+		}
 	}
 }
 
@@ -515,17 +517,18 @@ TYPED_TEST(SimdRefTest, GatherPackedRefLoadStore) {
 
 TYPED_TEST(SimdRefTest, LocationConstnessContract) {
 	using Scalar = TestFixture::Scalar;
+	using Packed = TestFixture::Packed;
 
 	static constexpr std::ptrdiff_t Stride = 2 * sizeof(Scalar);
 
-	using StaticStrided = april::simd::StridedLocation<Scalar, Stride>;
-	using ConstStaticStrided = april::simd::StridedLocation<const Scalar, Stride>;
+	using StaticStrided = april::simd::StridedLocation<Scalar, Stride, Packed::size()>;
+	using ConstStaticStrided = april::simd::StridedLocation<const Scalar, Stride, Packed::size()>;
 
-	using RuntimeStrided = april::simd::StridedLocation<Scalar>;
-	using ConstRuntimeStrided = april::simd::StridedLocation<const Scalar>;
+	using RuntimeStrided = april::simd::StridedLocation<Scalar, april::simd::dynamic_stride, Packed::size()>;
+	using ConstRuntimeStrided = april::simd::StridedLocation<const Scalar, april::simd::dynamic_stride, Packed::size()>;
 
-	using Gather = april::simd::GatherLocation<Scalar>;
-	using ConstGather = april::simd::GatherLocation<const Scalar>;
+	using Gather = april::simd::GatherLocation<Scalar, Packed::size()>;
+	using ConstGather = april::simd::GatherLocation<const Scalar, Packed::size()>;
 
 	static_assert(april::simd::IsWritableLocation<StaticStrided>);
 	static_assert(!april::simd::IsWritableLocation<ConstStaticStrided>);

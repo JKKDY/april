@@ -321,7 +321,7 @@ struct MyWierdForce : Force {
     // Fields accessed by eval must be declared at compile time.
     // Accessing undeclared fields is a compile-time error.
     static constexpr env::Mask fields =
-        env::Field::position | env::Field::velocity;
+        env::Field::position | env::Field::velocity | env::Field::mass;
 
     double strength = 1.0;
 

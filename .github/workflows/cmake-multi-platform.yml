@@ -2,12 +2,21 @@ name: April CI
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: ["main", "dev"]
 
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: ["main", "dev"]
 
   workflow_dispatch:
+
+# CI only needs read access to the repository.
+permissions:
+  contents: read
+
+# If new commits are pushed to the same PR/branch, cancel the obsolete run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build_and_test:
@@ -29,7 +38,6 @@ jobs:
             os: ubuntu-24.04
             build_type: Release
             cxx: clang++-18
-            cc: clang-18
             simd_backend: XSIMD
             arch_flags: "-DAPRIL_MARCH=x86-64"
             cmake_flags: ""
@@ -41,7 +49,6 @@ jobs:
             os: ubuntu-24.04
             build_type: Release
             cxx: g++-14
-            cc: gcc-14
             simd_backend: XSIMD
             arch_flags: "-DAPRIL_MARCH=x86-64-v2"
             cmake_flags: ""
@@ -53,7 +60,6 @@ jobs:
             os: ubuntu-24.04
             build_type: Release
             cxx: clang++-18
-            cc: clang-18
             simd_backend: XSIMD
             arch_flags: "-DAPRIL_MARCH=x86-64-v3"
             cmake_flags: ""
@@ -68,7 +74,6 @@ jobs:
             os: ubuntu-24.04
             build_type: Release
             cxx: g++-14
-            cc: gcc-14
             simd_backend: XSIMD
             arch_flags: "-DAPRIL_MARCH=x86-64-v4"
             cmake_flags: ""
@@ -79,7 +84,6 @@ jobs:
             os: macos-15
             build_type: Release
             cxx: clang++
-            cc: clang
             simd_backend: XSIMD
             arch_flags: ""
             cmake_flags: "-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0"
@@ -90,7 +94,6 @@ jobs:
             os: ubuntu-24.04-arm
             build_type: Release
             cxx: clang++-18
-            cc: clang-18
             simd_backend: XSIMD
             arch_flags: ""
             cmake_flags: ""
@@ -104,7 +107,6 @@ jobs:
             os: windows-latest
             build_type: Release
             cxx: cl
-            cc: cl
             simd_backend: XSIMD
             arch_flags: "-DAPRIL_MSVC_ARCH=AVX2"
             cmake_flags: ""
@@ -114,7 +116,6 @@ jobs:
             os: windows-latest
             build_type: Release
             cxx: g++
-            cc: gcc
             simd_backend: XSIMD
             arch_flags: "-DAPRIL_MARCH=x86-64-v3"
             cmake_flags: ""
@@ -131,7 +132,6 @@ jobs:
             os: ubuntu-24.04
             build_type: Debug
             cxx: clang++-18
-            cc: clang-18
             simd_backend: XSIMD
             arch_flags: ""
             cmake_flags: "-DAPRIL_USE_ASAN=ON -DAPRIL_USE_UBSAN=ON"
@@ -141,7 +141,6 @@ jobs:
             os: ubuntu-24.04
             build_type: Debug
             cxx: g++-14
-            cc: gcc-14
             simd_backend: XSIMD
             arch_flags: ""
             cmake_flags: "-DAPRIL_USE_TSAN=ON"
@@ -155,7 +154,6 @@ jobs:
             os: ubuntu-24.04
             build_type: Release
             cxx: clang++-18
-            cc: clang-18
             simd_backend: STD_SIMD
             arch_flags: "-DAPRIL_MARCH=x86-64"
             cmake_flags: ""
@@ -165,7 +163,6 @@ jobs:
             os: ubuntu-24.04
             build_type: Release
             cxx: g++-14
-            cc: gcc-14
             simd_backend: STD_SIMD
             arch_flags: "-DAPRIL_MARCH=x86-64-v3"
             cmake_flags: "-DAPRIL_ENABLE_OPENMP=ON"
@@ -179,7 +176,6 @@ jobs:
             os: windows-latest
             build_type: Release
             cxx: cl
-            cc: cl
             simd_backend: XSIMD
             arch_flags: "-DAPRIL_MSVC_ARCH=AVX2"
             cmake_flags: "-DAPRIL_ENABLE_OPENMP=ON"
@@ -187,83 +183,76 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
+          persist-credentials: false
 
-      - name: Install compilers (Linux)
-        if: runner.os == 'Linux'
+      - name: Install Clang 18
+        if: runner.os == 'Linux' && matrix.cxx == 'clang++-18'
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            gcc-14 \
-            g++-14 \
-            clang-18
+          sudo apt-get install -y clang-18
+
+      - name: Install GCC 14
+        if: runner.os == 'Linux' && matrix.cxx == 'g++-14'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-14 g++-14
 
       - name: Set up MSVC Developer Command Prompt
         if: matrix.cxx == 'cl'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: TheMrMilchmann/setup-msvc-dev@79dac248aac9d0059f86eae9d8b5bfab4e95e97c # v4.0.0
+        with:
+          arch: x64
 
-      - name: Print toolchain
-        shell: bash
+      - name: Print C++ compiler
+        if: matrix.cxx != 'cl'
+        run: ${{ matrix.cxx }} --version
+
+      - name: Print MSVC compiler
+        if: matrix.cxx == 'cl'
+        run: cl
+
+      - name: Print build tools
         run: |
-          "${{ matrix.cxx }}" --version || true
           cmake --version
           ninja --version
 
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
-            uname -m
-            lscpu || true
-          fi
+      - name: Print Linux CPU information
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          uname -m
+          lscpu || true
 
       - name: Configure CMake
-        shell: bash
-        run: |
-          cmake_args=(
-            -G Ninja
-            -S .
-            -B build
-            "-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}"
-            "-DCMAKE_C_COMPILER=${{ matrix.cc }}"
-            "-DCMAKE_CXX_COMPILER=${{ matrix.cxx }}"
-            "-DAPRIL_SIMD_BACKEND=${{ matrix.simd_backend }}"
-            -DAPRIL_BUILD_TESTS=ON
-            -DAPRIL_BUILD_EXAMPLES=ON
-            -DAPRIL_ENABLE_FAST_MATH=OFF
-          )
-
-          arch_flags="${{ matrix.arch_flags }}"
-
-          if [[ -n "$arch_flags" ]]; then
-            read -ra parsed_arch_flags <<< "$arch_flags"
-            cmake_args+=("${parsed_arch_flags[@]}")
-          fi
-
-          extra_flags="${{ matrix.cmake_flags }}"
-
-          if [[ -n "$extra_flags" ]]; then
-            read -ra parsed_flags <<< "$extra_flags"
-            cmake_args+=("${parsed_flags[@]}")
-          fi
-
-          cmake "${cmake_args[@]}"
+        run: >-
+          cmake
+          -G Ninja
+          -S .
+          -B build
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+          -DAPRIL_SIMD_BACKEND=${{ matrix.simd_backend }}
+          -DAPRIL_BUILD_TESTS=ON
+          -DAPRIL_BUILD_EXAMPLES=ON
+          -DAPRIL_ENABLE_FAST_MATH=OFF
+          ${{ matrix.arch_flags }}
+          ${{ matrix.cmake_flags }}
 
       - name: Build all targets
-        shell: bash
-        run: |
-          cmake --build build \
-            --config "${{ matrix.build_type }}" \
-            -j 4
+        run: cmake --build build --config ${{ matrix.build_type }} --parallel
 
       - name: Run tests
         if: matrix.run_tests
-        shell: bash
-        run: |
-          ctest \
-            --test-dir build \
-            --output-on-failure \
-            --build-config "${{ matrix.build_type }}"
+        run: >-
+          ctest
+          --test-dir build
+          --output-on-failure
+          --build-config ${{ matrix.build_type }}
 
   coverage:
     name: Linux (Clang 18, Scalar, Coverage)
@@ -271,50 +260,42 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
+          persist-credentials: false
 
       - name: Install Clang 18
-        shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            clang-18 \
-            llvm-18
+          sudo apt-get install -y clang-18 llvm-18
 
       - name: Configure CMake
-        shell: bash
-        run: |
-          cmake \
-            -G Ninja \
-            -S . \
-            -B build-coverage \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER=clang-18 \
-            -DCMAKE_CXX_COMPILER=clang++-18 \
-            -DAPRIL_SIMD_BACKEND=SCALAR \
-            -DAPRIL_BUILD_TESTS=ON \
-            -DAPRIL_BUILD_EXAMPLES=OFF \
-            -DAPRIL_ENABLE_FAST_MATH=OFF \
-            -DAPRIL_ENABLE_COVERAGE=ON
+        run: >-
+          cmake
+          -G Ninja
+          -S .
+          -B build-coverage
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_COMPILER=clang++-18
+          -DAPRIL_SIMD_BACKEND=SCALAR
+          -DAPRIL_BUILD_TESTS=ON
+          -DAPRIL_BUILD_EXAMPLES=OFF
+          -DAPRIL_ENABLE_FAST_MATH=OFF
+          -DAPRIL_ENABLE_COVERAGE=ON
 
       - name: Build
-        shell: bash
-        run: |
-          cmake --build build-coverage -j 4
+        run: cmake --build build-coverage --parallel
 
       - name: Run tests
-        shell: bash
+        env:
+          LLVM_PROFILE_FILE: ${{ github.workspace }}/build-coverage/test_april-%p.profraw
         run: |
-          export LLVM_PROFILE_FILE="$GITHUB_WORKSPACE/build-coverage/test_april-%p.profraw"
-
           ctest \
             --test-dir build-coverage \
             --output-on-failure
 
       - name: Merge profile data
-        shell: bash
         run: |
           llvm-profdata-18 merge \
             -sparse \
@@ -322,7 +303,6 @@ jobs:
             -o build-coverage/coverage.profdata
 
       - name: Generate coverage report
-        shell: bash
         run: |
           llvm-cov-18 export \
             -format=lcov \
@@ -332,7 +312,7 @@ jobs:
             > build-coverage/coverage.lcov
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./build-coverage/coverage.lcov

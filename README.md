@@ -310,7 +310,7 @@ The tradeoff is increased compile-time work due to template instantiation. APRIL
 
 ## Extending APRIL: Quick Look
 
-APRIL treats pairwise behavior as an **interaction**. The current force-producing interaction interface derives from `interactions::Interaction`. A custom interaction declares the particle fields it reads and implements `eval(p1, p2, r)`, where `r` is the relative displacement. It also defines how two instances of the same interaction type are mixed when APRIL builds the interaction table.
+APRIL treats pairwise behavior as an **interaction**. The current force-producing interaction interface derives from `interaction::Interaction`. A custom interaction declares the particle fields it reads and implements `eval(p1, p2, r)`, where `r` is the relative displacement. It also defines how two instances of the same interaction type are mixed when APRIL builds the interaction table.
 
 ```c++
 #include <april/april.hpp>
@@ -318,7 +318,7 @@ APRIL treats pairwise behavior as an **interaction**. The current force-producin
 using namespace april;
 
 // A custom force-producing pairwise interaction.
-struct MyCustomInteraction : interactions::Interaction {
+struct MyCustomInteraction : interaction::Interaction {
     // Inherit the Interaction constructor, which accepts the cutoff distance.
     using Interaction::Interaction;
 

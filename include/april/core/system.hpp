@@ -53,7 +53,7 @@ namespace april {
 			using Container = ParticleContainer;
 			using ExecutionConfig = ExecCfg;
 			using BoundaryTable = EnvTraits::boundary_table_t;
-			using InteractionTable = EnvTraits::force_table_t;
+			using InteractionTable = EnvTraits::interaction_table_t;
 			using ParticleRecord = EnvTraits::particle_record_t;
 			using ParticleAttributes = EnvTraits::particle_attributes_t;
 			using Controllers = EnvTraits::controller_storage_t;
@@ -650,7 +650,7 @@ namespace april {
 		// ---------------
 		ThreadExecutor thread_executor;
 		BoundaryTable boundary_table;
-		InteractionTable force_table;
+		InteractionTable interaction_table;
 		Controllers controllers;
 		Fields fields;
 		Container particle_container;
@@ -676,7 +676,7 @@ namespace april {
 		explicit System(SystemConfig&& config)
 		  : thread_executor(config.execution_config.executor_config),
 			boundary_table(std::move(config.boundaries)),
-			force_table(std::move(config.interactions)),
+			interaction_table(std::move(config.interactions)),
 			controllers(std::move(config.controllers)),
 			fields(std::move(config.fields)),
 			particle_container(std::move(config.container)),

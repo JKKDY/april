@@ -112,7 +112,7 @@ namespace physics_test {
 // checks net force between particles is 0 (newton 3: ∑ F_i = 0)
 TYPED_TEST(PhysicsConservationTest, NetForceZero_N3L) {
     constexpr double rc = 3.0;
-    Environment env(forces<LennardJones>, boundaries<OpenBoundary>);
+    Environment env(interactions<LennardJones>, boundaries<OpenBoundary>);
     env.set_extent({10, 10, 10});
 
     // Create jittered grid (4x4x4 = 64 particles)
@@ -141,7 +141,7 @@ TYPED_TEST(PhysicsConservationTest, NetForceZero_N3L) {
 // test that overall momentum is conserved (∑ m_i * v_i =const)
 TYPED_TEST(PhysicsConservationTest, MomentumConservation) {
     const double rc = 2.5;
-    Environment env(forces<LennardJones>, boundaries<OpenBoundary>);
+    Environment env(interactions<LennardJones>, boundaries<OpenBoundary>);
     env.set_extent({10, 10, 10});
 
     // Initialize two particles with opposing velocities
@@ -169,7 +169,7 @@ TYPED_TEST(PhysicsConservationTest, HamiltonianEnergyConservation) {
     constexpr double sig = 1.0;
     constexpr double dt = 0.0005;
 
-    Environment env(forces<LennardJones>, boundaries<OpenBoundary>);
+    Environment env(interactions<LennardJones>, boundaries<OpenBoundary>);
     env.set_extent({15, 15, 15});
 
     // Add 8 particles in a sparse cube to ensure they interact but don't explode
@@ -206,7 +206,7 @@ TYPED_TEST(PhysicsConservationTest, StressTest_EnergyConservation) {
     constexpr double sig = 1.0;
     constexpr double dt  = 0.0005;
 
-    Environment env(forces<LennardJones>, boundaries<OpenBoundary>);
+    Environment env(interactions<LennardJones>, boundaries<OpenBoundary>);
     env.set_extent({20.0, 20.0, 20.0});
 
     // 2. Initialize Dense Fluid (6x6x6 Grid)
@@ -253,7 +253,7 @@ TYPED_TEST(PhysicsConservationTest, TimeReversibility) {
     constexpr double dt = 0.001;
     constexpr int steps = 200;
 
-    Environment env(forces<LennardJones>, boundaries<OpenBoundary>);
+    Environment env(interactions<LennardJones>, boundaries<OpenBoundary>);
     env.set_extent({15, 15, 15});
 
     // Setup a small, interacting cluster
@@ -293,7 +293,7 @@ TYPED_TEST(PhysicsConservationTest, TimeReversibility) {
 
 TYPED_TEST(PhysicsConservationTest, RespectsStationaryState) {
     // Using a constant force to ensure significant displacement for ALIVE particles
-    Environment env(forces<ConstantForce>);
+    Environment env(interactions<ConstantForce>);
     env.set_extent({10, 10, 10});
 
     // P0: Stationary at origin.
@@ -370,7 +370,7 @@ TYPED_TEST(IntegratorConvergenceTest, OrderOfAccuracy) {
     constexpr double duration = 0.5;
 
     auto get_orbit_error = [&](double dt) {
-        Environment env(forces<Gravity>);
+        Environment env(interactions<Gravity>);
         env.add_particle(make_particle(0, {0,0,0}, {0,0,0}, M, ParticleState::STATIONARY, 0));
         env.add_particle(make_particle(0, {0,R,0}, {v,0,0}, 1e-6, ParticleState::ALIVE, 1));
         env.add_interaction(Gravity(G), to_type(0));

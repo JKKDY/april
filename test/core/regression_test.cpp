@@ -103,7 +103,7 @@ double run_april_benchmark() {
         .spacing(A)
         .type(0);
 
-    Environment env(forces<LennardJones>, boundaries<OpenBoundary>);
+    Environment env(interactions<LennardJones>, boundaries<OpenBoundary>);
     env.add_particles(grid);
     env.add_interaction(LennardJones(EPSILON, SIGMA, R_CUT), to_type(0));
     env.set_boundaries(OpenBoundary(), all_faces);

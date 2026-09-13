@@ -10,10 +10,10 @@ using namespace april;
 
 TEST(StoermerVerletTest,ConstructionTest) {
 
-	Environment env (forces<NoForce>);
+	Environment env (interactions<NoInteraction>);
 	env.add_particle({}, {}, 1);
 	env.add_particle({}, {}, 1);
-	env.add_interaction(NoForce(), to_type(0));
+	env.add_interaction(NoInteraction(), to_type(0));
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
@@ -30,11 +30,11 @@ TEST(StoermerVerletTest,ConstructionTest) {
 	}
 }
 
-TEST(StoermerVerletTest, SingleStepNoForceTest) {
-	Environment env (forces<NoForce>);
+TEST(StoermerVerletTest, SingleStepNoInteractionTest) {
+	Environment env (interactions<NoInteraction>);
 	env.add_particle({}, {1,2,3}, 1);
 	env.add_particle({}, {4,5,6}, 2);
-	env.add_interaction(NoForce(), to_type(0));
+	env.add_interaction(NoInteraction(), to_type(0));
 	env.set_extent({4,4,4});
 	env.set_origin({-2,-2,-2});
 
@@ -63,7 +63,7 @@ TEST(StoermerVerletTest, SingleStepNoForceTest) {
 
 
 TEST(StoermerVerletTest, SingleStepWithForceTest) {
-	Environment env (forces<Gravity>);
+	Environment env (interactions<Gravity>);
 	env.add_particle({-1,0,0}, {}, 1 );
 	env.add_particle({1,0,0}, {}, 1);
 	env.add_interaction(Gravity(), to_type(0));
@@ -110,7 +110,7 @@ TEST(StoermerVerletTest, OrbitTest) {
 	constexpr double v = G * M / R;
 	constexpr double T = 2 * 3.14159265359 * v / R;
 
-	Environment env (forces<Gravity>);
+	Environment env (interactions<Gravity>);
 	env.add_particle({0,0,0}, {0, 0, 0}, M);
 	env.add_particle({0,R,0}, {v, 0, 0}, m);
 	env.add_interaction(Gravity(G), to_type(0));
@@ -157,7 +157,7 @@ TEST(StoermerVerletTest, OrbitTestSplitRuns) {
 	constexpr double v = G * M / R;
 	constexpr double T = 2 * 3.14159265359 * v / R;
 
-	Environment env (forces<Gravity>);
+	Environment env (interactions<Gravity>);
 	env.add_particle({0,0,0}, {0, 0, 0}, M);
 	env.add_particle({0,R,0}, {v, 0, 0}, m);
 	env.add_interaction(Gravity(G), to_type(0));

@@ -10,7 +10,7 @@
 
 #include "april/base/types.hpp"
 #include "april/core/domain.hpp"
-#include "april/interactions/force.hpp"
+#include "april/interactions/interaction.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/controllers/controller.hpp"
 #include "april/fields/field.hpp"
@@ -19,7 +19,7 @@
 
 namespace april {
     template<
-       interactions::internal::IsForcePack FPack,
+       interaction::internal::IsInteractionPack IPack,
        boundary::internal::IsBoundaryPack BPack,
        controller::internal::IsControllerPack CPack,
        field::internal::IsFieldPack FFPack,
@@ -47,10 +47,10 @@ namespace april::core::internal {
     };
 
     // templated extension
-    template<class ForceVariant, class BoundaryVariant, class ControllerStorage, class FieldStorage>
+    template<class InteractionVariant, class BoundaryVariant, class ControllerStorage, class FieldStorage>
     struct EnvironmentData final : EnvironmentCommonData{
-        std::vector<interactions::internal::TypeInteraction<ForceVariant>> type_interactions {};
-        std::vector<interactions::internal::IdInteraction<ForceVariant>> id_interactions {};
+        std::vector<interaction::internal::TypeInteraction<InteractionVariant>> type_interactions {};
+        std::vector<interaction::internal::IdInteraction<InteractionVariant>> id_interactions {};
         std::array<BoundaryVariant, 6>  boundaries;
 
         ControllerStorage controllers;
@@ -59,12 +59,12 @@ namespace april::core::internal {
 
     // friend function of environment to access the environment data
     template<
-        interactions::internal::IsForcePack FPack,
+        interaction::internal::IsInteractionPack IPack,
         boundary::internal::IsBoundaryPack BPack,
         controller::internal::IsControllerPack CPack,
         field::internal::IsFieldPack FFPack,
         particle::IsParticleAttributes ParticleData>
-    auto get_env_data(const Environment<FPack, BPack, CPack, FFPack, ParticleData>& env) {
+    auto get_env_data(const Environment<IPack, BPack, CPack, FFPack, ParticleData>& env) {
         return env.data;
     }
 }

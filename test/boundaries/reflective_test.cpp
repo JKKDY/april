@@ -105,10 +105,10 @@ TYPED_TEST_SUITE(ReflectiveBoundarySystemTestT, ContainerTypes);
 
 
 TYPED_TEST(ReflectiveBoundarySystemTestT, EachFace_ReflectsVelocityInNormal) {
-    Environment env(forces<NoForce>, boundaries<ReflectiveBoundary>);
+    Environment env(interactions<NoInteraction>, boundaries<ReflectiveBoundary>);
     env.set_origin({0,0,0});
     env.set_extent({10,10,10});
-    env.add_interaction(NoForce{}, to_type(0));
+    env.add_interaction(NoInteraction{}, to_type(0));
 
     // One particle near each face moving outward
 	env.add_particle(make_particle(0, {0.4,5,5}, {-1,0,0}, 1, ParticleState::ALIVE, 0)); // X−

@@ -12,6 +12,24 @@ using testing::Eq;
 
 using namespace april;
 
+struct MassScaledDisplacementInteraction final : interaction::Interaction {
+	using Interaction::Interaction;
+
+	static constexpr ParticleField fields = ParticleField::mass;
+
+	double strength = 1.0;
+
+	auto eval(
+		const auto& particle1,
+		const auto& particle2,
+		const auto& displacement
+	) const noexcept {
+		return strength * particle1.mass * particle2.mass * displacement;
+	}
+};
+
+static_assert(interaction::IsInteraction<MassScaledDisplacementInteraction>);
+
 template <typename T>
 class DirectSumTest : public testing::Test {};
 
@@ -23,10 +41,31 @@ using ContainerTypes = testing::Types<
 >;
 TYPED_TEST_SUITE(DirectSumTest, ContainerTypes);
 
-TYPED_TEST(DirectSumTest, SingleParticle_NoForce) {
-    Environment e (forces<NoForce>);
+TYPED_TEST(DirectSumTest, UserDefinedInteractionUsesEnvironmentBuildPath) {
+	Environment environment(interactions<MassScaledDisplacementInteraction>);
+	environment.add_particle(make_particle(0, {0,0,0}, {}, 2, ParticleState::ALIVE, 0));
+	environment.add_particle(make_particle(0, {1,0,0}, {}, 3, ParticleState::ALIVE, 1));
+	environment.add_interaction(
+		MassScaledDisplacementInteraction(interaction::no_cutoff),
+		to_type(0)
+	);
+	environment.set_extent(1,1,1);
+
+	auto system = build_system(environment, TypeParam());
+	system.update_forces();
+
+	const auto particles = export_particles(system);
+	const auto& particle1 = particles[0].mass == 2 ? particles[0] : particles[1];
+	const auto& particle2 = particles[0].mass == 3 ? particles[0] : particles[1];
+
+	EXPECT_EQ(particle1.force, vec3(6,0,0));
+	EXPECT_EQ(particle2.force, vec3(-6,0,0));
+}
+
+TYPED_TEST(DirectSumTest, SingleParticle_NoInteraction) {
+    Environment e (interactions<NoInteraction>);
 	e.add_particle(make_particle(0, {1,2,3}, {}, 1, ParticleState::ALIVE, 0));
-	e.add_interaction(NoForce(), to_type(0));
+	e.add_interaction(NoInteraction(), to_type(0));
 	e.set_extent(1,1,1);
 
 	auto sys = build_system(e, TypeParam());
@@ -38,7 +77,7 @@ TYPED_TEST(DirectSumTest, SingleParticle_NoForce) {
 }
 
 TYPED_TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
-    Environment e (forces<ConstantForce>);
+    Environment e (interactions<ConstantForce>);
 	e.add_particle(make_particle(7, {0,0,0}, {}, 1, ParticleState::ALIVE, 0));
 	e.add_particle(make_particle(7, {1,0,0}, {}, 1, ParticleState::ALIVE, 1));
 	e.add_interaction(ConstantForce(3,4,5), to_type(7));
@@ -58,10 +97,10 @@ TYPED_TEST(DirectSumTest, TwoParticles_ConstantTypeForce) {
 }
 
 TYPED_TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
-    Environment e (forces<ConstantForce, NoForce>);
+    Environment e (interactions<ConstantForce, NoInteraction>);
 	e.add_particle(make_particle(0, {0,0,0}, {}, 1, ParticleState::ALIVE, 42));
 	e.add_particle(make_particle(0, {0,1,0}, {}, 1, ParticleState::ALIVE, 99));
-	e.add_interaction(NoForce(), to_type(0));
+	e.add_interaction(NoInteraction(), to_type(0));
 	e.add_interaction(ConstantForce(-1,2,-3), between_ids(42, 99));
 	e.set_extent(1,1,1);
 
@@ -80,7 +119,7 @@ TYPED_TEST(DirectSumTest, TwoParticles_IdSpecificForce) {
 }
 
 TYPED_TEST(DirectSumTest, TwoParticles_InverseSquare) {
-	Environment e (forces<Gravity, NoForce>);
+	Environment e (interactions<Gravity, NoInteraction>);
 
 	e.set_extent({10,10,10});
 
@@ -88,8 +127,8 @@ TYPED_TEST(DirectSumTest, TwoParticles_InverseSquare) {
 	e.add_particle(make_particle(1, {2,0,0}, {}, 2, ParticleState::ALIVE, 1));
 
 
-	e.add_interaction(NoForce(), to_type(0));
-	e.add_interaction(NoForce(), to_type(1));
+	e.add_interaction(NoInteraction(), to_type(0));
+	e.add_interaction(NoInteraction(), to_type(1));
 	e.add_interaction(Gravity(5.0), between_types(0, 1));
 
 	auto sys = build_system(e, TypeParam());
@@ -118,11 +157,11 @@ TYPED_TEST(DirectSumTest, CollectIndicesInRegion) {
 		.spacing(1)
 		.type(0);
 
-    Environment e(forces<NoForce>);
+    Environment e(interactions<NoInteraction>);
     e.set_origin({0, 0, 0});
     e.set_extent({5, 5, 5});
 	e.add_particles(cuboid);
-    e.add_interaction(NoForce(), to_type(0));
+    e.add_interaction(NoInteraction(), to_type(0));
 
     auto sys = build_system(e, TypeParam());
 
@@ -187,7 +226,7 @@ struct DummyPeriodicBoundary final : boundary::Boundary {
 };
 
 TYPED_TEST(DirectSumTest, PeriodicForceWrap_X) {
-	Environment e(forces<Harmonic>, boundaries<DummyPeriodicBoundary>);
+	Environment e(interactions<Harmonic>, boundaries<DummyPeriodicBoundary>);
 
 	e.set_origin({0,0,0});
 	e.set_extent({10,10,10}); // domain box 10x10x10
@@ -218,7 +257,7 @@ TYPED_TEST(DirectSumTest, PeriodicForceWrap_X) {
 
 TYPED_TEST(DirectSumTest, PeriodicForceWrap_AllAxes) {
 	// Enable force wrapping in all 6 directions
-	Environment e(forces<Harmonic>, boundaries<DummyPeriodicBoundary>);
+	Environment e(interactions<Harmonic>, boundaries<DummyPeriodicBoundary>);
 	e.set_origin({0, 0, 0});
 	e.set_extent({10, 10, 10});
 
@@ -268,7 +307,7 @@ TYPED_TEST(DirectSumTest, Asymmetric_ChunkBoundaries_Counting) {
     constexpr size_t n_type0 = 20;
     constexpr size_t n_type1 = 12;
 
-    Environment e(forces<ConstantForce, NoForce>); // Added NoForce
+    Environment e(interactions<ConstantForce, NoInteraction>); // Added NoInteraction
     e.set_extent({10, 10, 10});
 
     for (ParticleID i = 0; i < n_type0; ++i) {
@@ -280,9 +319,9 @@ TYPED_TEST(DirectSumTest, Asymmetric_ChunkBoundaries_Counting) {
 
     e.add_interaction(ConstantForce(1, 2, 3), between_types(0, 1));
 
-    // Explicitly define self-interactions as NoForce
-    e.add_interaction(NoForce(), to_type(0));
-    e.add_interaction(NoForce(), to_type(1));
+    // Explicitly define self-interactions as NoInteraction
+    e.add_interaction(NoInteraction(), to_type(0));
+    e.add_interaction(NoInteraction(), to_type(1));
 
 	BuildInfo info;
     auto sys = build_system(e, TypeParam(), &info);
@@ -310,7 +349,7 @@ TYPED_TEST(DirectSumTest, Asymmetric_MultiChunk_Gravity) {
     constexpr size_t n_a = 10;
     constexpr size_t n_b = 10;
 
-    Environment e(forces<Gravity, NoForce>);
+    Environment e(interactions<Gravity, NoInteraction>);
     e.set_extent({100, 100, 100});
 
     for (ParticleID i = 0; i < n_a; ++i) {
@@ -321,8 +360,8 @@ TYPED_TEST(DirectSumTest, Asymmetric_MultiChunk_Gravity) {
     }
 
     e.add_interaction(Gravity(1.0), between_types(0, 1));
-    e.add_interaction(NoForce(), to_type(0));
-    e.add_interaction(NoForce(), to_type(1));
+    e.add_interaction(NoInteraction(), to_type(0));
+    e.add_interaction(NoInteraction(), to_type(1));
 
     BuildInfo info;
     auto sys = build_system(e, TypeParam(), &info);
@@ -352,7 +391,7 @@ TYPED_TEST(DirectSumTest, Asymmetric_MultiChunk_Gravity) {
 }
 
 TYPED_TEST(DirectSumTest, Asymmetric_TypeChaining) {
-    Environment e(forces<Harmonic, NoForce>);
+    Environment e(interactions<Harmonic, NoInteraction>);
     e.set_extent({10, 10, 10});
 
     // P0(0,0,0) --[k=100]--> P1(1,0,0) --[k=10]--> P2(1,1,0)
@@ -363,10 +402,10 @@ TYPED_TEST(DirectSumTest, Asymmetric_TypeChaining) {
     e.add_interaction(Harmonic(100, 0, 5), between_types(0, 1));
     e.add_interaction(Harmonic(10, 0, 5),  between_types(1, 2));
 
-    e.add_interaction(NoForce(), to_type(0));
-    e.add_interaction(NoForce(), to_type(1));
-    e.add_interaction(NoForce(), to_type(2));
-    e.add_interaction(NoForce(), between_types(0, 2));
+    e.add_interaction(NoInteraction(), to_type(0));
+    e.add_interaction(NoInteraction(), to_type(1));
+    e.add_interaction(NoInteraction(), to_type(2));
+    e.add_interaction(NoInteraction(), between_types(0, 2));
 
     BuildInfo info;
     auto sys = build_system(e, TypeParam(), &info);
@@ -392,7 +431,7 @@ TYPED_TEST(DirectSumTest, Asymmetric_TypeChaining) {
 
 TYPED_TEST(DirectSumTest, IdBasedAccess_ReadWrite) {
     constexpr size_t N = 20;
-    Environment e(forces<NoForce>);
+    Environment e(interactions<NoInteraction>);
     e.set_extent({N * 1.0, 10, 10});
 
     // setup: add particles
@@ -400,7 +439,7 @@ TYPED_TEST(DirectSumTest, IdBasedAccess_ReadWrite) {
         const double coord = static_cast<double>(i) + 0.5;
         e.add_particle(make_particle(0, {coord, 0.5, 0.5}, {0, 0, 0}, 1.0, ParticleState::ALIVE, i));
     }
-    e.add_interaction(NoForce(), to_type(0));
+    e.add_interaction(NoInteraction(), to_type(0));
 
     BuildInfo info;
     auto sys = build_system(e, TypeParam(), &info);
@@ -439,7 +478,7 @@ TYPED_TEST(DirectSumTest, IdBasedAccess_ReadWrite) {
 }
 
 TYPED_TEST(DirectSumTest, SIMDTail_N33) {
-	Environment e(forces<ConstantForce>);
+	Environment e(interactions<ConstantForce>);
 
 	// 33 particles: One full SIMD block (32) + 1 tail particle (for AoSoA<32>)
 	// Or 4 blocks (8*4) + 1 tail (for standard AVX2 SoA)
@@ -470,7 +509,7 @@ TYPED_TEST(DirectSumTest, SIMDTail_N33) {
 }
 
 TYPED_TEST(DirectSumTest, LargeN_ParallelConsistency) {
-	Environment e(forces<ConstantForce>);
+	Environment e(interactions<ConstantForce>);
 	constexpr size_t N = 512;
 	const vec3 push = {0.1, 0.2, 0.3};
 

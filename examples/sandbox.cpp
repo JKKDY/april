@@ -28,7 +28,7 @@ int main() {
 		.spacing(1.1225)
 		.type(0);
 
-	auto env = Environment(forces<LennardJones>, boundaries<ReflectiveBoundary>)
+	auto env = Environment(interactions<LennardJones>, boundaries<ReflectiveBoundary>)
 	   .with_particles(cuboid1)
 	   .with_particles(cuboid2)
 	   .with_extent(100,80,40)

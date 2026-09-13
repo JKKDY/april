@@ -7,14 +7,14 @@
 using namespace april;
 namespace fs = std::filesystem;
 
-// 1. Define a Custom Force to handle n^2 softening
-struct SoftGravity : interactions::Force {
+// 1. Define a custom interaction to handle n^2 softening
+struct SoftGravity : interaction::Interaction {
     double G;
     double eps_sq; // Softening parameter squared
 
-    SoftGravity(const double G, const double eps) : Force(interactions::no_cutoff), G(G), eps_sq(eps * eps) {}
+    SoftGravity(const double G, const double eps) : Interaction(interaction::no_cutoff), G(G), eps_sq(eps * eps) {}
 
-    // Tell APRIL which particle fields this force needs to access
+    // Tell APRIL which particle fields this interaction needs to access
     static constexpr auto fields = ParticleField::position | ParticleField::mass;
 
     // The evaluation kernel called by the container
@@ -99,8 +99,8 @@ int main() {
         {} cfg;
 
     // 4. Configure the APRIL Environment
-    // We register our custom SoftGravity force here
-    auto env = Environment(forces<SoftGravity>)
+    // We register our custom SoftGravity interaction here
+    auto env = Environment(interactions<SoftGravity>)
         .with_particles(galaxy)
         .with_extent(300, 300, 300)        // Large enough domain to contain the galaxy
         .with_origin(-150, -150, -150)     // Centered at 0,0,0

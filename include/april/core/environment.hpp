@@ -24,7 +24,7 @@
 #include "april/core/domain.hpp"
 #include "april/core/internal/environment_traits.hpp"
 
-#include "april/interactions/force.hpp"
+#include "april/interactions/interaction.hpp"
 #include "april/boundaries/boundary.hpp"
 #include "april/controllers/controller.hpp"
 #include "april/fields/field.hpp"
@@ -39,7 +39,7 @@ namespace april {
     /**
      * @brief Selects interactions within one particle type.
      *
-     * When passed to Environment::add_interaction(), the force is registered for
+     * When passed to Environment::add_interaction(), the interaction is registered for
      * pairs in which both particles have `type`.
      */
     struct to_type {
@@ -52,7 +52,7 @@ namespace april {
      * @brief Selects interactions between two particle types.
      *
      * The ordering of `t1` and `t2` does not define an interaction direction unless
-     * the configured force explicitly has directional semantics.
+     * the configured interaction explicitly has directional semantics.
      */
     struct between_types {
         ParticleType t1;
@@ -92,14 +92,14 @@ namespace april {
       * The component packs specify which concrete component types may be added.
       * They do not themselves add component instances to the environment.
       *
-      * @tparam FPack Force types accepted by add_interaction().
+      * @tparam IPack Interaction types accepted by add_interaction().
       * @tparam BPack Boundary types accepted by set_boundary() and set_boundaries().
       * @tparam CPack Controller types accepted by add_controller().
       * @tparam FFPack Field types accepted by add_field().
       * @tparam ParticleAttributes User-defined per-particle attribute definition.
       */
     template<
-        interactions::internal::IsForcePack FPack,
+        interaction::internal::IsInteractionPack IPack,
         boundary::internal::IsBoundaryPack BPack,
         controller::internal::IsControllerPack CPack,
         field::internal::IsFieldPack FFPack,
@@ -107,7 +107,7 @@ namespace april {
     class Environment {
     public:
         using traits = core::internal::EnvironmentTraits<
-            FPack,
+            IPack,
             BPack,
             CPack,
             FFPack,
@@ -122,7 +122,7 @@ namespace april {
          * retained.
          */
         explicit Environment(
-            FPack,
+            IPack,
             BPack,
             CPack,
             FFPack,
@@ -132,7 +132,7 @@ namespace april {
         /// Constructs an empty environment with no custom component types or attributes.
         Environment()
             : Environment(
-                forces<>,
+                interactions<>,
                 boundaries<>,
                 controllers<>,
                 fields<>,
@@ -145,7 +145,7 @@ namespace april {
          *
          * @code
          * auto environment = Environment(
-         *     forces<LennardJones>,
+         *     interactions<LennardJones>,
          *     boundaries<ReflectiveBoundary>
          * );
          * @endcode
@@ -161,7 +161,7 @@ namespace april {
             (!std::same_as<std::remove_cvref_t<Args>, Environment> && ...)
         explicit Environment(Args&&...)
             : Environment(
-                core::internal::get_pack_t<interactions::internal::ForcePack, Args...>{},
+                core::internal::get_pack_t<interaction::internal::InteractionPack, Args...>{},
                 core::internal::get_pack_t<boundary::internal::BoundaryPack, Args...>{},
                 core::internal::get_pack_t<controller::internal::ControllerPack,Args...>{},
                 core::internal::get_pack_t<field::internal::FieldPack, Args...>{},
@@ -170,7 +170,7 @@ namespace april {
 
     private:
         traits::environment_data_t data;
-        friend auto core::internal::get_env_data<FPack, BPack, CPack, FFPack> (const Environment& env);
+        friend auto core::internal::get_env_data<IPack, BPack, CPack, FFPack> (const Environment& env);
 
     public:
 
@@ -270,43 +270,43 @@ namespace april {
         // ADD INTERACTIONS
         //-----------------
         /**
-         * @brief Registers a force for pairs of one particle type.
+         * @brief Registers an interaction for pairs of one particle type.
          *
-         * @tparam F Force type declared in this environment's force pack.
-         * @param force Force instance to store.
+         * @tparam I Interaction type declared in this environment's `interactions` pack.
+         * @param interaction Interaction instance to store.
          * @param scope Particle type to which the self-interaction applies.
          */
-        template<interactions::IsForce F>
-        requires traits::template is_valid_force_v<F>
-        void add_interaction(F && force, to_type scope) {
-            data.type_interactions.emplace_back(scope.type, scope.type, typename traits::force_variant_t{std::move(force)});
+        template<interaction::IsInteraction I>
+        requires traits::template is_valid_interaction_v<I>
+        void add_interaction(I && interaction, to_type scope) {
+            data.type_interactions.emplace_back(scope.type, scope.type, typename traits::interaction_variant_t{std::move(interaction)});
         }
 
         /**
-         * @brief Registers a force between two particle types.
+         * @brief Registers an interaction between two particle types.
          *
-         * @tparam F Force type declared in this environment's force pack.
-         * @param force Force instance to store.
-         * @param scope Pair of particle types to which the force applies.
+         * @tparam I Interaction type declared in this environment's `interactions` pack.
+         * @param interaction Interaction instance to store.
+         * @param scope Pair of particle types to which the interaction applies.
          */
-        template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
-        void add_interaction(F force, between_types scope) {
-            data.type_interactions.emplace_back(scope.t1, scope.t2, typename traits::force_variant_t{std::move(force)});
+        template<interaction::IsInteraction I> requires traits::template is_valid_interaction_v<I>
+        void add_interaction(I interaction, between_types scope) {
+            data.type_interactions.emplace_back(scope.t1, scope.t2, typename traits::interaction_variant_t{std::move(interaction)});
         }
 
         /**
-         * @brief Registers a force between two specific particles.
+         * @brief Registers an interaction between two specific particles.
          *
          * ID-scoped interactions are stored as topology interactions and remain tied to
          * persistent identifiers rather than physical particle indices.
          *
-         * @tparam F Force type declared in this environment's force pack.
-         * @param force Force instance to store.
+         * @tparam I Interaction type declared in this environment's `interactions` pack.
+         * @param interaction Interaction instance to store.
          * @param scope Persistent particle identifiers defining the interaction.
          */
-        template<interactions::IsForce F> requires traits::template is_valid_force_v<F>
-        void add_interaction(F force, between_ids scope) {
-            data.id_interactions.emplace_back(scope.id1, scope.id2, typename traits::force_variant_t{std::move(force)});
+        template<interaction::IsInteraction I> requires traits::template is_valid_interaction_v<I>
+        void add_interaction(I interaction, between_ids scope) {
+            data.id_interactions.emplace_back(scope.id1, scope.id2, typename traits::interaction_variant_t{std::move(interaction)});
         }
 
 
@@ -545,24 +545,24 @@ namespace april {
             return std::forward<decltype(self)>(self);
         }
 
-        template<interactions::IsForce F>
-            requires traits::template is_valid_force_v<std::remove_cvref_t<F>>
-        auto&& with_interaction(this auto&& self, F&& force, to_type scope) {
-            self.add_interaction(std::forward<F>(force), scope);
+        template<interaction::IsInteraction I>
+            requires traits::template is_valid_interaction_v<std::remove_cvref_t<I>>
+        auto&& with_interaction(this auto&& self, I&& interaction, to_type scope) {
+            self.add_interaction(std::forward<I>(interaction), scope);
             return std::forward<decltype(self)>(self);
         }
 
-        template<interactions::IsForce F>
-            requires traits::template is_valid_force_v<std::remove_cvref_t<F>>
-        auto&& with_interaction(this auto&& self, F&& force, between_types scope) {
-            self.add_interaction(std::forward<F>(force), scope);
+        template<interaction::IsInteraction I>
+            requires traits::template is_valid_interaction_v<std::remove_cvref_t<I>>
+        auto&& with_interaction(this auto&& self, I&& interaction, between_types scope) {
+            self.add_interaction(std::forward<I>(interaction), scope);
             return std::forward<decltype(self)>(self);
         }
 
-        template<interactions::IsForce F>
-            requires traits::template is_valid_force_v<std::remove_cvref_t<F>>
-        auto&& with_interaction(this auto&& self, F&& force, between_ids scope) {
-            self.add_interaction(std::forward<F>(force), scope);
+        template<interaction::IsInteraction I>
+            requires traits::template is_valid_interaction_v<std::remove_cvref_t<I>>
+        auto&& with_interaction(this auto&& self, I&& interaction, between_ids scope) {
+            self.add_interaction(std::forward<I>(interaction), scope);
             return std::forward<decltype(self)>(self);
         }
 
@@ -666,12 +666,12 @@ namespace april {
 
     /**
      * @brief CTAD Guide to deduce template parameters from constructor arguments.
-     * Allows: auto env = Environment(forces<LJ>, boundaries<Reflective>);
+     * Allows: auto env = Environment(interactions<LJ>, boundaries<Reflective>);
      */
     template<class... Args>
     Environment(Args...)
         -> Environment<
-            core::internal::get_pack_t<interactions::internal::ForcePack, Args...>,
+            core::internal::get_pack_t<interaction::internal::InteractionPack, Args...>,
             core::internal::get_pack_t<boundary::internal::BoundaryPack, Args...>,
             core::internal::get_pack_t<controller::internal::ControllerPack,Args...>,
             core::internal::get_pack_t<field::internal::FieldPack, Args...>,
@@ -687,14 +687,14 @@ namespace april {
 
             // Recognize concrete Environment specializations.
             template<
-                interactions::internal::IsForcePack FPack,
+                interaction::internal::IsInteractionPack IPack,
                 boundary::internal::IsBoundaryPack BPack,
                 controller::internal::IsControllerPack CPack,
                 field::internal::IsFieldPack FFPack,
                 particle::IsParticleAttributes ParticleAttributes>
             inline constexpr bool is_environment_v<
                 Environment<
-                    FPack,
+                    IPack,
                     BPack,
                     CPack,
                     FFPack,

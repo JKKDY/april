@@ -10,10 +10,10 @@ using namespace april;
 
 TEST(Yoshida4Test,ConstructionTest) {
 
-	Environment env (forces<NoForce>);
+	Environment env (interactions<NoInteraction>);
 	env.add_particle({}, {}, 1);
 	env.add_particle({}, {}, 1);
-	env.add_interaction(NoForce(), to_type(0));
+	env.add_interaction(NoInteraction(), to_type(0));
 	env.set_extent({2,2,2});
 	env.set_origin({-1,-1,-1});
 
@@ -29,11 +29,11 @@ TEST(Yoshida4Test,ConstructionTest) {
 	}
 }
 
-TEST(Yoshida4Test, SingleStepNoForceTest) {
-	Environment env (forces<NoForce>);
+TEST(Yoshida4Test, SingleStepNoInteractionTest) {
+	Environment env (interactions<NoInteraction>);
 	env.add_particle({}, {1,2,3}, 1);
 	env.add_particle({}, {4,5,6}, 2);
-	env.add_interaction(NoForce(), to_type(0));
+	env.add_interaction(NoInteraction(), to_type(0));
 	env.set_extent(20 * vec3(1));
 	env.set_origin(10*vec3{-1});
 
@@ -62,7 +62,7 @@ TEST(Yoshida4Test, SingleStepNoForceTest) {
 
 
 TEST(Yoshida4Test, SingleStepWithForceTest) {
-	Environment env (forces<Gravity>);
+	Environment env (interactions<Gravity>);
 	env.add_particle({-1,0,0}, {}, 1 );
 	env.add_particle({1,0,0}, {}, 1);
 	env.add_interaction(Gravity( ), to_type(0));
@@ -110,7 +110,7 @@ TEST(Yoshida4Test, OrbitTest) {
 	constexpr double v = G * M / R;
 	constexpr double T = 2 * 3.14159265359 * v / R;
 
-	Environment env (forces<Gravity>);
+	Environment env (interactions<Gravity>);
 	env.add_particle({0,0,0}, {0, 0, 0}, M);
 	env.add_particle({0,R,0}, {v, 0, 0}, m);
 	env.add_interaction(Gravity( G), to_type(0));
@@ -157,7 +157,7 @@ TEST(Yoshida4Test, OrbitTestSplitRuns) {
 	constexpr double v = G * M / R;
 	constexpr double T = 2 * 3.14159265359 * v / R;
 
-	Environment env (forces<Gravity>);
+	Environment env (interactions<Gravity>);
 	env.add_particle({0,0,0}, {0, 0, 0}, M);
 	env.add_particle({0,R,0}, {v, 0, 0}, m);
 	env.add_interaction(Gravity(G), to_type(0));

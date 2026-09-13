@@ -6,7 +6,7 @@
 #include <memory>
 
 #include "april/base/types.hpp"
-#include "april/interactions/force.hpp"
+#include "april/interactions/interaction.hpp"
 
 
 #ifdef _MSC_VER
@@ -153,19 +153,19 @@ namespace april::core::internal {
 	//----------------
 
 	// Extracts raw interacting type and ID pairs from interaction descriptors
-	template<interactions::internal::IsForceVariant FV>
+	template<interaction::internal::IsInteractionVariant IV>
 	auto extract_interaction_parameters(
-		const std::vector<interactions::internal::TypeInteraction<FV>> & type_interactions,
-		const std::vector<interactions::internal::IdInteraction<FV>> & id_interaction)
+		const std::vector<interaction::internal::TypeInteraction<IV>> & type_interactions,
+		const std::vector<interaction::internal::IdInteraction<IV>> & id_interactions)
 	{
 		std::vector<std::pair<ParticleType, ParticleType>> type_pairs(type_interactions.size());
-		std::vector<std::pair<ParticleID, ParticleID>> id_pairs(id_interaction.size());
+		std::vector<std::pair<ParticleID, ParticleID>> id_pairs(id_interactions.size());
 
 		for (size_t i = 0; i < type_interactions.size(); i++)
 			type_pairs[i] = {type_interactions[i].type1, type_interactions[i].type2};
 
-		for (size_t i = 0; i < id_interaction.size(); i++)
-			id_pairs[i] = {id_interaction[i].id1, id_interaction[i].id2};
+		for (size_t i = 0; i < id_interactions.size(); i++)
+			id_pairs[i] = {id_interactions[i].id1, id_interactions[i].id2};
 
 		return std::pair {type_pairs, id_pairs};
 	}

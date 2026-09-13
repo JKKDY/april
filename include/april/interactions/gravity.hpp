@@ -3,17 +3,17 @@
 #include <cmath>
 
 
-#include "april/interactions/force.hpp"
+#include "april/interactions/interaction.hpp"
 
 
 namespace april {
-    struct Gravity : interactions::Force {
+    struct Gravity : interaction::Interaction {
         static constexpr auto fields = ParticleField::mass;
 
         double grav_constant;
 
-        explicit Gravity(const double grav_const = 1.0, const double cutoff = interactions::no_cutoff)
-            : Force(cutoff), grav_constant(grav_const) {}
+        explicit Gravity(const double grav_const = 1.0, const double cutoff = interaction::no_cutoff)
+            : Interaction(cutoff), grav_constant(grav_const) {}
 
         auto eval(const auto & p1, const auto & p2, const auto& r) const noexcept {
             const auto inv_r = 1.0 / r.norm();

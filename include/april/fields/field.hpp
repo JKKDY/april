@@ -59,7 +59,7 @@ namespace april {
 	inline constexpr field::internal::FieldPack<FFs...> fields {};
 
 	namespace field::internal {
-		// Concept to check if a type T is a ForcePack
+		// Concept to check if a type T is a FieldPack
 		template<typename T>
 		inline constexpr bool is_field_pack_v = false; // Default
 

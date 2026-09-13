@@ -10,11 +10,11 @@
 #include <variant>
 #include <vector>
 
-#include "april/interactions/force.hpp"
-#include "april/interactions/no_force.hpp"
+#include "april/interactions/interaction.hpp"
+#include "april/interactions/no_interaction.hpp"
 
 
-namespace april::interactions::internal {
+namespace april::interaction::internal {
 
 
     struct InteractionDescriptor {
@@ -36,10 +36,10 @@ namespace april::interactions::internal {
     };
 
 
-    template<IsForceVariant ForceVariant>
+    template<IsInteractionVariant InteractionVariant>
     class InteractionTable {
-        using Type_Interaction = TypeInteraction<ForceVariant>;
-        using Id_Interaction = IdInteraction<ForceVariant>;
+        using Type_Interaction = TypeInteraction<InteractionVariant>;
+        using Id_Interaction = IdInteraction<InteractionVariant>;
         using IdMap = std::unordered_map<ParticleID, ParticleID>;
         using TypeMap = std::unordered_map<ParticleType, ParticleType>;
     public:
@@ -50,32 +50,32 @@ namespace april::interactions::internal {
             const TypeMap & usr_types_to_impl_types,
             const IdMap & usr_ids_to_impl_ids
         ) {
-            build_type_forces(type_interactions, usr_types_to_impl_types);
-            build_id_forces(id_interactions, usr_ids_to_impl_ids);
-            validate_force_tables();
+            build_type_interactions(type_interactions, usr_types_to_impl_types);
+            build_id_interactions(id_interactions, usr_ids_to_impl_ids);
+            validate_interaction_table();
         }
 
         [[nodiscard]] InteractionMap generate_interaction_map() const {
-            // helper to extract properties of a given force type
-            auto get_properties = [](auto const& v) -> InteractionDescriptor {
-                return std::visit([]<typename F>(F const& f) -> InteractionDescriptor {
-                    using T = std::decay_t<F>;
+            // helper to extract properties of a given interaction type
+            auto get_properties = [](auto const& variant) -> InteractionDescriptor {
+                return std::visit([]<typename I>(I const& interaction) -> InteractionDescriptor {
+                    using T = std::decay_t<I>;
 
                     InteractionDescriptor prop;
-                    prop.cutoff = f.cutoff();
+                    prop.cutoff = interaction.cutoff();
 
-                    if constexpr (std::is_same_v<T, NoForce>) {
+                    if constexpr (std::is_same_v<T, NoInteraction>) {
                         prop.is_active = false;
                     } else {
                         prop.is_active = true;
                     }
 
                     return prop;
-                }, v);
+                }, variant);
             };
 
-            // helper to check if two variants cary the same force (regarding type as well as parameters)
-            auto is_equal = [&](const ForceVariant& a, const ForceVariant& b) {
+            // helper to check if two variants cary the same interaction (regarding type as well as parameters)
+            auto is_equal = [&](const InteractionVariant& a, const InteractionVariant& b) {
                 if (a.index() != b.index()) return false;
                 return std::visit([&]<typename A>(const A& val_a) {
                     using T = std::decay_t<A>;
@@ -91,48 +91,48 @@ namespace april::interactions::internal {
             for (size_t i = 0; i < n_types; ++i) types[i] = i;
             for (size_t i = 0; i < n_ids; ++i) ids[i] = i;
 
-            // first we gather all forces (type forces and id forces)
-            std::vector<ForceVariant> all_forces;
-            all_forces.reserve(type_forces.size() + id_forces.size());
+            // first we gather all interactions (type interactions and id interactions)
+            std::vector<InteractionVariant> all_interactions;
+            all_interactions.reserve(type_interactions.size() + id_interactions.size());
 
-            for (const auto & force : type_forces) all_forces.push_back(force);
-            for (const auto & force : id_forces) all_forces.push_back(force);
+            for (const auto & interaction : type_interactions) all_interactions.push_back(interaction);
+            for (const auto & interaction : id_interactions) all_interactions.push_back(interaction);
 
-            // and we also create a corresponding properties vector for every force
-            std::vector<InteractionDescriptor> all_force_props;
-            all_force_props.reserve(type_forces.size() + id_forces.size());
-            for (const auto & force : all_forces) all_force_props.push_back(get_properties(force));
+            // and we also create a corresponding properties vector for every interaction
+            std::vector<InteractionDescriptor> all_interaction_props;
+            all_interaction_props.reserve(type_interactions.size() + id_interactions.size());
+            for (const auto & interaction : all_interactions) all_interaction_props.push_back(get_properties(interaction));
 
-            // loop through all possible type pairs and register them in the properties of their interacting force
+            // loop through all possible type pairs and register them in the properties of their selected interaction
             for (ParticleType i = 0; i < static_cast<ParticleType>(n_types); i++) {
                 for (ParticleType j = 0; j < static_cast<ParticleType>(n_types); j++) {
-                    all_force_props[type_index(i, j)].used_by_types.emplace_back(i, j);
+                    all_interaction_props[type_index(i, j)].used_by_types.emplace_back(i, j);
                 }
             }
 
-            // loop through all possible (relevant) id pairs and register them in the properties of their interacting force
+            // loop through all possible (relevant) id pairs and register them in the properties of their selected interaction
             for (ParticleID i = 0; i < static_cast<ParticleID>(n_ids); i++) {
                 for (ParticleID j = i+1; j < static_cast<ParticleID>(n_ids); j++) {
-                    all_force_props[type_forces.size() + id_index(i, j)].used_by_ids.emplace_back(i, j);
+                    all_interaction_props[type_interactions.size() + id_index(i, j)].used_by_ids.emplace_back(i, j);
                 }
             }
 
-            // now we merge the properties of all identical forces
-            // first we create a vector of unique forces and track which force in all_forces maps a force in unique_forces
-            std::vector<size_t> remapping(all_forces.size());
-            std::vector<ForceVariant> unique_forces;
+            // now we merge the properties of all identical interactions
+            // first we create a vector of unique interactions and track which entry maps to an entry in unique_interactions
+            std::vector<size_t> remapping(all_interactions.size());
+            std::vector<InteractionVariant> unique_interactions;
             std::vector<InteractionDescriptor> unique_props;
 
-            for (size_t i = 0; i < all_forces.size(); i++) {
-                const auto & current_force = all_forces[i];
-                auto& current_prop  = all_force_props[i];
+            for (size_t i = 0; i < all_interactions.size(); i++) {
+                const auto & current_interaction = all_interactions[i];
+                auto& current_prop  = all_interaction_props[i];
 
-                // check if current_force is already contained in unique forces
+                // check if current_interaction is already contained in unique interactions
                 bool found = false;
                 size_t found_idx = 0;
 
-                for (size_t j = 0; j < unique_forces.size(); ++j) {
-                    if (is_equal(current_force, unique_forces[j])) {
+                for (size_t j = 0; j < unique_interactions.size(); ++j) {
+                    if (is_equal(current_interaction, unique_interactions[j])) {
                         found = true;
                         found_idx = j;
                         break;
@@ -140,7 +140,7 @@ namespace april::interactions::internal {
                 }
 
                 if (found) {
-                    // current force is a duplicate of unique_forces[found_idx] -> merge
+                    // current interaction is a duplicate of unique_interactions[found_idx] -> merge
                     auto & props = unique_props[found_idx];
 
                     props.used_by_types.insert(props.used_by_types.end(), current_prop.used_by_types.begin(), current_prop.used_by_types.end());
@@ -148,10 +148,10 @@ namespace april::interactions::internal {
 
                     remapping[i] = found_idx;
                 } else {
-                    // current force is not in unique_forces -> create new entry
-                    const size_t new_idx = unique_forces.size();
-                    unique_forces.push_back(current_force);
-                    unique_props.push_back(std::move(all_force_props[i]));
+                    // current interaction is not in unique_interactions -> create new entry
+                    const size_t new_idx = unique_interactions.size();
+                    unique_interactions.push_back(current_interaction);
+                    unique_props.push_back(std::move(all_interaction_props[i]));
 
                     remapping[i] = new_idx;
                 }
@@ -180,49 +180,49 @@ namespace april::interactions::internal {
 
         template<typename Func>
         void dispatch(const ParticleType t1, const ParticleType t2, Func && func) const {
-            const auto & variant = get_type_force(t1, t2);
-            std::visit([&]<IsForce F>(const F & f) -> void {
-                if constexpr (!std::same_as<F, ForceSentinel> && !std::same_as<F, NoForce>) {
-                    func(f);
+            const auto & variant = get_type_interaction(t1, t2);
+            std::visit([&]<IsInteraction I>(const I & interaction) -> void {
+                if constexpr (!std::same_as<I, InteractionSentinel> && !std::same_as<I, NoInteraction>) {
+                    func(interaction);
                 }
             }, variant);
         }
 
         template<typename Func>
         void dispatch_id(const ParticleID id1, const ParticleID id2, Func && func) const {
-            const auto & variant = get_id_force(id1, id2);
-            std::visit([&]<IsForce F>(const F & f) -> void {
-                if constexpr (!std::same_as<F, ForceSentinel> && !std::same_as<F, NoForce>) {
-                    func(f);
+            const auto & variant = get_id_interaction(id1, id2);
+            std::visit([&]<IsInteraction I>(const I & interaction) -> void {
+                if constexpr (!std::same_as<I, InteractionSentinel> && !std::same_as<I, NoInteraction>) {
+                    func(interaction);
                 }
             }, variant);
         }
 
 
-        [[nodiscard]] bool has_id_force(const ParticleID a, const ParticleID b) const noexcept{
+        [[nodiscard]] bool has_id_interaction(const ParticleID a, const ParticleID b) const noexcept{
             return a < n_ids && b < n_ids;
         }
 
-        ForceVariant & get_type_force(const ParticleType a, const ParticleType b) noexcept {
-            return type_forces[type_index(a, b)];
+        InteractionVariant & get_type_interaction(const ParticleType a, const ParticleType b) noexcept {
+            return type_interactions[type_index(a, b)];
         }
 
-        ForceVariant & get_id_force(const ParticleID a, const ParticleID b) noexcept {
-            return id_forces[id_index(a, b)];
+        InteractionVariant & get_id_interaction(const ParticleID a, const ParticleID b) noexcept {
+            return id_interactions[id_index(a, b)];
         }
 
-        const ForceVariant& get_type_force(const ParticleType a, const ParticleType b) const noexcept {
-            return type_forces[type_index(a,b)];
+        const InteractionVariant& get_type_interaction(const ParticleType a, const ParticleType b) const noexcept {
+            return type_interactions[type_index(a,b)];
         }
 
-        const ForceVariant& get_id_force(const ParticleID a, const ParticleID b) const noexcept {
-            return id_forces[id_index(a,b)];
+        const InteractionVariant& get_id_interaction(const ParticleID a, const ParticleID b) const noexcept {
+            return id_interactions[id_index(a,b)];
         }
 
 
     private:
-        std::vector<ForceVariant> type_forces; // Forces between different particle types (e.g. type A <-> type B)
-        std::vector<ForceVariant> id_forces; // Forces between specific particle instances (by ID e.g. id1 <-> id2)
+        std::vector<InteractionVariant> type_interactions; // Interactions between different particle types (e.g. type A <-> type B)
+        std::vector<InteractionVariant> id_interactions; // Interactions between specific particle instances (by ID e.g. id1 <-> id2)
         size_t n_types{};
         size_t n_ids{};
 
@@ -238,7 +238,7 @@ namespace april::interactions::internal {
 
 
 
-        void build_type_forces(std::vector<Type_Interaction>& type_infos, const TypeMap & type_map)
+        void build_type_interactions(std::vector<Type_Interaction>& type_infos, const TypeMap & type_map)
         {
             // collect unique particle types to define types map size (implementation types are dense [0, N-1])
             std::unordered_set<ParticleType> particle_types;
@@ -248,41 +248,41 @@ namespace april::interactions::internal {
             }
 
             n_types = particle_types.size();
-            type_forces.resize(n_types * n_types);
+            type_interactions.resize(n_types * n_types);
 
-            // insert type forces into map & apply user mappings
+            // insert type interactions into map & apply user mappings
             for (auto& x : type_infos) {
                 const auto a = type_map.at(x.type1);
                 const auto b = type_map.at(x.type2);
-                type_forces[type_index(a, b)] = x.force;
-                type_forces[type_index(b, a)] = x.force;
+                type_interactions[type_index(a, b)] = x.interaction;
+                type_interactions[type_index(b, a)] = x.interaction;
             }
 
             //  mix missing type pairs from diagonals
             for (size_t a = 0; a < n_types; ++a) {
                 for (size_t b = 0; b < n_types; ++b) {
-                    auto& f = get_type_force(a, b);
-                    if (a == b || !std::holds_alternative<ForceSentinel>(f)) continue;
+                    auto& interaction = get_type_interaction(a, b);
+                    if (a == b || !std::holds_alternative<InteractionSentinel>(interaction)) continue;
 
-                    auto& fa = get_type_force(a, a);
-                    auto& fb = get_type_force(b, b);
+                    auto& interaction_a = get_type_interaction(a, a);
+                    auto& interaction_b = get_type_interaction(b, b);
 
-                    auto force = std::visit([]<typename F1, typename F2>(F1 const& A, F2 const& B) -> ForceVariant {
-                            if constexpr (std::same_as<F1, F2>)
-                                return A.mix(B);
+                    auto mixed_interaction = std::visit([]<typename I1, typename I2>(I1 const& a, I2 const& b) -> InteractionVariant {
+                            if constexpr (std::same_as<I1, I2>)
+                                return a.mix_interactions(b);
                             else
-                                throw std::invalid_argument("Cannot mix different force types");
+                                throw std::invalid_argument("Cannot mix different interaction types");
                         },
-                        fa, fb);
+                        interaction_a, interaction_b);
 
-                    type_forces[type_index(a, b)] = force;
-                    type_forces[type_index(b, a)] = force;
+                    type_interactions[type_index(a, b)] = mixed_interaction;
+                    type_interactions[type_index(b, a)] = mixed_interaction;
                 }
             }
         }
 
 
-        void build_id_forces(std::vector<Id_Interaction>& id_infos, const IdMap & id_map)
+        void build_id_interactions(std::vector<Id_Interaction>& id_infos, const IdMap & id_map)
         {
             // collect particle ids to define ids map size (implementation ids are dense [0, M-1])
             std::unordered_set<ParticleID> ids;
@@ -292,49 +292,49 @@ namespace april::interactions::internal {
             }
 
             n_ids = ids.size();
-            id_forces.resize(n_ids * n_ids);
+            id_interactions.resize(n_ids * n_ids);
 
-            // insert id forces into map & apply usr mappings
+            // insert id interactions into map & apply usr mappings
             for (auto& x : id_infos) {
                 const auto a = id_map.at(x.id1);
                 const auto b = id_map.at(x.id2);
-                id_forces[id_index(a, b)] = x.force;
-                id_forces[id_index(b, a)] = x.force;
+                id_interactions[id_index(a, b)] = x.interaction;
+                id_interactions[id_index(b, a)] = x.interaction;
             }
 
-            // Fill undefined id interactions with no forces
+            // Fill undefined id interactions with no interactions
             for (size_t a = 0; a < n_ids; a++) {
                 for (size_t b = 0; b < n_ids; b++) {
-                    auto & v = id_forces[id_index(a, b)];
-                    if (a != b && std::holds_alternative<ForceSentinel>(v)) {
-                        v = NoForce();
+                    auto & v = id_interactions[id_index(a, b)];
+                    if (a != b && std::holds_alternative<InteractionSentinel>(v)) {
+                        v = NoInteraction();
                     }
                 }
             }
         }
 
-        void validate_force_tables() const {
+        void validate_interaction_table() const {
             #ifndef NDEBUG
             for (size_t i = 0; i < n_types; ++i)
                 for (size_t j = 0; j < n_types; ++j)
-                    APRIL_ASSERT(!std::holds_alternative<ForceSentinel>(type_forces[type_index(i, j)]),
-                              "inter_type_forces should not contain ForceSentinel");
+                    APRIL_ASSERT(!std::holds_alternative<InteractionSentinel>(type_interactions[type_index(i, j)]),
+                              "inter_type_interactions should not contain InteractionSentinel");
 
             for (size_t i = 0; i < n_ids; ++i)
                 for (size_t j = 0; j < n_ids; ++j) {
-                    auto& v = id_forces[id_index(i, j)];
+                    auto& v = id_interactions[id_index(i, j)];
                     if (i == j)
-                        APRIL_ASSERT(std::holds_alternative<ForceSentinel>(v),
-                                  "intra_particle_forces should contain ForceSentinel for identical ids");
+                        APRIL_ASSERT(std::holds_alternative<InteractionSentinel>(v),
+                                  "intra_particle_interactions should contain InteractionSentinel for identical ids");
                     else
-                        APRIL_ASSERT(!std::holds_alternative<ForceSentinel>(v),
-                                  "intra_particle_forces should not contain ForceSentinel for differing ids");
+                        APRIL_ASSERT(!std::holds_alternative<InteractionSentinel>(v),
+                                  "intra_particle_interactions should not contain InteractionSentinel for differing ids");
             }
             #endif
         }
 
     };
-} // namespace april::env::impl
+} // namespace april::interaction::internal
 
 
 

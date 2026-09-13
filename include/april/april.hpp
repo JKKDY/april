@@ -7,11 +7,12 @@
 #include "april/boundaries/reflective.hpp"
 #include "april/boundaries/repulsive.hpp"
 
-// Forces
+// Interactions
+#include "april/interactions/interaction.hpp"
 #include "april/interactions/harmonic.hpp"
 #include "april/interactions/gravity.hpp"
 #include "april/interactions/lennard_jones.hpp"
-#include "april/interactions/no_force.hpp"
+#include "april/interactions/no_interaction.hpp"
 #include "april/interactions/coulomb.hpp"
 
 // Controllers & Fields
@@ -46,7 +47,7 @@
 /**
  * Available in the april:: namespace:
  * Boundaries:   Absorb, Open, Periodic, Reflective, Repulsive
- * Forces:       LennardJones, Gravity, Harmonic, Coulomb, NoForce
+ * Interactions: LennardJones, Gravity, Harmonic, Coulomb, NoInteraction
  * Containers:   LinkedCells, DirectSum, Layout::[AoS, SoA, AoSoA]
  * Integrators:  VelocityVerlet, Yoshida4
  * Monitors:     TerminalOutput, BinaryOutput, ProgressBar, Benchmark

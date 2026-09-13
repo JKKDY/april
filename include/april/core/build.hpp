@@ -33,12 +33,12 @@ namespace april {
     ) {
         using namespace april::core::internal;
         using BoundaryTable = Env::traits::boundary_table_t;
-        using ForceTable = Env::traits::force_table_t;
+        using InteractionTable = Env::traits::interaction_table_t;
         using ParticleAttributes = Env::traits::particle_attributes_t;
 
         // explicit type for IDE code completion
         using EnvData = EnvironmentData<
-            typename Env::traits::force_variant_t,
+            typename Env::traits::interaction_variant_t,
             typename Env::traits::boundary_variant_t,
             typename Env::traits::controller_storage_t,
             typename Env::traits::field_storage_t>;
@@ -68,8 +68,8 @@ namespace april {
         // create particles
         auto particles = build_particles<ParticleAttributes>(env.particles, type_map, id_map);
 
-        // create force table
-        ForceTable forces(env.type_interactions, env.id_interactions, type_map, id_map);
+        // create interaction table
+        InteractionTable interactions(env.type_interactions, env.id_interactions, type_map, id_map);
 
         // if no boundary specified use a default (OpenBoundary)
         set_default_boundaries(env.boundaries);
@@ -92,7 +92,7 @@ namespace april {
             .config = container_config,
             .flags = set_container_flags(topologies),
             .hints = container::ContainerHints(),
-            .interaction_map = forces.generate_interaction_map(),
+            .interaction_map = interactions.generate_interaction_map(),
             .domain = simulation_box
         };
 
@@ -104,7 +104,7 @@ namespace april {
             .execution_config = execution_config,
             .particles = std::move(particles),
             .boundaries = std::move(boundaries),
-            .interactions = std::move(forces),
+            .interactions = std::move(interactions),
             .controllers = std::move(env.controllers),
             .fields = std::move(env.fields)
         };

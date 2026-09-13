@@ -9,7 +9,7 @@ int main() {
 	remove_all(dir_path);   // delete the directory and all contents
 	create_directory(dir_path); // recreate the empty directory
 
-	const auto env = Environment (forces<Gravity>)
+	const auto env = Environment (interactions<Gravity>)
 	                 .with_particle({0.0, 0.0, 0.0},     {0.0, 0.0, 0.0},     1.0)
 	                 .with_particle({0.0, 1.0, 0.0},     {-1.0, 0.0, 0.0},    3.0e-6)
 	                 .with_particle({0.0, 5.36, 0.0},    {-0.425, 0.0, 0.0},  9.55e-4)

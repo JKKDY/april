@@ -60,9 +60,9 @@ protected:
         sinks = {};
 
         // 2. Set up a minimal environment
-        return Environment(forces<NoForce>, controllers<SpyController>)
+        return Environment(interactions<NoInteraction>, controllers<SpyController>)
             .with_particle(Particle().at({}).as_type(0).with_mass(1)) // Need one particle
-            .with_interaction(NoForce(), to_type(0))
+            .with_interaction(NoInteraction(), to_type(0))
             .with_controller(SpyController(trigger, &sinks))
             .with_extent(1,1,1);
     }
@@ -265,13 +265,13 @@ TEST_F(ControllerTest, MultipleSameTypeControllers) {
     SpySinks sinks2;
 
     Environment env(
-        forces<NoForce>,
+        interactions<NoInteraction>,
         boundaries<OpenBoundary>,
         controllers<SpyController>, // Only one SpyController type
         fields<>
     );
     env.with_particle(Particle().at({}).as_type(0).with_mass(1))
-       .with_interaction(NoForce(), to_type(0))
+       .with_interaction(NoInteraction(), to_type(0))
        .with_boundaries(OpenBoundary(), all_faces)
        .with_extent(1,1,1);
 
@@ -300,13 +300,13 @@ TEST_F(ControllerTest, MultipleDifferentControllers) {
     SpySinks sinks2;
 
     Environment env(
-        forces<NoForce>,
+        interactions<NoInteraction>,
         boundaries<OpenBoundary>,
         controllers<SpyController, SpyController2>, // Two different types
         fields<>
     );
     env.with_particle(Particle().at({}).as_type(0).with_mass(1))
-       .with_interaction(NoForce(), to_type(0))
+       .with_interaction(NoInteraction(), to_type(0))
        .with_boundaries(OpenBoundary(), all_faces)
        .with_extent(1,1,1);
 
@@ -336,7 +336,7 @@ TEST_F(ControllerTest, ContextAccess_ModifiesParticles) {
     const vec3 target_vel = {100.0, 200.0, 300.0};
 
     Environment env(
-        forces<NoForce>,
+        interactions<NoInteraction>,
         boundaries<OpenBoundary>,
         controllers<ContextSpyController>, // Register our new controller
         fields<>
@@ -345,7 +345,7 @@ TEST_F(ControllerTest, ContextAccess_ModifiesParticles) {
     env.with_particle(
            Particle().at({}).as_type(0).with_mass(1).with_id(target_id)
        )
-       .with_interaction(NoForce(), to_type(0))
+       .with_interaction(NoInteraction(), to_type(0))
        .with_boundaries(OpenBoundary(), all_faces)
        .with_extent(1,1,1);
 

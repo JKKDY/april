@@ -227,7 +227,7 @@ namespace april::container::internal {
 		size_t n_cells {}; // total cells = grid + outside
 		size_t n_types {}; // types range from 0 ... n_types-1
 		size_t n_bins {}; // number of bins (cells * types)
-		double global_cutoff {}; // maximum force cutoff
+		double global_cutoff {}; // maximum interaction cutoff
 		double verlet_skin {};
 
 		vec3d cell_size; // side lengths of each cell

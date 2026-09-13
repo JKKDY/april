@@ -60,7 +60,7 @@ namespace april::particle {
      * Concepts that identify the different kinds of particle accessors.
      *
      * These are the main interface contracts used throughout the library:
-     * - When writing custom forces, boundaries, or controllers, you will usually
+     * - When writing custom interactions, boundaries, or controllers, you will usually
      *   see `IsAnyParticleAccessor` or `IsScalarParticleAccessor` in templates.
      */
     template <typename T>

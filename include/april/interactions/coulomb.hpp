@@ -3,17 +3,17 @@
 #include <cmath>
 
 #include "april/base/types.hpp"
-#include "april/interactions/force.hpp"
+#include "april/interactions/interaction.hpp"
 
 namespace april {
 
-	struct Coulomb : interactions::Force{
+	struct Coulomb : interaction::Interaction{
 		static constexpr auto fields = ParticleField::attributes;
 
 		double coulomb_constant;
 
-		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = interactions::no_cutoff)
-			: Force(cutoff), coulomb_constant(coulomb_const) {}
+		explicit Coulomb(const double coulomb_const = 1.0, const double cutoff = interaction::no_cutoff)
+			: Interaction(cutoff), coulomb_constant(coulomb_const) {}
 
 		template<typename P>
 		requires requires(P p) {

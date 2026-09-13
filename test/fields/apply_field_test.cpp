@@ -55,7 +55,7 @@ protected:
         sinks = {}; // Reset sinks
 
         Environment env(
-            forces<NoForce>,
+            interactions<NoInteraction>,
             controllers<>,
             fields<SpyField> // Register our SpyField type
         );
@@ -65,7 +65,7 @@ protected:
         }
 
         // Chain the rest of the setup
-        return env.with_interaction(NoForce(), to_type(0))
+        return env.with_interaction(NoInteraction(), to_type(0))
                   .with_extent(10,10,10)
                   .with_field(SpyField(&sinks));
     }
@@ -133,7 +133,7 @@ TEST_F(FieldTest, MultipleDifferentSpyFields) {
     const int num_steps = 5;
 
     Environment env(
-        forces<NoForce>,
+        interactions<NoInteraction>,
         controllers<>,
         fields<SpyField, SpyField2> // Register both types
     );
@@ -143,7 +143,7 @@ TEST_F(FieldTest, MultipleDifferentSpyFields) {
     }
 
     // Use chained API
-    env.with_interaction(NoForce(), to_type(0))
+    env.with_interaction(NoInteraction(), to_type(0))
        .with_extent(10,10,10)
        .with_field(SpyField(&sinks1))
        .with_field(SpyField2(&sinks2));
@@ -168,13 +168,13 @@ TEST(FieldIntegrationTest, UniformFieldModifiesForce) {
 
     // Use chained API
     Environment env(
-        forces<NoForce>,
+        interactions<NoInteraction>,
         controllers<>,
         fields<UniformField> // Register UniformField
     );
     env.with_particle(Particle().at({1,0,0}).as_type(0).with_mass(1))
        .with_particle(Particle().at({2,0,0}).as_type(0).with_mass(1))
-       .with_interaction(NoForce(), to_type(0))
+       .with_interaction(NoInteraction(), to_type(0))
        .with_extent(10,10,10)
        .with_field(UniformField(field_force));
 
@@ -205,13 +205,13 @@ TEST(FieldIntegrationTest, MultipleDifferentFieldsAreAdditive) {
 
     // Use chained API
     Environment env(
-        forces<NoForce>,
+        interactions<NoInteraction>,
         controllers<>,
         fields<UniformField, LocalForceField> // Register both types
     );
     env.with_particle(Particle().at({1,1,1}).as_type(0).with_mass(1).with_id(1))
        .with_particle(Particle().at({9,9,9}).as_type(0).with_mass(1).with_id(2))
-       .with_interaction(NoForce(), to_type(0))
+       .with_interaction(NoInteraction(), to_type(0))
        .with_extent(10,10,10)
        .with_field(UniformField(uniform_force))
        .with_field(LocalForceField(local_force, local_region, 0.0, 99.0));

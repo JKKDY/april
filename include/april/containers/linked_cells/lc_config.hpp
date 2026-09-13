@@ -93,13 +93,13 @@ namespace april::container::internal {
 			return self;
 		}
 
-		[[nodiscard]] double get_width(const double max_force_cutoff) const {
+		[[nodiscard]] double get_width(const double max_interaction_cutoff) const {
 			switch (cell_size_strategy) {
-			case CellSize::Cutoff: return max_force_cutoff;
-			case CellSize::Half:   return max_force_cutoff / 2.0;
-			case CellSize::Third:  return max_force_cutoff / 3.0;
+			case CellSize::Cutoff: return max_interaction_cutoff;
+			case CellSize::Half:   return max_interaction_cutoff / 2.0;
+			case CellSize::Third:  return max_interaction_cutoff / 3.0;
 			case CellSize::ManualAbs: return manual_cell_size.value();
-			case CellSize::ManualFac: return manual_cell_size.value() * max_force_cutoff;
+			case CellSize::ManualFac: return manual_cell_size.value() * max_interaction_cutoff;
 			default: std::unreachable();
 			}
 		}

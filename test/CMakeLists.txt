@@ -49,9 +49,9 @@ add_executable(test_april
         particle/particle_generators_test.cpp
         particle/packed_fields_test.cpp
 
-        forces/interaction_test.cpp
-        forces/forces_test.cpp
-        forces/simd_forces_test.cpp
+        interactions/interaction_table_test.cpp
+        interactions/interactions_test.cpp
+        interactions/simd_interactions_test.cpp
 
         utility/graph_test.cpp
         utility/xml_test.cpp

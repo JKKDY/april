@@ -41,7 +41,7 @@ int main() {
 
 	auto env = Environment(
 		boundaries<ReflectiveBoundary>,
-		forces<LennardJones>,
+		interactions<LennardJones>,
 		controllers<VelocityScalingThermostat>,
 		fields<UniformField>);
 

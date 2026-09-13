@@ -6,7 +6,7 @@
 #include "april/particle/properties.hpp"
 #include "april/particle/record.hpp"
 
-#include "april/interactions/force.hpp"
+#include "april/interactions/interaction.hpp"
 #include "april/interactions/interaction_table.hpp"
 
 #include "april/boundaries/boundary.hpp"
@@ -17,32 +17,32 @@
 #include "april/utility/pack_storage.hpp"
 
 namespace april::core::internal {
-	template<class FPack, class BPack, class CPack, class FFPack, class U>
+	template<class IPack, class BPack, class CPack, class FFPack, class U>
 	   struct EnvironmentTraits;
 
 	// this class holds relevant types derived from template parameter packs
 	// this significantly cleans up dependent type declarations in other classes
 	template<
-		interactions::IsForce... Fs,
+		interaction::IsInteraction... InteractionTs,
 		boundary::IsBoundary... BCs,
 		controller::IsController... Cs,
 		field::IsField... FFs,
 		particle::IsParticleAttributes Attributes>
 	struct EnvironmentTraits<
-		interactions::internal::ForcePack<Fs...>,
+		interaction::internal::InteractionPack<InteractionTs...>,
 		boundary::internal::BoundaryPack<BCs...>,
 		controller::internal::ControllerPack<Cs...>,
 		field::internal::FieldPack<FFs...>,
 		Attributes>
 	{
 		// Core Packs
-		using FPackT  = interactions::internal::ForcePack<Fs...>;
+		using IPack_t  = interaction::internal::InteractionPack<InteractionTs...>;
 		using BPack_t  = boundary::internal::BoundaryPack<BCs...>;
 		using CPack_t  = controller::internal::ControllerPack<Cs...>;
 		using FFPack_t = field::internal::FieldPack<FFs...>;
 
 		// Derived Variants
-		using force_variant_t    = interactions::internal::VariantType_t<Fs...>;
+		using interaction_variant_t = interaction::internal::InteractionVariant_t<InteractionTs...>;
 		using boundary_variant_t = boundary::internal::VariantType_t<BCs...>;
 
 		// Derived Storage Types
@@ -51,7 +51,7 @@ namespace april::core::internal {
 
 		// Table Types
 		using boundary_table_t = boundary::internal::BoundaryTable<boundary_variant_t>;
-		using force_table_t    = interactions::internal::InteractionTable<force_variant_t>;
+		using interaction_table_t = interaction::internal::InteractionTable<interaction_variant_t>;
 
 		// particles
 		using particle_attributes_t = Attributes;
@@ -62,13 +62,13 @@ namespace april::core::internal {
 
 		// Environment Data type
 		using environment_data_t = EnvironmentData<
-			force_variant_t,
+			interaction_variant_t,
 			boundary_variant_t,
 			controller_storage_t,
 			field_storage_t>;
 
 		// Validity check: check for membership in parameter packs
-		template<typename T> static constexpr bool is_valid_force_v = same_as_any<T, Fs...>;
+		template<typename T> static constexpr bool is_valid_interaction_v = same_as_any<T, InteractionTs...>;
 		template<typename T> static constexpr bool is_valid_boundary_v = same_as_any<T, BCs...>;
 		template<typename T> static constexpr bool is_valid_controller_v = same_as_any<T, Cs...>;
 		template<typename T> static constexpr bool is_valid_field_v = same_as_any<T, FFs...>;
@@ -155,7 +155,7 @@ namespace april::core::internal {
 
 
 	template<class T> static constexpr bool is_any_pack_v =
-		interactions::internal::IsForcePack<T> || boundary::internal::IsBoundaryPack<T> ||
+		interaction::internal::IsInteractionPack<T> || boundary::internal::IsBoundaryPack<T> ||
 		controller::internal::IsControllerPack<T> || field::internal::IsFieldPack<T> ||
 		is_particle_data_v<T>;
 

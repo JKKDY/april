@@ -100,7 +100,7 @@ namespace april::boundary {
 			// check for fields requirements
 			static_assert(
 				requires { Derived::fields; },
-				"Force subclass must define 'static constexpr env::Field fields'"
+				"Boundary subclass must define 'static constexpr env::Field fields'"
 			);
 
 			constexpr ParticleField Required = Derived::fields;

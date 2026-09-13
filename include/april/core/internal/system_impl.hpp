@@ -3,7 +3,7 @@
 #include <vector>
 #include "april/boundaries/boundary.hpp"
 #include "april/exec/policy.hpp"
-#include "april/interactions/force.hpp"
+#include "april/interactions/interaction.hpp"
 #include "april/exec/threading/scheduling.hpp"
 
 namespace april {
@@ -39,10 +39,10 @@ namespace april {
 		auto update_forces_batch = [&]<container::batching::IsBatch Batch, container::batching::IsBCP BCP>(
 			const Batch& batch, BCP&& apply_bcp
 		) {
-			static_assert(Batch::arity == 2, "Pair-wise force interactions require a batch with arity 2.");
+			static_assert(Batch::arity == 2, "Pair-wise interactions require a batch with arity 2.");
 
-			auto apply_batch_update = [&]<interactions::IsForce ForceT>(const ForceT& force) APRIL_FORCE_INLINE {
-				constexpr ParticleField M = ForceT::fields | ParticleField::position;
+			auto apply_batch_update = [&]<interaction::IsInteraction InteractionT>(const InteractionT& interaction) APRIL_FORCE_INLINE {
+				constexpr ParticleField M = InteractionT::fields | ParticleField::position;
 
 				auto kernel = [&]<bool is_packed>(auto&& p1, auto&& p2) APRIL_FORCE_INLINE {
 					auto diff = p2.position - p1.position;
@@ -56,12 +56,12 @@ namespace april {
 					}();
 
 					if constexpr (is_packed) {
-						auto outside = r.norm_squared() > force.cutoff2();
+						auto outside = r.norm_squared() > interaction.cutoff2();
 						if (all(outside)) return;
 
-						if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Nonsymmetric) {
-							auto f1 = force(p1, p2, r);
-							auto f2 = force(p2, p1, -r);
+						if constexpr (InteractionT::symmetry == interaction::InteractionSymmetry::Nonsymmetric) {
+							auto f1 = interaction(p1, p2, r);
+							auto f2 = interaction(p2, p1, -r);
 
 							p1.force += pvec3 {
 								select(outside, packed(0), f1.x),
@@ -75,45 +75,45 @@ namespace april {
 								select(outside, packed(0), f2.z)
 							};
 						} else {
-							auto f = force(p1, p2, r);
+							auto f = interaction(p1, p2, r);
 							auto f_masked = pvec3 {
 								select(outside, packed(0), f.x),
 								select(outside, packed(0), f.y),
 								select(outside, packed(0), f.z)
 							};
 
-							if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Antisymmetric) {
+							if constexpr (InteractionT::symmetry == interaction::InteractionSymmetry::Antisymmetric) {
 								p1.force += f_masked;
 								p2.force -= f_masked;
-							} else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Symmetric) {
+							} else if constexpr (InteractionT::symmetry == interaction::InteractionSymmetry::Symmetric) {
 								p1.force += f_masked;
 								p2.force += f_masked;
 							}
 						}
 					} else {
-						if (r.norm_squared() > force.cutoff2()) {
+						if (r.norm_squared() > interaction.cutoff2()) {
 							return;
 						}
 
-						if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Antisymmetric) {
-							vec3 f = force(p1.to_view(), p2.to_view(), r);
+						if constexpr (InteractionT::symmetry == interaction::InteractionSymmetry::Antisymmetric) {
+							vec3 f = interaction(p1.to_view(), p2.to_view(), r);
 							p1.force += f;
 							p2.force -= f;
-						} else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Symmetric) {
-							vec3 f = force(p1.to_view(), p2.to_view(), r);
+						} else if constexpr (InteractionT::symmetry == interaction::InteractionSymmetry::Symmetric) {
+							vec3 f = interaction(p1.to_view(), p2.to_view(), r);
 							p1.force += f;
 							p2.force += f;
-						} else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Nonsymmetric) {
-							p1.force += force(p1.to_view(), p2.to_view(), r);
-							p2.force += force(p2.to_view(), p1.to_view(), -r);
+						} else if constexpr (InteractionT::symmetry == interaction::InteractionSymmetry::Nonsymmetric) {
+							p1.force += interaction(p1.to_view(), p2.to_view(), r);
+							p2.force += interaction(p2.to_view(), p1.to_view(), -r);
 						}
 					}
 				};
 
-				constexpr bool force_scalar =
-					ForceT::vector_mode == exec::ExecutionMode::Scalar ||
+				constexpr bool interaction_scalar =
+					InteractionT::vector_mode == exec::ExecutionMode::Scalar ||
 					vector_policy == VectorPolicy::Scalar;
-				constexpr VectorPolicy vp = force_scalar ? VectorPolicy::Scalar : VectorPolicy::Auto;
+				constexpr VectorPolicy vp = interaction_scalar ? VectorPolicy::Scalar : VectorPolicy::Auto;
 
 				execute_batch_kernel<vp>(
 					batch,
@@ -122,7 +122,7 @@ namespace april {
 			};
 
 			const auto [t1, t2] = batch.types;
-			force_table.dispatch(t1, t2, apply_batch_update);
+			interaction_table.dispatch(t1, t2, apply_batch_update);
 		};
 
 		// handle id-id interactions
@@ -130,24 +130,24 @@ namespace april {
 			using Batch = std::remove_cvref_t<B>;
 			static_assert(Batch::arity == 2, "Pair-wise topology interactions require a batch with arity 2.");
 
-			auto apply_batch_update = [&]<interactions::IsForce ForceT>(const ForceT& force) {
-				constexpr auto Read = ForceT::fields | ParticleField::position;
+			auto apply_batch_update = [&]<interaction::IsInteraction InteractionT>(const InteractionT& interaction) {
+				constexpr auto Read = InteractionT::fields | ParticleField::position;
 				constexpr auto Write = ParticleField::force;
 
 				auto kernel = [&](auto&& p1, auto&& p2) APRIL_FORCE_INLINE {
 					vec3 r = p2.position - p1.position;
 
-					if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Antisymmetric) {
-						vec3 f = force(p1.to_view(), p2.to_view(), r);
+					if constexpr (InteractionT::symmetry == interaction::InteractionSymmetry::Antisymmetric) {
+						vec3 f = interaction(p1.to_view(), p2.to_view(), r);
 						p1.force += f;
 						p2.force -= f;
-					} else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Symmetric) {
-						vec3 f = force(p1.to_view(), p2.to_view(), r);
+					} else if constexpr (InteractionT::symmetry == interaction::InteractionSymmetry::Symmetric) {
+						vec3 f = interaction(p1.to_view(), p2.to_view(), r);
 						p1.force += f;
 						p2.force += f;
-					} else if constexpr (ForceT::symmetry == interactions::ForceSymmetry::Nonsymmetric) {
-						p1.force += force(p1.to_view(), p2.to_view(), r);
-						p2.force += force(p2.to_view(), p1.to_view(), -r);
+					} else if constexpr (InteractionT::symmetry == interaction::InteractionSymmetry::Nonsymmetric) {
+						p1.force += interaction(p1.to_view(), p2.to_view(), r);
+						p2.force += interaction(p2.to_view(), p1.to_view(), -r);
 					}
 				};
 
@@ -156,7 +156,7 @@ namespace april {
 				);
 			};
 
-			force_table.dispatch_id(
+			interaction_table.dispatch_id(
 				batch.representatives[0],
 				batch.representatives[1],
 				apply_batch_update

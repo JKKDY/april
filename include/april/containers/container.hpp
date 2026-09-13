@@ -44,7 +44,7 @@ namespace april::container {
 		ContainerConfig config;
 		ContainerFlags flags {};
 		ContainerHints hints {};
-		interactions::internal::InteractionMap interaction_map {};
+		interaction::internal::InteractionMap interaction_map {};
 		core::Box domain {};
 	};
 
@@ -340,7 +340,7 @@ namespace april::container {
 		const Config config;
 		const ContainerFlags flags;
 		const ContainerHints hints;
-		const interactions::internal::InteractionMap interaction_map;
+		const interaction::internal::InteractionMap interaction_map;
 		const core::Box domain; // Note: in the future this may be adjustable during run time
 		exec::ThreadExecutorRef<ThreadExecutor> thread_executor;
 

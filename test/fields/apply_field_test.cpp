@@ -207,14 +207,14 @@ TEST(FieldIntegrationTest, MultipleDifferentFieldsAreAdditive) {
     Environment env(
         interactions<NoInteraction>,
         controllers<>,
-        fields<UniformField, LocalForceField> // Register both types
+        fields<UniformField, LocalField> // Register both types
     );
     env.with_particle(Particle().at({1,1,1}).as_type(0).with_mass(1).with_id(1))
        .with_particle(Particle().at({9,9,9}).as_type(0).with_mass(1).with_id(2))
        .with_interaction(NoInteraction(), to_type(0))
        .with_extent(10,10,10)
        .with_field(UniformField(uniform_force))
-       .with_field(LocalForceField(local_force, local_region, 0.0, 99.0));
+       .with_field(LocalField(local_force, local_region, 0.0, 99.0));
 
     BuildInfo info;
     auto system = build_system(env, DirectSum(), &info);

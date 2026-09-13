@@ -19,7 +19,7 @@ TEST(LocalFieldTest, SpatialCheck) {
     Environment env(
         interactions<NoInteraction>,
         controllers<>,
-        fields<LocalForceField>
+        fields<LocalField>
     );
     
     // p1 is inside the region
@@ -30,7 +30,7 @@ TEST(LocalFieldTest, SpatialCheck) {
     env.with_interaction(NoInteraction(), to_type(0))
        .with_extent(20, 20, 20)
        // Add the field, active from t=0.0 to t=10.0
-       .with_field(LocalForceField(field_force, local_region, 0.0, 10.0));
+       .with_field(LocalField(field_force, local_region, 0.0, 10.0));
 
     BuildInfo info;
     auto system = build_system(env, DirectSum(), &info);
@@ -66,7 +66,7 @@ TEST(LocalFieldTest, TimeCheck) {
     Environment env(
         interactions<NoInteraction>,
         controllers<>,
-        fields<LocalForceField>
+        fields<LocalField>
     );
     
     // Particle is always inside the region
@@ -75,7 +75,7 @@ TEST(LocalFieldTest, TimeCheck) {
     env.with_interaction(NoInteraction(), to_type(0))
        .with_extent(20, 20, 20)
        // Field is active ONLY between t=0.025 and t=0.045
-       .with_field(LocalForceField(field_force, local_region, 0.025, 0.045));
+       .with_field(LocalField(field_force, local_region, 0.025, 0.045));
 
     auto system = build_system(env, DirectSum());
     auto integrator = VelocityVerlet(system).with_dt(0.01);

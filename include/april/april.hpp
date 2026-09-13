@@ -40,17 +40,19 @@
 #include "april/monitors/binary_output.hpp"
 #include "april/monitors/progressbar.hpp"
 #include "april/monitors/benchmark.hpp"
+#include "april/monitors/xyz_output.hpp"
+#include "april/monitors/vtp_output.hpp"
 
 // common math functions
 #include "april/math/math.hpp"
 
 /**
  * Available in the april:: namespace:
- * Boundaries:   Absorb, Open, Periodic, Reflective, Repulsive
+ * Boundaries:   AbsorbingBoundary, OpenBoundary, PeriodicBoundary, ReflectiveBoundary, RepulsiveBoundary
  * Interactions: LennardJones, Gravity, Harmonic, Coulomb, NoInteraction
  * Containers:   LinkedCells, DirectSum, Layout::[AoS, SoA, AoSoA]
  * Integrators:  VelocityVerlet, Yoshida4
- * Monitors:     TerminalOutput, BinaryOutput, ProgressBar, Benchmark
+ * Monitors:     TerminalOutput, BinaryOutput, ProgressBar, Benchmark, XYZOutput, VTPOutput
  */
 
 

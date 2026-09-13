@@ -18,8 +18,7 @@ namespace april::container::layout {
         using Particle = Base::ParticleRecord;
 
         explicit AoS(const ContainerConfig& config) :
-            Base(config) {
-        }
+            Base(config), num_particles(0) {}
 
         void bind_executor(Base::ThreadExecutor* raw_executor_ptr) {
             thread_executor.bind(raw_executor_ptr);

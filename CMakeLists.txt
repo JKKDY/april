@@ -258,6 +258,15 @@ target_compile_options(April_dev_configs INTERFACE
         -fomit-frame-pointer
         -finline-functions
         -fno-plt
+
+        # Optimization diagnostics
+        $<$<CXX_COMPILER_ID:GNU>:-fopt-info-inline-optimized-missed>
+        $<$<CXX_COMPILER_ID:GNU>:-fopt-info-vec-optimized-missed>
+
+        $<$<CXX_COMPILER_ID:Clang>:-Rpass=inline>
+        $<$<CXX_COMPILER_ID:Clang>:-Rpass-missed=inline>
+        $<$<CXX_COMPILER_ID:Clang>:-Rpass=loop-vectorize>
+        $<$<CXX_COMPILER_ID:Clang>:-Rpass-missed=loop-vectorize>
         >
 )
 

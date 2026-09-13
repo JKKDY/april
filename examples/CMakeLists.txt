@@ -9,6 +9,9 @@ function(add_example target_name source_file folder_name)
     target_link_libraries(${target_name} PRIVATE April April_dev_configs)
 endfunction()
 
+
+add_example(minimal_example minimal_example.cpp minimal_example)
+add_example(many_particle_example many_particle_example.cpp many_particle_example)
 add_example(halleys_comet halleys_comet.cpp halleys_comet)
 add_example(two_body_collision two_body_collision.cpp two_body_collision)
 add_example(falling_water_drop falling_water_drop.cpp falling_water_drop)
